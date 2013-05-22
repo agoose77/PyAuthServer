@@ -1,5 +1,4 @@
 from struct import Struct
-from mathutils import Vector
 
 class IStruct(Struct):
     def size(self, bytes_=None):

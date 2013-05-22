@@ -12,12 +12,10 @@ class Replicable(metaclass=TypeRegister):
     Holds record of instantiated replicables and replicable types
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
-    _instances = {}
-    _types = {}
     _by_types = defaultdict(list)
     _subscribers = []
-    
-    owner = None
+    _instances = {}
+    _types = {}
     
     def __init__(self, network_id=None):
         # Create a flag that is set when attributes change (if permitted)
