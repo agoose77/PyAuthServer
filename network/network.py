@@ -631,11 +631,11 @@ class ClientConnection(Connection):
         # We run this after replication to ensure relationships are valid
         if not created:
             return
-        
         # For any created replicables, switch roles
         # Only owned replicables may be autonomous
         for replicable in created:
             replicable.local_role, replicable.remote_role = replicable.remote_role, replicable.local_role
+            print(replicable, self.is_owner(replicable))
             if replicable.local_role == Roles.autonomous_proxy and not self.is_owner(replicable):
                 replicable.local_role = Roles.simulated_proxy
         
@@ -693,11 +693,10 @@ class ServerConnection(Connection):
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.rules.is_relevant
 
-        i=r=0
         for replicable in WorldInfo.actors:
-            i+=1;r+=1
             # Determine if we own this replicable
             is_owner = self.is_owner(replicable)
+            
             # Get network ID
             network_id = replicable.network_id
             packed_id = UInt8.pack(network_id)
@@ -713,7 +712,7 @@ class ServerConnection(Connection):
                 yield Packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
                 # Don't process rest              
                 continue
-            
+
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
@@ -730,13 +729,11 @@ class ServerConnection(Connection):
              
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
-                
                 # If they have changed                    
                 if attributes:
                     yield Packet(protocol=Protocols.replication_update, 
                             payload=packed_id + attributes, reliable=True)
-                          
-        
+                                 
     def receive(self, packets):
         '''Server connection receive method
         Receive data using initialised context

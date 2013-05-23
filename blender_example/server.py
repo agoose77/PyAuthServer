@@ -35,14 +35,13 @@ class TeamDeathMatch(BaseRules):
             # Establish relationship
             controller.possess(actor) 
         
-        return controller
+            return controller
         
     def on_disconnect(cls, replicable):
         return
     
     @classmethod
     def is_relevant(cls, conn, replicable):
-        return True
         # If no network role
         if replicable.remote_role is Roles.none:
             return False

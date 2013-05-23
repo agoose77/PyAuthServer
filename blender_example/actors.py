@@ -15,7 +15,6 @@ from enums import Physics, Animations
 from attributes import PhysicsData, AnimationData
 from network import BaseController, Replicable, Attribute, simulated, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo
 
-
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables'''
     def __new__(cls, *args, **kwargs):
@@ -31,7 +30,6 @@ class GameObject(types.KX_GameObject):
     def __repr__(self):
         '''Cleaner printing of object'''
         return object.__repr__(self)
-
 
 class PlayerController(BaseController):
             
@@ -96,6 +94,8 @@ class PlayerController(BaseController):
         self.replicate_move(self.elapsed)    
     
     def player_update(self, delta):
+        super().player_update(delta)
+        
         if logic.keyboard.active_events.get(events.AKEY):
             self.pawn.server_play_animation("jump", 30, mode=logic.KX_ACTIONACT_PLAY)
         #self.player_move()
@@ -139,7 +139,6 @@ class Actor(GameObject, Replicable):
     
     def conditions(self, is_owner, is_complaint, is_initial):
         '''Generator dictates which attributes must be replicated'''
-        yield from super().conditions(is_owner, is_complaint, is_initial)
 
         if is_initial:
             yield "owner"    

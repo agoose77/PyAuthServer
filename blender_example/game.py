@@ -18,7 +18,7 @@ def random_spawn(n):
 class InputSystem(System):
     
     def pre_update(self, delta_time):
-        
+        return
         for replicable in WorldInfo.actors:
             if hasattr(replicable, "player_input") and isinstance(replicable, BaseController):
                 replicable.player_input = True
@@ -63,7 +63,7 @@ class PhysicsSystem(System):
                     replicable.worldPosition = physics.position
                     physics.timestamp=1.0
                     replicable.worldLinearVelocity = physics.velocity
-                    print("init")
+
                 
                 # Update physics with replicable position, velocity and timestamp    
                 physics.position = replicable.worldPosition

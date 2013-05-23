@@ -65,7 +65,10 @@ class Replicable(metaclass=TypeRegister):
         
     def update(self, elapsed):
         pass
-
+    
+    def __description__(self):
+        return hash(self.network_id)
+    
 class BaseWorldInfo(Replicable):
     '''Holds info about game'''
     netmode = None
@@ -138,6 +141,7 @@ class BaseController(Replicable):
             self.player_input = self.input_class(self)
             
     def player_update(self, elapsed):
+        print("UPD")
         pass
     
     def update(self, delta):
