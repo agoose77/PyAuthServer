@@ -156,8 +156,16 @@ class PhysicsSystem(System):
                 
                 difference = new_data.position - current_position
                 
-                if difference.length > 0.5:                
-                    replicable.worldPosition = new_data.position  
+                offset = new_data.velocity.length * delta_time
+                
+                threshold = 0.4
+                
+                if difference.length < threshold:                
+                    replicable.worldLinearVelocity = new_data.velocity + difference    
+                    
+                elif difference.length > threshold:
+                    replicable.worldPosition = new_data.position   
+                    replicable.worldLinearVelocity = new_data.velocity
                     
                 replicable.worldLinearVelocity = new_data.velocity + difference       
             

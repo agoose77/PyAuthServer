@@ -22,8 +22,8 @@ class Replicable(metaclass=TypeRegister):
         # Create a flag that is set when attributes change (if permitted)
         self._data = {}
         self._calls = deque()
-        self._complain = {}        
-        self._local = network_id is not None
+        self._complain = {}      
+        self._local = False  
         
         # Invoke descriptors to register values
         for name, value in getmembers(self):
@@ -35,17 +35,7 @@ class Replicable(metaclass=TypeRegister):
         # If we should update register immediately
         if register:
             self._update_graph()
-    
-    @classmethod
-    def _create_or_return(cls, base_cls, network_id, register=False):
-        all_actors = cls._instances.copy(); all_actors.update(cls._unregistered)
-        existing = all_actors.get(network_id)
-                    
-        if existing is None or existing._local:
-            return base_cls(network_id, register)
-        
-        return existing        
-        
+            
     @classmethod
     def _update_graph(cls):
         for replicable in cls._unregistered.values():
@@ -66,21 +56,34 @@ class Replicable(metaclass=TypeRegister):
     def registered(self):
         return self.network_id in self._instances
     
-    def _request_registration(self, network_id, verbose=1):
+    @classmethod
+    def _create_or_return(cls, base_cls, network_id, register=False):
+        all_actors = cls._instances.copy(); all_actors.update(cls._unregistered)
+        existing = all_actors.get(network_id)
+            
+        if existing is None or existing._local:
+            return base_cls(network_id, register)
+        
+        return existing
+    
+    def _request_registration(self, network_id, verbose=False):
         # This is static or replicated 
         if network_id is None: 
             network_id = self._random_id
+            self._local = True
             
         # Therefore we will have authority to change things
-        elif network_id in self._all_actors:
+        if network_id in self._all_actors:
             storage = self._instances if network_id in self._instances else self._unregistered
             
             replicable = storage.pop(network_id)
-            assert replicable._local == False, "Authority over network id {} is unresolveable".format(network_id)
+            
+            assert replicable._local, "Authority over network id {} is unresolveable".format(network_id)
+            
             self._unregistered[network_id] = self
             
             if verbose:
-                print("{} has authority over this network id: {}".format(self, network_id))
+                print("Transferring authority of id {} from {} to {}".format(network_id, replicable, self))
                 
             replicable._request_registration(None)
         

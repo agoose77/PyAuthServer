@@ -555,7 +555,7 @@ class ClientConnection(Connection):
                 
             # Static actors still need role switching
             created_replicables.append(replicable)
-            
+
             # If replicable is Controller
             if isinstance(replicable, Controller):
                 # Register as own replicable

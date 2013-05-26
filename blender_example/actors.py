@@ -240,7 +240,6 @@ class Chat(Actor):
         
         message['Text'] = message_text 
         
-    @simulated
     def update(self, delta_time):
         controller = next(WorldInfo.subclass_of(PlayerController))
-        self.worldPosition = controller.pawn.worldPosition.copy()
+        self.worldPosition = controller.pawn.worldPosition
