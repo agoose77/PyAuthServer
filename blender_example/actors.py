@@ -149,7 +149,7 @@ class PlayerController(Controller):
         super().player_update(delta)
         
         inputs = self.player_input
-
+        
         if inputs.chat.pressed:
             self.send_message("Hello world") 
             
@@ -212,7 +212,7 @@ class Chat(Actor):
     mesh_name = "Chat"
     
     local_role = Roles.authority
-    remote_role = Roles.none
+    remote_role = Roles.simulated_proxy
     
     physics = Attribute(PhysicsData(Physics.none), complain=False)
     
@@ -239,7 +239,8 @@ class Chat(Actor):
             last_message = message
         
         message['Text'] = message_text 
-    
+        
+    @simulated
     def update(self, delta_time):
         controller = next(WorldInfo.subclass_of(PlayerController))
         self.worldPosition = controller.pawn.worldPosition.copy()

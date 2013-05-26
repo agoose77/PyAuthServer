@@ -549,14 +549,9 @@ class ClientConnection(Connection):
             network_id = UInt8.unpack_from(packet.payload)
             type_name = String.unpack_from(packet.payload[1:])
             
-            # If the replicable doesnt exist
-            if not network_id in Replicable._instances:
-                # Create replicable of same type           
-                replicable_cls = Replicable._types[type_name]
-                replicable = replicable_cls(network_id, register=True)
-            # If it does (usually static replicables)
-            else:
-                replicable = Replicable._instances[network_id]
+            # Create replicable of same type           
+            replicable_cls = Replicable._types[type_name]
+            replicable = Replicable._create_or_return(replicable_cls, network_id, register=True)
                 
             # Static actors still need role switching
             created_replicables.append(replicable)

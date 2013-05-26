@@ -156,7 +156,7 @@ class PhysicsSystem(System):
                 
                 difference = new_data.position - current_position
                 
-                if difference.length > 0.4:                
+                if difference.length > 0.5:                
                     replicable.worldPosition = new_data.position  
                     
                 replicable.worldLinearVelocity = new_data.velocity + difference       
@@ -195,11 +195,14 @@ class Game(GameLoop):
         active_events = getattr(logic.keyboard, 'active_events')
         return key in active_events  
     
+    def quit(self):
+        self.stop()
+        raise QuitGame
+    
     def update(self):
         
         if self.is_quit:
-            self.stop()
-            raise QuitGame
+            self.quit()
                 
         # Update network
         super().update()
