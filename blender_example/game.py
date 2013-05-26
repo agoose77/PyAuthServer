@@ -134,6 +134,10 @@ class PhysicsSystem(System):
                     replicable.worldPosition = physics.position
                     replicable.worldLinearVelocity = physics.velocity
                     jitter_buffer.populate(physics)
+                else:
+                    physics.position = replicable.worldPosition
+                    physics.velocity = replicable.worldLinearVelocity
+                    physics.timestamp = WorldInfo.elapsed
             
             # Or run simulation before actors update on client
             elif replicable.local_role == role_simulated:
@@ -185,8 +189,8 @@ class PhysicsSystem(System):
 
             if replicable.local_role == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    
-                physics.position = replicable.worldPosition
-                physics.velocity = replicable.worldLinearVelocity
+                replicable.worldPosition = physics.position
+                replicable.worldLinearVelocity = physics.velocity
                 physics.timestamp = WorldInfo.elapsed
             
 class Game(GameLoop):

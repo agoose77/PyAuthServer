@@ -62,7 +62,7 @@ class InputManager:
             return super().__getattribute__(name)
 
 class PlayerInputs(InputManager):
-    mappings = {"chat": events.CKEY, "jump": events.JKEY}
+    mappings = {"forward": events.WKEY, "jump": events.SPACEKEY, "back": events.SKEY, "left": events.AKEY, "right": events.DKEY}
 
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
@@ -130,7 +130,7 @@ class PlayerController(Controller):
     def receive_message(self, name: StaticValue(str), message: StaticValue(str)) -> Netmodes.client:
         print("Message received from {}: {}".format(name, message))
         self.chat.display_message(name + ":" + message + ":" + str(WorldInfo.elapsed))
-        
+    
     @property
     def elapsed(self):
         '''Elapsed time since creation
@@ -149,13 +149,13 @@ class PlayerController(Controller):
         super().player_update(delta)
         
         inputs = self.player_input
-        
-        if inputs.chat.pressed:
-            self.send_message("Hello world") 
             
         if inputs.jump.pressed:
             self.pawn.server_play_animation("jump", 30, mode=logic.KX_ACTIONACT_PLAY) 
-                 
+        
+        if inputs.forward.pressed:
+            self.suicide()
+        
 class Actor(GameObject, Replicable):
     ''''A basic actor class 
     Inherits from GameObject to display mesh and collide'''  
@@ -212,13 +212,9 @@ class Chat(Actor):
     mesh_name = "Chat"
     
     local_role = Roles.authority
-    remote_role = Roles.simulated_proxy
+    remote_role = Roles.none
     
     physics = Attribute(PhysicsData(Physics.none), complain=False)
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.clear_messages()
     
     @property
     def message_list(self):
@@ -233,13 +229,14 @@ class Chat(Actor):
         
         for message in self.message_list:
             try:
-                last_message['Text'] = message['Text']
+                last_message['Text'] = message.get('Text', "")
             except TypeError:
                 pass
             last_message = message
         
         message['Text'] = message_text 
-        
+    
     def update(self, delta_time):
         controller = next(WorldInfo.subclass_of(PlayerController))
+        
         self.worldPosition = controller.pawn.worldPosition

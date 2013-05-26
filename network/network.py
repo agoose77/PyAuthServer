@@ -10,6 +10,7 @@ from bitarray import bitarray, bits2bytes
 from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error
 from collections import deque, defaultdict, OrderedDict
 from inspect import getmembers, signature
+from weakref import proxy as weak_proxy
 from itertools import repeat, chain
 from copy import deepcopy, copy
 from random import choice
@@ -360,17 +361,22 @@ class Channel:
         # Store important info
         self.replicable = replicable
         self.connection = connection
+        
         # Set initial replication to True
         self.is_initial = True     
-        self.is_dead = False
+
         # Get network attributes
         self.attributes = {a: b for a, b in getmembers(replicable.__class__) if isinstance(b, Attribute)}
+        
         # Sort by name (must be the same on both client and server
         self.sorted_attributes = OrderedDict((key, self.attributes[key]) for key in sorted(self.attributes))
+        
         # Create a serialiser instance
         self.serialiser = Serialiser(self.sorted_attributes)
+        
         # Store dictionary of complaining values
         self._complain = copy(replicable._complain)
+        
         # Store dictionary of ids for each attribute value
         self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
     
@@ -628,7 +634,9 @@ class ServerConnection(Connection):
     
     def __init__(self, *args, **kwargs):  
         super().__init__(*args, **kwargs)
-    
+        
+        self.dead_channels = set()
+        
     def on_delete(self):
         '''Delete callback
         Called on delete of connection'''
@@ -649,10 +657,15 @@ class ServerConnection(Connection):
     def notify_destroyed_replicable(self, replicable):
         '''Called when replicable dies
         @param replicable: replicable that died'''
-        if replicable.network_id in self.channels:
-            self.channels[replicable.network_id].is_dead = True
+        channel = self.channels.get(replicable.network_id)
+        
+        if channel is None:
+            return
+        
+        self.dead_channels.add(channel)
             
     def get_method_replication(self):
+        
         for replicable in Replicable._instances.values():
             # Determine if we own this replicable
             is_owner = self.is_owner(replicable)
@@ -663,10 +676,6 @@ class ServerConnection(Connection):
             
             # Get attribute channel
             channel = self.channels[network_id]
-            
-            # if the channel is dead
-            if channel.is_dead:
-                continue
             
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -688,15 +697,6 @@ class ServerConnection(Connection):
             
             # Get attribute channel
             channel = self.channels[network_id]
-            
-            # if the channel is dead
-            if channel.is_dead:
-                # Remove it
-                self.channels.pop(network_id)
-                # Send delete packet    
-                yield Packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
-                # Don't process rest              
-                continue
 
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -718,7 +718,21 @@ class ServerConnection(Connection):
                 if attributes:
                     yield Packet(protocol=Protocols.replication_update, 
                             payload=packed_id + attributes, reliable=True)
-                                 
+    
+        # If any actors deleted
+        if self.dead_channels:
+            
+            for channel in self.dead_channels:
+                replicable = channel.replicable
+                network_id = replicable.network_id
+                packed_id = UInt8.pack(network_id)
+                # Remove it
+                self.channels.pop(network_id)
+                # Send delete packet 
+                yield Packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
+                # Don't process rest              
+            self.dead_channels.clear()
+           
     def receive(self, packets):
         '''Server connection receive method
         Receive data using initialised context
@@ -750,7 +764,7 @@ class ServerConnection(Connection):
             yield from self.get_full_replication()
         else:
             yield from self.get_method_replication()
-
+        
 class ConnectionInterface:
     
     _instances = {}
@@ -1175,6 +1189,7 @@ class GameLoop(socket):
             for system in System._instances:
                 if system.active:
                     system.pre_update(delta_time)
+                    Replicable._update_graph()
             
             for actor in WorldInfo.actors:
                 if (actor.local_role > Roles.simulated_proxy) or (actor.local_role == Roles.simulated_proxy and is_simulated(actor.update)):
@@ -1182,11 +1197,133 @@ class GameLoop(socket):
     
                 if hasattr(actor, "player_input") and isinstance(actor, Controller):
                     actor.player_update(delta_time)
+            
+            Replicable._update_graph()
                 
             for system in System._instances:
                 if system.active:
                     system.post_update(delta_time)
+                    Replicable._update_graph()
             
         self.send()
+
+class LazyReplicableProxy:
+    """Lazy loading proxy to Replicable references
+    Used to send references over the network"""
+    __slots__ = ["obj", "target", "__weakref__"]
+    
+    def __init__(self, target):
+        object.__setattr__(self, "target", target)
         
+    @property
+    def _obj(self):
+        '''Returns the reference when valid, or None when invalid'''
+        try:
+            return object.__getattribute__(self, "obj")
+        except AttributeError:
+            network_id = object.__getattribute__(self, "target")
+            try:
+                replicable_instance = WorldInfo.get_actor(network_id)
+            except KeyError:
+                return
+            else:
+                child = weak_proxy(replicable_instance)
+                object.__setattr__(self, "obj", child)
+                return child
+        
+    def __getattribute__(self, name):
+        return getattr(object.__getattribute__(self, "_obj"), name)
+    
+    def __delattr__(self, name):
+        delattr(object.__getattribute__(self, "_obj"), name)
+        
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "_obj"), name, value)
+        
+    def __nonzero__(self):
+        return bool(object.__getattribute__(self, "_obj"))
+    
+    def __str__(self):
+        return str(object.__getattribute__(self, "_obj"))
+    
+    def __repr__(self):
+        return repr(object.__getattribute__(self, "_obj"))
+    
+    
+    _special_names = [
+        '__abs__', '__add__', '__and__', '__call__', '__cmp__', '__coerce__', 
+        '__contains__', '__delitem__', '__delslice__', '__div__', '__divmod__', 
+        '__eq__', '__float__', '__floordiv__', '__ge__', '__getitem__', 
+        '__getslice__', '__gt__', '__hash__', '__hex__', '__iadd__', '__iand__',
+        '__idiv__', '__idivmod__', '__ifloordiv__', '__ilshift__', '__imod__', 
+        '__imul__', '__int__', '__invert__', '__ior__', '__ipow__', '__irshift__', 
+        '__isub__', '__iter__', '__itruediv__', '__ixor__', '__le__', '__len__', 
+        '__long__', '__lshift__', '__lt__', '__mod__', '__mul__', '__ne__', 
+        '__neg__', '__oct__', '__or__', '__pos__', '__pow__', '__radd__', 
+        '__rand__', '__rdiv__', '__rdivmod__', '__reduce__', '__reduce_ex__', 
+        '__repr__', '__reversed__', '__rfloorfiv__', '__rlshift__', '__rmod__', 
+        '__rmul__', '__ror__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__', 
+        '__rtruediv__', '__rxor__', '__setitem__', '__setslice__', '__sub__', 
+        '__truediv__', '__xor__', 'next',
+    ]
+    
+    @classmethod
+    def _create_class_proxy(cls, theclass):
+        """creates a proxy for the given class"""
+        
+        def make_method(name):
+            def method(self, *args, **kw):
+                return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
+            return method
+        
+        namespace = {}
+        for name in cls._special_names:
+            if hasattr(theclass, name):
+                namespace[name] = make_method(name)
+        return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
+    
+    def __new__(cls, obj, *args, **kwargs):
+        """
+        creates an proxy instance referencing `obj`. (obj, *args, **kwargs) are
+        passed to this class' __init__, so deriving classes can define an 
+        __init__ method of their own.
+        note: _class_proxy_cache is unique per deriving class (each deriving
+        class must hold its own cache)
+        """
+        try:
+            cache = cls.__dict__["_class_proxy_cache"]
+        except KeyError:
+            cls._class_proxy_cache = cache = {}#keyeddefaultdict(cls._create_class_proxy)
+        
+        try:
+            theclass = cache[obj.__class__]
+        except KeyError:
+            theclass = cache[obj.__class__] = cls._create_class_proxy(obj.__class__)
+        ins = object.__new__(theclass)
+        theclass.__init__(ins, obj, *args, **kwargs)
+        return ins
+    
+class ReplicableProxyHandler:
+    """Handler for packing replicable proxy
+    Packs replicable references and unpacks to proxy OR reference"""
+    
+    @classmethod
+    def pack(cls, replicable):
+        return UInt8.pack(replicable.network_id)
+    
+    @classmethod
+    def unpack(cls, bytes_):
+        network_id = UInt8.unpack_from(bytes_)
+        try:
+            replicable = WorldInfo.get_actor(network_id)
+        except KeyError:
+            return LazyReplicableProxy(network_id)
+        else:
+            return weak_proxy(replicable)
+    
+    unpack_from = unpack    
+    size = UInt8.size
+        
+register_handler(Replicable, ReplicableProxyHandler)
+
 WorldInfo = BaseWorldInfo(255, register=True)

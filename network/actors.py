@@ -12,17 +12,18 @@ class Replicable(metaclass=TypeRegister):
     Holds record of instantiated replicables and replicable types
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
-    _by_types = defaultdict(list)
-    _subscribers = []
-    _instances = {}
     _types = {}
-    _unregistered = {}
+    _instances = {}
+    _to_register = {}
+    _to_unregister = set()
+    _by_types = defaultdict(list)
     
     def __init__(self, network_id=None, register=False):
         # Create a flag that is set when attributes change (if permitted)
         self._data = {}
         self._calls = deque()
-        self._complain = {}      
+        self._complain = {}    
+        self._subscribers = []  
         self._local = False  
         
         # Invoke descriptors to register values
@@ -38,14 +39,18 @@ class Replicable(metaclass=TypeRegister):
             
     @classmethod
     def _update_graph(cls):
-        for replicable in cls._unregistered.values():
+        for replicable in cls._to_register.values():
             replicable._register_to_graph()
             
-        cls._unregistered.clear()
+        for replicable in cls._to_unregister:
+            replicable._unregister_from_graph()
+            
+        cls._to_register.clear()
+        cls._to_unregister.clear()
     
     @property
     def _all_actors(self):
-        data = self._instances.copy(); data.update(self._unregistered)
+        data = self._instances.copy(); data.update(self._to_register)
         return data
     
     @property
@@ -58,7 +63,7 @@ class Replicable(metaclass=TypeRegister):
     
     @classmethod
     def _create_or_return(cls, base_cls, network_id, register=False):
-        all_actors = cls._instances.copy(); all_actors.update(cls._unregistered)
+        all_actors = cls._instances.copy(); all_actors.update(cls._to_register)
         existing = all_actors.get(network_id)
             
         if existing is None or existing._local:
@@ -74,13 +79,13 @@ class Replicable(metaclass=TypeRegister):
             
         # Therefore we will have authority to change things
         if network_id in self._all_actors:
-            storage = self._instances if network_id in self._instances else self._unregistered
+            storage = self._instances if network_id in self._instances else self._to_register
             
             replicable = storage.pop(network_id)
             
             assert replicable._local, "Authority over network id {} is unresolveable".format(network_id)
             
-            self._unregistered[network_id] = self
+            self._to_register[network_id] = self
             
             if verbose:
                 print("Transferring authority of id {} from {} to {}".format(network_id, replicable, self))
@@ -92,12 +97,16 @@ class Replicable(metaclass=TypeRegister):
             
         # Avoid iteration errors
         self.network_id = network_id
-        self._unregistered[network_id] = self
+        self._to_register[network_id] = self
     
     def _register_to_graph(self):
         # Enable access by network id or type
         self._instances[self.network_id] = self
         self._by_types[type(self)].append(self)
+        
+    def _unregister_from_graph(self):
+        self._instances.pop(self.network_id)
+        self._by_types[type(self)].remove(self)
     
     def possessed_by(self, other):
         self.owner = other
@@ -112,9 +121,7 @@ class Replicable(metaclass=TypeRegister):
         self._subscribers.remove(subscriber)
         
     def on_delete(self):
-        self._instances.pop(self.network_id)
-        self._by_types[type(self)].remove(self)
-        
+        self._to_unregister.add(self)
         for subscriber in self._subscribers:
             subscriber(self)
     
@@ -191,6 +198,7 @@ class Controller(Replicable):
     
     def on_delete(self):
         super().on_delete()
+        
         self.pawn.on_delete()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
