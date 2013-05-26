@@ -16,26 +16,70 @@ class Replicable(metaclass=TypeRegister):
     _subscribers = []
     _instances = {}
     _types = {}
+    _unregistered = {}
     
-    def __init__(self, network_id=None):
+    def __init__(self, network_id=None, register=False):
         # Create a flag that is set when attributes change (if permitted)
         self._data = {}
         self._calls = deque()
         self._complain = {}
-
+        self._local = network_id is not None
+        
         # Invoke descriptors to register values
         for name, value in getmembers(self):
             getattr(self, name)
         
         # Store id of replicable
-        if network_id is None:
-            network_id = choice([i for i in range(len(self._instances) + 1) if not i in self._instances])
+        self._request_registration(network_id)
         
-        # Enable access by network id or type
-        self._instances[network_id] = self
-        self._by_types[type(self)].append(self)
+        # If we should update register immediately
+        if register:
+            self._update_graph()
+    
+    @classmethod
+    def _update_graph(cls):
+        for replicable in cls._unregistered.values():
+            replicable._register_to_graph()
+            
+        cls._unregistered.clear()
+    
+    @property
+    def _network_ids(self):
+        return list(self._instances) + list(self._unregistered)
+    
+    @property
+    def _random_id(self):
+        return choice([i for i in range(len(self._network_ids) + 1) if not i in self._network_ids])
+    
+    @property
+    def registered(self):
+        return self.network_id in self._instances
+    
+    def _request_registration(self, network_id, verbose=False):
+        if network_id is None: 
+            network_id = self._random_id
+
+        elif network_id in self._network_ids:
+            storage = self._instances if network_id in self._instances else self._unregistered
+            replicable = storage.pop(network_id)
+            self._unregistered[network_id] = self
+            
+            if verbose:
+                print("{} has authority over this network id: {}".format(self, network_id))
+                
+            replicable._request_registration(None)
         
+        if verbose:
+            print("Create {} with id {}".format(self.__class__.__name__, network_id))
+            
+        # Avoid iteration errors
         self.network_id = network_id
+        self._unregistered[network_id] = self
+    
+    def _register_to_graph(self):
+        # Enable access by network id or type
+        self._instances[self.network_id] = self
+        self._by_types[type(self)].append(self)
     
     def possessed_by(self, other):
         self.owner = other
@@ -83,10 +127,13 @@ class BaseWorldInfo(Replicable):
     def actors(self):
         return Replicable._instances.values()
     
-    def typed_actors(self, actor_type):
+    def type_is(self, actor_type):
         '''Returns all actors in scene
         @param actor_type: type filter (class)'''
         return Replicable._by_types[actor_type]
+    
+    def subclass_of(self, actor_type):
+        return (a for a in Replicable._instances.values() if isinstance(a, actor_type))
     
     def get_actor(self, actor_id):
         '''Returns actor with given id
@@ -101,7 +148,7 @@ class BaseWorldInfo(Replicable):
     def update(self, delta):
         self.elapsed += delta
                 
-class BaseController(Replicable):
+class Controller(Replicable):
     local_role = Roles.authority
     remote_role = Roles.autonomous_proxy
     
@@ -141,7 +188,6 @@ class BaseController(Replicable):
             self.player_input = self.input_class(self)
             
     def player_update(self, elapsed):
-        print("UPD")
         pass
     
     def update(self, delta):

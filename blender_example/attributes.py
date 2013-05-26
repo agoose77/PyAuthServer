@@ -142,6 +142,10 @@ class PhysicsData:
         self.position = Vector() if position is None else position
         self.velocity = Vector() if velocity is None else velocity
     
+    @property
+    def moving(self):
+        return bool(self.velocity.length)
+    
     def __description__(self):
         return hash(tuple(chain(self.position, self.velocity, (self.mode,))))
     
@@ -207,16 +211,6 @@ class PhysicsHandler:
     def pack(cls, phys):
         data = UInt8.pack(phys.mode), Float8.pack(phys.timestamp), Vector8.pack(phys.position), Vector8.pack(phys.velocity)
         return b''.join(data)
-    
-    @classmethod
-    def unpack_merge(cls, phys, bytes_):
-        phys.mode = bytes_[0]
-        bytes_ = bytes_[1:]
-        phys.timestamp = Float8.unpack_from(bytes_)
-        bytes_ = bytes_[Float8.size():]
-        Vector8.unpack_merge(phys.position, bytes_)
-        bytes_ = bytes_[Vector8.size():]
-        Vector8.unpack_merge(phys.velocity, bytes_)
         
     @classmethod
     def unpack(cls, bytes_):

@@ -2,7 +2,7 @@ from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
 from .modifiers import reliable, simulated, is_reliable, is_simulated
 from .bases import TypeRegister, StaticValue, Attribute
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
-from .actors import BaseWorldInfo, BaseController, Replicable
+from .actors import BaseWorldInfo, Controller, Replicable
 from .handler_interfaces import static_description, register_handler, get_handler, smallest_int_handler
 
 from bitarray import bitarray, bits2bytes
@@ -17,14 +17,6 @@ from time import time
 
 import operator
 
-def debug(name, value):
-    import bge
-    bge.logic.getCurrentController().owner[name] = value
-
-def read(name, default):
-    import bge
-    return bge.logic.getCurrentController().owner.get(name, default)
-    
 class NetworkError(Exception, metaclass=TypeRegister):
     _types = {}
     
@@ -529,10 +521,11 @@ class ClientConnection(Connection):
         replicable.subscribe(self.notify_destroyed_replicable)
         return ClientChannel(self, replicable)
     
-    def set_replication(self, packet):
+    def set_replication(self, packet, created_replicables=None):
         '''Replication function
         Accepts replication packets and responds to protocol
         @param packet: replication packet'''
+        
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:
             network_id = UInt8.unpack_from(packet.payload)
@@ -547,10 +540,9 @@ class ClientConnection(Connection):
         elif packet.protocol == Protocols.method_invoke:
             network_id = UInt8.unpack_from(packet.payload)
             channel = self.channels[network_id]
+            
             if self.is_owner(channel.replicable):
                 channel.invoke_rpc_call(packet.payload[1:]) 
-            
-            return channel.replicable
         
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:
@@ -561,18 +553,18 @@ class ClientConnection(Connection):
             if not network_id in Replicable._instances:
                 # Create replicable of same type           
                 replicable_cls = Replicable._types[type_name]
-                replicable = replicable_cls(network_id)
-            
+                replicable = replicable_cls(network_id, register=True)
             # If it does (usually static replicables)
             else:
                 replicable = Replicable._instances[network_id]
+                
+            # Static actors still need role switching
+            created_replicables.append(replicable)
             
             # If replicable is Controller
-            if isinstance(replicable, BaseController):
+            if isinstance(replicable, Controller):
                 # Register as own replicable
                 self.replicable = replicable
-            
-            return replicable
         
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:
@@ -582,9 +574,7 @@ class ClientConnection(Connection):
             if network_id in Replicable._instances:
                 replicable = Replicable._instances[network_id]
                 replicable.on_delete()
-            
-            return replicable
-        
+    
     def send(self, network_tick):
         '''Client connection send method
         Sends data using initialised context
@@ -610,7 +600,7 @@ class ClientConnection(Connection):
         Receive data using initialised context
         Receive RPC and replication information
         Catches network errors'''
-        created = []
+        created_replicables = []
     
         for packet in packets:
             
@@ -623,19 +613,19 @@ class ClientConnection(Connection):
                 self.set_replication(packet)    
                 
             elif protocol == Protocols.replication_init:
-                created.append(self.set_replication(packet))
+                self.set_replication(packet, created_replicables)
             
             elif protocol == Protocols.replication_del:
                 self.set_replication(packet)
         
         # We run this after replication to ensure relationships are valid
-        if not created:
+        if not created_replicables:
             return
+        
         # For any created replicables, switch roles
         # Only owned replicables may be autonomous
-        for replicable in created:
+        for replicable in created_replicables:
             replicable.local_role, replicable.remote_role = replicable.remote_role, replicable.local_role
-            print(replicable, self.is_owner(replicable))
             if replicable.local_role == Roles.autonomous_proxy and not self.is_owner(replicable):
                 replicable.local_role = Roles.simulated_proxy
         
@@ -796,7 +786,7 @@ class ConnectionInterface:
         self.remote_sequence = 0
         
         # Time out for connection before it is deleted
-        self.time_out = 10
+        self.time_out = 4
         self.last_received = time() 
         
         # Simple connected status
@@ -1180,8 +1170,10 @@ class GameLoop(socket):
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
-    def update(self):
+    def update(self):        
         self.receive()
+
+        Replicable._update_graph()
         
         with self._clock as delta_time:
             
@@ -1193,13 +1185,13 @@ class GameLoop(socket):
                 if (actor.local_role > Roles.simulated_proxy) or (actor.local_role == Roles.simulated_proxy and is_simulated(actor.update)):
                     actor.update(delta_time)
     
-                if hasattr(actor, "player_input") and isinstance(actor, BaseController):
+                if hasattr(actor, "player_input") and isinstance(actor, Controller):
                     actor.player_update(delta_time)
                 
             for system in System._instances:
                 if system.active:
                     system.post_update(delta_time)
-        
+            
         self.send()
         
-WorldInfo = BaseWorldInfo(255)
+WorldInfo = BaseWorldInfo(255, register=True)

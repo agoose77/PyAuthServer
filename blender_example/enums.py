@@ -5,3 +5,6 @@ class Physics(metaclass=Enum):
     
 class Animations(metaclass=Enum):
     values = "play", "loop"     
+
+class ParentStates(metaclass=Enum):
+    values = "initial", "invoked", "reply"

@@ -24,6 +24,15 @@ class ClientGame(Game):
 game = ClientGame() 
 
 def main(cont):
+    
+    try:
+        controller = next(WorldInfo.subclass_of(PlayerController))
+    except StopIteration:
+        pass
+    else:
+        if not controller.name:
+            controller.set_name("FakeName")
+    
     try:
         game.update() 
     except QuitGame:
