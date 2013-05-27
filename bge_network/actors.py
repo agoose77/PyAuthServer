@@ -11,8 +11,8 @@ from mathutils import Vector
 from time import time
 from collections import deque
 
-from enums import Physics, Animations, ParentStates
-from attributes import PhysicsData, AnimationData
+from .enums import Physics, Animations, ParentStates
+from .attributes import PhysicsData, AnimationData
 from network import Controller, Replicable, Attribute, simulated, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo
 
 import random
@@ -24,6 +24,10 @@ class InputStatus:
     @property
     def status(self):
         return logic.keyboard.events[self.event]
+    
+    @property
+    def active(self):
+        return self.pressed or self.held
     
     @property
     def pressed(self):
@@ -38,7 +42,7 @@ class InputStatus:
         return self.status == logic.KX_INPUT_JUST_RELEASED
     
     @property
-    def none(self):
+    def inactive(self):
         return self.status == logic.KX_INPUT_NONE
 
 class InputManager:
@@ -60,9 +64,6 @@ class InputManager:
                 return status
             
             return super().__getattribute__(name)
-
-class PlayerInputs(InputManager):
-    mappings = {"forward": events.WKEY, "jump": events.SPACEKEY, "back": events.SKEY, "left": events.AKEY, "right": events.DKEY}
 
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
@@ -93,7 +94,7 @@ class GameObject(types.KX_GameObject):
 
 class PlayerController(Controller):
             
-    input_class = PlayerInputs
+    input_class = lambda *a: None
     
     round_trip_time = 0.0
     ping_sample_time = 0.5
@@ -108,29 +109,7 @@ class PlayerController(Controller):
         # Add time started and accumulator
         self.started = time()
         self.rtt_accumulator = deque()
-    
-    def create_player_input(self):
-        super().create_player_input()
         
-        self.chat = Chat()
-         
-    @RPC
-    @reliable
-    def set_name(self, name: StaticValue(str)) -> Netmodes.server:
-        self.name = name
-    
-    @RPC
-    @reliable
-    def send_message(self, message: StaticValue(str)) -> Netmodes.server:
-        for controller in WorldInfo.subclass_of(type(self)):
-            controller.receive_message(self.name, message)
-            
-    @RPC
-    @reliable
-    def receive_message(self, name: StaticValue(str), message: StaticValue(str)) -> Netmodes.client:
-        print("Message received from {}: {}".format(name, message))
-        self.chat.display_message(name + ":" + message + ":" + str(WorldInfo.elapsed))
-    
     @property
     def elapsed(self):
         '''Elapsed time since creation
@@ -145,17 +124,6 @@ class PlayerController(Controller):
         
         self.round_trip_time = sum(self.rtt_accumulator) / len(self.rtt_accumulator)
         
-    def player_update(self, delta):
-        super().player_update(delta)
-        
-        inputs = self.player_input
-            
-        if inputs.jump.pressed:
-            self.pawn.server_play_animation("jump", 30, mode=logic.KX_ACTIONACT_PLAY) 
-        
-        if inputs.forward.pressed:
-            self.suicide()
-        
 class Actor(GameObject, Replicable):
     ''''A basic actor class 
     Inherits from GameObject to display mesh and collide'''  
@@ -169,7 +137,10 @@ class Actor(GameObject, Replicable):
     
     update_simulated_position = True
     mesh_name = "Sphere"
-        
+    
+    def local_space(self, velocity):
+        return self.worldOrientation * velocity
+    
     def play_animation(self, animation):
         '''Plays an animation locally
         @param animation: animation object'''
@@ -207,36 +178,4 @@ class Actor(GameObject, Replicable):
         
         if self.remote_role == Roles.simulated_proxy and self.update_simulated_position:
             yield "physics"
-
-class Chat(Actor):
-    mesh_name = "Chat"
-    
-    local_role = Roles.authority
-    remote_role = Roles.none
-    
-    physics = Attribute(PhysicsData(Physics.none), complain=False)
-    
-    @property
-    def message_list(self):
-        return sorted(self.children, key=lambda c: c.localPosition.y)
-    
-    def clear_messages(self):
-        for message in self.message_list:
-            message['Text'] = ""
-    
-    def display_message(self, message_text):
-        last_message = None
-        
-        for message in self.message_list:
-            try:
-                last_message['Text'] = message.get('Text', "")
-            except TypeError:
-                pass
-            last_message = message
-        
-        message['Text'] = message_text 
-    
-    def update(self, delta_time):
-        controller = next(WorldInfo.subclass_of(PlayerController))
-        
-        self.worldPosition = controller.pawn.worldPosition
+ 

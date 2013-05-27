@@ -828,7 +828,15 @@ class ConnectionInterface:
         
         if self.connection:
             self.connection.on_delete()
-       
+    
+    @classmethod
+    def by_status(cls, status, comparator=operator.eq):   
+        count = 0
+        for interface in cls._instances.values():
+            if comparator(interface.status, status):
+                count += 1
+        return count
+     
     @property
     def next_local_sequence(self):
         self.local_sequence = (self.local_sequence + 1) if (self.local_sequence < self.sequence_max_size) else 0
@@ -1051,6 +1059,9 @@ class System:
     def delete(self):
         self._instances.remove(self)
     
+    def pre_replication(self, delta_time):
+        pass
+    
     def pre_update(self, delta_time):
         pass
     
@@ -1100,14 +1111,7 @@ class GameLoop(socket):
     @property
     def receive_rate(self):
         return (self.received_bytes / (time() - self._started))
-    
-    def connections_by_status(self, status, comparator=operator.eq):   
-        count = 0
-        for interface in ConnectionInterface._instances.values():
-            if comparator(interface.status, status):
-                count += 1
-        return count
-    
+        
     def stop(self):
         self.close()
                 
@@ -1179,12 +1183,18 @@ class GameLoop(socket):
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
-    def update(self):        
-        self.receive()
-
-        Replicable._update_graph()
+    def update(self):       
         
         with self._clock as delta_time:
+            
+            for system in System._instances:
+                if system.active:
+                    system.pre_replication(delta_time)
+                    Replicable._update_graph() 
+            
+            self.receive()
+    
+            Replicable._update_graph()
             
             for system in System._instances:
                 if system.active:
@@ -1205,7 +1215,7 @@ class GameLoop(socket):
                     system.post_update(delta_time)
                     Replicable._update_graph()
             
-        self.send()
+            self.send()
 
 class LazyReplicableProxy:
     """Lazy loading proxy to Replicable references

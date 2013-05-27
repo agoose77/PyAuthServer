@@ -1,8 +1,7 @@
 from network import WorldInfo, Replicable, Float8, Float4, UInt8, String, register_handler, register_description
 from mathutils import Vector, Euler
 from itertools import chain
-
-    
+  
 class AnimationData:
     __slots__ = "name", "end_frame", "timestamp", "start_frame", "mode"
     
@@ -17,20 +16,45 @@ class AnimationData:
         return hash((self.mode, self.name, self.start_frame, self.end_frame, self.timestamp))
         
 class PhysicsData:
-    __slots__ = "mode", "timestamp", "position", "velocity"
+    __slots__ = "mode", "timestamp", "position", "velocity", "orientation"
     
-    def __init__(self, mode, position=None, velocity=None):
+    def __init__(self, mode, position=None, velocity=None, orientation=None):
         self.mode = mode
         self.timestamp = 0.000
         self.position = Vector() if position is None else position
         self.velocity = Vector() if velocity is None else velocity
+        self.orientation = Euler() if orientation is None else orientation
     
     @property
     def moving(self):
         return bool(self.velocity.length)
     
     def __description__(self):
-        return hash(tuple(chain(self.position, self.velocity, (self.mode,))))
+        return hash(tuple(chain(self.position, self.velocity, self.orientation, (self.mode,))))
+    
+class Euler8:
+    @classmethod
+    def pack(cls, euler):
+        pack = Float8.pack
+        return b''.join(pack(c) for c in euler)
+    
+    @classmethod
+    def unpack(cls, bytes_):
+        packer_size = Float8.size()
+        unpack = Float8.unpack
+        return Euler((unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(3)))
+    
+    @classmethod
+    def unpack_merge(cls, euler, bytes_):
+        packer_size = Float8.size()
+        unpack = Float8.unpack
+        euler[:] = (unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(3))
+        
+    @classmethod
+    def size(cls, bytes_=None):
+        return Float8.size() * 3
+        
+    unpack_from = unpack    
     
 class Vector8:
     @classmethod
@@ -56,7 +80,8 @@ class Vector8:
         
     unpack_from = unpack
 
-Vector4 = type("Vector4", (Vector8,), {"packer": Float4})
+Vector4 = type("Vector4", (Vector8,), {})
+Euler4 = type("Euler4", (Euler8,), {})
 
 class AnimationHandler:
     @classmethod
@@ -92,7 +117,7 @@ class AnimationHandler:
 class PhysicsHandler:
     @classmethod
     def pack(cls, phys):
-        data = UInt8.pack(phys.mode), Float8.pack(phys.timestamp), Vector8.pack(phys.position), Vector8.pack(phys.velocity)
+        data = UInt8.pack(phys.mode), Float8.pack(phys.timestamp), Vector8.pack(phys.position), Vector8.pack(phys.velocity), Euler8.pack(phys.orientation)
         return b''.join(data)
         
     @classmethod
@@ -104,19 +129,22 @@ class PhysicsHandler:
         phys.position = Vector8.unpack_from(bytes_)
         bytes_ = bytes_[Vector8.size():]
         phys.velocity = Vector8.unpack_from(bytes_)
+        bytes_ = bytes_[Vector8.size():]
+        phys.orientation = Euler8.unpack_from(bytes_)
         return phys
     
     unpack_from = unpack
     
     @classmethod
     def size(cls, bytes_=None):
-        return 1 + Float8.size() + (2 * Vector8.size())
+        return 1 + Float8.size() + (2 * Vector8.size()) + Euler8.size()
     
 def mathutils_hash(obj): return hash(tuple(obj))
 
 # Register custom types
 
 register_handler(Vector, lambda attr: Vector8 if attr._kwargs.get("max_precision") else Vector4, is_condition=True)
+register_handler(Euler, lambda attr: Euler8 if attr._kwargs.get("max_precision") else Euler4, is_condition=True)
 register_handler(PhysicsData, PhysicsHandler)
 register_handler(AnimationData, AnimationHandler)
 

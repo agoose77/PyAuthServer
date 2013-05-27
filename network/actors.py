@@ -1,9 +1,8 @@
-from .bases import TypeRegister, Attribute, StaticValue
-from .enums import Roles, Netmodes
+from .bases import Attribute, TypeRegister
+from .enums import Roles
 from .modifiers import simulated
 
 from random import choice
-from time import time
 from inspect import getmembers
 from collections import defaultdict, deque
 
@@ -174,10 +173,10 @@ class BaseWorldInfo(Replicable):
         self.elapsed += delta
                 
 class Controller(Replicable):
+    
     local_role = Roles.authority
     remote_role = Roles.autonomous_proxy
     
-    name = Attribute("")
     pawn = Attribute(type_of=Replicable, complain=True)
     
     input_class = None
@@ -185,26 +184,21 @@ class Controller(Replicable):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-            
         self.saved_moves = []
     
     def possess(self, replicable):
         self.pawn = replicable
-        replicable.possessed_by(self)
+        self.pawn.possessed_by(self)
     
     def unpossess(self):
         self.pawn.unpossessed()
         self.pawn = None
     
     def on_delete(self):
-        super().on_delete()
-        
+        super().on_delete()        
         self.pawn.on_delete()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
-        
-        if is_initial:
-            yield "name"
         
         if is_complaint:
             yield "pawn"  
@@ -214,7 +208,4 @@ class Controller(Replicable):
             self.player_input = self.input_class(self)
             
     def player_update(self, elapsed):
-        pass
-    
-    def update(self, delta):
         pass

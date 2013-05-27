@@ -1,19 +1,17 @@
 from network import GameLoop, WorldInfo, Roles, System
 from bge import events, logic
 
-from errors import QuitGame
-from actors import Actor
-from enums import Physics
+import sys; sys.path.append(logic.expandPath("//../"))
+
+from .errors import QuitGame
+from .actors import Actor
+from .enums import Physics
 
 from time import time
 from random import randint
 from collections import defaultdict, deque
 
-def random_spawn(n):
-    '''Spawns randomly positioned actors'''
-    for i in range(n):
-        a = Actor()
-        a.physics.position[:] = randint(-10, 10), randint(-10, 10), 20
+from . import attributes
 
 class JitterBuffer:
     
@@ -107,7 +105,7 @@ class PhysicsSystem(System):
         self.cache = defaultdict(JitterBuffer)
         self.comparable = defaultdict(lambda: None)
         
-    def pre_update(self, delta_time):
+    def pre_replication(self, delta_time):
         '''Update the physics before actor updating
         @param delta_time: delta time since last frame'''
         role_authority = Roles.authority
@@ -133,45 +131,45 @@ class PhysicsSystem(System):
                     # Initial set from object data
                     replicable.worldPosition = physics.position
                     replicable.worldLinearVelocity = physics.velocity
+                    replicable.worldOrientation = physics.orientation
                     jitter_buffer.populate(physics)
                 else:
                     physics.position = replicable.worldPosition
                     physics.velocity = replicable.worldLinearVelocity
+                    physics.orientation = replicable.worldOrientation.to_euler()
                     physics.timestamp = WorldInfo.elapsed
             
             # Or run simulation before actors update on client
             elif replicable.local_role == role_simulated:
-                current_data = self.comparable[replicable]
+#                current_data = self.comparable[replicable]
+#
+#                # If the replicated physics has changed 
+#                if current_data is not physics:
+#                    self.comparable[replicable] = physics
+#                    jitter_buffer.populate(physics)
+#                
+#                # Run through jitter buffer first
+#                new_data = jitter_buffer.get(delta_time)
+#                                
+#                # If we're not allowed to pull data
+#                if new_data is None:
+                   # continue
 
-                # If the replicated physics has changed 
-                if current_data is not physics:
-                    self.comparable[replicable] = physics
-                    jitter_buffer.populate(physics)
-                
-                # Run through jitter buffer first
-                new_data = jitter_buffer.get(delta_time)
-                                
-                # If we're not allowed to pull data
-                if new_data is None:
-                    continue
-                
                 # Determine how far from reality we are
                 current_position = replicable.worldPosition
-                
+                new_data=physics
                 difference = new_data.position - current_position
                 
                 offset = new_data.velocity.length * delta_time
                 
                 threshold = 0.4
                 
-                if difference.length < threshold:                
-                    replicable.worldLinearVelocity = new_data.velocity + difference    
-                    
-                elif difference.length > threshold:
-                    replicable.worldPosition = new_data.position   
+                if difference.length > threshold:
+                    replicable.worldPosition += difference * 0.4   
                     replicable.worldLinearVelocity = new_data.velocity
                     
-                replicable.worldLinearVelocity = new_data.velocity + difference       
+                replicable.worldLinearVelocity = new_data.velocity# + difference    
+                replicable.worldOrientation = physics.orientation   
             
     
     def post_update(self, delta_time):
@@ -191,6 +189,7 @@ class PhysicsSystem(System):
                 # Update physics with replicable position, velocity and timestamp    
                 replicable.worldPosition = physics.position
                 replicable.worldLinearVelocity = physics.velocity
+                replicable.worldOrientation = physics.orientation
                 physics.timestamp = WorldInfo.elapsed
             
 class Game(GameLoop):
