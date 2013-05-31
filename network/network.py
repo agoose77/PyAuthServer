@@ -541,6 +541,8 @@ class ClientConnection(Connection):
                 channel.set_attributes(packet.payload[1:])
             
                 return channel.replicable
+            else:
+                print("Unable to replicate to replicable with id {}".format(instance_id))
         
         # If an RPC call
         elif packet.protocol == Protocols.method_invoke:
@@ -574,7 +576,7 @@ class ClientConnection(Connection):
             # If the replicable exists
             if instance_id in Replicable._instances:
                 replicable = Replicable._instances[instance_id]
-                replicable.on_delete()
+                replicable.request_unregistration()
     
     def send(self, network_tick):
         '''Client connection send method
@@ -644,7 +646,7 @@ class ServerConnection(Connection):
         
         # If we own a controller destroy it
         if self.replicable:
-            self.replicable.on_delete()
+            self.replicable.request_unregistration()
             # We must be connected to have a controller
             print("disconnected!".format(getattr(self.replicable, 'name', "")))
                 
@@ -825,7 +827,7 @@ class ConnectionInterface(InstanceRegister):
         else:
             return super().__new__(cls)
         
-    def on_unregister(self):        
+    def on_unregistered(self):        
         if self.connection:
             self.connection.on_delete()
     

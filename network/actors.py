@@ -31,20 +31,26 @@ class Replicable(InstanceRegister, metaclass=TypeRegister):
             getattr(self, name)
                
     @classmethod
-    def _create_or_return(cls, base_cls, instance_id, register=False):
+    def _create_or_return(cls, base_cls, instance_id,register=False):
+        '''Called by the replication system'''
+        # Try and match an existing instance
         try:
             existing = cls.get_from_graph(instance_id)
+        
+        # If we don't find one, make one
         except LookupError:
             return base_cls(instance_id, register)
         
         else:
+            # If we find a locally defined replicable (if instance_id was None when created -> not static)
             if existing._local:
+                # Make the class and overwrite the id
                 return base_cls(instance_id, register)
             
             return existing
     
     def request_registration(self, instance_id, verbose=False):
-        # This is static or replicated 
+        # This is static or replicated then it's local
         if instance_id is None: 
             self._local = True
             
@@ -52,6 +58,7 @@ class Replicable(InstanceRegister, metaclass=TypeRegister):
         if instance_id in self.get_entire_graph_ids():
             instance = self.remove_from_entire_graph(instance_id)
             
+            # If the instance is local, then it hasn't got prority
             assert instance._local, "Authority over instance id {} is unresolveable".format(instance_id)
             
             # Possess the instance id
@@ -89,11 +96,7 @@ class Replicable(InstanceRegister, metaclass=TypeRegister):
     def unsubscribe(self, subscriber):
         self._subscribers.remove(subscriber)
         
-    def on_delete(self):
-        self.__del__()
-        
-        self._to_unregister.add(self)
-        
+    def on_unregistered(self):                
         for subscriber in self._subscribers:
             subscriber(self)
     
@@ -160,9 +163,9 @@ class Controller(Replicable):
         self.pawn.unpossessed()
         self.pawn = None
     
-    def on_delete(self):
-        super().on_delete()        
-        self.pawn.on_delete()
+    def on_unregistered(self):
+        super().on_unregistered()        
+        self.pawn.request_unregistration()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
         

@@ -123,10 +123,12 @@ class InstanceRegister:
     
     def _register_to_graph(self):
         self.__class__._instances[self.instance_id] = self
+        self.on_registered()
         
     def _unregister_from_graph(self):
         self.__class__._instances.pop(self.instance_id)
-    
+        self.on_unregistered()
+        
     def on_registered(self):
         pass
     

@@ -84,8 +84,8 @@ class GameObject(types.KX_GameObject):
         else:  
             super().setParent(other)
     
-    def on_delete(self):
-        super().on_delete()
+    def on_unregistered(self):
+        super().on_unregistered()
         self.endObject()
         
     def __repr__(self):
