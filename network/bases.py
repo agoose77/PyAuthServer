@@ -1,5 +1,6 @@
 from copy import deepcopy
 from inspect import getmembers
+from itertools import chain
 from .handler_interfaces import static_description
 
 class Enum(type):
@@ -18,12 +19,124 @@ class Enum(type):
 class TypeRegister(type):
     '''Registers all subclasses of parent class
     Stores class name: class mapping on parent._types'''
+    _register = {}
+    
     def __new__(cls, name, parents, attrs):
+        attrs["of_type"] = cls.of_type
+        
         cls = super().__new__(cls, name, parents, attrs)
+
         if set(cls.__bases__).difference((object,)):
             cls._types[name] = cls
+            
         return cls
+    
+    @staticmethod
+    def of_type(self, type):
+        return self.__class__._types.get(type)
 
+class InstanceRegister:
+    _instances = {}
+    
+    _to_register = set()
+    _to_unregister = set()
+    
+    def __init__(self, instance_id, register=False, allow_random_key=False):        
+        self.allow_random_key = allow_random_key
+        
+        # Add to register queue
+        self.request_registration(instance_id)
+        
+        # Update graph
+        if register:
+            self.update_graph()
+    
+    def __del__(self):
+        self.request_unregistration()
+       
+    @classmethod
+    def get_entire_graph_ids(cls):
+        instances = chain(cls._instances.keys(), (i.instance_id for i in cls._to_register))
+        return instances
+    
+    @classmethod
+    def get_graph_instances(cls, only_real=True):
+        if only_real:
+            return cls._instances.values()
+        return chain(cls._instances.values(), cls._to_register)
+     
+    @classmethod
+    def get_from_graph(cls, instance_id, only_real=True):
+        try:
+            return cls._instances[instance_id]
+        except KeyError:
+            # If we don't want the other values
+            if only_real:
+                raise LookupError
+            
+            try:
+                return next(i for i in cls._to_register if i.instance_id==instance_id)
+            except StopIteration:
+                raise LookupError
+            
+    @classmethod
+    def remove_from_entire_graph(cls, instance_id):
+        if instance_id in cls._instances:
+            return cls._instance.pop(instance_id)
+        
+        for i in cls._to_register:
+            if i.instance_id == instance_id:
+                cls._to_register.remove(i)
+                return i
+    
+    @classmethod
+    def get_random_id(cls):
+        all_instances = list(cls.get_entire_graph_ids())
+        
+        for key in range(len(all_instances) + 1):
+            if not key in all_instances:
+                return key
+    
+    @classmethod
+    def update_graph(cls):
+        if cls._to_register:
+            for replicable in cls._to_register:
+                replicable._register_to_graph()
+            cls._to_register.clear()
+        
+        if cls._to_unregister:   
+            for replicable in cls._to_unregister:
+                replicable._unregister_from_graph()
+            cls._to_unregister.clear()    
+    
+    def request_unregistration(self):
+        self.__class__._to_unregister.add(self)
+    
+    def request_registration(self, instance_id):
+        if instance_id is None:
+            if not self.allow_random_key:
+                raise KeyError("No key specified")
+            instance_id = self.get_random_id()
+        
+        self.instance_id = instance_id
+        self.__class__._to_register.add(self) 
+    
+    def _register_to_graph(self):
+        self.__class__._instances[self.instance_id] = self
+        
+    def _unregister_from_graph(self):
+        self.__class__._instances.pop(self.instance_id)
+    
+    def on_registered(self):
+        pass
+    
+    def on_unregistered(self):
+        pass
+    
+    @property
+    def registered(self):
+        return self.instance_id in self.__class__._instances
+    
 class StaticValue:
     '''Container for static-type values
     holds type for value and additional keyword arguments

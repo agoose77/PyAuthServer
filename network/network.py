@@ -1,6 +1,6 @@
 from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
 from .modifiers import reliable, simulated, is_reliable, is_simulated
-from .bases import TypeRegister, StaticValue, Attribute
+from .bases import TypeRegister, InstanceRegister, StaticValue, Attribute
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
 from .actors import BaseWorldInfo, Controller, Replicable
 from .handler_interfaces import static_description, register_handler, get_handler, smallest_int_handler
@@ -508,7 +508,7 @@ class Connection:
         
         # Return the condition of parent id equating to the connection controller id 
         try:                   
-            return last.network_id == self.replicable.network_id        
+            return last.instance_id == self.replicable.instance_id        
         except AttributeError:
             return False     
            
@@ -518,12 +518,12 @@ class ClientConnection(Connection):
         super().__init__(*args, **kwargs) 
 
     def notify_destroyed_replicable(self, replicable):
-        self.channels.pop(replicable.network_id)
+        self.channels.pop(replicable.instance_id)
     
-    def create_channel(self, network_id):
+    def create_channel(self, instance_id):
         '''Create channel for replicable with network id
-        @param network_id: network id of replicable'''
-        replicable = Replicable._instances[network_id]
+        @param instance_id: network id of replicable'''
+        replicable = Replicable._instances[instance_id]
         replicable.subscribe(self.notify_destroyed_replicable)
         return ClientChannel(self, replicable)
     
@@ -534,30 +534,30 @@ class ClientConnection(Connection):
         
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:
-            network_id = UInt8.unpack_from(packet.payload)
+            instance_id = UInt8.unpack_from(packet.payload)
             
-            if network_id in Replicable._instances:
-                channel = self.channels[network_id]
+            if instance_id in Replicable._instances:
+                channel = self.channels[instance_id]
                 channel.set_attributes(packet.payload[1:])
             
                 return channel.replicable
         
         # If an RPC call
         elif packet.protocol == Protocols.method_invoke:
-            network_id = UInt8.unpack_from(packet.payload)
-            channel = self.channels[network_id]
+            instance_id = UInt8.unpack_from(packet.payload)
+            channel = self.channels[instance_id]
             
             if self.is_owner(channel.replicable):
                 channel.invoke_rpc_call(packet.payload[1:]) 
         
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:
-            network_id = UInt8.unpack_from(packet.payload)
+            instance_id = UInt8.unpack_from(packet.payload)
             type_name = String.unpack_from(packet.payload[1:])
             
             # Create replicable of same type           
             replicable_cls = Replicable._types[type_name]
-            replicable = Replicable._create_or_return(replicable_cls, network_id, register=True)
+            replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
                 
             # Static actors still need role switching
             created_replicables.append(replicable)
@@ -569,11 +569,11 @@ class ClientConnection(Connection):
         
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:
-            network_id = UInt8.unpack_from(packet.payload)
+            instance_id = UInt8.unpack_from(packet.payload)
             
             # If the replicable exists
-            if network_id in Replicable._instances:
-                replicable = Replicable._instances[network_id]
+            if instance_id in Replicable._instances:
+                replicable = Replicable._instances[instance_id]
                 replicable.on_delete()
     
     def send(self, network_tick):
@@ -581,15 +581,15 @@ class ClientConnection(Connection):
         Sends data using initialised context
         Sends RPC information
         Generator'''        
-        for network_id, replicable in Replicable._instances.items():
+        for instance_id, replicable in Replicable._instances.items():
             # Determine if we own this replicable
             is_owner = self.is_owner(replicable)
             # Get network ID
-            network_id = replicable.network_id
-            packed_id = UInt8.pack(network_id)
+            instance_id = replicable.instance_id
+            packed_id = UInt8.pack(instance_id)
             
             # Get attribute channel
-            channel = self.channels[network_id]
+            channel = self.channels[instance_id]
             
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -648,16 +648,16 @@ class ServerConnection(Connection):
             # We must be connected to have a controller
             print("disconnected!".format(getattr(self.replicable, 'name', "")))
                 
-    def create_channel(self, network_id):
+    def create_channel(self, instance_id):
         """Creates a replication channel for replicable"""
-        replicable =  Replicable._instances[network_id]
+        replicable =  Replicable._instances[instance_id]
         replicable.subscribe(self.notify_destroyed_replicable)
         return ServerChannel(self, replicable)
     
     def notify_destroyed_replicable(self, replicable):
         '''Called when replicable dies
         @param replicable: replicable that died'''
-        channel = self.channels.get(replicable.network_id)
+        channel = self.channels.get(replicable.instance_id)
         
         if channel is None:
             return
@@ -671,11 +671,11 @@ class ServerConnection(Connection):
             is_owner = self.is_owner(replicable)
             
             # Get network ID
-            network_id = replicable.network_id
-            packed_id = UInt8.pack(network_id)
+            instance_id = replicable.instance_id
+            packed_id = UInt8.pack(instance_id)
             
             # Get attribute channel
-            channel = self.channels[network_id]
+            channel = self.channels[instance_id]
             
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -692,11 +692,11 @@ class ServerConnection(Connection):
             is_owner = self.is_owner(replicable)
             
             # Get network ID
-            network_id = replicable.network_id
-            packed_id = UInt8.pack(network_id)
+            instance_id = replicable.instance_id
+            packed_id = UInt8.pack(instance_id)
             
             # Get attribute channel
-            channel = self.channels[network_id]
+            channel = self.channels[instance_id]
 
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -724,10 +724,10 @@ class ServerConnection(Connection):
             
             for channel in self.dead_channels:
                 replicable = channel.replicable
-                network_id = replicable.network_id
-                packed_id = UInt8.pack(network_id)
+                instance_id = replicable.instance_id
+                packed_id = UInt8.pack(instance_id)
                 # Remove it
-                self.channels.pop(network_id)
+                self.channels.pop(instance_id)
                 # Send delete packet 
                 yield Packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
                 # Don't process rest              
@@ -746,8 +746,8 @@ class ServerConnection(Connection):
             # If it is an RPC packet
             if packet.protocol == Protocols.method_invoke:
                 # Unpack data
-                network_id = UInt8.unpack_from(packet.payload)
-                channel = channels[network_id]
+                instance_id = UInt8.unpack_from(packet.payload)
+                channel = channels[instance_id]
                 
                 # If we have permission to execute
                 if is_owner(channel.replicable):
@@ -765,11 +765,13 @@ class ServerConnection(Connection):
         else:
             yield from self.get_method_replication()
         
-class ConnectionInterface:
+class ConnectionInterface(InstanceRegister):
     
     _instances = {}
     
     def __init__(self, addr):
+        super().__init__(instance_id=addr, register=True)
+        
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
         self.sequence_handler = smallest_int_handler(self.sequence_max_size)
@@ -823,9 +825,7 @@ class ConnectionInterface:
         else:
             return super().__new__(cls)
         
-    def on_delete(self):
-        self._instances.pop(self._addr)
-        
+    def on_unregister(self):        
         if self.connection:
             self.connection.on_delete()
     
@@ -1135,17 +1135,19 @@ class GameLoop(socket):
     def receive(self):
         '''Receive all data from socket'''
         # Get connections
-        connections = ConnectionInterface._instances
+        get_connection = ConnectionInterface.get_from_graph
         
         # Receives all incoming data
         for bytes_, addr in iter(self.receive_from, None):
             try:
-                connection = connections[addr]
-            except KeyError:
+                connection = get_connection(addr)
+            except LookupError:
                 connection = ConnectionInterface(addr)
             
             connection.receive(bytes_)
             self.received_bytes += len(bytes_)
+        
+        ConnectionInterface.update_graph()
         
     def send(self):
         '''Send all connection data and update timeouts'''
@@ -1153,15 +1155,14 @@ class GameLoop(socket):
         network_tick = self.can_send
         
         # Get connections
-        connections = ConnectionInterface._instances
         to_delete = []
        
         # Send all queued data
-        for addr, connection in connections.items():
+        for connection in ConnectionInterface.get_graph_instances():
             
             # If the connection should be removed (timeout or explicit)
             if connection.status < ConnectionStatus.disconnected:
-                to_delete.append(connection)
+                connection.request_unregistration()
                 continue
             
             # Give the option to send nothing
@@ -1169,12 +1170,10 @@ class GameLoop(socket):
             
             # If returns data, send it
             if data:
-                self.sendto(data, addr) 
+                self.sendto(data, connection.instance_id) 
                 
         # Delete dead connections
-        if to_delete:
-            for connection in to_delete:
-                connection.on_delete()
+        ConnectionInterface.update_graph()
 
         # Remember last non urgent
         if network_tick:
@@ -1190,16 +1189,16 @@ class GameLoop(socket):
             for system in System._instances:
                 if system.active:
                     system.pre_replication(delta_time)
-                    Replicable._update_graph() 
+                    Replicable.update_graph() 
             
             self.receive()
     
-            Replicable._update_graph()
+            Replicable.update_graph()
             
             for system in System._instances:
                 if system.active:
                     system.pre_update(delta_time)
-                    Replicable._update_graph()
+                    Replicable.update_graph()
             
             for actor in WorldInfo.actors:
                 if (actor.local_role > Roles.simulated_proxy) or (actor.local_role == Roles.simulated_proxy and is_simulated(actor.update)):
@@ -1208,12 +1207,12 @@ class GameLoop(socket):
                 if hasattr(actor, "player_input") and isinstance(actor, Controller):
                     actor.player_update(delta_time)
             
-            Replicable._update_graph()
+            Replicable.update_graph()
                 
             for system in System._instances:
                 if system.active:
                     system.post_update(delta_time)
-                    Replicable._update_graph()
+                    Replicable.update_graph()
             
             self.send()
 
@@ -1231,10 +1230,10 @@ class LazyReplicableProxy:
         try:
             return object.__getattribute__(self, "obj")
         except AttributeError:
-            network_id = object.__getattribute__(self, "target")
+            instance_id = object.__getattribute__(self, "target")
             try:
-                replicable_instance = WorldInfo.get_actor(network_id)
-            except KeyError:
+                replicable_instance = WorldInfo.get_actor(instance_id)
+            except LookupError:
                 return
             else:
                 child = weak_proxy(replicable_instance)
@@ -1319,15 +1318,15 @@ class ReplicableProxyHandler:
     
     @classmethod
     def pack(cls, replicable):
-        return UInt8.pack(replicable.network_id)
+        return UInt8.pack(replicable.instance_id)
     
     @classmethod
     def unpack(cls, bytes_):
-        network_id = UInt8.unpack_from(bytes_)
+        instance_id = UInt8.unpack_from(bytes_)
         try:
-            replicable = WorldInfo.get_actor(network_id)
-        except KeyError:
-            return LazyReplicableProxy(network_id)
+            replicable = WorldInfo.get_actor(instance_id)
+        except LookupError:
+            return LazyReplicableProxy(instance_id)
         else:
             return weak_proxy(replicable)
     
