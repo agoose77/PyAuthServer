@@ -21,6 +21,9 @@ import inspect
 
 class NetworkError(Exception, metaclass=TypeRegister):
     pass
+
+class LatencyInducedError(NetworkError):
+    pass
     
 class keyeddefaultdict(defaultdict):
     '''Dictionary with factory for missing keys
@@ -512,7 +515,10 @@ class Connection:
             return last.instance_id == self.replicable.instance_id        
         except AttributeError:
             return False     
-           
+    
+    def create_channel(self):
+        return NotImplemented
+    
 class ClientConnection(Connection):
     
     def __init__(self, *args, **kwargs):       
@@ -524,7 +530,7 @@ class ClientConnection(Connection):
     def create_channel(self, instance_id):
         '''Create channel for replicable with network id
         @param instance_id: network id of replicable'''
-        replicable = Replicable._instances[instance_id]
+        replicable = Replicable._instances[instance_id]        
         replicable.subscribe(self.notify_destroyed_replicable)
         return ClientChannel(self, replicable)
     
@@ -653,7 +659,11 @@ class ServerConnection(Connection):
                 
     def create_channel(self, instance_id):
         """Creates a replication channel for replicable"""
-        replicable =  Replicable._instances[instance_id]
+        try:
+            replicable = Replicable._instances[instance_id]
+        except KeyError as err:
+            raise LatencyInducedError("Replicable no longer exists with id {}".format(err))
+        
         replicable.subscribe(self.notify_destroyed_replicable)
         return ServerChannel(self, replicable)
     
@@ -1264,6 +1274,8 @@ class LazyReplicableProxy:
     def __repr__(self):
         return repr(object.__getattribute__(self, "_obj"))
     
+    def __bool__(self):
+        return bool(object.__getattribute__(self, "_obj"))
     
     _special_names = [
         '__abs__', '__add__', '__and__', '__call__', '__cmp__', '__coerce__', 

@@ -91,9 +91,8 @@ class Replicable(metaclass=InstanceRegister):
         self.__class__._by_types[type(self)].append(self)
         super().on_registered()
         
-    def on_unregistered(self):    
-        if self.registered:
-            self.__class__._by_types[type(self)].remove(self) 
+    def on_unregistered(self):
+        self.__class__._by_types[type(self)].remove(self) 
         
         for subscriber in self._subscribers:
             subscriber(self)

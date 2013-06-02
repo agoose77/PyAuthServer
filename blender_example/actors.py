@@ -1,6 +1,5 @@
 from bge_network import Actor, Physics, PlayerController, InputManager
 from network import WorldInfo, StaticValue, Attribute, RPC, Replicable, Netmodes, Roles, reliable, simulated
-
 from bge import events
 from mathutils import Vector
 
@@ -20,10 +19,14 @@ class RacingController(PlayerController):
     @RPC
     def shift(self) -> Netmodes.server:
         self.pawn.physics.position.x += 0.1
-        
+    
+    @RPC
+    def suicide(self) -> Netmodes.server:
+        self.request_unregistration()
+    
     def player_update(self, delta_time):
         
-        if self.pawn:
+        if self.pawn.registered:
             timestamp = WorldInfo.elapsed
             
             inputs = self.player_input
@@ -36,30 +39,8 @@ class RacingController(PlayerController):
                 self.shift()
             
             if inputs.die.pressed:
-                print(self._instances)
-                #self.pawn.request_unregistration()
+                self.suicide()
 
 class Car(Actor):
     mesh_name = "futuristic_car"
-    
-    #target = Attribute(type_of=Replicable, notify=True)
-    
-    #remote_role = Roles.autonomous_proxy
-        
-    def on_notify(self, name):
-        if name == "target":
-            self.changed_target(self.target)
-        else:
-            super().on_notify(name)
-    
-    def conditions(self, is_owner, is_complain, is_initial):
-        yield from super().conditions(is_owner, is_complain, is_initial)
-        
-#        if complain:
-#            yield "target"
-            
-    def changed_target(self, target):
-        pass
-    
-    
     

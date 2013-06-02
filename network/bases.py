@@ -1,5 +1,5 @@
 from copy import deepcopy
-from inspect import getmembers, stack
+from inspect import getmembers
 from itertools import chain
 from .handler_interfaces import static_description
 
@@ -100,7 +100,8 @@ class InstanceMixins:
                 replicable._unregister_from_graph()
         
     def request_unregistration(self):
-        self.__class__._to_unregister.add(self)
+        if self.registered:
+            self.__class__._to_unregister.add(self)
             
     def request_registration(self, instance_id):
         if instance_id is None:
@@ -132,7 +133,10 @@ class InstanceMixins:
     @property
     def registered(self):
         return self.instance_id in self.__class__._instances
-
+    
+    def __bool__(self):
+        return self.registered
+    
 class InstanceRegister(TypeRegister):
     
     def __new__(meta, name, parents, attrs):       
