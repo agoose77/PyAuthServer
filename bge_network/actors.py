@@ -84,8 +84,9 @@ class GameObject(types.KX_GameObject):
         else:  
             super().setParent(other)
     
-    def on_unregistered(self):
+    def on_unregistered(self):        
         super().on_unregistered()
+        print("DEAD")
         self.endObject()
         
     def __repr__(self):

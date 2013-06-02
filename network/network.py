@@ -17,9 +17,10 @@ from random import choice
 from time import time
 
 import operator
+import inspect
 
 class NetworkError(Exception, metaclass=TypeRegister):
-    _types = {}
+    pass
     
 class keyeddefaultdict(defaultdict):
     '''Dictionary with factory for missing keys
@@ -558,7 +559,7 @@ class ClientConnection(Connection):
             type_name = String.unpack_from(packet.payload[1:])
             
             # Create replicable of same type           
-            replicable_cls = Replicable._types[type_name]
+            replicable_cls = Replicable.of_type(type_name)
             replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
                 
             # Static actors still need role switching
@@ -767,10 +768,8 @@ class ServerConnection(Connection):
         else:
             yield from self.get_method_replication()
         
-class ConnectionInterface(InstanceRegister):
-    
-    _instances = {}
-    
+class ConnectionInterface(metaclass=InstanceRegister):
+        
     def __init__(self, addr):
         super().__init__(instance_id=addr, register=True)
         
@@ -799,7 +798,7 @@ class ConnectionInterface(InstanceRegister):
         self.remote_sequence = 0
         
         # Time out for connection before it is deleted
-        self.time_out = 4
+        self.time_out = 2
         self.last_received = time() 
         
         # Simple connected status
@@ -827,7 +826,9 @@ class ConnectionInterface(InstanceRegister):
         else:
             return super().__new__(cls)
         
-    def on_unregistered(self):        
+    def on_unregistered(self):    
+        super().on_unregistered() 
+           
         if self.connection:
             self.connection.on_delete()
     
@@ -1041,7 +1042,10 @@ class ClientInterface(ConnectionInterface):
             error_type = String.unpack_from(packet.payload)
             shift = String.size(packet.payload)
             error_body = String.unpack_from(packet.payload[shift:])
-            raise NetworkError._types[error_type](error_body)
+            error = NetworkError.of_type(error_type)
+            
+            if error is not None:
+                raise error(error_body)
         
         # Get remote network mode
         netmode = UInt8.unpack_from(packet.payload)

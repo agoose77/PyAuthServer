@@ -36,7 +36,8 @@ class RacingController(PlayerController):
                 self.shift()
             
             if inputs.die.pressed:
-                self.pawn.request_unregistration()
+                print(self._instances)
+                #self.pawn.request_unregistration()
 
 class Car(Actor):
     mesh_name = "futuristic_car"
@@ -44,9 +45,6 @@ class Car(Actor):
     #target = Attribute(type_of=Replicable, notify=True)
     
     #remote_role = Roles.autonomous_proxy
-    def __init__(self, *a, **k):
-        super().__init__(*a, **k)
-        print("MAKE")
         
     def on_notify(self, name):
         if name == "target":

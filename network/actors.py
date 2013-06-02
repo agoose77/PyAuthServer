@@ -1,4 +1,4 @@
-from .bases import Attribute, TypeRegister, InstanceRegister
+from .bases import Attribute, InstanceRegister
 from .enums import Roles
 from .modifiers import simulated
 
@@ -6,13 +6,12 @@ from random import choice
 from inspect import getmembers
 from collections import defaultdict, deque
 
-class Replicable(InstanceRegister, metaclass=TypeRegister):
+class Replicable(metaclass=InstanceRegister):
     '''Replicable base class
     Holds record of instantiated replicables and replicable types
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
     _by_types = defaultdict(list)
-    _types = {}
     
     def __init__(self, instance_id=None, register=False):
         # Create a flag that is set when attributes change (if permitted)
@@ -75,15 +74,7 @@ class Replicable(InstanceRegister, metaclass=TypeRegister):
             
         # Possess the instance id
         super().request_registration(instance_id)
-    
-    def register_to_graph(self):
-        super().register_to_graph()
-        self.__class__._by_types[type(self)].append(self)
-    
-    def unregister_from_graph(self):
-        super().unregister_from_graph()
-        self.__class__._by_types[type(self)].pop(self)
-      
+          
     def possessed_by(self, other):
         self.owner = other
     
@@ -96,7 +87,14 @@ class Replicable(InstanceRegister, metaclass=TypeRegister):
     def unsubscribe(self, subscriber):
         self._subscribers.remove(subscriber)
         
-    def on_unregistered(self):                
+    def on_registered(self):
+        self.__class__._by_types[type(self)].append(self)
+        super().on_registered()
+        
+    def on_unregistered(self):    
+        if self.registered:
+            self.__class__._by_types[type(self)].remove(self) 
+        
         for subscriber in self._subscribers:
             subscriber(self)
     
@@ -164,7 +162,7 @@ class Controller(Replicable):
         self.pawn = None
     
     def on_unregistered(self):
-        super().on_unregistered()        
+        super().on_unregistered()  
         self.pawn.request_unregistration()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
