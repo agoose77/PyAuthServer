@@ -131,12 +131,12 @@ class RPC:
         self.name = func.__name__
         
         # Get the function signature
-        value_signature = signature(func)
-        self.target = value_signature.return_annotation
+        func_signature = signature(func)
+        self.target = func_signature.return_annotation
         
         # Interface between data and bytes
-        self.serialiser = Serialiser(self.ordered_arguments(value_signature))
-        self.binder = value_signature.bind
+        self.serialiser = Serialiser(self.ordered_arguments(func_signature))
+        self.binder = func_signature.bind
 
         # Enable modifier lookup
         self.__annotations__.update(func.__annotations__)
@@ -652,6 +652,7 @@ class ServerConnection(Connection):
         super().on_delete()
         
         # If we own a controller destroy it
+        print(self.replicable.registered, self.replicable, self.replicable.instance_id)
         if self.replicable:
             self.replicable.request_unregistration()
             # We must be connected to have a controller

@@ -9,6 +9,9 @@ class RacingInputs(InputManager):
 class RacingController(PlayerController):
     input_class = RacingInputs
     
+    def on_unregistered(self):
+        super().on_unregistered()
+    
     @RPC
     def move(self, forward: StaticValue(bool), back: StaticValue(bool), timestamp: StaticValue(float)) -> Netmodes.server:
         
@@ -43,4 +46,5 @@ class RacingController(PlayerController):
 
 class Car(Actor):
     mesh_name = "futuristic_car"
+    
     

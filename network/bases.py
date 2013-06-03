@@ -1,5 +1,5 @@
 from copy import deepcopy
-from inspect import getmembers
+from inspect import getmembers, stack
 from itertools import chain
 from .handler_interfaces import static_description
 
@@ -110,7 +110,7 @@ class InstanceMixins:
                 raise KeyError("No key specified")
             
             instance_id = self.get_random_id()
-        
+            
         self.instance_id = instance_id
         self.__class__._to_register.add(self) 
     
@@ -132,7 +132,7 @@ class InstanceMixins:
     
     @property
     def registered(self):
-        return self.instance_id in self.__class__._instances
+        return self.__class__._instances.get(self.instance_id) is self
     
     def __bool__(self):
         return self.registered

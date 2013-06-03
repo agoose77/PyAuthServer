@@ -92,8 +92,8 @@ class Replicable(metaclass=InstanceRegister):
         super().on_registered()
         
     def on_unregistered(self):
+        super().on_unregistered()
         self.__class__._by_types[type(self)].remove(self) 
-        
         for subscriber in self._subscribers:
             subscriber(self)
     
@@ -162,6 +162,7 @@ class Controller(Replicable):
     
     def on_unregistered(self):
         super().on_unregistered()  
+        
         self.pawn.request_unregistration()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
