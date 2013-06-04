@@ -1,4 +1,4 @@
-from bge_network import Actor, Physics, PlayerController, InputManager
+from bge_network import Actor, Physics, PlayerController, InputManager, PhysicsData
 from network import WorldInfo, StaticValue, Attribute, RPC, Replicable, Netmodes, Roles, reliable, simulated
 from bge import events
 from mathutils import Vector
@@ -9,8 +9,10 @@ class RacingInputs(InputManager):
 class RacingController(PlayerController):
     input_class = RacingInputs
     
-    def on_unregistered(self):
-        super().on_unregistered()
+    @RPC
+    def ServerMove(self, timestamp: StaticValue(float), in_accel: StaticValue(Vector), client_loc: StaticValue(Vector), 
+                   forward: StaticValue(bool), back: StaticValue(bool), left: StaticValue(bool), right: StaticValue(bool)) -> Netmodes.server:
+        pass
     
     @RPC
     def move(self, forward: StaticValue(bool), back: StaticValue(bool), timestamp: StaticValue(float)) -> Netmodes.server:
@@ -45,6 +47,12 @@ class RacingController(PlayerController):
                 self.suicide()
 
 class Car(Actor):
-    mesh_name = "futuristic_car"
-    
-    
+    mesh_name = "Cube"
+   # physics = Attribute(PhysicsData(Physics.none))
+   
+   
+    @simulated
+    def update(self, dt):
+        #print(self.worldScale)
+        self.mass = 123
+        pass

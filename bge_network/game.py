@@ -101,7 +101,6 @@ class PhysicsSystem(System):
     
     def __init__(self):
         super().__init__()
-        
         self.cache = defaultdict(JitterBuffer)
         self.comparable = defaultdict(lambda: None)
         

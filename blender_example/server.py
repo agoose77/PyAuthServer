@@ -21,7 +21,7 @@ game = Game(addr="127.0.0.1", port=1200)
 WorldInfo.netmode = Netmodes.server
 WorldInfo.rules = TeamDeathMatch
 
-random_spawn(5)
+#random_spawn(5)
 
 def main(cont):  
     try:
