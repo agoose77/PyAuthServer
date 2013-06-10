@@ -1,4 +1,4 @@
-from network import GameLoop, WorldInfo, Roles, System, is_simulated
+from network import GameLoop, WorldInfo, Roles, System, is_simulated, keyeddefaultdict
 from bge import events, logic
 
 import sys; sys.path.append(logic.expandPath("//../"))
@@ -145,8 +145,16 @@ class PhysicsSystem(System):
     
     def __init__(self):
         super().__init__()
-        self.cache = {}
+        self.cache = keyeddefaultdict(self.register_object)
         self.collision_listeners = {}
+    
+    def register_object(self, replicable):
+        jitter_buffer = JitterBuffer()
+        
+        collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
+        collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
+        collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
+        return jitter_buffer
     
     def collision_dispatcher(self, replicable, new_collision, collided):
         func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
@@ -168,21 +176,14 @@ class PhysicsSystem(System):
             if physics.mode != Physics.rigidbody: 
                 continue 
             
-            try:
-                jitter_buffer = self.cache[replicable]
-            except KeyError:
-                jitter_buffer = self.cache[replicable] = JitterBuffer()
-                
-                collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
-                collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
-                collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
-                
+            jitter_buffer = self.cache[replicable]                
             
             # Before the Actors are aware, set the initial position
             if replicable.local_role == role_authority:   
                 
                 try:
                     latest = jitter_buffer.latest
+                    
                 except IndexError:
                     # Initial set from object data
                     replicable.worldPosition = physics.position
@@ -202,7 +203,8 @@ class PhysicsSystem(System):
                 
                 # Determine how far from reality we are
                 current_position = replicable.worldPosition
-                new_data=physics
+                new_data = physics
+                
                 difference = new_data.position - current_position
                 
                 offset = new_data.velocity.length * delta_time
@@ -229,13 +231,7 @@ class PhysicsSystem(System):
             if physics.mode != Physics.rigidbody: 
                 continue 
             
-            try:
-                jitter_buffer = self.cache[replicable]
-            except KeyError:
-                jitter_buffer = self.cache[replicable] = JitterBuffer()
-                collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
-                collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
-                collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
+            jitter_buffer = self.cache[replicable]            
 
             if replicable.local_role == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    
