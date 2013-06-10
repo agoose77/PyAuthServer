@@ -45,7 +45,7 @@ class InstanceMixins:
         # Update graph
         if register:
             self.update_graph()
-       
+        
     @classmethod
     def get_entire_graph_ids(cls):
         instances = chain(cls._instances.keys(), (i.instance_id for i in cls._to_register))
@@ -126,7 +126,7 @@ class InstanceMixins:
         
     def on_registered(self):
         pass
-    
+
     def on_unregistered(self):
         pass
     
@@ -150,6 +150,9 @@ class InstanceRegister(TypeRegister):
             cls._to_unregister = set()
                         
         return cls
+    
+    def __iter__(self):
+        return iter(self._instances.values())
     
 class StaticValue:
     '''Container for static-type values

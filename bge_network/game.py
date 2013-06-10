@@ -7,17 +7,16 @@ from .errors import QuitGame
 from .actors import Actor
 from .enums import Physics
 
-from time import time
+from time import monotonic
 from random import randint
 from collections import defaultdict, deque
+from functools import partial
 
 from . import attributes
 
 class JitterBuffer:
     
     def __init__(self, min_length=2, max_length=8):
-        self.max_length = max_length
-        self.min_length = min_length
         self.accumulator = 0.0
         self.last_time = None
         self.offset = 0.0
@@ -101,9 +100,13 @@ class PhysicsSystem(System):
     
     def __init__(self):
         super().__init__()
-        self.cache = defaultdict(JitterBuffer)
+        self.cache = {}
         self.comparable = defaultdict(lambda: None)
-        
+    
+    def collision_handler(self, replicable, collided):
+        if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(replicable.update)):
+            replicable.on_collision(collided)
+    
     def pre_replication(self, delta_time):
         '''Update the physics before actor updating
         @param delta_time: delta time since last frame'''
@@ -118,8 +121,12 @@ class PhysicsSystem(System):
             # If rigid body physics
             if physics.mode != Physics.rigidbody: 
                 continue 
-                
-            jitter_buffer = self.cache[replicable]
+            
+            try:
+                jitter_buffer = self.cache[replicable]
+            except KeyError:
+                jitter_buffer = self.cache[replicable] = JitterBuffer()
+                replicable.collisionCallback = partial(self.collision_handler, replicable)
             
             # Before the Actors are aware, set the initial position
             if replicable.local_role == role_authority:   
@@ -131,7 +138,9 @@ class PhysicsSystem(System):
                     replicable.worldPosition = physics.position
                     replicable.worldLinearVelocity = physics.velocity
                     replicable.worldOrientation = physics.orientation
+                    
                     jitter_buffer.populate(physics)
+                    
                 else:
                     physics.position = replicable.worldPosition
                     physics.velocity = replicable.worldLinearVelocity
@@ -169,8 +178,7 @@ class PhysicsSystem(System):
                     
                 replicable.worldLinearVelocity = new_data.velocity# + difference    
                 replicable.worldOrientation = physics.orientation   
-            
-    
+                
     def post_update(self, delta_time):
         '''Update the physics after actor changes
         @param delta_time: delta_time since last frame'''
@@ -183,6 +191,12 @@ class PhysicsSystem(System):
             # If rigid body physics
             if physics.mode != Physics.rigidbody: 
                 continue 
+            
+            try:
+                jitter_buffer = self.cache[replicable]
+            except KeyError:
+                jitter_buffer = self.cache[replicable] = JitterBuffer()
+                replicable.collisionCallback = partial(self.collision_handler, replicable)
 
             if replicable.local_role == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    
@@ -197,13 +211,11 @@ class Game(GameLoop):
         super().__init__(addr, port)
         
         self.physics = PhysicsSystem()
-        self.last_time = time()
+        self.last_time = monotonic()
         
     @property
     def is_quit(self):
-        key = events.QKEY
-        active_events = getattr(logic.keyboard, 'active_events')
-        return key in active_events  
+        return events.QKEY in logic.keyboard.active_events
     
     def quit(self):
         self.stop()

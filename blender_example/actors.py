@@ -50,6 +50,8 @@ class Car(Actor):
     mesh_name = "Cube"
    # physics = Attribute(PhysicsData(Physics.none))
    
+    def on_collision(self, obj):
+        print("Collided with", obj)
    
     @simulated
     def update(self, dt):

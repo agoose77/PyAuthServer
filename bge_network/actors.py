@@ -8,7 +8,7 @@ Created on 10 Apr 2013
 from bge import types, logic, events
 from mathutils import Vector
 
-from time import time
+from time import monotonic
 from collections import deque
 
 from .enums import Physics, Animations, ParentStates
@@ -18,13 +18,15 @@ from network import Controller, Replicable, Attribute, simulated, Roles, StaticV
 import random
 
 class InputStatus:
-    def __init__(self, event):
+    '''A pollable interface to an event status'''
+    def __init__(self, event, interface):
+        self.interface = interface
         self.event = event
     
     @property
     def status(self):
-        return logic.keyboard.events[self.event]
-    
+       return self.interface.events[self.event]
+            
     @property
     def active(self):
         return self.pressed or self.held
@@ -54,13 +56,17 @@ class InputManager:
     
     def __getattribute__(self, name):
         mappings = super().__getattribute__("mappings")
+        
         if name in mappings:
             cache = super().__getattribute__("_cache")
             try:
                 return cache[name]
             except KeyError:
                 event = mappings[name]
-                status = cache[name] = InputStatus(event)
+                
+                event_host = logic.keyboard if event in logic.keyboard.events else logic.mouse
+                status = cache[name] = InputStatus(event, event_host)
+                
                 return status
             
             return super().__getattribute__(name)
@@ -92,6 +98,22 @@ class GameObject(types.KX_GameObject):
         '''Cleaner printing of object'''
         return object.__repr__(self)
 
+class ControllerInfo(Replicable):
+    local_role = Roles.authority
+    remote_role = Roles.simulated_proxy
+    
+    name = Attribute("", notify=True)
+    
+    def on_notify(self, name):
+        if name == "name":
+            print("Player changed name to {}".format(self.name))
+    
+    def conditions(self, is_owner, is_complaint, is_initial):
+        '''Generator dictates which attributes must be replicated'''
+
+        if is_complaint:
+            yield "name"
+            
 class PlayerController(Controller):
             
     input_class = lambda *a: None
@@ -103,18 +125,20 @@ class PlayerController(Controller):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Add input class
-        if WorldInfo.netmode != Netmodes.server:
+        if WorldInfo.netmode == Netmodes.server:
+            self.info = ControllerInfo()
+        else:
             self.create_player_input()
-
+        
         # Add time started and accumulator
-        self.started = time()
+        self.started = monotonic()
         self.rtt_accumulator = deque()
         
     @property
     def elapsed(self):
         '''Elapsed time since creation
         used to find RTT'''
-        return time() - self.started    
+        return monotonic() - self.started    
     
     def update_rtt(self, rtt):
         self.rtt_accumulator.append(round_trip_time)

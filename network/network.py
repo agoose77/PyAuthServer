@@ -14,10 +14,9 @@ from weakref import proxy as weak_proxy
 from itertools import repeat, chain
 from copy import deepcopy, copy
 from random import choice
-from time import time
+from time import monotonic
 
 import operator
-import inspect
 
 class NetworkError(Exception, metaclass=TypeRegister):
     pass
@@ -568,7 +567,7 @@ class ClientConnection(Connection):
             replicable_cls = Replicable.of_type(type_name)
             replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
                 
-            # Static actors still need role switching
+            # Static replicables still need role switching
             created_replicables.append(replicable)
 
             # If replicable is Controller
@@ -590,7 +589,7 @@ class ClientConnection(Connection):
         Sends data using initialised context
         Sends RPC information
         Generator'''        
-        for instance_id, replicable in Replicable._instances.items():
+        for replicable in Replicable:
             # Determine if we own this replicable
             is_owner = self.is_owner(replicable)
             # Get network ID
@@ -663,7 +662,7 @@ class ServerConnection(Connection):
         try:
             replicable = Replicable._instances[instance_id]
         except KeyError as err:
-            raise LatencyInducedError("Replicable no longer exists with id {}".format(err))
+            raise LatencyInducedError("Replicable no longer exists with id {}".format(err)) from None
         
         replicable.subscribe(self.notify_destroyed_replicable)
         return ServerChannel(self, replicable)
@@ -680,7 +679,7 @@ class ServerConnection(Connection):
             
     def get_method_replication(self):
         
-        for replicable in Replicable._instances.values():
+        for replicable in Replicable:
             # Determine if we own this replicable
             is_owner = self.is_owner(replicable)
             
@@ -733,7 +732,7 @@ class ServerConnection(Connection):
                     yield Packet(protocol=Protocols.replication_update, 
                             payload=packed_id + attributes, reliable=True)
     
-        # If any actors deleted
+        # If any replicables deleted
         if self.dead_channels:
             
             for channel in self.dead_channels:
@@ -810,7 +809,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Time out for connection before it is deleted
         self.time_out = 2
-        self.last_received = time() 
+        self.last_received = monotonic() 
         
         # Simple connected status
         self.status = ConnectionStatus.disconnected
@@ -822,7 +821,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Maintenance info
         self._addr = addr
-        self._instances[addr] = self
     
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -846,7 +844,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
     @classmethod
     def by_status(cls, status, comparator=operator.eq):   
         count = 0
-        for interface in cls._instances.values():
+        for interface in cls:
             if comparator(interface.status, status):
                 count += 1
         return count
@@ -872,7 +870,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
     def send(self, network_tick):    
         
         # Check for timeout
-        if (time() - self.last_received) > self.time_out:
+        if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
             print("timeout")
             
@@ -943,7 +941,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         packet_collection = PacketCollection().from_bytes(bytes_[self.ack_size:])
     
         # Store the received time
-        self.last_received = time()
+        self.last_received = monotonic()
         
         # If we receive a newer foreign sequence, update our local record
         if self.sequence_more_recent(sequence, self.remote_sequence):
@@ -1056,7 +1054,7 @@ class ClientInterface(ConnectionInterface):
             error = NetworkError.of_type(error_type)
             
             if error is not None:
-                raise error(error_body)
+                raise error(error_body) from None
         
         # Get remote network mode
         netmode = UInt8.unpack_from(packet.payload)
@@ -1066,15 +1064,12 @@ class ClientInterface(ConnectionInterface):
         
         self.connected()
         
-class System:
-    _instances = set()
-    
+class System(metaclass=InstanceRegister):
+
     def __init__(self):
-        self._instances.add(self)
+        super().__init__(None, allow_random_key=True, register=True)
+        
         self.active = True
-    
-    def delete(self):
-        self._instances.remove(self)
     
     def pre_replication(self, delta_time):
         pass
@@ -1085,12 +1080,13 @@ class System:
     def post_update(self, delta_time):
         pass
     
-class DeltaTime:
+class ElapsedTime:
+    '''Context manager to determine elapsed time since last call'''
     def __init__(self):
-        self.last = time()
+        self.last = monotonic()
     
     def __enter__(self):
-        new_time = time()
+        new_time = monotonic()
         delta_time = new_time - self.last
         self.last = new_time
         return delta_time
@@ -1100,7 +1096,7 @@ class DeltaTime:
                 
 class GameLoop(socket):
     
-    def __init__(self, addr, port, update_interval=1/15):
+    def __init__(self, addr, port, update_interval=1/20):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1109,8 +1105,8 @@ class GameLoop(socket):
         
         self._interval = update_interval
         self._last_sent = 0.0
-        self._started = time()
-        self._clock = DeltaTime()
+        self._started = monotonic()
+        self._clock = ElapsedTime()
         
         self.sent_bytes = 0
         self.received_bytes = 0
@@ -1119,16 +1115,19 @@ class GameLoop(socket):
     def can_send(self):
         '''Determines if the socket can send 
         Result according to time elapsed >= send interval'''
-        return (time() - self._last_sent) >= self._interval
+        return (monotonic() - self._last_sent) >= self._interval
     
     @property
     def send_rate(self):
-        return (self.sent_bytes / (time() - self._started))
+        return (self.sent_bytes / (monotonic() - self._started))
     
     @property
     def receive_rate(self):
-        return (self.received_bytes / (time() - self._started))
+        return (self.received_bytes / (monotonic() - self._started))
         
+    def on_tick(self):
+        self._last_sent = monotonic()
+    
     def stop(self):
         self.close()
                 
@@ -1173,9 +1172,11 @@ class GameLoop(socket):
         
         # Get connections
         to_delete = []
-       
+        
+        send_func = self.sendto
+        
         # Send all queued data
-        for connection in ConnectionInterface.get_graph_instances():
+        for connection in ConnectionInterface:
             
             # If the connection should be removed (timeout or explicit)
             if connection.status < ConnectionStatus.disconnected:
@@ -1187,46 +1188,55 @@ class GameLoop(socket):
             
             # If returns data, send it
             if data:
-                self.sendto(data, connection.instance_id) 
+                send_func(data, connection.instance_id) 
                 
         # Delete dead connections
         ConnectionInterface.update_graph()
 
         # Remember last non urgent
         if network_tick:
-            self._last_sent = time()
+            self.on_tick()
     
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
     def update(self):       
-        
+        # Determine the elapsed time since the last update
         with self._clock as delta_time:
             
-            for system in System._instances:
+            # Update each system at intervals
+            for system in System:
+                # Ensure system is active
                 if system.active:
                     system.pre_replication(delta_time)
+                    # Update changes to replicable graph
                     Replicable.update_graph() 
             
+            # Receive data from peer
             self.receive()
-    
+            
+            # Update any changes made to replicable graph
             Replicable.update_graph()
             
-            for system in System._instances:
+            # Update each system at intervals
+            for system in System:
                 if system.active:
                     system.pre_update(delta_time)
                     Replicable.update_graph()
             
-            for actor in WorldInfo.actors:
-                if (actor.local_role > Roles.simulated_proxy) or (actor.local_role == Roles.simulated_proxy and is_simulated(actor.update)):
-                    actor.update(delta_time)
+            # Update all replicables
+            for replicable in WorldInfo.actors:
+                if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(replicable.update)):
+                    replicable.update(delta_time)
     
-                if hasattr(actor, "player_input") and isinstance(actor, Controller):
-                    actor.player_update(delta_time)
+                if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
+                    replicable.player_update(delta_time)
             
+            # Update any following changes
             Replicable.update_graph()
                 
-            for system in System._instances:
+            # Upate before sending
+            for system in System:
                 if system.active:
                     system.post_update(delta_time)
                     Replicable.update_graph()
@@ -1321,7 +1331,7 @@ class LazyReplicableProxy:
         try:
             cache = cls.__dict__["_class_proxy_cache"]
         except KeyError:
-            cls._class_proxy_cache = cache = {}#keyeddefaultdict(cls._create_class_proxy)
+            cls._class_proxy_cache = cache = {}
         
         try:
             theclass = cache[obj.__class__]
