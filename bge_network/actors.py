@@ -162,6 +162,12 @@ class Actor(GameObject, Replicable):
     update_simulated_position = True
     mesh_name = "Sphere"
     
+    def on_new_collision(self, collider):
+        pass
+    
+    def on_end_collision(self, collider):
+        pass
+    
     def local_space(self, velocity):
         return self.worldOrientation * velocity
     

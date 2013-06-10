@@ -28,4 +28,5 @@ def main(cont):
         game.update()    
     except QuitGame:
         logic.endGame()  
+        print("ended")
     

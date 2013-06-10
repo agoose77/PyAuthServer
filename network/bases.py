@@ -99,9 +99,14 @@ class InstanceMixins:
             for replicable in cls._to_unregister.copy():
                 replicable._unregister_from_graph()
         
-    def request_unregistration(self):
-        if self.registered:
-            self.__class__._to_unregister.add(self)
+    def request_unregistration(self, unregister=False):
+        if not self.registered:
+            return
+        
+        self.__class__._to_unregister.add(self)
+        
+        if unregister:
+            self._unregister_from_graph()
             
     def request_registration(self, instance_id):
         if instance_id is None:

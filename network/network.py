@@ -202,10 +202,14 @@ class RPC:
                 
 class BaseRules:
     '''Base class for game rules'''
-      
+    
     @classmethod
-    def on_connect(cls, addr):
-        return
+    def pre_initialise(cls, addr, netmode):
+        pass
+        
+    @classmethod
+    def post_initialise(cls, conn):
+        return Controller()
     
     @classmethod
     def on_disconnect(cls, replicable):
@@ -215,8 +219,10 @@ class BaseRules:
     def is_relevant(cls, conn, replicable):
         if replicable.remote_role is Roles.none:
             return False
-        if isinstance(replicable, BaseController):
+        
+        if isinstance(replicable, Controller):
             return False
+        
         return True
     
 class PacketCollection:
@@ -1025,7 +1031,7 @@ class ServerInterface(ConnectionInterface):
         
         # Store replicable
         try:
-            WorldInfo.rules.pre_initialise(netmode)
+            WorldInfo.rules.pre_initialise(self.instance_id, netmode)
         
         # If a NetworkError is raised, store result
         except NetworkError as err:

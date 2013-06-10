@@ -1,4 +1,4 @@
-from network import GameLoop, WorldInfo, Roles, System
+from network import GameLoop, WorldInfo, Roles, System, is_simulated
 from bge import events, logic
 
 import sys; sys.path.append(logic.expandPath("//../"))
@@ -14,6 +14,51 @@ from functools import partial
 
 from . import attributes
 
+from bge import logic, events, types
+from functools import partial
+from mathutils import Matrix
+
+class CollisionStatus:    
+    
+    def __init__(self, obj, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        if hasattr(types.KX_GameObject, "collisionCallback"):
+            obj.collisionCallback = self.is_colliding
+            obj.scene.post_draw = [self.not_colliding]
+        
+        self._new_colliders = set()
+        self._old_colliders = set()
+        self._registered = set()
+    
+    @property
+    def colliding(self):
+        return bool(self._registered)
+    
+    def on_start(self, other):
+        pass
+    
+    def on_end(self, other):
+        pass
+    
+    def is_colliding(self, other):
+        # If we haven't already stored the collision
+        self._new_colliders.add(other)
+        
+        if (not other in self._registered):
+            self._registered.add(other)
+            self.on_start(other)
+    
+    def not_colliding(self):
+        # If we have a stored collision
+        difference = self._old_colliders.difference(self._new_colliders)
+        self._old_colliders = self._new_colliders.copy()
+        self._new_colliders.clear()
+        
+        for obj in difference:
+            self._registered.remove(obj)
+            self.on_end(obj)
+    
 class JitterBuffer:
     
     def __init__(self, min_length=2, max_length=8):
@@ -101,11 +146,11 @@ class PhysicsSystem(System):
     def __init__(self):
         super().__init__()
         self.cache = {}
-        self.comparable = defaultdict(lambda: None)
+        self.collision_listeners = {}
     
-    def collision_handler(self, replicable, collided):
+    def collision_dispatcher(self, replicable, new_collision, collided):        
         if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(replicable.update)):
-            replicable.on_collision(collided)
+            replicable.on_new_collision(collided) if new_collision else replicable.on_end_collision(collided)
     
     def pre_replication(self, delta_time):
         '''Update the physics before actor updating
@@ -126,7 +171,11 @@ class PhysicsSystem(System):
                 jitter_buffer = self.cache[replicable]
             except KeyError:
                 jitter_buffer = self.cache[replicable] = JitterBuffer()
-                replicable.collisionCallback = partial(self.collision_handler, replicable)
+                
+                collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
+                collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
+                collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
+                
             
             # Before the Actors are aware, set the initial position
             if replicable.local_role == role_authority:   
@@ -149,20 +198,7 @@ class PhysicsSystem(System):
             
             # Or run simulation before actors update on client
             elif replicable.local_role == role_simulated:
-#                current_data = self.comparable[replicable]
-#
-#                # If the replicated physics has changed 
-#                if current_data is not physics:
-#                    self.comparable[replicable] = physics
-#                    jitter_buffer.populate(physics)
-#                
-#                # Run through jitter buffer first
-#                new_data = jitter_buffer.get(delta_time)
-#                                
-#                # If we're not allowed to pull data
-#                if new_data is None:
-                   # continue
-
+                
                 # Determine how far from reality we are
                 current_position = replicable.worldPosition
                 new_data=physics
@@ -176,7 +212,7 @@ class PhysicsSystem(System):
                     replicable.worldPosition += difference * 0.4   
                     replicable.worldLinearVelocity = new_data.velocity
                     
-                replicable.worldLinearVelocity = new_data.velocity# + difference    
+                replicable.worldLinearVelocity = new_data.velocity
                 replicable.worldOrientation = physics.orientation   
                 
     def post_update(self, delta_time):
@@ -196,7 +232,9 @@ class PhysicsSystem(System):
                 jitter_buffer = self.cache[replicable]
             except KeyError:
                 jitter_buffer = self.cache[replicable] = JitterBuffer()
-                replicable.collisionCallback = partial(self.collision_handler, replicable)
+                collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
+                collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
+                collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
 
             if replicable.local_role == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    

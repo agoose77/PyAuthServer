@@ -48,9 +48,8 @@ class RacingController(PlayerController):
 
 class Car(Actor):
     mesh_name = "Cube"
-   # physics = Attribute(PhysicsData(Physics.none))
    
-    def on_collision(self, obj):
+    def on_new_collision(self, obj):
         print("Collided with", obj)
    
     @simulated
