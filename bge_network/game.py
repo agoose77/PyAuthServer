@@ -148,9 +148,10 @@ class PhysicsSystem(System):
         self.cache = {}
         self.collision_listeners = {}
     
-    def collision_dispatcher(self, replicable, new_collision, collided):        
-        if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(replicable.update)):
-            replicable.on_new_collision(collided) if new_collision else replicable.on_end_collision(collided)
+    def collision_dispatcher(self, replicable, new_collision, collided):
+        func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
+        if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(func)):
+            func(collided)
     
     def pre_replication(self, delta_time):
         '''Update the physics before actor updating
