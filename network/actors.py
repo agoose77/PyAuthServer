@@ -2,7 +2,6 @@ from .bases import Attribute, InstanceRegister
 from .enums import Roles
 from .modifiers import simulated
 
-from random import choice
 from inspect import getmembers
 from collections import defaultdict, deque
 
@@ -15,7 +14,7 @@ class Replicable(metaclass=InstanceRegister):
     
     def __init__(self, instance_id=None, register=False):
         # Create a flag that is set when attributes change (if permitted)
-        super().__init__(instance_id, register, allow_random_key=True)
+        super().__init__(instance_id=instance_id, register=register, allow_random_key=True)
         
         self._data = {}
         self._calls = deque()

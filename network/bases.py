@@ -36,7 +36,9 @@ class TypeRegister(type):
 
 class InstanceMixins:
     
-    def __init__(self, instance_id, register=False, allow_random_key=False):   
+    def __init__(self, instance_id, register=False, allow_random_key=False, **kwargs):
+        super().__init__(**kwargs)   
+
         self.allow_random_key = allow_random_key
 
         # Add to register queue

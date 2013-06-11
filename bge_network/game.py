@@ -25,7 +25,7 @@ class CollisionStatus:
         
         if hasattr(types.KX_GameObject, "collisionCallback"):
             obj.collisionCallback = self.is_colliding
-            obj.scene.post_draw = [self.not_colliding]
+            obj.scene.post_draw.append(self.not_colliding)
         
         self._new_colliders = set()
         self._old_colliders = set()

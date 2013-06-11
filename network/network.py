@@ -7,7 +7,7 @@ from .handler_interfaces import static_description, register_handler, get_handle
 
 from bitarray import bitarray, bits2bytes
 
-from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error
+from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostbyname
 from collections import deque, defaultdict, OrderedDict
 from inspect import getmembers, signature
 from weakref import proxy as weak_proxy
@@ -787,7 +787,7 @@ class ServerConnection(Connection):
 class ConnectionInterface(metaclass=InstanceRegister):
         
     def __init__(self, addr):
-        super().__init__(instance_id=addr, register=True)
+        super().__init__(instance_id=self.convert_address(addr), register=True)
         
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
@@ -826,8 +826,8 @@ class ConnectionInterface(metaclass=InstanceRegister):
         self.buffer = []
         
         # Maintenance info
-        self._addr = addr
-    
+        self._addr = self.convert_address(addr)
+        
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
         if cls is ConnectionInterface:
@@ -840,7 +840,10 @@ class ConnectionInterface(metaclass=InstanceRegister):
                 return ClientInterface.__new__(ClientInterface,*args, **kwargs)
         else:
             return super().__new__(cls)
-        
+    
+    def convert_address(self, addr):
+        return gethostbyname(addr[0]), addr[1]
+    
     def on_unregistered(self):    
         super().on_unregistered() 
            
@@ -1072,8 +1075,8 @@ class ClientInterface(ConnectionInterface):
         
 class System(metaclass=InstanceRegister):
 
-    def __init__(self):
-        super().__init__(None, allow_random_key=True, register=True)
+    def __init__(self, **kwargs):
+        super().__init__(instance_id=None, allow_random_key=True, register=True, **kwargs)
         
         self.active = True
     
@@ -1102,7 +1105,7 @@ class ElapsedTime:
                 
 class GameLoop(socket):
     
-    def __init__(self, addr, port, update_interval=1/20):
+    def __init__(self, addr, port, update_interval=1/15):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1169,6 +1172,7 @@ class GameLoop(socket):
             connection.receive(bytes_)
             self.received_bytes += len(bytes_)
         
+        # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
         
     def send(self):
@@ -1206,10 +1210,9 @@ class GameLoop(socket):
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
-    def update(self):       
+    def update(self):   
         # Determine the elapsed time since the last update
         with self._clock as delta_time:
-            
             # Update each system at intervals
             for system in System:
                 # Ensure system is active

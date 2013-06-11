@@ -11,7 +11,7 @@ class TeamDeathMatch(BaseRules):
     @classmethod
     def pre_initialise(cls, addr, netmode):
         connections = ConnectionInterface.by_status(ConnectionStatus.handshake, greater_than)
-        
+        # Determine if too many players accepted 
         if connections >= cls.player_limit:
             raise PlayerLimitReached
         
