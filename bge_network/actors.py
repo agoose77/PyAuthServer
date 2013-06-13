@@ -75,10 +75,15 @@ class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
     Fixes parenting relationships between actors which are proxies'''
     def __new__(cls, *args, **kwargs):
-        cont = logic.getCurrentController()
-        obj = cont.owner.scene.addObject(cls.mesh_name, cont.owner)
+        existing = kwargs.get("object")
+        
+        if not existing:
+            cont = logic.getCurrentController()
+            obj = cont.owner.scene.addObject(cls.obj_name, cont.owner)
+        else:
+            obj = existing
         return super().__new__(cls, obj)
-    
+        
     def setParent(self, other, state=ParentStates.initial):
         if isinstance(other, GameObject):
             if state == ParentStates.initial:
@@ -93,7 +98,10 @@ class GameObject(types.KX_GameObject):
     def on_unregistered(self):        
         super().on_unregistered()
         self.endObject()
-        
+    
+    def local_space(self, velocity):
+        return self.worldOrientation * velocity
+    
     def __repr__(self):
         '''Cleaner printing of object'''
         return object.__repr__(self)
@@ -160,16 +168,52 @@ class Actor(GameObject, Replicable):
     physics = Attribute(PhysicsData(Physics.rigidbody), complain=False)
     
     update_simulated_position = True
-    mesh_name = "Sphere"
+    obj_name = "Sphere"
+    
+    def on_create(self):
+        self.allowed_transitions = []
+        self.states = []
+        
+    @property
+    def current_state(self):
+        try:
+            return self.states[-1]
+        except IndexError:
+            return None
+    
+    def remove_state(self, obj):
+        self.states.remove(obj)
+        self.on_transition(obj, self.current_state)
+    
+    def add_state(self, obj):
+        if not obj in self.states:
+            current = self.current_state
+            self.states.append(obj)
+            self.on_transition(current, obj)
+    
+    def transition(self, state):
+        current_state = self.current_state
+        if not state in self.states:
+            self.states.append(state)
+        
+        self.on_transition(current_state, state)
+            
+    def is_state(self, obj):
+        for base in self.allowed_transitions:
+            if isinstance(obj, base):
+                return True
     
     def on_new_collision(self, collider):
-        pass
+        if self.is_state(collider):
+            self.transition(collider)
     
     def on_end_collision(self, collider):
-        pass
+        if self.is_state(collider):
+            self.remove_state(collider)
     
-    def local_space(self, velocity):
-        return self.worldOrientation * velocity
+    @property
+    def on_ground(self):
+        return self.current_state != None
     
     def play_animation(self, animation):
         '''Plays an animation locally

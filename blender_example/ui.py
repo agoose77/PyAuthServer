@@ -107,18 +107,20 @@ class OverlayUI(UISystem):
         
     def bgui_position(self, actor):
         camera = logic.getCurrentScene().active_camera
-        position = list(camera.getScreenPosition(actor.physics.position))
+        position = list(camera.getScreenPosition(actor.worldPosition))
         position[1] = 1 - position[1]
         return position
     
     def new_actor(self, actor):
-        label = bgui.Label(parent=self, name='label', text=str(actor.instance_id), pos=self.bgui_position(actor),
+        return bgui.Label(parent=self, name='label', text=str(actor.instance_id), pos=self.bgui_position(actor),
                            sub_theme='Large', options = bgui.BGUI_DEFAULT)
-        return label
         
     def update(self):
         for actor in WorldInfo.subclass_of(Actor):
-            self.labels[actor].position = self.bgui_position(actor)
+            label = self.labels[actor]
+            
+            label.position = self.bgui_position(actor)
+            label.text = str(actor.instance_id)
 
 class FindGameUI(UISystem):
 

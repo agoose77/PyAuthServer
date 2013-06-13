@@ -1,5 +1,5 @@
 from copy import deepcopy
-from inspect import getmembers, stack
+from inspect import getmembers
 from itertools import chain
 from .handler_interfaces import static_description
 
@@ -31,8 +31,8 @@ class TypeRegister(type):
             
         return cls
     
-    def of_type(self, type):
-        return self._types.get(type)
+    def of_type(self, type_):
+        return self._types.get(type_)
 
 class InstanceMixins:
     

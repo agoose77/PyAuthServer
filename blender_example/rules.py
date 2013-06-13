@@ -20,12 +20,10 @@ class TeamDeathMatch(BaseRules):
         if conn.netmode == Netmodes.client: 
             # Create controller
             controller = RacingController()
-            
             # Create pawn
             actor = Car()
             # Establish relationship
             controller.possess(actor) 
-        
             return controller
         
     def on_disconnect(cls, replicable):

@@ -12,7 +12,10 @@ class Replicable(metaclass=InstanceRegister):
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
     _by_types = defaultdict(list)
     
-    def __init__(self, instance_id=None, register=False):
+    def __init__(self, instance_id=None, register=False, static=True, **kwargs):
+        # If this is a local replicable
+        self._local_authority = False
+        
         # Create a flag that is set when attributes change (if permitted)
         super().__init__(instance_id=instance_id, register=register, allow_random_key=True)
         
@@ -21,15 +24,20 @@ class Replicable(metaclass=InstanceRegister):
         self._complain = {}    
         self._subscribers = []  
         
-        # If this is a local replicable
-        self._local = False  
-        
         # Invoke descriptors to register values
         for name, value in getmembers(self):
             getattr(self, name)
-               
+            
+        # If this is a static mapping  
+        self._static = static and instance_id is not None
+        
+        self.on_create()
+    
+    def on_create(self):
+        pass
+    
     @classmethod
-    def _create_or_return(cls, base_cls, instance_id,register=False):
+    def _create_or_return(cls, base_cls, instance_id, register=False):
         '''Called by the replication system'''
         # Try and match an existing instance
         try:
@@ -37,27 +45,27 @@ class Replicable(metaclass=InstanceRegister):
         
         # If we don't find one, make one
         except LookupError:
-            return base_cls(instance_id, register)
+            return base_cls(instance_id=instance_id, register=register, static=False)
         
         else:
             # If we find a locally defined replicable (if instance_id was None when created -> not static)
-            if existing._local:
+            if existing._local_authority: # Without authority
                 # Make the class and overwrite the id
-                return base_cls(instance_id, register)
+                return base_cls(instance_id=instance_id, register=register, static=False)
             
             return existing
     
     def request_registration(self, instance_id, verbose=False):
         # This is static or replicated then it's local
         if instance_id is None: 
-            self._local = True
+            self._local_authority = True
             
         # Therefore we will have authority to change things
         if instance_id in self.get_entire_graph_ids():
             instance = self.remove_from_entire_graph(instance_id)
             
             # If the instance is local, then it hasn't got prority
-            assert instance._local, "Authority over instance id {} is unresolveable".format(instance_id)
+            assert instance._local_authority, "Authority over instance id {} is unresolveable".format(instance_id)
             
             # Possess the instance id
             super().request_registration(instance_id)

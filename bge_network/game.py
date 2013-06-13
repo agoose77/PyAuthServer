@@ -1,4 +1,4 @@
-from network import GameLoop, WorldInfo, Roles, System, is_simulated, keyeddefaultdict
+from network import GameLoop, Replicable, WorldInfo, Roles, System, is_simulated, keyeddefaultdict
 from bge import events, logic
 
 import sys; sys.path.append(logic.expandPath("//../"))
@@ -154,13 +154,36 @@ class PhysicsSystem(System):
         collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
         collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
         collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
+        
+        if replicable._static:
+            replicable.physics.position = replicable.worldPosition.copy()
+        else:
+            replicable.worldPosition = replicable.physics.position
+
         return jitter_buffer
     
     def collision_dispatcher(self, replicable, new_collision, collided):
         func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
         if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(func)):
             func(collided)
+            
+            self.physics_to_world(replicable)
+        
+    def physics_to_world(self, replicable):
+        physics = replicable.physics
+        
+        replicable.worldPosition = physics.position
+        replicable.worldLinearVelocity = physics.velocity
+        replicable.worldOrientation = physics.orientation
     
+    def world_to_physics(self, replicable):
+        physics = replicable.physics
+        
+        physics.position = replicable.worldPosition
+        physics.velocity = replicable.worldLinearVelocity
+        physics.orientation = replicable.worldOrientation.to_euler()
+        physics.timestamp = WorldInfo.elapsed
+        
     def pre_replication(self, delta_time):
         '''Update the physics before actor updating
         @param delta_time: delta time since last frame'''
@@ -176,27 +199,10 @@ class PhysicsSystem(System):
             if physics.mode != Physics.rigidbody: 
                 continue 
             
-            jitter_buffer = self.cache[replicable]                
+            jitter_buffer = self.cache[replicable]   
             
-            # Before the Actors are aware, set the initial position
             if replicable.local_role == role_authority:   
-                
-                try:
-                    latest = jitter_buffer.latest
-                    
-                except IndexError:
-                    # Initial set from object data
-                    replicable.worldPosition = physics.position
-                    replicable.worldLinearVelocity = physics.velocity
-                    replicable.worldOrientation = physics.orientation
-                    
-                    jitter_buffer.populate(physics)
-                    
-                else:
-                    physics.position = replicable.worldPosition
-                    physics.velocity = replicable.worldLinearVelocity
-                    physics.orientation = replicable.worldOrientation.to_euler()
-                    physics.timestamp = WorldInfo.elapsed
+                self.world_to_physics(replicable)
             
             # Or run simulation before actors update on client
             elif replicable.local_role == role_simulated:
@@ -209,7 +215,7 @@ class PhysicsSystem(System):
                 
                 offset = new_data.velocity.length * delta_time
                 
-                threshold = 0.4
+                threshold = 0.1
                 
                 if difference.length > threshold:
                     replicable.worldPosition += difference * 0.4   
@@ -230,15 +236,12 @@ class PhysicsSystem(System):
             # If rigid body physics
             if physics.mode != Physics.rigidbody: 
                 continue 
-            
+
             jitter_buffer = self.cache[replicable]            
 
             if replicable.local_role == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    
-                replicable.worldPosition = physics.position
-                replicable.worldLinearVelocity = physics.velocity
-                replicable.worldOrientation = physics.orientation
-                physics.timestamp = WorldInfo.elapsed
+                self.physics_to_world(replicable)
             
 class Game(GameLoop):
     
@@ -247,11 +250,33 @@ class Game(GameLoop):
         
         self.physics = PhysicsSystem()
         self.last_time = monotonic()
+        self.make_static()
         
     @property
     def is_quit(self):
         return events.QKEY in logic.keyboard.active_events
     
+    def make_static(self):
+        scene = logic.getCurrentScene()
+     
+        for obj in scene.objects:
+            try:
+                cls_name = obj['static']
+                static_id = obj['static_id']
+            except KeyError:
+                continue
+            
+            cls = Replicable.of_type(cls_name)
+            
+            if not issubclass(cls, Actor):
+                continue
+            
+            if obj.name != cls.obj_name and False:
+                raise TypeError("Object name for static actor {} does not match class definition".format(obj))
+                           
+            # Make static actor                      
+            replicable = cls(object=obj, instance_id=static_id)
+            
     def quit(self):
         self.stop()
         raise QuitGame

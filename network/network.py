@@ -79,7 +79,7 @@ class Serialiser:
             for value, (key, static_value) in zip(bools, self.bools):
                 yield (key, value)
 
-    def pack(self, data):
+    def pack(self, data, current_values={}):
         # Reset content mask
         contents = self.content_bits
         contents.setall(False)
@@ -595,15 +595,18 @@ class ClientConnection(Connection):
         Sends data using initialised context
         Sends RPC information
         Generator'''        
+        check_is_owner = self.is_owner
+        packer = UInt8.pack
+        get_channel = self.channels.__getitem__
         for replicable in Replicable:
             # Determine if we own this replicable
-            is_owner = self.is_owner(replicable)
+            is_owner = check_is_owner(replicable)
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = UInt8.pack(instance_id)
+            packed_id = packer(instance_id)
             
             # Get attribute channel
-            channel = self.channels[instance_id]
+            channel = get_channel(instance_id)
             
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -657,7 +660,6 @@ class ServerConnection(Connection):
         super().on_delete()
         
         # If we own a controller destroy it
-        print(self.replicable.registered, self.replicable, self.replicable.instance_id)
         if self.replicable:
             self.replicable.request_unregistration()
             # We must be connected to have a controller
@@ -684,17 +686,21 @@ class ServerConnection(Connection):
         self.dead_channels.add(channel)
             
     def get_method_replication(self):
+
+        check_is_owner = self.is_owner
+        packer = UInt8.pack
+        get_channel = self.channels.__getitem__
         
         for replicable in Replicable:
             # Determine if we own this replicable
-            is_owner = self.is_owner(replicable)
+            is_owner = check_is_owner(replicable)
             
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = UInt8.pack(instance_id)
+            packed_id = packer(instance_id)
             
             # Get attribute channel
-            channel = self.channels[instance_id]
+            channel = get_channel(instance_id)
             
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -706,16 +712,20 @@ class ServerConnection(Connection):
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.rules.is_relevant
 
+        check_is_owner = self.is_owner
+        packer = UInt8.pack
+        get_channel = self.channels.__getitem__
+        
         for replicable in WorldInfo.actors:
             # Determine if we own this replicable
-            is_owner = self.is_owner(replicable)
+            is_owner = check_is_owner(replicable)
             
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = UInt8.pack(instance_id)
+            packed_id = packer(instance_id)
             
             # Get attribute channel
-            channel = self.channels[instance_id]
+            channel = get_channel(instance_id)
 
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
@@ -1105,7 +1115,7 @@ class ElapsedTime:
                 
 class GameLoop(socket):
     
-    def __init__(self, addr, port, update_interval=1/15):
+    def __init__(self, addr, port, update_interval=1/25):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1259,6 +1269,7 @@ class LazyReplicableProxy:
     
     def __init__(self, target):
         object.__setattr__(self, "target", target)
+        a = self.__class__
         
     @property
     def _obj(self):
