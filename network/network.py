@@ -18,6 +18,9 @@ from time import monotonic
 
 import operator
 
+def allowed_to_run(replicable, func):
+    return (replicable.roles.local > Roles.simulated_proxy) or (replicable.roles.local == Roles.simulated_proxy and is_simulated(func))
+    
 class NetworkError(Exception, metaclass=TypeRegister):
     pass
 
@@ -57,8 +60,8 @@ class Serialiser:
         for included, (key, handler) in zip(contents, self.handlers):
             if not included:
                 continue
-            
-            if hasattr(handler, "unpack_merge"):
+
+            if hasattr(handler, "unpack_merge") and key in previous_values:
                 value = previous_values[key]
                 
                 if value is None:
@@ -86,7 +89,7 @@ class Serialiser:
         
         # Create output list
         output = []
-        
+
         # Iterate over non booleans
         for index, (key, handler) in enumerate(self.handlers):
             if not key in data:
@@ -114,19 +117,33 @@ class Serialiser:
         return contents.tobytes() + b''.join(output)
            
 class RPC:
-    """Mediates RPC calls to/from peers"""
-    __annotations__ = {}
-    _instances = {}
-    
-    def __init__(self, func, inst=None):
-            
-        if inst is None:
-            self.func = func
-            self.instance_members = {}
-            return
+    '''Manages instances of an RPC function for each object'''
         
-        self.func = func = func.__get__(inst, None)
-        self.inst = inst
+    def __init__(self, func):
+        self.func = func
+        self.rpc_for_instance = {}
+        self.__annotations__ = func.__annotations__
+    
+    def __get__(self, instance, base):
+        try:
+            rpc_instance = self.rpc_for_instance[instance]
+        
+        except KeyError:
+            
+            if instance is None:
+                rpc_instance = None
+            else:   
+                rpc_instance = self.rpc_for_instance[instance] = RPCInterface(self.func, instance)
+        
+        return rpc_instance
+        
+class RPCInterface:
+    """Mediates RPC calls to/from peers"""
+    
+    def __init__(self, func, instance):
+        # Used to isolate rpc_for_instance for each function for each instance
+        self.func = func = func.__get__(instance, None)
+        self.instance = instance
         self.name = func.__name__
         
         # Get the function signature
@@ -136,35 +153,19 @@ class RPC:
         # Interface between data and bytes
         self.serialiser = Serialiser(self.ordered_arguments(func_signature))
         self.binder = func_signature.bind
-
+        self.__annotations__ = func.__annotations__
+        
         # Enable modifier lookup
-        self.__annotations__.update(func.__annotations__)
-                
-    def __get__(self, inst, base):
-        try:
-            bound_rpc = self.instance_members[inst]
-        except KeyError:
-            bound_rpc = self.instance_members[inst] = type(self)(self.func, inst)
-            
-        return bound_rpc
+        self.instance._rpc_functions.append(self)
     
-    def __call__(self, *args, **kwargs):
-        # Determines if call should be executed or bounced
-        if self.target == WorldInfo.netmode:
-            return self.func(*args, **kwargs)
+    @property
+    def rpc_id(self):
+        return self.instance._rpc_functions.index(self)
     
     def ordered_arguments(self, sig):
         return OrderedDict((value.name, value.annotation) for value in 
                sig.parameters.values() if isinstance(value.annotation, StaticValue))
-                
-    def __get__(self, inst, base):
-        try:
-            bound_rpc = self.instance_members[inst]
-        except KeyError:
-            bound_rpc = self.instance_members[inst] = type(self)(self.func, inst)
-            
-        return bound_rpc
-    
+               
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
         if self.target == WorldInfo.netmode:
@@ -172,12 +173,12 @@ class RPC:
 
         arguments = self.binder(*args, **kwargs).arguments
         data = self.serialiser.pack(arguments)
-        
-        self.inst._calls.append((self, data))
+      
+        self.instance._calls.append((self, data))
     
     def execute(self, bytes_):
         # Get object network role
-        local_role = self.inst.local_role
+        local_role = self.instance.roles.local
         simulated_role = Roles.simulated_proxy
 
         # Check if we haven't any authority
@@ -199,6 +200,7 @@ class RPC:
             self.func(**dict(unpacked_data))
         except Exception as err:
             print("Error invoking RPC {}: {}".format(self.name, err))
+            raise
                 
 class BaseRules:
     '''Base class for game rules'''
@@ -216,13 +218,7 @@ class BaseRules:
         return
     
     @classmethod
-    def is_relevant(cls, conn, replicable):
-        if replicable.remote_role is Roles.none:
-            return False
-        
-        if isinstance(replicable, Controller):
-            return False
-        
+    def is_relevant(cls, conn, replicable):        
         return True
     
 class PacketCollection:
@@ -376,7 +372,7 @@ class Channel:
 
         # Get network attributes
         self.attributes = {a: b for a, b in getmembers(replicable.__class__) if isinstance(b, Attribute)}
-        
+       
         # Sort by name (must be the same on both client and server
         self.sorted_attributes = OrderedDict((key, self.attributes[key]) for key in sorted(self.attributes))
         
@@ -389,21 +385,21 @@ class Channel:
         # Store dictionary of ids for each attribute value
         self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
     
-    def get_rpc_calls(self):            
+    def get_rpc_calls(self):       
         for (method, data) in self.replicable._calls:
-            packed_name = String.pack(method.name)
-            yield packed_name + data, is_reliable(method)
+            yield UInt8.pack(method.rpc_id) + data, is_reliable(method)
           
         self.replicable._calls.clear() 
         
     def invoke_rpc_call(self, rpc_call):
-        rpc_name = String.unpack_from(rpc_call)
-        method = getattr(self.replicable, rpc_name)
+        rpc_id = UInt8.unpack_from(rpc_call)
         
-        if not isinstance(method, RPC):
+        try:            method =(self.replicable._rpc_functions[rpc_id])
+        except IndexError:
+            print("Error invoking RPC: No RPC function with id {}".format(rpc_id))
             return
-        
-        method.execute(rpc_call[String.size(rpc_call):]) 
+ 
+        method.execute(rpc_call[1:]) 
                  
 class ClientChannel(Channel):      
         
@@ -442,6 +438,8 @@ class ServerChannel(Channel):
         # Get replicable and its class
         replicable = self.replicable
         replicable_cls = replicable.__class__
+        # Set the role context for whom we replicate
+        replicable.roles.context = is_owner
         
         # Get names of replicable attributes
         can_replicate = replicable.conditions(is_owner,
@@ -509,7 +507,7 @@ class Connection:
         # Walk the parent tree until no parent
         try:
             while replicable:
-                owner = replicable.owner
+                owner = getattr(replicable, "owner", None)
                 last, replicable = replicable, owner
         
         except AttributeError:
@@ -539,7 +537,7 @@ class ClientConnection(Connection):
         replicable.subscribe(self.notify_destroyed_replicable)
         return ClientChannel(self, replicable)
     
-    def set_replication(self, packet, created_replicables=None):
+    def set_replication(self, packet):
         '''Replication function
         Accepts replication packets and responds to protocol
         @param packet: replication packet'''
@@ -551,8 +549,8 @@ class ClientConnection(Connection):
             if instance_id in Replicable._instances:
                 channel = self.channels[instance_id]
                 channel.set_attributes(packet.payload[1:])
-            
                 return channel.replicable
+            
             else:
                 print("Unable to replicate to replicable with id {}".format(instance_id))
         
@@ -568,13 +566,9 @@ class ClientConnection(Connection):
         elif packet.protocol == Protocols.replication_init:
             instance_id = UInt8.unpack_from(packet.payload)
             type_name = String.unpack_from(packet.payload[1:])
-            
             # Create replicable of same type           
-            replicable_cls = Replicable.of_type(type_name)
+            replicable_cls = Replicable.from_type_name(type_name)
             replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
-                
-            # Static replicables still need role switching
-            created_replicables.append(replicable)
 
             # If replicable is Controller
             if isinstance(replicable, Controller):
@@ -598,7 +592,14 @@ class ClientConnection(Connection):
         check_is_owner = self.is_owner
         packer = UInt8.pack
         get_channel = self.channels.__getitem__
+        
+        no_role = Roles.none
+        
         for replicable in Replicable:
+            
+            if replicable.roles.remote == no_role:
+                continue
+            
             # Determine if we own this replicable
             is_owner = check_is_owner(replicable)
             # Get network ID
@@ -618,8 +619,6 @@ class ClientConnection(Connection):
         Receive data using initialised context
         Receive RPC and replication information
         Catches network errors'''
-        created_replicables = []
-    
         for packet in packets:
             
             protocol = packet.protocol
@@ -631,22 +630,11 @@ class ClientConnection(Connection):
                 self.set_replication(packet)    
                 
             elif protocol == Protocols.replication_init:
-                self.set_replication(packet, created_replicables)
+                self.set_replication(packet)
             
             elif protocol == Protocols.replication_del:
-                self.set_replication(packet)
-        
-        # We run this after replication to ensure relationships are valid
-        if not created_replicables:
-            return
-        
-        # For any created replicables, switch roles
-        # Only owned replicables may be autonomous
-        for replicable in created_replicables:
-            replicable.local_role, replicable.remote_role = replicable.remote_role, replicable.local_role
-            if replicable.local_role == Roles.autonomous_proxy and not self.is_owner(replicable):
-                replicable.local_role = Roles.simulated_proxy
-        
+                self.set_replication(packet)        
+       
 class ServerConnection(Connection):
     
     def __init__(self, *args, **kwargs):  
@@ -671,7 +659,7 @@ class ServerConnection(Connection):
             replicable = Replicable._instances[instance_id]
         except KeyError as err:
             raise LatencyInducedError("Replicable no longer exists with id {}".format(err)) from None
-        
+
         replicable.subscribe(self.notify_destroyed_replicable)
         return ServerChannel(self, replicable)
     
@@ -690,8 +678,14 @@ class ServerConnection(Connection):
         check_is_owner = self.is_owner
         packer = UInt8.pack
         get_channel = self.channels.__getitem__
+        make_packet = Packet.__call__
+        
+        no_role = Roles.none
         
         for replicable in Replicable:
+            if replicable.roles.remote == no_role:
+                continue
+            
             # Determine if we own this replicable
             is_owner = check_is_owner(replicable)
             
@@ -705,18 +699,24 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield Packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
                      
     def get_full_replication(self):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.rules.is_relevant
-
-        check_is_owner = self.is_owner
         packer = UInt8.pack
+        check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
+        make_packet = Packet.__call__
         
-        for replicable in WorldInfo.actors:
+        no_role = Roles.none
+        
+        for replicable in Replicable:
+            
+            if replicable.roles.remote == no_role:
+                continue
+            
             # Determine if we own this replicable
             is_owner = check_is_owner(replicable)
             
@@ -730,22 +730,22 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield Packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
             
             # Only send attributes if relevant
             if is_owner or is_relevant(self, replicable):
                 # If we've never replicated to this channel
                 if channel.is_initial:
                     # Pack the class name
-                    packed_class = String.pack(type(replicable).__name__)
+                    packed_class = String.pack(replicable.__class__.type_name)
                     # Send the protocol, class name and owner status to client
-                    yield Packet(protocol=Protocols.replication_init, payload=packed_id + packed_class, reliable=True)
+                    yield make_packet(protocol=Protocols.replication_init, payload=packed_id + packed_class, reliable=True)
              
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
                 # If they have changed                    
                 if attributes:
-                    yield Packet(protocol=Protocols.replication_update, 
+                    yield make_packet(protocol=Protocols.replication_update, 
                             payload=packed_id + attributes, reliable=True)
     
         # If any replicables deleted
@@ -754,11 +754,12 @@ class ServerConnection(Connection):
             for channel in self.dead_channels:
                 replicable = channel.replicable
                 instance_id = replicable.instance_id
-                packed_id = UInt8.pack(instance_id)
+                packed_id = packer(instance_id)
                 # Remove it
                 self.channels.pop(instance_id)
                 # Send delete packet 
-                yield Packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
+                yield make_packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
+                
                 # Don't process rest              
             self.dead_channels.clear()
            
@@ -770,17 +771,20 @@ class ServerConnection(Connection):
         is_owner = self.is_owner
         channels = self.channels
         
+        unpacker = UInt8.unpack_from
+        id_size = UInt8.size()
+        
         # Run RPC invoke for each packet
         for packet in packets:
             # If it is an RPC packet
             if packet.protocol == Protocols.method_invoke:
                 # Unpack data
-                instance_id = UInt8.unpack_from(packet.payload)
+                instance_id = unpacker(packet.payload)
                 channel = channels[instance_id]
                 
                 # If we have permission to execute
                 if is_owner(channel.replicable):
-                    channel.invoke_rpc_call(packet.payload[1:])
+                    channel.invoke_rpc_call(packet.payload[id_size:])
     
     def send(self, network_tick):
         '''Server connection send method
@@ -870,7 +874,8 @@ class ConnectionInterface(metaclass=InstanceRegister):
      
     @property
     def next_local_sequence(self):
-        self.local_sequence = (self.local_sequence + 1) if (self.local_sequence < self.sequence_max_size) else 0
+        current_sequence = self.local_sequence
+        self.local_sequence = (current_sequence + 1) if (current_sequence < self.sequence_max_size) else 0
         return self.local_sequence
         
     def set_time_out(self, delay):
@@ -935,17 +940,17 @@ class ConnectionInterface(metaclass=InstanceRegister):
         sequence = self.next_local_sequence
         
         # Construct header information
-        ack_info = self.sequence_handler.pack(sequence)
-        ack_info += self.sequence_handler.pack(remote_sequence)
-        ack_info += ack_bitfield.tobytes()
-        
+        ack_info = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence), ack_bitfield.tobytes()]
+
         # Store acknowledge request for reliable members of packet
         self.requested_ack[sequence] = packet_collection
         
         # Return the packet as bytes
-        return ack_info + packet_collection.to_bytes()
+        ack_info.append(packet_collection.to_bytes())
+        return b''.join(ack_info)
 
     def receive(self, bytes_):
+        # Get the sequence id
         sequence = self.sequence_handler.unpack_from(bytes_)
         bytes_ = bytes_[self.sequence_handler.size():]
         
@@ -1000,15 +1005,18 @@ class ConnectionInterface(metaclass=InstanceRegister):
             reliable_collection = requested_ack.pop(sequence).to_reliable()
             reliable_collection.on_not_ack()
             self.buffer.append(reliable_collection)
-                
+        
+        # Called for handshake protocol
+        receive_handshake = self.receive_handshake
+
         # Call post-processer receive
         if self.status != ConnectionStatus.connected:
             for member in packet_collection.members:
-  
+
                 if member.protocol > Protocols.request_auth:
                     continue
                
-                self.receive_handshake(member)
+                receive_handshake(member)
         
         else:
             self.connection.receive(packet_collection.members)
@@ -1025,13 +1033,13 @@ class ServerInterface(ConnectionInterface):
         connection_failed = self.connection is None
         
         if connection_failed:
-            # Send the error code
-            error_name = type(self.auth_error).__name__
-    
-            error_body = self.auth_error.args[0] if self.auth_error.args else ""
-            
-            # Yield reliable packet
-            return Packet(protocol=Protocols.auth_failure, payload=String.pack(error_name) + String.pack(error_body), on_success=self.delete)
+            if self.auth_error:
+                # Send the error code
+                error_name = self.auth_error.__class__.type_name
+                error_body = self.auth_error.args[0] if self.auth_error.args else ""
+                
+                # Yield reliable packet
+                return Packet(protocol=Protocols.auth_failure, payload=String.pack(error_name) + String.pack(error_body), on_success=self.delete)
         
         else:
             # Send acknowledgement
@@ -1041,7 +1049,7 @@ class ServerInterface(ConnectionInterface):
     def receive_handshake(self, packet):
         # Unpack data
         netmode = UInt8.unpack_from(packet.payload)
-        
+       
         # Store replicable
         try:
             WorldInfo.rules.pre_initialise(self.instance_id, netmode)
@@ -1068,9 +1076,8 @@ class ClientInterface(ConnectionInterface):
 
         if protocol == Protocols.auth_failure:
             error_type = String.unpack_from(packet.payload)
-            shift = String.size(packet.payload)
-            error_body = String.unpack_from(packet.payload[shift:])
-            error = NetworkError.of_type(error_type)
+            error_body = String.unpack_from(packet.payload[String.size(packet.payload):])
+            error = NetworkError.from_type_name(error_type)
             
             if error is not None:
                 raise error(error_body) from None
@@ -1245,7 +1252,7 @@ class GameLoop(socket):
             
             # Update all replicables
             for replicable in WorldInfo.actors:
-                if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(replicable.update)):
+                if allowed_to_run(replicable, replicable.update):
                     replicable.update(delta_time)
     
                 if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
@@ -1282,14 +1289,18 @@ class LazyReplicableProxy:
                 replicable_instance = WorldInfo.get_actor(instance_id)
             except LookupError:
                 return
-            else:
-                child = weak_proxy(replicable_instance)
-                object.__setattr__(self, "obj", child)
-                return child
+            
+            if replicable_instance._local_authority:
+                return
+            
+            child = weak_proxy(replicable_instance)
+            object.__setattr__(self, "obj", child)
+            return child
         
     def __getattribute__(self, name):
         return getattr(object.__getattribute__(self, "_obj"), name)
-    
+
+        
     def __delattr__(self, name):
         delattr(object.__getattribute__(self, "_obj"), name)
         
@@ -1372,16 +1383,39 @@ class ReplicableProxyHandler:
     @classmethod
     def unpack(cls, bytes_):
         instance_id = UInt8.unpack_from(bytes_)
+        # Return only a replicable that was created by the network
         try:
             replicable = WorldInfo.get_actor(instance_id)
-        except LookupError:
+            assert not replicable._local_authority
+            return replicable
+        
+        # We can't be sure that this is the correct instance
+        except (LookupError, AssertionError):
             return LazyReplicableProxy(instance_id)
-        else:
-            return weak_proxy(replicable)
-    
+        
     unpack_from = unpack    
     size = UInt8.size
+
+class RolesHandler:
+    int_pack = UInt8.pack
+    int_unpack = UInt8.unpack_from
+    
+    @classmethod
+    def pack(cls, roles):
+        with roles.switched():
+            return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
+    
+    @classmethod
+    def unpack(cls, bytes_):
+        return Roles(cls.int_unpack(bytes_), cls.int_unpack(bytes_[1:]))
+        
+    @classmethod
+    def size(cls, bytes_=None):
+        return 2
+    
+    unpack_from = unpack
         
 register_handler(Replicable, ReplicableProxyHandler)
+register_handler(Roles, RolesHandler)
 
 WorldInfo = BaseWorldInfo(255, register=True)

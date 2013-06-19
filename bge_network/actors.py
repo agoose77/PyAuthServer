@@ -12,64 +12,33 @@ from time import monotonic
 from collections import deque
 
 from .enums import Physics, Animations, ParentStates
-from .attributes import PhysicsData, AnimationData
-from network import Controller, Replicable, Attribute, simulated, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo
+from .data_types import PhysicsData, AnimationData
 
-import random
-
-class InputStatus:
-    '''A pollable interface to an event status'''
-    def __init__(self, event, interface):
-        self.interface = interface
-        self.event = event
+from network import Controller, Replicable, Attribute, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo, simulated
     
-    @property
-    def status(self):
-       return self.interface.events[self.event]
-            
-    @property
-    def active(self):
-        return self.pressed or self.held
-    
-    @property
-    def pressed(self):
-        return self.status == logic.KX_INPUT_JUST_ACTIVATED
-    
-    @property
-    def held(self):
-        return self.status == logic.KX_INPUT_ACTIVE
-    
-    @property
-    def released(self):
-        return self.status == logic.KX_INPUT_JUST_RELEASED
-    
-    @property
-    def inactive(self):
-        return self.status == logic.KX_INPUT_NONE
-
-class InputManager:
-    mappings = {}
-    _cache = {}
-    
-    def __init__(self, controller):
-        self.controller = controller
-    
-    def __getattribute__(self, name):
-        mappings = super().__getattribute__("mappings")
+class RenderState:
+    def __init__(self, obj):
+        self.obj = obj
+        self.ignore = False
+        self.save()
         
-        if name in mappings:
-            cache = super().__getattribute__("_cache")
-            try:
-                return cache[name]
-            except KeyError:
-                event = mappings[name]
-                
-                event_host = logic.keyboard if event in logic.keyboard.events else logic.mouse
-                status = cache[name] = InputStatus(event, event_host)
-                
-                return status
-            
-            return super().__getattribute__(name)
+    def save(self):
+        self.transform = self.obj.worldTransform.copy()
+        self.velocity = self.obj.worldLinearVelocity.copy()
+        self.angular = self.obj.worldAngularVelocity.copy()
+    
+    def restore(self):
+        self.obj.worldTransform = self.transform 
+        self.obj.worldLinearVelocity = self.velocity
+        self.obj.worldAngularVelocity = self.angular 
+     
+    def __enter__(self):
+        self.ignore = False
+        self.save()
+        
+    def __exit__(self, *a, **k):
+        if not self.ignore:
+            self.restore()
 
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
@@ -107,9 +76,7 @@ class GameObject(types.KX_GameObject):
         return object.__repr__(self)
 
 class ControllerInfo(Replicable):
-    local_role = Roles.authority
-    remote_role = Roles.simulated_proxy
-    
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
     name = Attribute("", notify=True)
     
     def on_notify(self, name):
@@ -130,8 +97,9 @@ class PlayerController(Controller):
     ping_sample_time = 0.5
     last_sample_time = 0.0
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def on_create(self):
+        super().on_create()
+        
         # Add input class
         if WorldInfo.netmode == Netmodes.server:
             self.info = ControllerInfo()
@@ -148,7 +116,7 @@ class PlayerController(Controller):
         used to find RTT'''
         return monotonic() - self.started    
     
-    def update_rtt(self, rtt):
+    def update_rtt(self, round_trip_time):
         self.rtt_accumulator.append(round_trip_time)
         
         if len(self.rtt_accumulator) > 8:
@@ -160,9 +128,7 @@ class Actor(GameObject, Replicable):
     ''''A basic actor class 
     Inherits from GameObject to display mesh and collide'''  
       
-    local_role = Roles.authority
-    remote_role = Roles.simulated_proxy
-    
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
     owner = Attribute(type_of=Replicable, notify=True)
     animation = Attribute(type_of=AnimationData, notify=True)
     physics = Attribute(PhysicsData(Physics.rigidbody), complain=False)
@@ -171,6 +137,7 @@ class Actor(GameObject, Replicable):
     obj_name = "Sphere"
     
     def on_create(self):
+        self.render_state = RenderState(self)
         self.allowed_transitions = []
         self.states = []
         
@@ -242,14 +209,14 @@ class Actor(GameObject, Replicable):
     
     def conditions(self, is_owner, is_complaint, is_initial):
         '''Generator dictates which attributes must be replicated'''
-
-        if is_initial:
-            yield "owner" 
-            yield "physics"   
+        yield from super().conditions(is_owner, is_complaint, is_initial)
         
-        if is_complaint:
+        if is_initial:
+            yield "physics"
+            yield "owner" 
+        
+        if is_complaint and 0:
             yield "animation"
         
-        if self.remote_role == Roles.simulated_proxy and self.update_simulated_position:
+        if self.roles.remote == self.roles.simulated_proxy and self.update_simulated_position:
             yield "physics"
- 

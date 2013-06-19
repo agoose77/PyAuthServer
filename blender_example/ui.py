@@ -45,7 +45,7 @@ class UIManager(System):
         return pos
     
     def get_system(self, system_name):
-        system_type = UISystem.of_type(system_name)
+        system_type = UISystem.from_type_name(system_name)
         try:
             return next(s for s in UISystem if isinstance(s, system_type))               
         except StopIteration:
@@ -173,5 +173,5 @@ class FindGameUI(UISystem):
     def update(self):
         if self.conn and self.conn.status == ConnectionStatus.connected:
             self.active = False
-            self.manager.get_system("OverlayUI")
+          #  self.manager.get_system("OverlayUI")
                        

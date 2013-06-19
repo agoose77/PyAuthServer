@@ -2,7 +2,7 @@ from bge_network import PlayerController, Actor, PlayerLimitReached
 from network import BaseRules, ConnectionStatus, Netmodes, Roles, ConnectionInterface
 from operator import gt as greater_than
 
-from actors import RacingController, Car
+from actors import RPGController, Player
 
 # Game Rules
 class TeamDeathMatch(BaseRules):
@@ -19,9 +19,9 @@ class TeamDeathMatch(BaseRules):
     def post_initialise(cls, conn):
         if conn.netmode == Netmodes.client: 
             # Create controller
-            controller = RacingController()
+            controller = RPGController()
             # Create pawn
-            actor = Car()
+            actor = Player()
             # Establish relationship
             controller.possess(actor) 
             return controller
@@ -30,13 +30,7 @@ class TeamDeathMatch(BaseRules):
         return
     
     @classmethod
-    def is_relevant(cls, conn, replicable):
-        # If no network role
-        if replicable.remote_role is Roles.none:
-            return False
-        
+    def is_relevant(cls, conn, replicable):        
         # If it's a player controller (besides owning controllers)
-        elif isinstance(replicable, PlayerController):
-            return False
         
         return True

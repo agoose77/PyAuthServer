@@ -9,7 +9,8 @@ class Enum(type):
         # Set all name to index mappings
         for index, value in enumerate(attrs["values"]):
             attrs[value] = index
-        # Return new class
+            
+        # Return new class        
         return super().__new__(cls, name, parents, attrs)
            
     def __getitem__(self, index):
@@ -24,19 +25,30 @@ class TypeRegister(type):
         cls = super().__new__(meta, name, parents, attrs)
         
         if not hasattr(cls, "_types"):
-            cls._types = {}
+            cls._types = []
+            
+            if hasattr(cls, "register_type"):
+                cls.register_type()
         
         else:
-            cls._types[name] = cls
+            cls._types.append(cls)
             
         return cls
     
-    def of_type(self, type_):
-        return self._types.get(type_)
-
+    @property
+    def type_name(self):
+        return self.__name__
+    
+    def from_type_name(self, type_name):
+        for cls in self._types:
+            if cls.__name__ == type_name:
+                return cls
+        
+        raise LookupError("No class with name {}".format(type_name))
+        
 class InstanceMixins:
     
-    def __init__(self, instance_id, register=False, allow_random_key=False, **kwargs):
+    def __init__(self, instance_id=None, register=False, allow_random_key=False, **kwargs):
         super().__init__(**kwargs)   
 
         self.allow_random_key = allow_random_key
@@ -76,12 +88,14 @@ class InstanceMixins:
     @classmethod
     def remove_from_entire_graph(cls, instance_id):
         if instance_id in cls._instances:
-            return cls._instance.pop(instance_id)
+            return cls._instances.pop(instance_id)
         
         for i in cls._to_register:
-            if i.instance_id == instance_id:
-                cls._to_register.remove(i)
-                return i
+            if i.instance_id != instance_id:
+                continue
+            
+            cls._to_register.remove(i)
+            return i
     
     @classmethod
     def get_random_id(cls):

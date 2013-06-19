@@ -6,13 +6,13 @@ from network import WorldInfo, Netmodes
 
 from random import randint
 
-from actors import Car
+from actors import Player
 
 # Add random actors
 def random_spawn(n):
     '''Spawns randomly positioned actors'''
     for i in range(n):
-        a = Car()
+        a = Player()
         a.physics.position[:] = randint(-10, 10), randint(-10, 10), 20
 
 game = Game(addr="127.0.0.1", port=1200)

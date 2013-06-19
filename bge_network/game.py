@@ -1,30 +1,23 @@
-from network import GameLoop, Replicable, WorldInfo, Roles, System, is_simulated, keyeddefaultdict
-from bge import events, logic
+from network import GameLoop, Replicable, WorldInfo, Roles, System, is_simulated, keyeddefaultdict, allowed_to_run
 
+from bge import logic, events, types
 import sys; sys.path.append(logic.expandPath("//../"))
 
 from .errors import QuitGame
-from .actors import Actor
+from .actors import Actor, PlayerController
 from .enums import Physics
 
 from time import monotonic
-from random import randint
-from collections import defaultdict, deque
 from functools import partial
-
-from . import attributes
-
-from bge import logic, events, types
-from functools import partial
-from mathutils import Matrix
+from collections import deque
 
 class CollisionStatus:    
     
     def __init__(self, obj, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        if hasattr(types.KX_GameObject, "collisionCallback"):
-            obj.collisionCallback = self.is_colliding
+        if hasattr(types.KX_GameObject, "collisionCallbacks"):
+            obj.collisionCallbacks.append(self.is_colliding)
             obj.scene.post_draw.append(self.not_colliding)
         
         self._new_colliders = set()
@@ -145,9 +138,41 @@ class PhysicsSystem(System):
     
     def __init__(self):
         super().__init__()
+        
         self.cache = keyeddefaultdict(self.register_object)
         self.collision_listeners = {}
+        self.make_actors_from_scene()
     
+    def make_actors_from_scene(self):
+        scene = logic.getCurrentScene()
+        
+        for obj in scene.objects:
+            try:
+                cls_name = obj['actor']
+                static_id = obj.get('static_id')
+                
+            except KeyError:
+                continue
+            
+            cls = Replicable.from_type_name(cls_name)
+            
+            if not issubclass(cls, Actor):
+                continue
+            
+            is_sensor = obj.physicsType in (logic.KX_PHYSICS_SENSOR, logic.KX_PHYSICS_ACTOR_SENSOR)
+            
+            if not (obj.mass or is_sensor):
+                print("Static actor  {} does not have correct physics".format(obj))
+                continue
+            
+            # Make static actor            
+            replicable = cls(object=obj, instance_id=static_id)
+            # Copy existing physics
+            replicable.physics.position = replicable.worldPosition.copy()
+            
+            if static_id is None:
+                replicable.roles.remote = Roles.none
+            
     def register_object(self, replicable):
         jitter_buffer = JitterBuffer()
         
@@ -164,10 +189,12 @@ class PhysicsSystem(System):
     
     def collision_dispatcher(self, replicable, new_collision, collided):
         func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
-        if (replicable.local_role > Roles.simulated_proxy) or (replicable.local_role == Roles.simulated_proxy and is_simulated(func)):
+        if allowed_to_run(replicable, func):
+            
             func(collided)
             
-            self.physics_to_world(replicable)
+            if replicable.roles.local != Roles.autonomous_proxy:
+                self.physics_to_world(replicable)
         
     def physics_to_world(self, replicable):
         physics = replicable.physics
@@ -201,16 +228,15 @@ class PhysicsSystem(System):
             
             jitter_buffer = self.cache[replicable]   
             
-            if replicable.local_role == role_authority:   
+            if replicable.roles.local == role_authority:   
                 self.world_to_physics(replicable)
             
             # Or run simulation before actors update on client
-            elif replicable.local_role == role_simulated:
-                
+            elif replicable.roles.local == role_simulated:
                 # Determine how far from reality we are
                 current_position = replicable.worldPosition
                 new_data = physics
-                
+
                 difference = new_data.position - current_position
                 
                 offset = new_data.velocity.length * delta_time
@@ -239,9 +265,21 @@ class PhysicsSystem(System):
 
             jitter_buffer = self.cache[replicable]            
 
-            if replicable.local_role == Roles.authority:
+            if replicable.roles.local == Roles.authority:
                 # Update physics with replicable position, velocity and timestamp    
                 self.physics_to_world(replicable)
+          
+class InputSystem(System):
+    
+    def pre_update(self, delta_time):
+        # Get keyboard and mouse events
+        events = logic.keyboard.events.copy();events.update(logic.mouse.events)
+        
+        # Update all actors
+        for replicable in WorldInfo.subclass_of(PlayerController):  
+            
+            if hasattr(replicable, "player_input"):
+                replicable.player_input.update(events)
             
 class Game(GameLoop):
     
@@ -249,33 +287,12 @@ class Game(GameLoop):
         super().__init__(addr, port)
         
         self.physics = PhysicsSystem()
+        self.inputs = InputSystem()
         self.last_time = monotonic()
-        self.make_static()
         
     @property
     def is_quit(self):
         return events.QKEY in logic.keyboard.active_events
-    
-    def make_static(self):
-        scene = logic.getCurrentScene()
-     
-        for obj in scene.objects:
-            try:
-                cls_name = obj['static']
-                static_id = obj['static_id']
-            except KeyError:
-                continue
-            
-            cls = Replicable.of_type(cls_name)
-            
-            if not issubclass(cls, Actor):
-                continue
-            
-            if obj.name != cls.obj_name and False:
-                raise TypeError("Object name for static actor {} does not match class definition".format(obj))
-                           
-            # Make static actor                      
-            replicable = cls(object=obj, instance_id=static_id)
             
     def quit(self):
         self.stop()
@@ -285,6 +302,7 @@ class Game(GameLoop):
         
         if self.is_quit:
             self.quit()
-                
+      
         # Update network
         super().update()
+            

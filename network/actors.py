@@ -11,26 +11,30 @@ class Replicable(metaclass=InstanceRegister):
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
     _by_types = defaultdict(list)
+     
+    roles = Attribute(Roles(Roles.authority, Roles.none))
     
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
-        # If this is a local replicable
+        # If this is a locally authoritative
         self._local_authority = False
         
-        # Create a flag that is set when attributes change (if permitted)
+        # Instantiate parent
         super().__init__(instance_id=instance_id, register=register, allow_random_key=True)
         
-        self._data = {}
         self._calls = deque()
+        self._data = {}
         self._complain = {}    
         self._subscribers = []  
+        self._rpc_functions = []
         
-        # Invoke descriptors to register values
-        for name, value in getmembers(self):
+        # Ensures all RPC / attributes registered for use
+        for name, value in sorted(getmembers(self)):
             getattr(self, name)
-            
+        
         # If this is a static mapping  
         self._static = static and instance_id is not None
         
+        # Creation callback
         self.on_create()
     
     def on_create(self):
@@ -74,7 +78,7 @@ class Replicable(metaclass=InstanceRegister):
                 print("Transferring authority of id {} from {} to {}".format(instance_id, instance, self))
             
             # Forces reassignment of instance id
-            instance.request_transform(None)
+            instance.request_registration(None)
         
         if verbose:
             print("Create {} with id {}".format(self.__class__.__name__, instance_id))
@@ -105,11 +109,11 @@ class Replicable(metaclass=InstanceRegister):
             subscriber(self)
     
     def on_notify(self, name):
-        print("{} was changed by the network".format(name))
+        print("{} attribute of {} was changed by the network".format(name, self.__class__.__name__))
         
     def conditions(self, is_owner, is_complaint, is_initial):
-        if False:
-            yield
+        if is_complaint or is_initial:
+            yield "roles"
         
     def update(self, elapsed):
         pass
@@ -122,9 +126,7 @@ class BaseWorldInfo(Replicable):
     netmode = None
     rules = None
     
-    local_role = Roles.authority
-    remote_role = Roles.simulated_proxy
-    
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
     elapsed = Attribute(0.0, complain=False)
     
     @property
@@ -147,17 +149,10 @@ class BaseWorldInfo(Replicable):
                 
 class Controller(Replicable):
     
-    local_role = Roles.authority
-    remote_role = Roles.autonomous_proxy
-    
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True)
     
     input_class = None
-    owner = None
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.saved_moves = []
     
     def possess(self, replicable):
         self.pawn = replicable
@@ -169,17 +164,15 @@ class Controller(Replicable):
     
     def on_unregistered(self):
         super().on_unregistered()  
-        
         self.pawn.request_unregistration()
                 
     def conditions(self, is_owner, is_complaint, is_initial):
-        
         if is_complaint:
             yield "pawn"  
         
     def create_player_input(self):
         if callable(self.input_class):
-            self.player_input = self.input_class(self)
+            self.player_input = self.input_class()
             
     def player_update(self, elapsed):
         pass
