@@ -123,6 +123,13 @@ class PhysicsData:
         self.velocity = Vector() if velocity is None else velocity
         self.orientation = Euler() if orientation is None else orientation
     
+    def __repr__(self):
+        console = ["Physics:"]
+        console.append("Position: {}".format(self.position))
+        console.append("Velocity: {}".format(self.velocity))
+        console.append("Orientation: {}".format(self.orientation))
+        return '\n'.join(console) + '\n'
+    
     @property
     def is_active(self):
         return any(self.angular) or any(self.velocity)

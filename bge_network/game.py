@@ -146,25 +146,6 @@ class PhysicsSystem(System):
             
             if replicable.roles.local > role_simulated:   
                 replicable.world_to_physics()
-            
-            # Or run simulation before actors update on client
-            elif False:
-                # Determine how far from reality we are
-                current_position = replicable.worldPosition
-                new_data = physics
-
-                difference = new_data.position - current_position
-                
-                offset = new_data.velocity.length * delta_time
-                
-                threshold = 0.1
-                
-                if difference.length > threshold:
-                    replicable.worldPosition += difference * 0.4   
-                    replicable.worldLinearVelocity = new_data.velocity
-                    
-                replicable.worldLinearVelocity = new_data.velocity
-                replicable.worldOrientation = physics.orientation   
                 
     def post_update(self, delta_time):
         '''Update the physics after actor changes
@@ -182,7 +163,7 @@ class PhysicsSystem(System):
             
             jitter_buffer = self.cache[replicable] 
             
-            if replicable.roles.local > Roles.simulated_proxy:
+            if replicable.roles.local >= Roles.simulated_proxy:
                 # Update physics with replicable position, velocity and timestamp    
                 if physics.mode == Physics.character:
                     physics.orientation.rotate(Euler(physics.angular * delta_time))

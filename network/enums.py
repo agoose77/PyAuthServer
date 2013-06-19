@@ -23,19 +23,14 @@ class Roles(metaclass=Enum):
     @contextmanager
     def switched(self):
         self.remote, self.local = self.local, self.remote
-        
         if self.local == Roles.autonomous_proxy and not self.context:
             self.local = self.simulated_proxy
             fix_autonomous = True
-            
         else:
             fix_autonomous = False
-            
         yield
-        
         if fix_autonomous:
             self.local = Roles.autonomous_proxy
-            
         self.remote, self.local = self.local, self.remote
         
 

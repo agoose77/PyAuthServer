@@ -178,7 +178,20 @@ class Actor(GameObject, Replicable):
         if self.is_state(collider):
             try:
                 self.remove_state(collider)
-            except:pass
+            except:
+                pass
+    
+    def stop_moving(self):
+        physics = self.physics
+        
+        if physics.mode == Physics.rigidbody:
+            self.worldLinearVelocity.zero()
+            self.worldAngularVelocity.zero()
+        else:
+            constraints.getCharacter(self).walkDirection = Vector()
+        
+        physics.velocity.zero()
+        physics.angular.zero()
     
     def physics_to_world(self):
         physics = self.physics
@@ -249,5 +262,6 @@ class Actor(GameObject, Replicable):
         if is_complaint and 0:
             yield "animation"
         
-        if self.roles.remote == self.roles.simulated_proxy and self.update_simulated_position:
+        is_simulated = (self.roles.remote == Roles.simulated_proxy) or (not is_owner and self.roles.remote == Roles.autonomous_proxy)
+        if is_simulated and self.update_simulated_position:
             yield "physics"

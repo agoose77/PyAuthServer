@@ -231,7 +231,7 @@ class BaseRules:
     
     @classmethod
     def is_relevant(cls, conn, replicable):        
-        return True
+        return not isinstance(replicable, Controller)
     
 class PacketCollection:
     __slots__ = "members",
@@ -1414,8 +1414,7 @@ class RolesHandler:
     
     @classmethod
     def pack(cls, roles):
-        with roles.switched():
-            return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
+        return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
     
     @classmethod
     def unpack(cls, bytes_):

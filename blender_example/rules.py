@@ -32,5 +32,4 @@ class TeamDeathMatch(BaseRules):
     @classmethod
     def is_relevant(cls, conn, replicable):        
         # If it's a player controller (besides owning controllers)
-        
-        return True
+        return not isinstance(replicable, PlayerController)

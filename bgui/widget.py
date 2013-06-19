@@ -147,7 +147,7 @@ class Widget:
 	theme_section = 'Widget'
 	theme_options = {}
 
-	def __init__(self, *args, parent, name=None, aspect=None, size=[0, 0], pos=[0, 0], sub_theme='',
+	def __init__(self, *args, parent, name, aspect=None, size=[0, 0], pos=[0, 0], sub_theme='',
 			options=BGUI_DEFAULT, **kwargs):
 		"""
 		:param parent: the widget's parent
@@ -159,10 +159,7 @@ class Widget:
 		:param options: various other options
 		"""
 		super().__init__(*args, **kwargs)
-		if name is None:
-			name = "1"
-			while name in parent.children:
-				name = str(int(name) + 1)
+		
 		self._name = name
 		self.options = options
 

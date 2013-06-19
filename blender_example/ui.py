@@ -3,6 +3,7 @@ import bgui
 from bge import logic, events, render
 from network import System, InstanceRegister, ConnectionStatus, WorldInfo, keyeddefaultdict
 from bge_network import Actor
+from actors import Player
 
 class UISystem(bgui.System, metaclass=InstanceRegister):
     
@@ -116,9 +117,8 @@ class OverlayUI(UISystem):
                            sub_theme='Large', options = bgui.BGUI_DEFAULT)
         
     def update(self):
-        for actor in WorldInfo.subclass_of(Actor):
-            label = self.labels[actor]
-            
+        for actor in WorldInfo.subclass_of(Player):
+            label = self.labels[actor]            
             label.position = self.bgui_position(actor)
             label.text = str(actor.instance_id)
 
@@ -173,5 +173,5 @@ class FindGameUI(UISystem):
     def update(self):
         if self.conn and self.conn.status == ConnectionStatus.connected:
             self.active = False
-          #  self.manager.get_system("OverlayUI")
+            self.manager.get_system("OverlayUI")
                        
