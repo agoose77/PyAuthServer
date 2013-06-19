@@ -1,6 +1,6 @@
 from network import GameLoop, Replicable, WorldInfo, Roles, System, is_simulated, keyeddefaultdict, allowed_to_run
 
-from bge import logic, events, types
+from bge import logic, events, types, constraints
 import sys; sys.path.append(logic.expandPath("//../"))
 
 from .errors import QuitGame
@@ -10,6 +10,7 @@ from .enums import Physics
 from time import monotonic
 from functools import partial
 from collections import deque
+from mathutils import Euler
 
 class CollisionStatus:    
     
@@ -52,6 +53,142 @@ class CollisionStatus:
             self._registered.remove(obj)
             self.on_end(obj)
     
+class PhysicsSystem(System):
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.cache = keyeddefaultdict(self.register_object)
+        self.collision_listeners = {}
+        self.make_actors_from_scene()
+    
+    def make_actors_from_scene(self):
+        '''Instantiates static actors in scene'''
+        scene = logic.getCurrentScene()
+        
+        for obj in scene.objects:
+            try:
+                cls_name = obj['actor']
+                static_id = obj.get('static_id')
+                
+            except KeyError:
+                continue
+            
+            cls = Replicable.from_type_name(cls_name)
+            
+            if not issubclass(cls, Actor):
+                continue
+            
+            is_sensor = obj.physicsType in (logic.KX_PHYSICS_SENSOR, logic.KX_PHYSICS_ACTOR_SENSOR)
+            
+            if not (obj.mass or is_sensor):
+                print("Static actor  {} does not have correct physics".format(obj))
+                continue
+            
+            # Make static actor            
+            replicable = cls(object=obj, instance_id=static_id)
+            # Copy existing physics
+            replicable.world_to_physics()
+            
+            if static_id is None:
+                replicable.roles.remote = Roles.none
+            
+    def register_object(self, replicable):
+        '''Registers replicable to physics system'''
+        jitter_buffer = JitterBuffer()
+        
+        collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
+        collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
+        collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
+        
+        # Static actors have existing world physics settings
+        if replicable._static:
+            replicable.world_to_physics()
+            
+        # Non-static actors have physics to apply to world
+        else:
+            replicable.physics_to_world()
+
+        return jitter_buffer
+    
+    def collision_dispatcher(self, replicable, new_collision, collided):
+        '''Dispatches collision to replicables if they have permission to execute callback
+        @param replicable: replicable object received notification
+        @param new_collision: The status of collision
+        @param collided: object replicable collided with'''
+        # Determine which callback to run
+        func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
+        
+        # Check for permission
+        if allowed_to_run(replicable, func):
+            func(collided)
+            
+            # Apply any new physics settings
+            if replicable.roles.local != Roles.autonomous_proxy:
+                replicable.physics_to_world()
+        
+    def pre_replication(self, delta_time):
+        '''Update the physics before actor updating
+        @param delta_time: delta time since last frame'''
+        role_authority = Roles.authority
+        role_simulated = Roles.simulated_proxy
+        
+        for replicable in WorldInfo.subclass_of(Actor):  
+            
+            # Get physics object
+            physics = replicable.physics
+               
+            # If rigid body physics
+            if physics.mode == Physics.none: 
+                continue   
+            
+            jitter_buffer = self.cache[replicable] 
+            
+            if replicable.roles.local > role_simulated:   
+                replicable.world_to_physics()
+            
+            # Or run simulation before actors update on client
+            elif False:
+                # Determine how far from reality we are
+                current_position = replicable.worldPosition
+                new_data = physics
+
+                difference = new_data.position - current_position
+                
+                offset = new_data.velocity.length * delta_time
+                
+                threshold = 0.1
+                
+                if difference.length > threshold:
+                    replicable.worldPosition += difference * 0.4   
+                    replicable.worldLinearVelocity = new_data.velocity
+                    
+                replicable.worldLinearVelocity = new_data.velocity
+                replicable.worldOrientation = physics.orientation   
+                
+    def post_update(self, delta_time):
+        '''Update the physics after actor changes
+        @param delta_time: delta_time since last frame'''
+                
+        # Update all actors
+        for replicable in WorldInfo.subclass_of(Actor):  
+            
+            # Get physics object
+            physics = replicable.physics
+               
+            # If rigid body physics
+            if physics.mode == Physics.none: 
+                continue   
+            
+            jitter_buffer = self.cache[replicable] 
+            
+            if replicable.roles.local > Roles.simulated_proxy:
+                # Update physics with replicable position, velocity and timestamp    
+                if physics.mode == Physics.character:
+                    physics.orientation.rotate(Euler(physics.angular * delta_time))
+                    
+                replicable.physics_to_world()
+                    
 class JitterBuffer:
     
     def __init__(self, min_length=2, max_length=8):
@@ -134,140 +271,7 @@ class JitterBuffer:
         # Remove from buffer
         return self.queue.popleft()
                 
-class PhysicsSystem(System):
-    
-    def __init__(self):
-        super().__init__()
-        
-        self.cache = keyeddefaultdict(self.register_object)
-        self.collision_listeners = {}
-        self.make_actors_from_scene()
-    
-    def make_actors_from_scene(self):
-        scene = logic.getCurrentScene()
-        
-        for obj in scene.objects:
-            try:
-                cls_name = obj['actor']
-                static_id = obj.get('static_id')
-                
-            except KeyError:
-                continue
-            
-            cls = Replicable.from_type_name(cls_name)
-            
-            if not issubclass(cls, Actor):
-                continue
-            
-            is_sensor = obj.physicsType in (logic.KX_PHYSICS_SENSOR, logic.KX_PHYSICS_ACTOR_SENSOR)
-            
-            if not (obj.mass or is_sensor):
-                print("Static actor  {} does not have correct physics".format(obj))
-                continue
-            
-            # Make static actor            
-            replicable = cls(object=obj, instance_id=static_id)
-            # Copy existing physics
-            replicable.physics.position = replicable.worldPosition.copy()
-            
-            if static_id is None:
-                replicable.roles.remote = Roles.none
-            
-    def register_object(self, replicable):
-        jitter_buffer = JitterBuffer()
-        
-        collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
-        collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
-        collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
-        
-        if replicable._static:
-            replicable.physics.position = replicable.worldPosition.copy()
-        else:
-            replicable.worldPosition = replicable.physics.position
-
-        return jitter_buffer
-    
-    def collision_dispatcher(self, replicable, new_collision, collided):
-        func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
-        if allowed_to_run(replicable, func):
-            
-            func(collided)
-            
-            if replicable.roles.local != Roles.autonomous_proxy:
-                self.physics_to_world(replicable)
-        
-    def physics_to_world(self, replicable):
-        physics = replicable.physics
-        
-        replicable.worldPosition = physics.position
-        replicable.worldLinearVelocity = physics.velocity
-        replicable.worldOrientation = physics.orientation
-    
-    def world_to_physics(self, replicable):
-        physics = replicable.physics
-        
-        physics.position = replicable.worldPosition
-        physics.velocity = replicable.worldLinearVelocity
-        physics.orientation = replicable.worldOrientation.to_euler()
-        physics.timestamp = WorldInfo.elapsed
-        
-    def pre_replication(self, delta_time):
-        '''Update the physics before actor updating
-        @param delta_time: delta time since last frame'''
-        role_authority = Roles.authority
-        role_simulated = Roles.simulated_proxy
-        
-        for replicable in WorldInfo.subclass_of(Actor):  
-            
-            # Get physics object
-            physics = replicable.physics
-               
-            # If rigid body physics
-            if physics.mode != Physics.rigidbody: 
-                continue 
-            
-            jitter_buffer = self.cache[replicable]   
-            
-            if replicable.roles.local == role_authority:   
-                self.world_to_physics(replicable)
-            
-            # Or run simulation before actors update on client
-            elif replicable.roles.local == role_simulated:
-                # Determine how far from reality we are
-                current_position = replicable.worldPosition
-                new_data = physics
-
-                difference = new_data.position - current_position
-                
-                offset = new_data.velocity.length * delta_time
-                
-                threshold = 0.1
-                
-                if difference.length > threshold:
-                    replicable.worldPosition += difference * 0.4   
-                    replicable.worldLinearVelocity = new_data.velocity
-                    
-                replicable.worldLinearVelocity = new_data.velocity
-                replicable.worldOrientation = physics.orientation   
-                
-    def post_update(self, delta_time):
-        '''Update the physics after actor changes
-        @param delta_time: delta_time since last frame'''
-        # Update all actors
-        for replicable in WorldInfo.subclass_of(Actor):  
-            
-            # Get physics object
-            physics = replicable.physics
-               
-            # If rigid body physics
-            if physics.mode != Physics.rigidbody: 
-                continue 
-
-            jitter_buffer = self.cache[replicable]            
-
-            if replicable.roles.local == Roles.authority:
-                # Update physics with replicable position, velocity and timestamp    
-                self.physics_to_world(replicable)
+          
           
 class InputSystem(System):
     

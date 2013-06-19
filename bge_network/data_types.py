@@ -5,13 +5,14 @@ from itertools import chain
 
 class InputStatus:
     '''A pollable interface to an event status'''
-    def __init__(self, event, interface):
+    def __init__(self, name, event, interface):
         self.interface = interface
         self.event = event
+        self.name = name
     
     @property
     def status(self):
-        return self.interface.events[self.event]
+        return self.interface[self.event]
             
     @property
     def active(self):
@@ -32,20 +33,36 @@ class InputStatus:
     @property
     def inactive(self):
         return self.status == logic.KX_INPUT_NONE
-
+    
+    def __repr__(self):
+        status = {name: getattr(self, name) for name in dir(self.__class__) if isinstance(getattr(self.__class__, name), property)}
+        console = []
+        console.append("InputStatus: {}".format(self.name))
+        for name, value in status.items():
+            console.append("{}: {}".format(name, value))
+        return '\n'.join(console) + '\n'
+    
 class InputManager(metaclass=TypeRegister):
     mappings = {}
     
-    @classmethod
-    def register_type(cls):
-        cls._ordered_mappings = sorted(cls.mappings)
-        cls._cache = {}
-        cls._events = keyeddefaultdict(cls.new_mapping)
+    def __init__(self):
+        self._cache = keyeddefaultdict(self.new_mapping)
+        self._events = {}
     
     @classmethod
-    def new_mapping(cls, name):
-        mappings = cls.mappings
-        status = cls._cache[name] = InputStatus(mappings[name], cls._events)
+    def register_subtype(cls):
+        cls._ordered_mappings = sorted(cls.mappings)
+    
+    @property
+    def static(self):
+        inst = type(self)()
+        inst._events = self._events.copy()
+        return inst
+    
+    def new_mapping(self, name):
+        mappings = self.mappings
+        event = mappings[name]
+        status = InputStatus(name, event, self._events)
         return status
     
     def __getattribute__(self, name):
@@ -59,7 +76,28 @@ class InputManager(metaclass=TypeRegister):
     
     def update(self, events):
         self._events.update(events)
+    
+    def __repr__(self):
+        console = ["InputManager: {}".format(self.__class__.__name__)]
         
+        for name in self.mappings:
+            status = self.__getattribute__(name)
+            active_status = None
+            
+            for attr in vars(status.__class__):
+                if not isinstance(vars(status.__class__)[attr], property):
+                    continue
+                
+                active = status.__getattribute__(attr)
+                
+                if active:
+                    active_status = attr;break
+            
+           
+            console.append("{}: {} ".format(name, active_status))
+        
+        return '\n'.join(console) + "\n"
+    
 class AnimationData:
     __slots__ = "name", "end_frame", "timestamp", "start_frame", "mode"
     

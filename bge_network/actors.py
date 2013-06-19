@@ -5,8 +5,8 @@ Created on 10 Apr 2013
 '''
 
 # Game classes               
-from bge import types, logic, events
-from mathutils import Vector
+from bge import types, logic, events, constraints
+from mathutils import Vector, Matrix
 
 from time import monotonic
 from collections import deque
@@ -47,8 +47,8 @@ class GameObject(types.KX_GameObject):
         existing = kwargs.get("object")
         
         if not existing:
-            cont = logic.getCurrentController()
-            obj = cont.owner.scene.addObject(cls.obj_name, cont.owner)
+            transform = Matrix.Translation(cls.physics.value.position) * cls.physics.value.orientation.to_matrix().to_4x4() * Matrix.Scale(1, 4)
+            obj = logic.getCurrentScene().addObject(cls.obj_name, transform, 0)
         else:
             obj = existing
         return super().__new__(cls, obj)
@@ -67,9 +67,6 @@ class GameObject(types.KX_GameObject):
     def on_unregistered(self):        
         super().on_unregistered()
         self.endObject()
-    
-    def local_space(self, velocity):
-        return self.worldOrientation * velocity
     
     def __repr__(self):
         '''Cleaner printing of object'''
@@ -164,7 +161,10 @@ class Actor(GameObject, Replicable):
             self.states.append(state)
         
         self.on_transition(current_state, state)
-            
+    
+    def on_transition(self, previous, current):
+        pass
+    
     def is_state(self, obj):
         for base in self.allowed_transitions:
             if isinstance(obj, base):
@@ -176,7 +176,31 @@ class Actor(GameObject, Replicable):
     
     def on_end_collision(self, collider):
         if self.is_state(collider):
-            self.remove_state(collider)
+            try:
+                self.remove_state(collider)
+            except:pass
+    
+    def physics_to_world(self):
+        physics = self.physics
+        
+        self.worldPosition = physics.position
+        self.worldOrientation = physics.orientation
+        
+        if physics.mode == Physics.rigidbody:
+            self.worldLinearVelocity = physics.velocity
+        else:
+            constraints.getCharacter(self).walkDirection = physics.velocity / logic.getLogicTicRate()
+    
+    def world_to_physics(self):
+        physics = self.physics
+        
+        physics.position = self.worldPosition
+        physics.orientation = self.worldOrientation.to_euler()
+        
+        if physics.mode == Physics.rigidbody:
+            physics.velocity = self.worldLinearVelocity
+        else:
+            physics.velocity = constraints.getCharacter(self).walkDirection * logic.getLogicTicRate()
     
     @property
     def on_ground(self):
@@ -198,6 +222,13 @@ class Actor(GameObject, Replicable):
         
         # Play on server
         self.play_animation(self.animation)
+    
+    def local_space(self, velocity):
+        velocity = velocity.copy()
+        rotation = self.physics.orientation.copy()
+        rotation.x = rotation.y = 0
+        velocity.rotate(rotation)
+        return velocity
              
     def on_notify(self, name):
         '''Called when network variable is changed

@@ -33,6 +33,9 @@ class TypeRegister(type):
         else:
             cls._types.append(cls)
             
+            if hasattr(cls, "register_subtype"):
+                cls.register_subtype()
+            
         return cls
     
     @property

@@ -11,16 +11,28 @@ from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostby
 from collections import deque, defaultdict, OrderedDict
 from inspect import getmembers, signature
 from weakref import proxy as weak_proxy
-from itertools import repeat, chain
-from copy import deepcopy, copy
-from random import choice
+from itertools import repeat
+from copy import copy
 from time import monotonic
+from functools import wraps
 
 import operator
 
 def allowed_to_run(replicable, func):
     return (replicable.roles.local > Roles.simulated_proxy) or (replicable.roles.local == Roles.simulated_proxy and is_simulated(func))
-    
+
+class NetmodeOnly:
+    def __init__(self, netmode):
+        self.netmode = netmode
+        
+    def __call__(self, func):   
+        @wraps(func) 
+        def wrapper(*args, **kwargs):
+            if WorldInfo.netmode != self.netmode:
+                return
+            return func(*args, **kwargs)
+        return wrapper
+        
 class NetworkError(Exception, metaclass=TypeRegister):
     pass
 
@@ -144,7 +156,7 @@ class RPCInterface:
         # Used to isolate rpc_for_instance for each function for each instance
         self.func = func = func.__get__(instance, None)
         self.instance = instance
-        self.name = func.__name__
+        self.name = func.__qualname__
         
         # Get the function signature
         func_signature = signature(func)
@@ -193,13 +205,13 @@ class RPCInterface:
         try:
             unpacked_data = self.serialiser.unpack(bytes_)
         except Exception as err:
-            print("Error unpacking RPC call {}: {}".format(self.name, err))
+            print("Error unpacking {}: {}".format(self.name, err))
             
         # Execute function
         try:
             self.func(**dict(unpacked_data))
         except Exception as err:
-            print("Error invoking RPC {}: {}".format(self.name, err))
+            print("Error invoking {}: {}".format(self.name, err))
             raise
                 
 class BaseRules:

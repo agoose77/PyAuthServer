@@ -68,7 +68,7 @@ class Replicable(metaclass=InstanceRegister):
         if instance_id in self.get_entire_graph_ids():
             instance = self.remove_from_entire_graph(instance_id)
             
-            # If the instance is local, then it hasn't got prority
+            # If the instance is not local, then we have a conflict
             assert instance._local_authority, "Authority over instance id {} is unresolveable".format(instance_id)
             
             # Possess the instance id

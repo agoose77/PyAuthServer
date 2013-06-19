@@ -10,3 +10,4 @@ from .text_block import *
 from .frame_button import *
 from .progress_bar import *
 from .list_box import *
+from . import bge

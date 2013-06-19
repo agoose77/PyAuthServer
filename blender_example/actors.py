@@ -1,28 +1,87 @@
-from bge_network import Actor, PlayerController, InputManager
-from network import WorldInfo, StaticValue, Attribute, RPC, Netmodes, Roles, reliable, simulated, LazyReplicableProxy
+from bge_network import Actor, PlayerController, InputManager, PhysicsData, Physics
+from network import WorldInfo, StaticValue, Attribute, RPC, Netmodes, Roles, reliable, simulated, NetmodeOnly
 
 from bge import events, logic
 from mathutils import Vector, Euler
 
 from time import monotonic
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from functools import wraps
+from itertools import chain, islice
+from math import radians
+from functools import partial
+from operator import lt
+
+PlayerMove = namedtuple("PlayerMove", ("timestamp", "deltatime", "inputs"))
+
+def update_physics_for(obj, deltatime):
+    for replicable in WorldInfo.subclass_of(Actor):
+        replicable.render_state.save()
+    
+    obj.scene.updatePhysics(deltatime)
+    
+    for replicable in WorldInfo.subclass_of(Actor):
+        if replicable is obj:
+            replicable.render_state.save()
+        else:
+            replicable.render_state.restore()
 
 class RacingInputs(InputManager):
     mappings = {"forward": events.WKEY, "back": events.SKEY, "shift": events.MKEY, 'right': events.DKEY, 'left': events.AKEY}
 
-def SafeException(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as err:
-            Exception().__str__()
-            print("{} exception suppressed: {}".format(err, err.__traceback__))
-    return wrapper
-
-#PlayerMove = namedtuple("PlayerMove", ("timestamp", "deltatime", "inputs"))
-
+class MoveManager:
+    def __init__(self):
+        self.saved_moves = OrderedDict()
+        self.to_correct = OrderedDict()
+        
+        self.latest_move = 0
+        self.latest_correction = 0
+        self.max_id = 65535 
+    
+    def __bool__(self):
+        return bool(self.saved_moves) or bool(self.to_correct)
+    
+    def increment_move(self):
+        self.latest_move += 1
+        if self.latest_move > self.max_id:
+            self.latest_move = 0
+        return self.latest_move
+    
+    def increment_correction(self):
+        self.latest_correction += 1
+        if self.latest_correction > self.max_id:
+            self.latest_correction = 0
+        return self.latest_correction
+    
+    def add_move(self, move):
+        move_id = self.increment_move()
+        self.saved_moves[move_id] = move
+    
+    def get_move(self, move_id):
+        return self.saved_moves[move_id]
+    
+    def add_correction(self, move):
+        move_id = self.increment_correction()
+        self.to_correct[move_id] = move
+    
+    def get_correction(self, move_id):
+        return self.to_correct[move_id]
+    
+    def remove_move(self, move_id):
+        self.saved_moves.pop(move_id)
+        
+    def remove_correction(self, move_id):
+        self.to_correct.pop(move_id)
+        
+    def sorted_moves(self, filter=None):
+        if callable(filter):
+            for k, v in self.saved_moves.items():
+                if not filter(k):
+                    continue
+                yield v
+        else:
+            yield from self.saved_moves.values()
+    
 class RPGController(PlayerController):
     
     input_class = RacingInputs
@@ -30,25 +89,128 @@ class RPGController(PlayerController):
     def on_create(self):
         super().on_create()
         
+        self.moves = MoveManager()
         self.correction = None
         
+        self.previous_informed = None
+        self.previous_checked = None
+        self.last_sent = None
+        
+        self.setup_physics()
+    
+    @NetmodeOnly(Netmodes.client)
+    def setup_physics(self):
         logic.getCurrentScene().pre_draw.append(self.post_physics)
     
     def calculate_move(self, move):
         """Returns velocity and angular velocity of movement
         @param move: move to execute"""
-        move_speed = 10.0 
+        move_speed = 6.0 
         rotation_speed = 4.0 
         
-        velocity = Vector((0.000, (move.forward - move.back) * move_speed, 0.000))
-        angular = Vector((0.000, 0.000, (move.left - move.right) * rotation_speed))
+        inputs = move.inputs
+        
+        y_direction = (inputs.forward.active - inputs.back.active)
+        x_direction = (inputs.left.active - inputs.right.active)
+        
+        velocity = Vector((0.000, y_direction * move_speed, 0.000))
+        angular = Vector((0.000, 0.000, x_direction * rotation_speed))
         
         return self.pawn.local_space(velocity), angular
     
-    def post_physics(self):
-        if self.correction is None and False:
-            self.server_check_move()
+    def check_delta_time(self, timestamp, deltatime):
+        previous_time = timestamp - deltatime
+        return True
+        
+    @RPC
+    def server_perform_move(self, move_id: StaticValue(int, max_value=65535), timestamp: StaticValue(float), deltatime: StaticValue(float), inputs: StaticValue(InputManager), position: StaticValue(Vector), orientation: StaticValue(Euler)) -> Netmodes.server:
+        assert self.check_delta_time(timestamp, deltatime), "Speedhacking detected"
+        
+        pawn = self.pawn
+        # Create a move to simulate
+        move = PlayerMove(timestamp, deltatime, inputs)
+        
+        # Determine the velocity and rotation outputs
+        velocity, angular = self.calculate_move(move)
+        
+        # Set the physics properties and apply them
+        pawn.physics.velocity = velocity
+        # We can't use angular velocity with character physics
+        pawn.physics.orientation.rotate(Euler(angular * deltatime))
+        pawn.physics_to_world()
+        update_physics_for(pawn, deltatime)
+        pawn.world_to_physics()
+        
+        position_difference = (pawn.physics.position - position).length
+        rotation_difference = abs(pawn.physics.orientation.z - orientation.z)
+        
+        position_margin = 0.2
+        rotation_margin = radians(3)
+
+        # Check the error between server and client
+        if position_difference > position_margin or rotation_difference > rotation_margin:
+            self.client_correct_move(move_id, pawn.physics)
+        
+        else:
+            self.client_acknowledge_move(move_id)
+        
+        # Stop bullet simulating this in the normal tick
+        pawn.physics.velocity.zero()
+        pawn.physics.angular.zero()
+     
+    @RPC
+    def client_acknowledge_move(self, move_id:StaticValue(int, max_value=65535)) -> Netmodes.client:
+        self.moves.remove_move(move_id)
     
+    @RPC
+    def client_correct_move(self, move_id: StaticValue(int, max_value=65535), physics: StaticValue(PhysicsData)) -> Netmodes.client:
+        self.correction = move_id, physics
+        self.pawn.physics = physics
+        print("Correcting client")
+  
+    def post_physics(self):
+        moves = self.moves
+        pawn = self.pawn
+        
+        if not pawn.registered:
+            return
+        
+        # Get the result of the physics operation
+        pawn.world_to_physics()
+        
+        # Store as a tuple
+        result = pawn.physics.position, pawn.physics.orientation
+        
+        # If we have no moves we can't resimulate/confirm moves
+        if not moves:
+            return
+        
+        move_id = moves.latest_move
+        latest_move = moves.get_move(move_id)
+        
+        if move_id != self.last_sent:
+            self.server_perform_move(move_id, *chain(latest_move, result))
+            self.last_sent = move_id
+            
+        if self.correction:
+            move_id = self.correction[0]
+            
+            following_moves = self.moves.sorted_moves(partial(lt, move_id))
+            
+            for move in following_moves:
+                velocity, angular = self.calculate_move(move)
+                # Set the physics properties and apply them
+                pawn.physics.velocity = velocity
+                # We can't use angular velocity with character physics
+                pawn.physics.orientation.rotate(Euler(angular * move.deltatime))
+                pawn.physics.orientation
+                pawn.physics_to_world()
+                update_physics_for(pawn, move.deltatime)
+                pawn.world_to_physics()
+                
+            self.moves.remove_move(move_id)
+            self.correction = None
+            
     def player_update(self, delta_time):
         # Make sure we have a pawn object
         
@@ -59,252 +221,20 @@ class RPGController(PlayerController):
 
         timestamp = WorldInfo.elapsed
         
-        if False:
-            move = PlayerMove(timestamp=timestamp, deltatime=delta_time, inputs=self.player_input)
-            
-            # If no correction
-            if self.correction is None:
-                velocity, angular = self.calculate_move(move)
-                
-            else:
-                # Start from correction
-                pawn.worldPosition = self.correction.position
-                pawn.worldOrientation = self.correction.rotation
-                
-                velocity, angular = self.calculate_move(self.correction.move)
-            
-            # Set angular velocity
-            pawn.worldLinearVelocity = velocity
-            pawn.worldAngularVelocity = angular
-
-class RPGController_old(PlayerController):
-    
-    input_class = RacingInputs
-    
-    def on_create(self):
-        super().on_create()
+        # Create move object (as sent end of tick, playerinput is ok to be muteable)
+        move = PlayerMove(timestamp=timestamp, deltatime=delta_time, inputs=self.player_input.static)
         
-        self.saved_moves = {}
-        self.current_move = 0
+        # If no correction
+        if self.correction is None:
+            velocity, angular = self.calculate_move(move)
+            # Set angular velocity and velocity
+            pawn.physics.velocity[:-1] = velocity[:-1]
+            pawn.physics.angular = angular
         
-        self.last_timestamp = None
-        self.to_correct = None
+        # Store move regardless
+        self.moves.add_move(move)        
         
-        if WorldInfo.netmode == Netmodes.client:
-            logic.getCurrentScene().pre_draw.append(self.process_moves)
-    
-    def process_move(self, move):
-        """Returns velocity and angular velocity of movement
-        @param move: move to execute"""
-        move_speed = 10.0 
-        rotation_speed = 4.0 
         
-        velocity = Vector((0.000, (move.forward - move.back) * move_speed, 0.000))
-        angular = Vector((0.000, 0.000, (move.left - move.right) * rotation_speed))
-        
-        return self.pawn.local_space(velocity), angular
-    
-    def resimulate_from(self, move_id):
-        # Cache
-        remove_keys = []
-
-        # Get previous timestamp
-        move = self.saved_moves[move_id]
-        
-        timestamp = move.timestamp
-        
-        update_physics = logic.getCurrentScene().updatePhysics
-        
-        # Save actors render state (as physics modifies them later)
-        for actor in WorldInfo.subclass_of(Actor):
-            actor.render_state.save()
-        
-        # Iterate over moves since this update
-        for move_id, move in self.saved_moves.items():
-            
-            # Remove older moves, and re simulate new ones
-            if move.timestamp > timestamp:
-                delta_time = move.deltatime
-                    
-                # Get mov2e
-                velocity, angular = self.process_move(move)
-                    
-                # Apply to object 
-                self.pawn.worldLinearVelocity = velocity
-                self.pawn.worldAngularVelocity = angular
-                
-                # Update object
-                update_physics(delta_time)
-            
-            # These are now old moves, we can remove them
-            else:
-                remove_keys.append(move_id)
-
-        # Remove old moves
-        for move_id in remove_keys:
-            self.saved_moves.pop(move_id)
-        
-        # Restore other actor render states
-        for actor in WorldInfo.subclass_of(Actor):
-            if actor is not self.pawn:
-                actor.render_state.restore()
-    
-    def apply_move(self, move):
-        pass
-    
-    def pre_physics(self, move):
-        if self.to_correct is None:
-            pass
-    
-    def process_moves(self):
-        # Collect move after physics update
-        render_state = self.pawn.render_state
-        # Get latest move
-        move = self.saved_moves[self.current_move]
-        # Update move object
-        move = self.saved_moves[self.current_move] = move._replace(velocity=render_state.velocity, angular=render_state.angular, position=render_state.transform.to_translation(), rotation=render_state.transform.to_euler())
-        # Ask server to check it
-        self.ServerMove(*move)
-        
-        # Check if any moves need re running
-        if self.to_correct is None:
-            return
-        
-        self.resimulate_from(self.to_correct)
-    
-    @RPC
-    def ServerMove(self, move_id: StaticValue(int), timestamp: StaticValue(float), delta_time: StaticValue(float), 
-                   forward: StaticValue(bool), back: StaticValue(bool), 
-                   left: StaticValue(bool), right: StaticValue(bool), 
-                   client_loc: StaticValue(Vector), client_rot: StaticValue(Euler),
-                   in_velocity: StaticValue(Vector), 
-                   in_angular: StaticValue(Vector)) -> Netmodes.server:        
-            
-        # Get calculations of inputs
-        velocity, angular = self.process_move(Move(move_id, timestamp, delta_time, forward, back, left, right,  None, None, None, None))
-        
-        # Error margins
-        ang_error = vel_error = 0.1
-        pos_error = 0.1
-        rot_error = 0.1
-        
-        # Save actors render state (as physics modified them)
-        for actor in WorldInfo.subclass_of(Actor):
-            actor.render_state.save()
-        
-        # Update local object data before call update physics
-        self.pawn.worldLinearVelocity = velocity
-        self.pawn.worldAngularVelocity = angular
-        
-        # Update physics
-        with self.pawn.render_state:
-            logic.getCurrentScene().updatePhysics(delta_time)
-            
-            pos = self.pawn.worldPosition
-            vel = self.pawn.worldLinearVelocity
-            ang = self.pawn.worldAngularVelocity
-            rot = self.pawn.worldOrientation.to_euler()
-            print(vel)
-        # Restore actor render states
-        for actor in WorldInfo.subclass_of(Actor):
-            
-            if actor is self.pawn:
-                # Get errors that are larger than error margins
-                errors = ((pos - client_loc).length > pos_error), ((vel - in_velocity).length > vel_error), ((ang - in_angular).length > ang_error) , ((rot.z - client_rot.z) > rot_error)
-                not_correct = any(errors)
-                
-                # Store move for collection
-                if not_correct:
-                    self.ClientCorrectMove(move_id, vel, ang, pos, rot)
-                    
-                else:
-                    self.ClientAckMove(move_id)
-                
-                actor.render_state.save()
-                
-            actor.render_state.restore()
-    
-    @RPC
-    @SafeException
-    def ClientAckMove(self, move_id:StaticValue(int))->Netmodes.client:
-        self.saved_moves.pop(move_id)
-    
-    @RPC
-    @SafeException
-    def ClientCorrectMove(self, move_id: StaticValue(int), velocity: StaticValue(Vector), angular: StaticValue(Vector), location: StaticValue(Vector), rotation: StaticValue(Euler))->Netmodes.client:
-        
-         # Apply new state
-        self.pawn.worldLinearVelocity = velocity
-        self.pawn.worldAngularVelocity = angular
-        self.pawn.worldPosition = location
-        self.pawn.worldOrientation = rotation
-       
-        # Update object
-        update_physics(move.deltatime)
-
-        # Iterate over moves since this update
-        for move_id, move in self.saved_moves.items():
-            
-            # Remove older moves, and re simulate new ones
-            if move.timestamp > timestamp:
-                delta_time = move.deltatime
-                    
-                # Get mov2e
-                velocity, angular = self.process_move(move)
-                    
-                # Apply to object 
-                self.pawn.worldLinearVelocity = velocity
-                self.pawn.worldAngularVelocity = angular
-                
-                # Update object
-                update_physics(delta_time)
-            
-            # These are now old moves, we can remove them
-            else:
-                remove_keys.append(move_id)
-
-        # Remove old moves
-        for move_id in remove_keys:
-            self.saved_moves.pop(move_id)
-        
-        # Restore other actor render states
-        for actor in WorldInfo.subclass_of(Actor):
-            if actor is self.pawn:
-                actor.render_state.save()
-            
-            actor.render_state.restore()
-    
-    @property
-    def next_move_id(self):
-        self.current_move += 1
-        if self.current_move > 255:
-            self.current_move = 0
-        return self.current_move
-    
-    def player_update(self, delta_time):
-        if not self.pawn.registered:
-            return 
-        
-        timestamp = WorldInfo.elapsed
-        inputs = self.player_input
-        
-        # Read inputs
-        forward = inputs.forward.active
-        back = inputs.back.active
-        left = inputs.left.active
-        right = inputs.right.active
-        
-        # Create move object
-        move = Move(self.next_move_id, timestamp, delta_time, forward, back, left, right, None, None, None, None)
-        
-        # Store for sending
-        self.saved_moves[move.id] = move
-        
-        self.pre_physics(move)
-        
-        if inputs.shift.active:
-            self.shift()
-
 class LadderPoint(Actor):
     pass
 
@@ -321,6 +251,7 @@ class Player(Actor):
     obj_name = "Player"
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    physics = Attribute(PhysicsData(mode=Physics.character, position=Vector((0,0, 3))))
     
     def on_create(self):
         super().on_create()
@@ -331,20 +262,7 @@ class Player(Actor):
         # Mark as simulated
         simulated(self.on_new_collision)
         simulated(self.on_end_collision)
-    
-    @RPC
-    def test(self) ->Netmodes.server:
-        print("LOL")
-    
-    def on_transition(self, last, new):
-        return
-        if isinstance(last, LadderPoint): 
-            self.physics.velocity.zero() 
             
-        if new is None:
-            self.lift_time = monotonic()
-            self.physics.velocity.zero()  
-    
     @property
     def time_airbourne(self):
         return monotonic() - self.lift_time

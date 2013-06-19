@@ -1,4 +1,4 @@
-from network import Float8, Float4, UInt8, String, register_handler, register_description
+from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo
 from .data_types import *
 
 class Euler8:
@@ -42,19 +42,14 @@ class Vector8(Euler8):
 class Vector4(Euler4):
     wrapper = Vector
 
-Vector4 = type("Vector4", (Vector8,), {})
-Euler4 = type("Euler4", (Euler8,), {})
-
 class AnimationHandler:
     @classmethod
     def pack(cls, anim):
-        print("PACK")
         data = UInt8.pack(anim.mode), UInt8.pack(anim.start_frame), UInt8.pack(anim.end_frame), String.pack(anim.name), Float8.pack(anim.timestamp) 
         return b''.join(data)
     
     @classmethod
     def unpack(cls, bytes_):
-        print(bytes_)
         record = AnimationData(mode=UInt8.unpack_from(bytes_), 
                start_frame=UInt8.unpack_from(bytes_[1:]),
                end_frame=UInt8.unpack_from(bytes_[2:]),
@@ -94,6 +89,7 @@ class PhysicsHandler:
     @classmethod
     def pack(cls, phys):
         vector_pack = cls.vector_pack
+        phys.timestamp = WorldInfo.elapsed
         data = UInt8.pack(phys.mode), cls.float_pack(phys.timestamp), vector_pack(phys.position), vector_pack(phys.velocity), vector_pack(phys.angular), cls.euler_pack(phys.orientation)
         return b''.join(data)
         
@@ -123,7 +119,7 @@ class PhysicsHandler:
 
 class InputHandler:
     int_pack = UInt8.pack
-    int_unpack = UInt8.unpack_from
+    int_unpack = UInt8.unpack
     string_pack = String.pack
     string_unpack = String.unpack_from
     string_size = String.size
@@ -131,26 +127,34 @@ class InputHandler:
     @classmethod
     def pack(cls, inputs):
         input_class = inputs.__class__
-        pack = cls.int_pack
         ordered_mappings = input_class._ordered_mappings
-        status_dict = input_class._cache
-        return cls.string_pack(input_class.type_name) + b''.join(pack(status_dict[i].status for i in ordered_mappings))
+        status_dict = inputs._cache
+        pack = cls.int_pack
+        packed_members = b''.join(pack(status_dict[i].status) for i in ordered_mappings)
+        return cls.string_pack(input_class.type_name) + packed_members
     
     @classmethod 
     def unpack(cls, bytes_):
-        unpack = cls.unpack        
-        input_class = InputManager.from_type_name(cls.string_unpack(bytes_))
+        unpack = cls.int_unpack
+        input_name = cls.string_unpack(bytes_)        
+        input_class = InputManager.from_type_name(input_name)
         bytes_ = bytes_[cls.string_size(bytes_):]
-        
         inputs = input_class()
-        input_values = (unpack(bytes_) for i in range(len(bytes_)))
-        inputs._events = dict((name, value) for name, value in zip(input_class._ordered_mappings, input_values))
+        input_values = (unpack(bytes_[i:i+1]) for i in range(len(input_class._ordered_mappings)))
+        inputs._events = dict((input_class.mappings[name], value) for (name, value) in zip(input_class._ordered_mappings, input_values))
         return inputs
     
     @classmethod
     def unpack_merge(cls, inputs, bytes_):
         inputs_new = cls.unpack(bytes_)
         inputs._events.update(inputs_new._events)
+        
+    @classmethod
+    def size(cls, bytes_=None):
+        input_class = InputManager.from_type_name(cls.string_unpack(bytes_))
+        return cls.string_size(bytes_) + len(input_class._ordered_mappings)
+    
+    unpack_from = unpack
     
 def mathutils_hash(obj): return hash(tuple(obj))
 
@@ -160,6 +164,7 @@ register_handler(Vector, lambda attr: Vector8 if attr._kwargs.get("max_precision
 register_handler(Euler, lambda attr: Euler8 if attr._kwargs.get("max_precision") else Euler4, is_condition=True)
 register_handler(PhysicsData, PhysicsHandler)
 register_handler(AnimationData, AnimationHandler)
+register_handler(InputManager, InputHandler)
 
 # Register custom hash-like descriptions
 register_description(Vector, mathutils_hash)
