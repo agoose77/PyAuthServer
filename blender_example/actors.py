@@ -4,10 +4,8 @@ from network import WorldInfo, StaticValue, Attribute, RPC, Netmodes, Roles, rel
 from bge import events, logic
 from mathutils import Vector, Euler
 
-from time import monotonic
 from collections import namedtuple, OrderedDict
-from functools import wraps
-from itertools import chain, islice
+from itertools import chain
 from math import radians
 from functools import partial
 from operator import lt
@@ -15,6 +13,8 @@ from operator import lt
 PlayerMove = namedtuple("PlayerMove", ("timestamp", "deltatime", "inputs"))
 
 def update_physics_for(obj, deltatime):
+    ''' Calls a physics simulation for deltatime
+    Rewinds other actors so that the individual is the only one that is changed by the end'''
     for replicable in WorldInfo.subclass_of(Actor):
         replicable.render_state.save()
     
@@ -45,13 +45,8 @@ class MoveManager:
         self.latest_move += 1
         if self.latest_move > self.max_id:
             self.latest_move = 0
+            
         return self.latest_move
-    
-    def increment_correction(self):
-        self.latest_correction += 1
-        if self.latest_correction > self.max_id:
-            self.latest_correction = 0
-        return self.latest_correction
     
     def add_move(self, move):
         move_id = self.increment_move()
@@ -60,27 +55,17 @@ class MoveManager:
     def get_move(self, move_id):
         return self.saved_moves[move_id]
     
-    def add_correction(self, move):
-        move_id = self.increment_correction()
-        self.to_correct[move_id] = move
-    
-    def get_correction(self, move_id):
-        return self.to_correct[move_id]
-    
     def remove_move(self, move_id):
         self.saved_moves.pop(move_id)
         
-    def remove_correction(self, move_id):
-        self.to_correct.pop(move_id)
-        
-    def sorted_moves(self, filter=None):
-        if callable(filter):
+    def sorted_moves(self, sort_filter=None):
+        if callable(sort_filter):
             for k, v in self.saved_moves.items():
-                if not filter(k):
+                if not sort_filter(k):
                     continue
                 yield k, v
         else:
-            yield from self.saved_moves.values()
+            yield from self.saved_moves.items()
     
 class RPGController(PlayerController):
     
@@ -92,9 +77,14 @@ class RPGController(PlayerController):
         self.moves = MoveManager()
         self.correction = None
         
-        self.previous_informed = None
-        self.previous_checked = None
+        self.previous_time = None
         self.last_sent = None
+        
+        self.delta_threshold = 0.8
+        self.considered_error = 0.1
+        self.valid_inputs = 0
+        self.invalid_inputs = 0
+        self.invalid = False
         
         self.setup_physics()
     
@@ -119,12 +109,47 @@ class RPGController(PlayerController):
         return self.pawn.local_space(velocity), angular
     
     def check_delta_time(self, timestamp, deltatime):
-        previous_time = timestamp - deltatime
+        '''A boolean check that the deltatime we're sent is close to the calculated one
+        There will be "differences" so this is crude'''
+        current_time = WorldInfo.elapsed
+        
+        try:
+            rough_deltatime = current_time - self.previous_time
+        except TypeError:
+            return True
+        else:
+            try:
+                error_fraction = (rough_deltatime / deltatime)
+            except ZeroDivisionError:
+                pass
+            else:
+                allowed = (1 + self.delta_threshold) > error_fraction > (1 - self.delta_threshold)
+                
+                if allowed:
+                    self.valid_inputs += 1
+                else:
+                    self.invalid_inputs += 1
+                    
+                try:
+                    logic.getCurrentScene().objects['Empty']['test'] = self.invalid_inputs/self.valid_inputs
+                    if (self.invalid_inputs / self.valid_inputs):
+                        self.invalid = True
+                except ZeroDivisionError:
+                    pass
+            
+        finally:
+            self.previous_time = current_time
+            
         return True
         
     @RPC
     def server_perform_move(self, move_id: StaticValue(int, max_value=65535), timestamp: StaticValue(float), deltatime: StaticValue(float), inputs: StaticValue(InputManager), position: StaticValue(Vector), orientation: StaticValue(Euler)) -> Netmodes.server:
-        assert self.check_delta_time(timestamp, deltatime), "Speedhacking detected"
+        allowed = self.check_delta_time(timestamp, deltatime)
+        
+        if not allowed:
+            print("NA")
+            return
+        
         pawn = self.pawn
         
         # Create a move to simulate
@@ -143,10 +168,10 @@ class RPGController(PlayerController):
         pawn.world_to_physics()
         # Stop bullet simulating this in the normal tick
         pawn.stop_moving()
-        
+        # Error between server and client
         position_difference = (pawn.physics.position - position).length
         rotation_difference = abs(pawn.physics.orientation.z - orientation.z)
-        
+        # Margin of error allowed between the two
         position_margin = 0.15
         rotation_margin = radians(3)
 
@@ -173,20 +198,24 @@ class RPGController(PlayerController):
         if not pawn.registered:
             return
         
-        # Get the result of the physics operation
+        # Get the result of the blender physics operation
         pawn.world_to_physics()
 
-        # If we have no moves we can't resimulate/confirm moves
+        # If we have no moves we can't re-simulate or send latest move
         if not moves:
             return
         
-        move_id = moves.latest_move
-        latest_move = moves.get_move(move_id)
-        
         # If we have no correction then the latest move is set
         if not self.correction:
-            # If we've not sent it
+            # Get the move ID
+            move_id = moves.latest_move
+            
+            # If we've not sent it before
             if move_id != self.last_sent:
+                
+                # Get the latest move
+                latest_move = moves.get_move(move_id)
+                
                 # Send move
                 self.server_perform_move(move_id, *chain(latest_move, (pawn.physics.position, pawn.physics.orientation)))
                 self.last_sent = move_id
@@ -197,7 +226,7 @@ class RPGController(PlayerController):
             correction_id = self.correction[0]
             # Find the successive moves
             following_moves = self.moves.sorted_moves(partial(lt, correction_id))
-            
+            # Inform console we're resimulating
             print("Resimulating from {}".format(correction_id))
             
             # Re run all moves
@@ -209,19 +238,22 @@ class RPGController(PlayerController):
                 pawn.physics.orientation.rotate(Euler(angular * replay_move.deltatime))
                 # Apply the simulation
                 pawn.physics_to_world()
+                # Update bullet
                 update_physics_for(pawn, replay_move.deltatime)
+                # Apply result
                 pawn.world_to_physics()
             
             # We didn't send the last one as it needed simulating
             if replay_id != self.last_sent:
+                # Tell server about move
                 self.server_perform_move(replay_id, *chain(replay_move, (pawn.physics.position, pawn.physics.orientation)))
                 self.last_sent = replay_id
             
-            # Ensure no velocity could be further simulated
+            # Ensure no velocity could be further simulated by accident
             pawn.stop_moving()
             # Remove the corrected move (no longer needed)
             self.moves.remove_move(correction_id)
-            # Empty correction
+            # Empty correction to prevent recorrecting
             self.correction = None
             
     def player_update(self, delta_time):
@@ -240,13 +272,12 @@ class RPGController(PlayerController):
         # Otherwise it would be invalid anyway
         if self.correction is None:
             velocity, angular = self.calculate_move(move)
-            # Set angular velocity and velocity
+            # Set angular velocity and velocity (keep Z velocity)
             pawn.physics.velocity[:-1] = velocity[:-1]
             pawn.physics.angular = angular
             
         # Store move regardless
         self.moves.add_move(move)        
-        
         
 class LadderPoint(Actor):
     pass

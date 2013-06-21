@@ -46,8 +46,8 @@ class CollisionStatus:
     def not_colliding(self):
         # If we have a stored collision
         difference = self._old_colliders.difference(self._new_colliders)
-        self._old_colliders = self._new_colliders.copy()
-        self._new_colliders.clear()
+        self._old_colliders = self._new_colliders
+        self._new_colliders = set()
         
         for obj in difference:
             self._registered.remove(obj)
@@ -79,9 +79,9 @@ class PhysicsSystem(System):
             if not issubclass(cls, Actor):
                 continue
             
-            is_sensor = obj.physicsType in (logic.KX_PHYSICS_SENSOR, logic.KX_PHYSICS_ACTOR_SENSOR)
+            no_mesh = obj.physicsType in (logic.KX_PHYSICS_NAVIGATION_MESH, logic.KX_PHYSICS_OCCLUDER, logic.KX_PHYSICS_NO_COLLISION)
             
-            if not (obj.mass or is_sensor):
+            if no_mesh:
                 print("Static actor  {} does not have correct physics".format(obj))
                 continue
             

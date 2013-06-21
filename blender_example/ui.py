@@ -23,8 +23,8 @@ class UIManager(System):
         super().__init__()
         
         self.game = game
-        self.keymap = {getattr(events, val): getattr(bgui, val) for val in dir(events) if val.endswith('KEY') or val.startswith('PAD')}
-        
+        self.keymap = {getattr(events, val): getattr(bgui, val, None) for val in dir(events) if val.endswith('KEY') or val.startswith('PAD')}
+        print(self.keymap)
         logic.getCurrentScene().post_draw.append(self.render_handler)
         
         # Display dimensions
@@ -138,6 +138,9 @@ class FindGameUI(UISystem):
         # An empty frame
         self.win = bgui.Frame(self, 'win', size=[0.6, 0.8],
             options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED)
+        
+        items = ["One", "Two", 4, 4.6]
+        self.lb = bgui.ListBox(self.frame, "lb", items=items, padding=0.05, size=[0.9, 0.9], pos=[0.05, 0.05])
         
         # A "submit" button
         self.button = bgui.FrameButton(self.win, 'button', text='Join game!', size=[.3, .09], pos=[.815, .03],

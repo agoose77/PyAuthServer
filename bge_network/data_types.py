@@ -104,9 +104,9 @@ class AnimationData:
     def __init__(self, name, end_frame, mode, start_frame=0):
         self.name = name
         self.mode = mode
-        self.timestamp = 0.000 
         self.end_frame = end_frame
         self.start_frame = start_frame
+        self.timestamp = 0.000 
     
     def __description__(self):
         return hash((self.mode, self.name, self.start_frame, self.end_frame, self.timestamp))

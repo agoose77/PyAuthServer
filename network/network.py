@@ -240,12 +240,12 @@ class PacketCollection:
         if members is None:
             members = []
             
-        if isinstance(members, PacketCollection) or isinstance(members, Packet):
+        if isinstance(members, self.__class__) or isinstance(members, Packet):
             members = members.members
         else:
             new_members = []
             for member in members:
-                if isinstance(member, PacketCollection):
+                if isinstance(member, self.__class__):
                     new_members.extend(member.members)
                 else:
                     new_members.append(member)
@@ -397,21 +397,23 @@ class Channel:
         # Store dictionary of ids for each attribute value
         self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
     
-    def get_rpc_calls(self):       
+    def get_rpc_calls(self):   
+        int_pack = UInt8.pack    
+        get_reliable = is_reliable
+        
         for (method, data) in self.replicable._calls:
-            yield UInt8.pack(method.rpc_id) + data, is_reliable(method)
+            yield int_pack(method.rpc_id) + data, get_reliable(method)
           
         self.replicable._calls.clear() 
         
     def invoke_rpc_call(self, rpc_call):
         rpc_id = UInt8.unpack_from(rpc_call)
         
-        try:            method =(self.replicable._rpc_functions[rpc_id])
+        try:            method = self.replicable._rpc_functions[rpc_id]
         except IndexError:
             print("Error invoking RPC: No RPC function with id {}".format(rpc_id))
-            return
- 
-        method.execute(rpc_call[1:]) 
+        else:
+            method.execute(rpc_call[1:]) 
                  
 class ClientChannel(Channel):      
         
@@ -449,7 +451,7 @@ class ServerChannel(Channel):
     def get_attributes(self, is_owner):
         # Get replicable and its class
         replicable = self.replicable
-        replicable_cls = replicable.__class__
+
         # Set the role context for whom we replicate
         replicable.roles.context = is_owner
         
@@ -496,11 +498,9 @@ class ServerChannel(Channel):
         self.is_initial = False
         
         # Only send bytes if replicated
-        if not data:
-            return
-        
-        # Returns packed data
-        return self.serialiser.pack(data)
+        if data:        
+            # Returns packed data
+            return self.serialiser.pack(data)
 
 class Connection:
     
@@ -606,6 +606,7 @@ class ClientConnection(Connection):
         get_channel = self.channels.__getitem__
         
         no_role = Roles.none
+        method_invoke = Protocols.method_invoke
         
         for replicable in Replicable:
             
@@ -614,6 +615,7 @@ class ClientConnection(Connection):
             
             # Determine if we own this replicable
             is_owner = check_is_owner(replicable)
+            
             # Get network ID
             instance_id = replicable.instance_id
             packed_id = packer(instance_id)
@@ -624,7 +626,7 @@ class ClientConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield Packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield Packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
        
     def receive(self, packets):
         '''Client connection receive method
@@ -693,6 +695,7 @@ class ServerConnection(Connection):
         make_packet = Packet.__call__
         
         no_role = Roles.none
+        method_invoke = Protocols.method_invoke
         
         for replicable in Replicable:
             if replicable.roles.remote == no_role:
@@ -711,7 +714,7 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield make_packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
                      
     def get_full_replication(self):
         '''Yields replication packets for relevant replicable
@@ -723,6 +726,10 @@ class ServerConnection(Connection):
         make_packet = Packet.__call__
         
         no_role = Roles.none
+        
+        method_invoke = Protocols.method_invoke
+        replication_init = Protocols.replication_init
+        replication_update = Protocols.replication_update
         
         for replicable in Replicable:
             
@@ -742,7 +749,7 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield make_packet(protocol=Protocols.method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
             
             # Only send attributes if relevant
             if is_owner or is_relevant(self, replicable):
@@ -751,13 +758,13 @@ class ServerConnection(Connection):
                     # Pack the class name
                     packed_class = String.pack(replicable.__class__.type_name)
                     # Send the protocol, class name and owner status to client
-                    yield make_packet(protocol=Protocols.replication_init, payload=packed_id + packed_class, reliable=True)
+                    yield make_packet(protocol=replication_init, payload=packed_id + packed_class, reliable=True)
              
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
                 # If they have changed                    
                 if attributes:
-                    yield make_packet(protocol=Protocols.replication_update, 
+                    yield make_packet(protocol=replication_update, 
                             payload=packed_id + attributes, reliable=True)
     
         # If any replicables deleted
@@ -770,7 +777,7 @@ class ServerConnection(Connection):
                 # Remove it
                 self.channels.pop(instance_id)
                 # Send delete packet 
-                yield make_packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
+                yield make_packet(protocol=protocols.replication_del, payload=packed_id, reliable=True) 
                 
                 # Don't process rest              
             self.dead_channels.clear()
@@ -786,10 +793,12 @@ class ServerConnection(Connection):
         unpacker = UInt8.unpack_from
         id_size = UInt8.size()
         
+        method_invoke = Protocols.method_invoke
+        
         # Run RPC invoke for each packet
         for packet in packets:
             # If it is an RPC packet
-            if packet.protocol == Protocols.method_invoke:
+            if packet.protocol == method_invoke:
                 # Unpack data
                 instance_id = unpacker(packet.payload)
                 channel = channels[instance_id]
