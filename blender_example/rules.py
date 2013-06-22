@@ -25,7 +25,12 @@ class TeamDeathMatch(BaseRules):
             # Establish relationship
             controller.possess(actor) 
             return controller
-        
+    
+    @classmethod
+    def on_shoot(cls, hit_replicable, shooter, damage):
+        hit_replicable.on_shot(shooter, damage)
+    
+    @classmethod    
     def on_disconnect(cls, replicable):
         return
     

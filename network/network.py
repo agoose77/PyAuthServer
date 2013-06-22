@@ -1423,7 +1423,8 @@ class RolesHandler:
     
     @classmethod
     def pack(cls, roles):
-        return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
+        with roles.switched():
+            return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
     
     @classmethod
     def unpack(cls, bytes_):

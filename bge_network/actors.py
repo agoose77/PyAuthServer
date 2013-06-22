@@ -6,7 +6,8 @@ Created on 10 Apr 2013
 
 # Game classes               
 from bge import types, logic, events, constraints
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Euler
+from aud import Factory, Device, device as get_audio_device
 
 from time import monotonic
 from collections import deque
@@ -61,9 +62,11 @@ class GameObject(types.KX_GameObject):
                 other.setParent(self, ParentStates.reply)
             elif state == ParentStates.reply:
                 super().setParent(other)
+                self.owner = other
         else:  
             super().setParent(other)
-    
+            self.owner = other
+
     def on_unregistered(self):        
         super().on_unregistered()
         self.endObject()
@@ -106,7 +109,14 @@ class PlayerController(Controller):
         # Add time started and accumulator
         self.started = monotonic()
         self.rtt_accumulator = deque()
-        
+    
+    @RPC
+    def client_hear_sound(self, path:StaticValue(str), position:StaticValue(Vector))->Netmodes.client:
+        device = get_audio_device()
+        device.listener_location = position
+        sound = Factory(logic.expandPath(path))
+        handle = device.play(sound)
+    
     @property
     def elapsed(self):
         '''Elapsed time since creation
@@ -197,11 +207,13 @@ class Actor(GameObject, Replicable):
         physics = self.physics
         
         self.worldPosition = physics.position
-        self.worldOrientation = physics.orientation
+        # Setting orientation would cause alignment issues
+        if not self.parent:
+            self.worldOrientation = physics.orientation
         
         if physics.mode == Physics.rigidbody:
             self.worldLinearVelocity = physics.velocity
-        else:
+        elif physics.mode == Physics.character:
             constraints.getCharacter(self).walkDirection = physics.velocity / logic.getLogicTicRate()
     
     def world_to_physics(self):
@@ -212,7 +224,7 @@ class Actor(GameObject, Replicable):
         
         if physics.mode == Physics.rigidbody:
             physics.velocity = self.worldLinearVelocity
-        else:
+        elif physics.mode == Physics.character:
             physics.velocity = constraints.getCharacter(self).walkDirection * logic.getLogicTicRate()
     
     @property

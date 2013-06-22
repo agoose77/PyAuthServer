@@ -52,7 +52,10 @@ class CollisionStatus:
         for obj in difference:
             self._registered.remove(obj)
             self.on_end(obj)
-    
+
+def ignore(replicable):
+    return replicable.name == "Weapon"
+
 class PhysicsSystem(System):
     
     def __init__(self):
@@ -90,9 +93,9 @@ class PhysicsSystem(System):
             # Copy existing physics
             replicable.world_to_physics()
             
-            if static_id is None:
-                replicable.roles.remote = Roles.none
-            
+            if static_id is None and not replicable.get("replicate"):
+                replicable.roles.remote = Roles.none   
+    
     def register_object(self, replicable):
         '''Registers replicable to physics system'''
         jitter_buffer = JitterBuffer()
@@ -100,7 +103,7 @@ class PhysicsSystem(System):
         collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
         collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
         collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
-        
+                    
         # Static actors have existing world physics settings
         if replicable._static:
             replicable.world_to_physics()
@@ -119,8 +122,15 @@ class PhysicsSystem(System):
         # Determine which callback to run
         func = replicable.on_new_collision if new_collision else replicable.on_end_collision    
         
+        if not replicable.registered:
+            return
+        
         # Check for permission
         if allowed_to_run(replicable, func):
+            # Make sure that any physics changes are updated
+            
+            replicable.world_to_physics()
+            
             func(collided)
             
             # Apply any new physics settings
@@ -144,9 +154,9 @@ class PhysicsSystem(System):
             
             jitter_buffer = self.cache[replicable] 
             
-            if replicable.roles.local > role_simulated:   
+            if replicable.roles.local > role_simulated:
                 replicable.world_to_physics()
-                
+                    
     def post_update(self, delta_time):
         '''Update the physics after actor changes
         @param delta_time: delta_time since last frame'''
@@ -166,94 +176,12 @@ class PhysicsSystem(System):
             if replicable.roles.local >= Roles.simulated_proxy:
                 # Update physics with replicable position, velocity and timestamp    
                 if physics.mode == Physics.character:
-                    physics.orientation.rotate(Euler(physics.angular * delta_time))
-                    
-                replicable.physics_to_world()
+                    physics.simulate_angular_velocity(delta_time)
+                replicable.physics_to_world()  
                     
 class JitterBuffer:
-    
-    def __init__(self, min_length=2, max_length=8):
-        self.accumulator = 0.0
-        self.last_time = None
-        self.offset = 0.0
-        self.queue = deque()
-    
-    def __len__(self):
-        return len(self.queue)
-    
-    @property
-    def latest(self):
-        return self.queue[0]
-    
-    def populate(self, data):
-        if not data in self.queue:
-            self.queue.append(data)
+    pass     
 
-    def validate_buffer(self, delta_time):
-        '''Handles the buffer offset'''
-        
-        # Get the length of the offset queue
-        queue_length = len(self.queue)
-        
-        is_moving = False
-        
-        try:
-            is_moving = self.latest.moving
-        except IndexError:
-            pass
-        
-        if is_moving:
-            if queue_length < self.min_length and queue_length:
-                self.offset -= delta_time * 0.01
-            
-            # Enforce upper bound on offset queue
-            elif queue_length > self.max_length:
-                # Will cause recalculation of offset
-                self.offset += delta_time * 0.01
-            
-        elif not queue_length:
-            self.last_time = None
-            return
-            
-        return True
-        
-    def get(self, delta_time):
-        self.accumulator += delta_time*2
-        
-        # Allow for buffer resizing
-        if not self.validate_buffer(delta_time):
-            return
-        
-        # Get the timestamp it was intended for
-        target_time = self.latest.timestamp
-        
-        try:
-            # Offset oldest entry time by buffer latency and accumulator
-            relative_time = self.last_time + self.accumulator + self.offset
-            
-        except TypeError:
-            # If the last time is None use latest data
-            self.last_time = target_time
-            # Avoid build up accumulation time
-            self.accumulator = 0.0
-            return
-        
-        # Get the difference (positive = add to accum)
-        additional_time = relative_time - target_time
-        
-        # If it's still old relative to buffer "current" time
-        if additional_time < 0.0:
-            return
-        
-        # Add the additional time to the accumulator
-        self.accumulator = additional_time
-        # Store the last time
-        self.last_time = target_time
-        # Remove from buffer
-        return self.queue.popleft()
-                
-          
-          
 class InputSystem(System):
     
     def pre_update(self, delta_time):
@@ -270,7 +198,7 @@ class Game(GameLoop):
     
     def __init__(self, addr="localhost", port=0):
         super().__init__(addr, port)
-        
+        print("Starting game...")
         self.physics = PhysicsSystem()
         self.inputs = InputSystem()
         self.last_time = monotonic()

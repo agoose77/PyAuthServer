@@ -134,6 +134,9 @@ class PhysicsData:
     def is_active(self):
         return any(self.angular) or any(self.velocity)
     
+    def simulate_angular_velocity(self, deltatime):
+        self.orientation.rotate(Euler(self.angular * deltatime))
+    
     def __description__(self):
         return hash(tuple(chain(self.position, self.velocity, self.angular, self.orientation, (self.mode,))))
     
