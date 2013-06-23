@@ -24,7 +24,7 @@ class UIManager(System):
         
         self.game = game
         self.keymap = {getattr(events, val): getattr(bgui, val, None) for val in dir(events) if val.endswith('KEY') or val.startswith('PAD')}
-        print(self.keymap)
+        
         logic.getCurrentScene().post_draw.append(self.render_handler)
         
         # Display dimensions

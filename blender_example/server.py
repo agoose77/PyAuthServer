@@ -8,6 +8,10 @@ from random import randint
 
 from actors import Player
 
+# Set network mode
+WorldInfo.netmode = Netmodes.server
+WorldInfo.rules = TeamDeathMatch
+
 # Add random actors
 def random_spawn(n):
     '''Spawns randomly positioned actors'''
@@ -17,10 +21,6 @@ def random_spawn(n):
 
 game = Game(addr="127.0.0.1", port=1200)
 
-# Set network mode
-WorldInfo.netmode = Netmodes.server
-WorldInfo.rules = TeamDeathMatch
-
 #random_spawn(5)
 
 def main(cont):  
@@ -28,5 +28,5 @@ def main(cont):
         game.update()    
     except QuitGame:
         logic.endGame()  
-        print("ended")
+        print("Ended game")
     

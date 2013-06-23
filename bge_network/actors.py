@@ -9,38 +9,52 @@ from bge import types, logic, events, constraints
 from mathutils import Vector, Matrix, Euler
 from aud import Factory, Device, device as get_audio_device
 
-from time import monotonic
 from collections import deque
+from functools import partial
+from operator import lt as less_than_operator
+from math import radians
+from itertools import chain
 
-from .enums import Physics, Animations, ParentStates
-from .data_types import PhysicsData, AnimationData
+from .enums import Physics, Animations, ParentStates, PhysicsTargets
+from .data_types import PhysicsData, AnimationData, InputManager
+from .states import MoveManager, RenderState, PlayerMove
+from .tools import AttatchmentSocket
 
-from network import Controller, Replicable, Attribute, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo, simulated
+from random import randint
+from functools import partial
+from network import Controller, Replicable, Attribute, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo, simulated, NetmodeOnly
+
+def save(replicable):
+    replicable.render_state.save()
+
+def switch(obj, replicable):
+    if (replicable in obj.childrenRecursive or replicable == obj):
+       replicable.render_state.save()
+    else:
+        replicable.render_state.restore()
+
+def update_physics_for(obj, deltatime):
+    ''' Calls a physics simulation for deltatime
+    Rewinds other actors so that the individual is the only one that is changed by the end'''
+   
+    # Get all children
+    all_children = obj.childrenRecursive
     
-class RenderState:
-    def __init__(self, obj):
-        self.obj = obj
-        self.ignore = False
-        self.save()
-        
-    def save(self):
-        self.transform = self.obj.worldTransform.copy()
-        self.velocity = self.obj.worldLinearVelocity.copy()
-        self.angular = self.obj.worldAngularVelocity.copy()
-    
-    def restore(self):
-        self.obj.worldTransform = self.transform 
-        self.obj.worldLinearVelocity = self.velocity
-        self.obj.worldAngularVelocity = self.angular 
-     
-    def __enter__(self):
-        self.ignore = False
-        self.save()
-        
-    def __exit__(self, *a, **k):
-        if not self.ignore:
-            self.restore()
+    for replicable in WorldInfo.subclass_of(Actor):
+        # Start at the parents and traverse
+        if not replicable.parent:
+            replicable.physics_to_world(callback=save, deltatime=deltatime)
+    # Tick physics
+    obj.scene.updatePhysics(deltatime)
 
+    switch_cb = partial(switch, obj)
+    # Restore objects that aren't affiliated with obj
+    for replicable in WorldInfo.subclass_of(Actor):
+        if not replicable.parent:
+            # Apply results
+            replicable.world_to_physics(callback=switch_cb, deltatime=deltatime)
+           
+             
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
     Fixes parenting relationships between actors which are proxies'''
@@ -93,35 +107,193 @@ class PlayerController(Controller):
             
     input_class = lambda *a: None
     
-    round_trip_time = 0.0
-    ping_sample_time = 0.5
-    last_sample_time = 0.0
-    
     def on_create(self):
         super().on_create()
         
+        # RTT data        
+        self.round_trip_time = 0.0
+        self.ping_sample_time = 0.5
+        self.last_sample_time = 0.0
+        
+        # Move data    
+        self.moves = MoveManager()
+        self.correction = None    
+        
+        self.previous_time = None
+        self.last_sent = None
+        
+        self.delta_threshold = 0.8
+        self.considered_error = 0.1
+        
+        self.valid_inputs = 0
+        self.invalid_inputs = 0
+        
+        self.invalid = False
+        
         # Add input class
-        if WorldInfo.netmode == Netmodes.server:
-            self.info = ControllerInfo()
-        else:
+        if WorldInfo.netmode != Netmodes.server:
             self.create_player_input()
         
         # Add time started and accumulator
-        self.started = monotonic()
         self.rtt_accumulator = deque()
+        
+        # Setup player info
+        self.create_info()
+    
+    @NetmodeOnly(Netmodes.server)
+    def create_info(self):
+        self.info = ControllerInfo()
     
     @RPC
     def client_hear_sound(self, path:StaticValue(str), position:StaticValue(Vector))->Netmodes.client:
         device = get_audio_device()
         device.listener_location = position
         sound = Factory(logic.expandPath(path))
-        handle = device.play(sound)
+        handle = device.play(sound)   
+        
+    def calculate_move(self, move):
+        """Returns velocity and angular velocity of movement
+        @param move: move to execute"""
+        return Vector(), Vector()
     
-    @property
-    def elapsed(self):
-        '''Elapsed time since creation
-        used to find RTT'''
-        return monotonic() - self.started    
+    def check_delta_time(self, timestamp, deltatime):
+        '''A boolean check that the deltatime we're sent is close to the calculated one
+        There will be "differences" so this is crude'''
+        current_time = WorldInfo.elapsed
+        
+        try:
+            rough_deltatime = current_time - self.previous_time
+        except TypeError:
+            return True
+        
+        else:
+            try:
+                error_fraction = (rough_deltatime / deltatime)
+            except ZeroDivisionError:
+                pass
+            
+            else:
+                allowed = (1 + self.delta_threshold) > error_fraction > (1 - self.delta_threshold)
+                
+                if allowed:
+                    self.valid_inputs += 1
+                else:
+                    self.invalid_inputs += 1
+                    
+                try:
+                    if (self.invalid_inputs / self.valid_inputs):
+                        self.invalid = True
+                except ZeroDivisionError:
+                    pass
+            
+        finally:
+            self.previous_time = current_time
+            
+        return True
+    
+    @RPC
+    def server_perform_move(self, move_id: StaticValue(int, max_value=65535), timestamp: StaticValue(float), deltatime: StaticValue(float), inputs: StaticValue(InputManager), physics: StaticValue(PhysicsData)) -> Netmodes.server:
+        allowed = self.check_delta_time(timestamp, deltatime)
+        
+        if not allowed:
+            print("Move delta time invalid")
+            return
+        
+        # Get current pawn object that we control
+        pawn = self.pawn
+
+        # Create a move to simulate
+        move = PlayerMove(timestamp, deltatime, inputs)
+        # Determine the velocity and rotation outputs
+        pawn.physics.velocity, pawn.physics.angular = self.calculate_move(move)
+        
+        # Simulate
+        update_physics_for(pawn, deltatime)
+        
+        # Stop bullet simulating this in the normal tick
+        pawn.stop_moving()
+                
+        # Error between server and client
+        position_difference = (pawn.physics.position - physics.position).length
+        rotation_difference = abs(pawn.physics.orientation.z - physics.orientation.z)
+                
+        # Margin of error allowed between the two
+        position_margin = 0.2
+        rotation_margin = radians(3)
+
+        # Check the error between server and client
+        if position_difference > position_margin or rotation_difference > rotation_margin or inputs.resimulate.pressed:
+            self.client_correct_move(move_id, pawn.physics)
+        
+        else:
+            self.client_acknowledge_move(move_id)
+    
+    @RPC
+    def client_acknowledge_move(self, move_id:StaticValue(int, max_value=65535)) -> Netmodes.client:
+        self.moves.remove_move(move_id)
+    
+    @RPC
+    def client_correct_move(self, move_id: StaticValue(int, max_value=65535), physics: StaticValue(PhysicsData)) -> Netmodes.client:
+        self.correction = move_id, physics
+        self.pawn.physics = physics
+        # Stop Bullet running old velocity
+        # We're only trying to set non-deltatime modified values (pos, ori)
+        self.pawn.stop_moving(PhysicsTargets.network)
+        
+    def post_physics(self, delta_time):
+        moves = self.moves
+        pawn = self.pawn
+        
+        if not pawn.registered:
+            return
+
+        # Ensures that any parent relationships are updated
+        # Ensures friction reduces velocity
+
+        # If we have no moves we can't re-simulate or send latest move
+        if not moves:
+            return
+
+        # If we have no correction then the latest move is set
+        if not self.correction:
+            # Get the move ID
+            move_id = moves.latest_move
+            
+            # If we've not sent it before
+            if move_id != self.last_sent:
+                
+                # Get the latest move
+                latest_move = moves.get_move(move_id)
+                # Send move
+                self.server_perform_move(move_id, *chain(latest_move, (pawn.physics, )))
+                self.last_sent = move_id
+        
+        # Otherwise we need to simulate the move
+        else:
+            # Get ID of correction
+            correction_id = self.correction[0]
+            # Find the successive moves
+            following_moves = list(self.moves.sorted_moves(partial(less_than_operator, correction_id)))
+            # Inform console we're resimulating
+            print("Resimulating from {}".format(correction_id), len(following_moves))
+            
+            # Re run all moves
+            for replay_id, replay_move in following_moves:
+                # Get resimlation of move
+                pawn.physics.velocity, pawn.physics.angular = self.calculate_move(replay_move)
+                # Update bullet
+                update_physics_for(pawn, replay_move.deltatime)
+            
+            # We didn't send the last one as it needed simulating
+            if replay_id != self.last_sent:
+                # Tell server about move
+                self.server_perform_move(replay_id, *chain(replay_move, (pawn.physics,)))
+                self.last_sent = replay_id
+                
+            # Remove the corrected move (no longer needed)
+            self.moves.remove_move(correction_id)
+            # Empty correction to prevent recorrecting
+            self.correction = None
     
     def update_rtt(self, round_trip_time):
         self.rtt_accumulator.append(round_trip_time)
@@ -130,7 +302,30 @@ class PlayerController(Controller):
             self.rtt_accumulator.popleft()
         
         self.round_trip_time = sum(self.rtt_accumulator) / len(self.rtt_accumulator)
+    
+    def player_update(self, delta_time):
+        # Make sure we have a pawn object
+        pawn = self.pawn
         
+        if not pawn.registered:
+            return
+        
+        timestamp = WorldInfo.elapsed
+        
+        # Create move object (as sent end of tick, playerinput is ok to be muteable)
+        move = PlayerMove(timestamp=timestamp, deltatime=delta_time, inputs=self.player_input.static)
+        
+        # If no correction, make use of simulation
+        # Otherwise it would be invalid anyway
+        if self.correction is None:
+            velocity, angular = self.calculate_move(move)
+            # Set angular velocity and velocity (keep Z velocity)
+            pawn.physics.velocity[:-1] = velocity[:-1]
+            pawn.physics.angular = angular
+            
+        # Store move regardless
+        self.moves.add_move(move)   
+
 class Actor(GameObject, Replicable):
     ''''A basic actor class 
     Inherits from GameObject to display mesh and collide'''  
@@ -147,6 +342,16 @@ class Actor(GameObject, Replicable):
         self.render_state = RenderState(self)
         self.allowed_transitions = []
         self.states = []
+    
+    def on_registered(self):
+        super().on_registered()
+
+        try:
+            creation_rule = WorldInfo.rules.on_create_actor
+        except AttributeError:
+            pass
+        else:
+            creation_rule(self)
         
     @property
     def current_state(self):
@@ -191,41 +396,72 @@ class Actor(GameObject, Replicable):
             except:
                 pass
     
-    def stop_moving(self):
+    def stop_moving(self, target=None):
+        if target is None:
+            network = blender = True
+        elif target == PhysicsTargets.network:
+            network, blender = True, False
+        elif target == PhysicsTargets.blender:
+            network, blender = False, True
+            
         physics = self.physics
         
-        if physics.mode == Physics.rigidbody:
-            self.worldLinearVelocity.zero()
-            self.worldAngularVelocity.zero()
-        else:
-            constraints.getCharacter(self).walkDirection = Vector()
-        
-        physics.velocity.zero()
-        physics.angular.zero()
-    
-    def physics_to_world(self):
+        if blender:
+            if physics.mode == Physics.rigidbody:
+                self.worldLinearVelocity.zero()
+                self.worldAngularVelocity.zero()
+            elif physics.mode == Physics.character:
+                constraints.getCharacter(self).walkDirection = Vector()
+        if network:
+            physics.velocity.zero()
+            physics.angular.zero()
+
+    def physics_to_world(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
         
-        self.worldPosition = physics.position
-        # Setting orientation would cause alignment issues
-        if not self.parent:
-            self.worldOrientation = physics.orientation
+        if callable(condition):
+            if not condition(self):
+                return
         
+        if self.children:
+            for child in self.children:
+                child.physics_to_world(condition=condition, callback=callback)
+                
         if physics.mode == Physics.rigidbody:
             self.worldLinearVelocity = physics.velocity
+            
         elif physics.mode == Physics.character:
-            constraints.getCharacter(self).walkDirection = physics.velocity / logic.getLogicTicRate()
-    
-    def world_to_physics(self):
+            constraints.getCharacter(self).walkDirection = physics.velocity * deltatime
+            physics.simulate_dynamics(deltatime)
+        
+        self.worldPosition = physics.position 
+        self.worldOrientation = physics.orientation
+        
+        if callable(callback):
+            callback(self)
+            
+    def world_to_physics(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
+        deltatime = max(deltatime, 1/60)
+        if callable(condition):
+            if not condition(self):
+                return
         
-        physics.position = self.worldPosition
+        if self.children:
+            for child in self.children:
+                child.world_to_physics(condition=condition, callback=callback)
+        
+        physics.position = self.worldPosition.copy()
         physics.orientation = self.worldOrientation.to_euler()
-        
+
         if physics.mode == Physics.rigidbody:
-            physics.velocity = self.worldLinearVelocity
+            physics.velocity = self.worldLinearVelocity.copy()
+            
         elif physics.mode == Physics.character:
-            physics.velocity = constraints.getCharacter(self).walkDirection * logic.getLogicTicRate()
+            physics.velocity = constraints.getCharacter(self).walkDirection / deltatime
+        
+        if callable(callback):
+            callback(self)
     
     @property
     def on_ground(self):
@@ -254,7 +490,12 @@ class Actor(GameObject, Replicable):
         rotation.x = rotation.y = 0
         velocity.rotate(rotation)
         return velocity
-             
+    
+    def align_from(self, other):
+        direction = Vector((1, 0, 0)); direction.rotate(other.physics.orientation)
+        orientation = Vector((1, 0, 0)).rotation_difference(direction)
+        self.physics.orientation = orientation.to_euler()
+        
     def on_notify(self, name):
         '''Called when network variable is changed
         @param name: name of attribute'''

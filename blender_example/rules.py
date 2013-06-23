@@ -1,5 +1,5 @@
-from bge_network import PlayerController, Actor, PlayerLimitReached
-from network import BaseRules, ConnectionStatus, Netmodes, Roles, ConnectionInterface
+from bge_network import PlayerController, Actor, PlayerLimitReached, PhysicsSystem
+from network import BaseRules, ConnectionStatus, Netmodes, Roles, ConnectionInterface, System
 from operator import gt as greater_than
 
 from actors import RPGController, Player
@@ -25,6 +25,12 @@ class TeamDeathMatch(BaseRules):
             # Establish relationship
             controller.possess(actor) 
             return controller
+    
+    @classmethod
+    def on_create_actor(cls, actor):
+        for system in System:
+            if isinstance(system, PhysicsSystem):
+                system.register_actor(actor)
     
     @classmethod
     def on_shoot(cls, hit_replicable, shooter, damage):

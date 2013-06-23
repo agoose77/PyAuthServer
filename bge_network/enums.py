@@ -8,3 +8,6 @@ class Animations(metaclass=Enum):
 
 class ParentStates(metaclass=Enum):
     values = "initial", "invoked", "reply"
+
+class PhysicsTargets(metaclass=Enum):
+    values = "network", "blender"

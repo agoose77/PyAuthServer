@@ -777,7 +777,7 @@ class ServerConnection(Connection):
                 # Remove it
                 self.channels.pop(instance_id)
                 # Send delete packet 
-                yield make_packet(protocol=protocols.replication_del, payload=packed_id, reliable=True) 
+                yield make_packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
                 
                 # Don't process rest              
             self.dead_channels.clear()
@@ -1131,11 +1131,13 @@ class ElapsedTime:
     '''Context manager to determine elapsed time since last call'''
     def __init__(self):
         self.last = monotonic()
+        self.last_delta_time = 0.0
     
     def __enter__(self):
         new_time = monotonic()
         delta_time = new_time - self.last
         self.last = new_time
+        self.last_delta_time = delta_time
         return delta_time
     
     def __exit__(self, type, value, traceback):
@@ -1143,7 +1145,7 @@ class ElapsedTime:
                 
 class GameLoop(socket):
     
-    def __init__(self, addr, port, update_interval=1/25):
+    def __init__(self, addr, port, update_interval=1/20):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1153,7 +1155,7 @@ class GameLoop(socket):
         self._interval = update_interval
         self._last_sent = 0.0
         self._started = monotonic()
-        self._clock = ElapsedTime()
+        self.clock = ElapsedTime()
         
         self.sent_bytes = 0
         self.received_bytes = 0
@@ -1250,7 +1252,7 @@ class GameLoop(socket):
     
     def update(self):   
         # Determine the elapsed time since the last update
-        with self._clock as delta_time:
+        with self.clock as delta_time:
             # Update each system at intervals
             for system in System:
                 # Ensure system is active
