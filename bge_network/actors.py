@@ -419,13 +419,13 @@ class Actor(GameObject, Replicable):
     def physics_to_world(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
         
-        if callable(condition):
-            if not condition(self):
-                return
-        
         if self.children:
             for child in self.children:
                 child.physics_to_world(condition=condition, callback=callback)
+        
+        if callable(condition):
+            if not condition(self):
+                return
                 
         if physics.mode == Physics.rigidbody:
             self.worldLinearVelocity = physics.velocity
@@ -443,13 +443,14 @@ class Actor(GameObject, Replicable):
     def world_to_physics(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
         deltatime = max(deltatime, 1/60)
-        if callable(condition):
-            if not condition(self):
-                return
         
         if self.children:
             for child in self.children:
                 child.world_to_physics(condition=condition, callback=callback)
+                
+        if callable(condition):
+            if not condition(self):
+                return
         
         physics.position = self.worldPosition.copy()
         physics.orientation = self.worldOrientation.to_euler()

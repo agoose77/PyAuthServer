@@ -131,25 +131,13 @@ class PhysicsSystem(System):
             is_actor = hasattr(collided, "instance_id")
             
             # Ensure that the object exists
-            if is_actor:
-                if not collided.registered:
+            if is_actor and not collided.registered:
                     return
-                collided.world_to_physics()
             
             # In case the callback affects the other object
             # This could be fixed using a post_draw callback
-            replicable.world_to_physics()
                         
             func(collided)
-            
-            # Apply any new physics settings
-            if replicable.roles.local != Roles.autonomous_proxy:
-                replicable.physics_to_world()
-            
-            # In case the callback affects the other object
-            # This could be fixed using a post_draw callback
-            if is_actor and collided.roles.local != Roles.autonomous_proxy:
-                collided.physics_to_world()
 
     def post_physics_condition(self, replicable):
         # Makes sure we have callbacks for replicable
@@ -157,7 +145,6 @@ class PhysicsSystem(System):
     
     def post_update_condition(self, delta_time, replicable):
         condition = replicable.roles.local >= Roles.simulated_proxy and replicable.roles.remote != Roles.autonomous_proxy
-            
         return condition
             
     def post_update(self, delta_time):
@@ -195,9 +182,6 @@ class PhysicsSystem(System):
             if hasattr(controller, "player_input"):
                 controller.post_physics(delta_time)
                                
-class JitterBuffer:
-    pass     
-
 class InputSystem(System):
     
     def pre_update(self, delta_time):

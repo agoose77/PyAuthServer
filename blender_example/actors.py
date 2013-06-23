@@ -25,6 +25,12 @@ class Weapon(Actor):
         self.last_fired_time = 0
         
         self.update_simulated_position = False
+        self.previous_owner = None
+    
+    def on_notify(self, name):
+        if name == "owner":
+            if self.previous_owner is not None:
+                pass
     
     def play_effects(self):
         scene = self.scene
@@ -72,15 +78,12 @@ class Weapon(Actor):
         render.drawLine(origin, origin + y_axis*fire_range, [1,0,0])
         
         for shot in range(fired_bullets):
-            result = ray_cast(origin + y_axis, origin, fire_range)
+            hit_object, position, normal = ray_cast(origin + y_axis, origin, fire_range)
                 
-            if not result:
+            if not hasattr(hit_object, "on_shot"):
                 continue
             
-            if not hasattr(result, "on_shot"):
-                continue
-            
-            shoot_rule(result, self.owner, self.round_damage)
+            shoot_rule(hit_object, self.owner, self.round_damage)
 
 class RPGInputs(InputManager):
     mappings = {"forward": events.WKEY, 
@@ -132,6 +135,7 @@ class RPGController(PlayerController):
             if inputs.shoot.active and pawn.weapon.fireable(timestamp):
                 pawn.weapon.fire(deltatime)
                 pawn.weapon.fired(timestamp)
+                print("FIRE")
         
         # Run default movement
         super().server_perform_move(move_id, timestamp, deltatime, inputs, physics)
@@ -160,7 +164,6 @@ class RPGController(PlayerController):
                 for i in range(fired_bullets):
                     pawn.weapon.play_effects()
                     hear_sound(pawn.weapon.sound, pawn.physics.position)
-                    
                 pawn.weapon.fired(timestamp)     
         
 class LadderPoint(Actor):
@@ -217,6 +220,7 @@ class Player(Actor):
             
             if WorldInfo.netmode == Netmodes.server:
                 self.weapon = other
+                self.weapon.owner = self
                 
             self.attatchment_point.attach(other, align=True)
             print("attach")
