@@ -1,6 +1,7 @@
 from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
 from .modifiers import reliable, simulated, is_reliable, is_simulated
-from .bases import TypeRegister, InstanceRegister, StaticValue, Attribute
+from .bases import TypeRegister, InstanceRegister, StaticValue
+from .attribute import Attribute
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
 from .actors import BaseWorldInfo, Controller, Replicable
 from .handler_interfaces import static_description, register_handler, get_handler, smallest_int_handler

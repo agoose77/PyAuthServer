@@ -1,5 +1,6 @@
-from .bases import Attribute, InstanceRegister
+from .bases import InstanceRegister
 from .enums import Roles
+from .attribute import Attribute
 from .modifiers import simulated
 
 from inspect import getmembers
