@@ -7,16 +7,19 @@ from matchmaker import Matchmaker
 
 import actors
 
-# Setup game
-WorldInfo.netmode = Netmodes.client
-
 class ClientGame(Game):
     
     def __init__(self, addr="127.0.0.1", port=0):
         super().__init__(addr, port)
+        
+# Setup game
+WorldInfo.netmode = Netmodes.client
     
 # Game instance
 game = ClientGame() 
+
+# Store game
+WorldInfo.game = game
 
 # UI manager
 ui = UIManager(game)
@@ -28,6 +31,7 @@ matchmaker = Matchmaker("http://gameservers.com")
 find_game_ui = ui.get_system("FindGameUI")
 find_game_ui.set_connector(game.connect_to)
 find_game_ui.set_matchmaker(matchmaker)
+find_game_ui.refresh_games()
 
 def main(cont):
     

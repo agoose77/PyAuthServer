@@ -18,28 +18,22 @@ class Replicable(metaclass=InstanceRegister):
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
+        # If this is a static mapping  
+        self._static = static and instance_id is not None
         
-        # Instantiate parent
-        super().__init__(instance_id=instance_id, register=register, allow_random_key=True)
-        
+        # Setup data access
         self._calls = deque()
         self._data = {}
         self._complain = {}    
         self._subscribers = []  
         self._rpc_functions = []
         
+        # Instantiate parent (this is where the creation callback may be called from)
+        super().__init__(instance_id=instance_id, register=register, allow_random_key=True)
+        
         # Ensures all RPC / attributes registered for use
         for name, value in sorted(getmembers(self)):
             getattr(self, name)
-        
-        # If this is a static mapping  
-        self._static = static and instance_id is not None
-        
-        # Creation callback
-        self.on_create()
-    
-    def on_create(self):
-        pass
     
     @classmethod
     def _create_or_return(cls, base_cls, instance_id, register=False):
@@ -129,6 +123,7 @@ class BaseWorldInfo(Replicable):
     '''Holds info about game'''
     netmode = None
     rules = None
+    game = None
     
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
     elapsed = Attribute(0.0, complain=False)

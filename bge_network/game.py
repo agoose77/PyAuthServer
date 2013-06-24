@@ -142,11 +142,7 @@ class PhysicsSystem(System):
     
     def post_update_condition(self, replicable):
         return replicable.roles.local >= Roles.simulated_proxy and replicable.roles.remote != Roles.autonomous_proxy
-    
-    def check_registered(self, obj):
-        if not obj in self.collision_listeners:
-            self.register_actor(obj)        
-    
+
     def post_update(self, delta_time):
         '''Update the physics after actor changes
         @param delta_time: delta_time since last frame'''
@@ -158,6 +154,7 @@ class PhysicsSystem(System):
             # If rigid body physics
             if physics.mode == Physics.none: 
                 continue   
+            
             replicable.physics_to_world(condition=condition, deltatime=delta_time)
     
     def post_physics(self, delta_time):
@@ -173,12 +170,12 @@ class PhysicsSystem(System):
         for replicable in self.get_replicable_parents(): 
             # Get physics object
             physics = replicable.physics
-            
+
             # If rigid body physics
             if physics.mode == Physics.none: 
                 continue   
             
-            replicable.world_to_physics(condition=condition, callback=self.check_registered, deltatime=delta_time)
+            replicable.world_to_physics(condition=condition, deltatime=delta_time)
         
         # Update controllers too
         for controller in WorldInfo.subclass_of(PlayerController):

@@ -166,7 +166,7 @@ class FindGameUI(UISystem):
         
         # Use a frame to store all of our widgets
         self.frame = bgui.Frame(self, 'window', border=0)
-        self.frame.colors = [(0, 0, 0, 0) for i in range(4)]
+        self.frame.colors = [(0, 0, 0, 0.0) for i in range(4)]
         
         # Store connector function
         self.connector = None
@@ -175,7 +175,11 @@ class FindGameUI(UISystem):
         # An empty frame
         self.win = bgui.Frame(self, 'win', size=[0.6, 0.8],
             options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED)
-                
+        
+        self.loading_frame = bgui.Frame(self, 'loading_frame', size=[0.5, 0.2], pos=[0.5, 0.5],  options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED, sub_theme="Loading")
+        self.loading_label = bgui.Label(parent=self.loading_frame, name="loading_label", pos=[0, 0], text="Loading ...", sub_theme="Large", options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED)
+        self.loading_frame.visible = False
+        
         # Create empty server data
         self.server_data = []
         self.connection_data = {}
@@ -199,14 +203,14 @@ class FindGameUI(UISystem):
         # A "submit" button
         self.submit = bgui.FrameButton(self.win, 'button', text='Join game!', size=[.2, .07], pos=[.85, .03],
             options = bgui.BGUI_DEFAULT)
-                
+        
         # Input handling
         self.input.activate()
         self.input.on_enter_key = self.join_game
 
         # Submission handling
         self.submit.on_click = self.join_game
-        self.refresh.on_click = self.refresh_game
+        self.refresh.on_click = self.refresh_games
         self.game_info.on_click = self.store_ip
         self.input.on_click = self.clear_input
         
@@ -228,7 +232,7 @@ class FindGameUI(UISystem):
         if selected:
             self.selected_ip = self.connection_data[selected]
     
-    def refresh_game(self, widget):
+    def refresh_games(self, widget=None):
         if self.game_info.height < 0.3:
             return
         
@@ -253,6 +257,7 @@ class FindGameUI(UISystem):
             
         connection = ip_address, 1200
         self.conn = self.connector(connection)
+        self.loading_frame.visible = True
     
     def update(self):
         if self.conn and self.conn.status == ConnectionStatus.connected:

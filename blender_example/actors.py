@@ -7,15 +7,15 @@ from mathutils import Vector, Euler
 from math import ceil
 
 class Weapon(Actor):
-    obj_name = "Weapon"
+    object_name = "Weapon"
     
     clip = Attribute(20)
     bullets = Attribute(100)
     
     #roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
     
-    def on_create(self):
-        super().on_create()
+    def on_registered(self):
+        super().on_registered()
         
         # Hertz
         self.fire_rate = 20
@@ -172,28 +172,40 @@ class LadderPoint(Actor):
     pass
 
 class LadderBase(LadderPoint):
-    obj_name = "LadderBase"
+    object_name = "LadderBase"
     
 class LadderTop(LadderPoint):
-    obj_name = "LadderTop"
+    object_name = "LadderTop"
 
 class FloorMesh(Actor):
-    obj_name = "Plane"
+    object_name = "Plane"
 
 class Player(Actor):
-    obj_name = "Player"
+    object_name = "Player"
     
     health = Attribute(100)
-    weapon = Attribute(type_of=Replicable, notify=True)
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    
+    weapon = Attribute(
+                       type_of=Replicable, 
+                       notify=True
+                       )
+    
+    roles = Attribute(
+                      Roles(
+                            Roles.authority, 
+                            Roles.autonomous_proxy
+                            )
+                      )
     physics = Attribute(
-                        PhysicsData(mode=Physics.character, 
+                        PhysicsData(
+                                    mode=Physics.character, 
                                     position=Vector((0,0, 3))
                                     )
                         )
     
-    def on_create(self):
-        super().on_create()
+    def on_registered(self):
+        super().on_registered()
+        
         # Create a fixed attatchment point
         self.attatchment_point = AttatchmentSocket(self, Vector((0, 2, 0)))
         self.allowed_transitions = [LadderPoint, FloorMesh]

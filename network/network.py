@@ -291,6 +291,9 @@ class PacketCollection:
         
         return self
     
+    def __bool__(self):
+        return bool(self.members)
+    
     def __str__(self):
         return '\n'.join(str(m) for m in self.members)
     
@@ -1146,7 +1149,7 @@ class ElapsedTime:
                 
 class GameLoop(socket):
     
-    def __init__(self, addr, port, update_interval=1/20):
+    def __init__(self, addr, port, update_interval=1/5):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1243,7 +1246,6 @@ class GameLoop(socket):
                 
         # Delete dead connections
         ConnectionInterface.update_graph()
-
         # Remember last non urgent
         if network_tick:
             self.on_tick()
@@ -1402,19 +1404,22 @@ class ReplicableProxyHandler:
     
     @classmethod
     def pack(cls, replicable):
+        # Send the instance ID
         return UInt8.pack(replicable.instance_id)
     
     @classmethod
     def unpack(cls, bytes_):
         instance_id = UInt8.unpack_from(bytes_)
+        
         # Return only a replicable that was created by the network
         try:
             replicable = WorldInfo.get_actor(instance_id)
-            assert replicable._local_authority
+            # Check that it was made locally and has a remote role
+            assert replicable._local_authority and replicable.roles.remote != Roles.none
             return replicable
         
-        # We can't be sure that this is the correct instance
-        except (LookupError, AssertionError) as e:
+        # We can't be sure that this is the correct instance, use proxy to delay checks (hoping it will have now been replicated)
+        except (LookupError, AssertionError):
             return LazyReplicableProxy(instance_id)
         
     unpack_from = unpack    

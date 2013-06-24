@@ -27,10 +27,6 @@ class TeamDeathMatch(BaseRules):
             return controller
     
     @classmethod
-    def on_create_actor(cls, actor):
-        pass
-    
-    @classmethod
     def on_shoot(cls, hit_replicable, shooter, damage):
         hit_replicable.on_shot(shooter, damage)
     

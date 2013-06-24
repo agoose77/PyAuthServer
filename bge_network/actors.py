@@ -54,8 +54,7 @@ def update_physics_for(obj, deltatime):
         if not replicable.parent:
             # Apply results
             replicable.world_to_physics(callback=switch_cb, deltatime=deltatime)
-           
-             
+                       
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
     Fixes parenting relationships between actors which are proxies'''
@@ -64,7 +63,7 @@ class GameObject(types.KX_GameObject):
         
         if not existing:
             transform = Matrix.Translation(cls.physics.value.position) * cls.physics.value.orientation.to_matrix().to_4x4() * Matrix.Scale(1, 4)
-            obj = logic.getCurrentScene().addObject(cls.obj_name, transform, 0)
+            obj = logic.getCurrentScene().addObject(cls.object_name, transform, 0)
         else:
             obj = existing
         return super().__new__(cls, obj)
@@ -94,8 +93,8 @@ class PlayerController(Controller):
             
     input_class = lambda *a: None
     
-    def on_create(self):
-        super().on_create()
+    def on_registered(self):
+        super().on_registered()
         
         # RTT data        
         self.round_trip_time = 0.0
@@ -311,28 +310,40 @@ class Actor(GameObject, Replicable):
     ''''A basic actor class 
     Inherits from GameObject to display mesh and collide'''  
       
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
-    owner = Attribute(type_of=Replicable, notify=True)
-    animation = Attribute(type_of=AnimationData, notify=True)
-    physics = Attribute(PhysicsData(Physics.rigidbody), complain=False)
+    roles = Attribute(
+                      Roles(Roles.authority, 
+                            Roles.simulated_proxy)
+                      )
+        
+    owner = Attribute(
+                      type_of=Replicable, 
+                      notify=True
+                      )
+    
+    animation = Attribute(
+                          type_of=AnimationData, 
+                          notify=True
+                        )
+    
+    physics = Attribute(
+                        PhysicsData(Physics.rigidbody), 
+                        complain=False
+                        )
     
     update_simulated_position = True
-    obj_name = "Sphere"
     
-    def on_create(self):
+    object_name = "Sphere"
+        
+    def on_registered(self):
+        super().on_registered()
+        
         self.render_state = RenderState(self)
         self.allowed_transitions = []
         self.states = []
-    
-    def on_registered(self):
-        super().on_registered()
-                
-        try:
-            creation_rule = WorldInfo.rules.on_create_actor
-        except AttributeError:
-            pass
-        else:
-            creation_rule(self)
+        
+        # Tell the physics system we need updating
+        # This would be nicer as a class-registered callback        
+        WorldInfo.game.physics.register_actor(self)
         
         
     @property
