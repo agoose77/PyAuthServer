@@ -28,9 +28,7 @@ class TeamDeathMatch(BaseRules):
     
     @classmethod
     def on_create_actor(cls, actor):
-        for system in System:
-            if isinstance(system, PhysicsSystem):
-                system.register_actor(actor)
+        pass
     
     @classmethod
     def on_shoot(cls, hit_replicable, shooter, damage):

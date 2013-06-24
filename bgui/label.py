@@ -12,7 +12,7 @@ class Label(Widget):
 				'Color': (1, 1, 1, 1),
 				'OutlineColor': (0, 0, 0, 1),
 				'OutlineSize': 0,
-				'OutlineSmoothing': False,
+				'OutlineSmoothing': True,
 				'Size': 30,
 				}
 

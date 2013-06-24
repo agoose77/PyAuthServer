@@ -57,6 +57,8 @@ class Attribute(StaticValue):
             # Register a complain with value description
             instance._complain[self._name] = static_description(value)
         
+        from .network import WorldInfo
+        
         # Force type check
         if not isinstance(value, self._type) and WorldInfo.netmode == Netmodes.server:
             raise TypeError("Cannot set {} value to {} value".format(self._type, type(value)))

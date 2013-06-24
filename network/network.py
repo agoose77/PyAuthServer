@@ -1410,11 +1410,11 @@ class ReplicableProxyHandler:
         # Return only a replicable that was created by the network
         try:
             replicable = WorldInfo.get_actor(instance_id)
-            assert not replicable._local_authority
+            assert replicable._local_authority
             return replicable
         
         # We can't be sure that this is the correct instance
-        except (LookupError, AssertionError):
+        except (LookupError, AssertionError) as e:
             return LazyReplicableProxy(instance_id)
         
     unpack_from = unpack    

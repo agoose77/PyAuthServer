@@ -60,7 +60,7 @@ class ListBox(Widget):
 				'Padding': 0,
 				}
 
-	def __init__(self, parent, name, items=[], padding=0, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', options=BGUI_DEFAULT, **kwargs):
+	def __init__(self, parent, name, items=[], padding=0, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', reverse=True, options=BGUI_DEFAULT, **kwargs):
 		"""
 		:param parent: the widget's parent
 		:param name: the name of the widget
@@ -92,6 +92,7 @@ class ListBox(Widget):
 
 		self.selected = None
 		self._spatial_map = {}
+		self.reverse = reverse
 
 		self._renderer = ListBoxRenderer(self)
 
@@ -126,11 +127,23 @@ class ListBox(Widget):
 		self._items = value
 		self._spatial_map.clear()
 
+	@property
+	def height(self):
+		y_offset = 1.0 if self.reverse else 0.0
+		
+		for idx, item in enumerate(self.items):
+			w = self.renderer.render_item(item)
+			offset = (idx + 1) * (w.size[1] / self.size[1]) + (idx * self.padding)
+			y_offset = (1 - offset) if self.reverse else offset
+		
+		return y_offset
+		
 	def _draw(self):
 
 		for idx, item in enumerate(self.items):
 			w = self.renderer.render_item(item)
-			w.position = [0, 1 - (idx + 1) * (w.size[1] / self.size[1]) - (idx * self.padding)]
+			offset = (idx + 1) * (w.size[1] / self.size[1]) + (idx * self.padding)
+			w.position = [0, (1 - offset) if self.reverse else offset]
 			w.size = [1, w.size[1] / self.size[1]]
 			self._spatial_map[item] = [i[:] for i in w.gl_position]  # Make a full copy
 			w._draw()
@@ -138,7 +151,7 @@ class ListBox(Widget):
 			if self.selected == item:
 				self.highlight.gl_position = [i[:] for i in w.gl_position]
 				self.highlight.visible = True
-
+		
 	def _handle_mouse(self, pos, event):
 
 		if event == BGUI_MOUSE_CLICK:

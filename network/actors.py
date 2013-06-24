@@ -122,6 +122,9 @@ class Replicable(metaclass=InstanceRegister):
     def __description__(self):
         return hash(self.instance_id)
     
+    def __bool__(self):
+        return self.registered
+    
 class BaseWorldInfo(Replicable):
     '''Holds info about game'''
     netmode = None

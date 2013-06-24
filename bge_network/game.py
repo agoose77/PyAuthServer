@@ -105,7 +105,7 @@ class PhysicsSystem(System):
         collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
         collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
         collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
-       
+        
         # Static actors have existing world physics settings
         if replicable._static:
             replicable.world_to_physics()
@@ -132,25 +132,25 @@ class PhysicsSystem(System):
             
             # Ensure that the object exists
             if is_actor and not collided.registered:
-                    return
+                return
             
-            # In case the callback affects the other object
-            # This could be fixed using a post_draw callback
-                        
             func(collided)
 
     def post_physics_condition(self, replicable):
         # Makes sure we have callbacks for replicable
         return replicable.roles.local >= Roles.simulated_proxy
     
-    def post_update_condition(self, delta_time, replicable):
-        condition = replicable.roles.local >= Roles.simulated_proxy and replicable.roles.remote != Roles.autonomous_proxy
-        return condition
-            
+    def post_update_condition(self, replicable):
+        return replicable.roles.local >= Roles.simulated_proxy and replicable.roles.remote != Roles.autonomous_proxy
+    
+    def check_registered(self, obj):
+        if not obj in self.collision_listeners:
+            self.register_actor(obj)        
+    
     def post_update(self, delta_time):
         '''Update the physics after actor changes
         @param delta_time: delta_time since last frame'''
-        condition = partial(self.post_update_condition, delta_time)
+        condition = self.post_update_condition
                 
         for replicable in self.get_replicable_parents(): 
             # Get physics object
@@ -161,6 +161,9 @@ class PhysicsSystem(System):
             replicable.physics_to_world(condition=condition, deltatime=delta_time)
     
     def post_physics(self, delta_time):
+        # Make short cut
+        condition = condition=self.post_physics_condition
+        
         # If any scene actors, we instantiate them
         if self.check_for_scene_actors:
             self.make_actors_from_scene()
@@ -175,7 +178,7 @@ class PhysicsSystem(System):
             if physics.mode == Physics.none: 
                 continue   
             
-            replicable.world_to_physics(condition=self.post_physics_condition, deltatime=delta_time)
+            replicable.world_to_physics(condition=condition, callback=self.check_registered, deltatime=delta_time)
         
         # Update controllers too
         for controller in WorldInfo.subclass_of(PlayerController):
@@ -205,7 +208,7 @@ class Game(GameLoop):
         self.inputs = InputSystem()
         self.last_time = monotonic()
         
-        logic.getCurrentScene().pre_draw.append(self.post_physics)
+        logic.getCurrentScene().post_draw.append(self.post_physics)
         
     def post_physics(self):
         delta_time = self.clock.last_delta_time

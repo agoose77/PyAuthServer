@@ -14,7 +14,7 @@ class TestInterface(UrlInterface):
     
     def json_request(self, url, data):
         if url == pages['find_game']:
-            return {"Test game": dict(players=0, map_name="Test Arena 1")}
+            return {"localhost": dict(players="", map="Test Arena ", ping=0.0)}
 
 class Matchmaker(System):
     def __init__(self, matchmaker_url):

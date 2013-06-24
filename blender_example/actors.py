@@ -12,6 +12,8 @@ class Weapon(Actor):
     clip = Attribute(20)
     bullets = Attribute(100)
     
+    #roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
+    
     def on_create(self):
         super().on_create()
         
@@ -24,7 +26,6 @@ class Weapon(Actor):
         self.sound = "//sounds/sfx_gunshot6.wav"
         self.last_fired_time = 0
         
-        self.update_simulated_position = False
         self.previous_owner = None
     
     def on_notify(self, name):
@@ -146,7 +147,7 @@ class RPGController(PlayerController):
         # Make sure we have a pawn object
         pawn = self.pawn
         
-        if not pawn.registered:
+        if not pawn:
             return
         
         timestamp = WorldInfo.elapsed
@@ -164,6 +165,7 @@ class RPGController(PlayerController):
                 for i in range(fired_bullets):
                     pawn.weapon.play_effects()
                     hear_sound(pawn.weapon.sound, pawn.physics.position)
+                    
                 pawn.weapon.fired(timestamp)     
         
 class LadderPoint(Actor):
@@ -204,7 +206,7 @@ class Player(Actor):
     
     def on_notify(self, name):
         if name == "weapon":
-            self.attatchment_point.attach(self.weapon, align=True)
+            self.pickup_weapon(self.weapon)
     
     def on_unregistered(self):        
         '''Ensure that the weapon remains in the world'''
@@ -214,17 +216,24 @@ class Player(Actor):
             
         super().on_unregistered()
     
+    @RPC
+    def request_pickup_weapon(self, other: StaticValue(Replicable))->Netmodes.server:        
+        if other.owner:
+            self.drop_weapon(other)
+        else:
+            self.weapon = other
+            self.pickup_weapon(other)
+    
+    def pickup_weapon(self, other):
+        self.attatchment_point.attach(other, align=True)
+    
     def on_new_collision(self, other):
-
-        if isinstance(other, Weapon):
-            
-            if WorldInfo.netmode == Netmodes.server:
-                self.weapon = other
-                self.weapon.owner = self
-                
-            self.attatchment_point.attach(other, align=True)
-            print("attach")
-            
+        if isinstance(other, Weapon) and other != self.weapon:
+            if WorldInfo.netmode != Netmodes.server:
+                self.request_pickup_weapon(other)
+                self.pickup_weapon(other)
+                print("Pickup weapon", other)
+                    
     def on_shot(self, shooter, damage):
         self.health -= damage
         print("shot by {}".format(shooter.name))

@@ -29,7 +29,7 @@ def save(replicable):
 
 def switch(obj, replicable):
     if (replicable in obj.childrenRecursive or replicable == obj):
-       replicable.render_state.save()
+        replicable.render_state.save()
     else:
         replicable.render_state.restore()
 
@@ -37,17 +37,18 @@ def update_physics_for(obj, deltatime):
     ''' Calls a physics simulation for deltatime
     Rewinds other actors so that the individual is the only one that is changed by the end'''
    
-    # Get all children
-    all_children = obj.childrenRecursive
-    
+    # Get all children    
     for replicable in WorldInfo.subclass_of(Actor):
         # Start at the parents and traverse
         if not replicable.parent:
             replicable.physics_to_world(callback=save, deltatime=deltatime)
+            
     # Tick physics
     obj.scene.updatePhysics(deltatime)
 
+    # Create a callback with the obj argument
     switch_cb = partial(switch, obj)
+    
     # Restore objects that aren't affiliated with obj
     for replicable in WorldInfo.subclass_of(Actor):
         if not replicable.parent:
@@ -88,20 +89,6 @@ class GameObject(types.KX_GameObject):
     def __repr__(self):
         '''Cleaner printing of object'''
         return object.__repr__(self)
-
-class ControllerInfo(Replicable):
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
-    name = Attribute("", notify=True)
-    
-    def on_notify(self, name):
-        if name == "name":
-            print("Player changed name to {}".format(self.name))
-    
-    def conditions(self, is_owner, is_complaint, is_initial):
-        '''Generator dictates which attributes must be replicated'''
-
-        if is_complaint:
-            yield "name"
             
 class PlayerController(Controller):
             
@@ -125,6 +112,9 @@ class PlayerController(Controller):
         self.delta_threshold = 0.8
         self.considered_error = 0.1
         
+        self.position_margin = 0.2
+        self.rotation_margin = radians(3)
+        
         self.valid_inputs = 0
         self.invalid_inputs = 0
         
@@ -136,13 +126,6 @@ class PlayerController(Controller):
         
         # Add time started and accumulator
         self.rtt_accumulator = deque()
-        
-        # Setup player info
-        self.create_info()
-    
-    @NetmodeOnly(Netmodes.server)
-    def create_info(self):
-        self.info = ControllerInfo()
     
     @RPC
     def client_hear_sound(self, path:StaticValue(str), position:StaticValue(Vector))->Netmodes.client:
@@ -218,11 +201,9 @@ class PlayerController(Controller):
         rotation_difference = abs(pawn.physics.orientation.z - physics.orientation.z)
                 
         # Margin of error allowed between the two
-        position_margin = 0.2
-        rotation_margin = radians(3)
 
         # Check the error between server and client
-        if position_difference > position_margin or rotation_difference > rotation_margin or inputs.resimulate.pressed:
+        if position_difference > self.position_margin or rotation_difference > self.rotation_margin or inputs.resimulate.pressed:
             self.client_correct_move(move_id, pawn.physics)
         
         else:
@@ -244,7 +225,7 @@ class PlayerController(Controller):
         moves = self.moves
         pawn = self.pawn
         
-        if not pawn.registered:
+        if not pawn:
             return
 
         # Ensures that any parent relationships are updated
@@ -307,7 +288,7 @@ class PlayerController(Controller):
         # Make sure we have a pawn object
         pawn = self.pawn
         
-        if not pawn.registered:
+        if not pawn:
             return
         
         timestamp = WorldInfo.elapsed
@@ -345,13 +326,14 @@ class Actor(GameObject, Replicable):
     
     def on_registered(self):
         super().on_registered()
-
+                
         try:
             creation_rule = WorldInfo.rules.on_create_actor
         except AttributeError:
             pass
         else:
             creation_rule(self)
+        
         
     @property
     def current_state(self):
