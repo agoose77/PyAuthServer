@@ -69,10 +69,11 @@ class Attribute(StaticValue):
             # Register a complain with value description
             instance._complain[self._name] = static_description(value)
         
+        # Unnattractive import to check None setting
         from .network import WorldInfo
         
-        # Force type check
-        if not isinstance(value, self._type) and WorldInfo.netmode == Netmodes.server:
+        # Force type check - allow clients to set NoneType values
+        if not isinstance(value, self._type) and (value is not None or WorldInfo.netmode != Netmodes.client):
             raise TypeError("Cannot set {} value to {} value".format(self._type, type(value)))
         
         # Store value
