@@ -1,5 +1,18 @@
-from .bases import Enum
 from contextlib import contextmanager
+
+class Enum(type):
+    '''Metaclass for Enums in Python'''
+    def __new__(cls, name, parents, attrs):
+        # Set all name to index mappings
+        for index, value in enumerate(attrs["values"]):
+            attrs[value] = index
+            
+        # Return new class        
+        return super().__new__(cls, name, parents, attrs)
+           
+    def __getitem__(self, index):
+        # Add ability to lookup name
+        return self.values[index]
 
 class Netmodes(metaclass=Enum):
     values ="server", "client", "listen", "single"

@@ -12,7 +12,7 @@ class Weapon(Actor):
     clip = Attribute(20)
     bullets = Attribute(100)
     
-    #roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
     
     def on_registered(self):
         super().on_registered()

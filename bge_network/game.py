@@ -1,6 +1,6 @@
-from network import GameLoop, Replicable, WorldInfo, Roles, System, is_simulated, keyeddefaultdict, allowed_to_run
+from network import GameLoop, Replicable, WorldInfo, Roles, System
 
-from bge import logic, events, types, constraints
+from bge import logic, events, types
 import sys; sys.path.append(logic.expandPath("//../"))
 
 from .errors import QuitGame
@@ -125,16 +125,16 @@ class PhysicsSystem(System):
         if not replicable.registered:
             return
         
-        # Check for permission
-        if allowed_to_run(replicable, func):
-            # Make sure that any physics changes are updated
-            is_actor = hasattr(collided, "instance_id")
-            
-            # Ensure that the object exists
-            if is_actor and not collided.registered:
-                return
-            
+        # Ensure that the object exists
+        is_actor = hasattr(collided, "instance_id")
+        if is_actor and not collided.registered:
+            return
+        
+        # Run callback
+        try:
             func(collided)
+        except TypeError as err:
+            print(err, "\n")
 
     def post_physics_condition(self, replicable):
         # Makes sure we have callbacks for replicable

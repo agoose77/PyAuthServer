@@ -255,7 +255,8 @@ class PlayerController(Controller):
             # Find the successive moves
             following_moves = list(self.moves.sorted_moves(partial(less_than_operator, correction_id)))
             # Inform console we're resimulating
-            print("Resimulating from {}".format(correction_id), len(following_moves))
+            print("Resimulating from {} for {} moves".format(correction_id, len(following_moves)))
+            print("Are you sure this Controller's pawn is not simulated?\n")
             
             # Re run all moves
             for replay_id, replay_move in following_moves:
@@ -378,10 +379,12 @@ class Actor(GameObject, Replicable):
             if isinstance(obj, base):
                 return True
     
+    @simulated
     def on_new_collision(self, collider):
         if self.is_state(collider):
             self.transition(collider)
     
+    @simulated
     def on_end_collision(self, collider):
         if self.is_state(collider):
             try:
@@ -389,6 +392,7 @@ class Actor(GameObject, Replicable):
             except:
                 pass
     
+    @simulated
     def stop_moving(self, target=None):
         if target is None:
             network = blender = True
@@ -408,7 +412,8 @@ class Actor(GameObject, Replicable):
         if network:
             physics.velocity.zero()
             physics.angular.zero()
-
+    
+    @simulated
     def physics_to_world(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
         
@@ -432,7 +437,8 @@ class Actor(GameObject, Replicable):
         
         if callable(callback):
             callback(self)
-            
+    
+    @simulated
     def world_to_physics(self, condition=None, callback=None, deltatime=1.0):
         physics = self.physics
         deltatime = max(deltatime, 1/60)
@@ -478,6 +484,7 @@ class Actor(GameObject, Replicable):
         # Play on server
         self.play_animation(self.animation)
     
+    @simulated
     def local_space(self, velocity):
         velocity = velocity.copy()
         rotation = self.physics.orientation.copy()
@@ -485,6 +492,7 @@ class Actor(GameObject, Replicable):
         velocity.rotate(rotation)
         return velocity
     
+    @simulated
     def align_from(self, other):
         direction = Vector((1, 0, 0)); direction.rotate(other.physics.orientation)
         orientation = Vector((1, 0, 0)).rotation_difference(direction)

@@ -1,18 +1,10 @@
 from itertools import chain
+from types import FunctionType
+from functools import wraps
 
-class Enum(type):
-    '''Metaclass for Enums in Python'''
-    def __new__(cls, name, parents, attrs):
-        # Set all name to index mappings
-        for index, value in enumerate(attrs["values"]):
-            attrs[value] = index
-            
-        # Return new class        
-        return super().__new__(cls, name, parents, attrs)
-           
-    def __getitem__(self, index):
-        # Add ability to lookup name
-        return self.values[index]
+from .modifiers import is_simulated
+from .containers import Attribute
+from .enums import Roles
 
 class TypeRegister(type):
     '''Registers all subclasses of parent class
@@ -34,7 +26,7 @@ class TypeRegister(type):
                 cls.register_subtype()
             
         return cls
-    
+        
     @property
     def type_name(self):
         return self.__name__
@@ -175,16 +167,60 @@ class InstanceRegister(TypeRegister):
     def __iter__(self):
         return iter(self._instances.values())
     
-class StaticValue:
-    '''Container for static-type values
-    holds type for value and additional keyword arguments
-    Pretty printable'''
-    __slots__ = '_type', '_kwargs'
-    
-    def __init__(self, type_, **kwargs):
-        self._type = type_
-        self._kwargs = kwargs
-    
-    def __str__(self):
-        return "Static Typed value: {}".format(self._type)
+class PermissionRegister(InstanceRegister):
+    def __new__(cls, cls_name, bases, attrs):
+        # If this isn't the base class
+        if bases:
+            # Get all the member methods
+            for name, value in attrs.items():
+                # Check it's not in parents (will have been checked)
+                if cls.in_parents_of(bases, name):
+                    continue
+                # Wrap them with permission
+                if isinstance(value, FunctionType) or isinstance(value, classmethod) or isinstance(value, staticmethod):
+                    attrs[name] = cls.permission_wrapper(value)
         
+        return super().__new__(cls, cls_name, bases, attrs)
+    
+    def in_parents_of(bases, name):
+        for parent in bases:
+            if name in dir(parent):
+                return True
+    
+    def permission_wrapper(func):
+        simulated_proxy = Roles.simulated_proxy
+        attribute_type = Attribute
+        func_is_simulated = is_simulated(func)
+        
+        @wraps(func)
+        def func_wrapper(*args, **kwargs):
+            if args:
+                assumed_instance = args[0]
+                # Check that the assumed instance/class has a role method
+                try:
+                    arg_roles = assumed_instance.roles
+                    
+                except AttributeError as err:
+                    raise TypeError("Error executing {}: Function does not have permission roles") from err
+                
+                else:
+                    # Check that the roles are of an instance
+                    try:
+                        local_role = arg_roles.local
+                        
+                    # Otherwise allow class methods
+                    except AttributeError:
+                        pass
+                    
+                    # Permission checks
+                    try:
+                        assert (local_role > simulated_proxy or (func_is_simulated and local_role >= simulated_proxy))
+                        
+                    except AssertionError as err:
+                        raise TypeError("Error executing '{}': Function does not have permission:\n{}".format(func.__qualname__, arg_roles)) #from err
+            
+            # Static method needs no permission
+            return func(*args, **kwargs)
+        
+        return func_wrapper
+    

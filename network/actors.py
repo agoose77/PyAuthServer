@@ -1,12 +1,12 @@
-from .bases import InstanceRegister
+from .bases import PermissionRegister
 from .enums import Roles
-from .attribute import Attribute
+from .containers import Attribute
 from .modifiers import simulated
-
 from inspect import getmembers
 from collections import defaultdict, deque
 
-class Replicable(metaclass=InstanceRegister):
+
+class Replicable(metaclass=PermissionRegister):
     '''Replicable base class
     Holds record of instantiated replicables and replicable types
     Default method for notification and generator for conditions.
@@ -14,6 +14,7 @@ class Replicable(metaclass=InstanceRegister):
     _by_types = defaultdict(list)
      
     roles = Attribute(Roles(Roles.authority, Roles.none))
+    verbose_execution = True
     
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
@@ -132,6 +133,7 @@ class BaseWorldInfo(Replicable):
     def actors(self):
         return Replicable.get_graph_instances()
     
+    @simulated
     def subclass_of(self, actor_type):
         return (a for a in self.actors if isinstance(a, actor_type))
     
@@ -143,8 +145,11 @@ class BaseWorldInfo(Replicable):
     def update(self, delta):
         self.elapsed += delta
     
-    type_is = Replicable._by_types.get
-    get_actor = Replicable.get_from_graph
+    @simulated
+    def type_is(self, name):
+        return Replicable._by_types.get(name)
+        
+    get_actor = simulated(Replicable.get_from_graph)
                 
 class Controller(Replicable):
     

@@ -1,9 +1,10 @@
-from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
-from .modifiers import reliable, simulated, is_reliable, is_simulated
-from .bases import TypeRegister, InstanceRegister, StaticValue
-from .attribute import Attribute
-from .enums import Netmodes, Roles, Protocols, ConnectionStatus
+from .bases import InstanceRegister
+from .containers import Attribute, StaticValue
+from .errors import NetworkError, LatencyInducedError
 from .actors import BaseWorldInfo, Controller, Replicable
+from .enums import Netmodes, Roles, Protocols, ConnectionStatus
+from .modifiers import reliable, simulated, is_reliable, is_simulated
+from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
 from .handler_interfaces import static_description, register_handler, get_handler, smallest_int_handler
 
 from bitarray import bitarray, bits2bytes
@@ -19,9 +20,6 @@ from functools import wraps
 
 import operator
 
-def allowed_to_run(replicable, func):
-    return (replicable.roles.local > Roles.simulated_proxy) or (replicable.roles.local == Roles.simulated_proxy and is_simulated(func))
-
 class NetmodeOnly:
     def __init__(self, netmode):
         self.netmode = netmode
@@ -34,12 +32,6 @@ class NetmodeOnly:
             return func(*args, **kwargs)
         return wrapper
         
-class NetworkError(Exception, metaclass=TypeRegister):
-    pass
-
-class LatencyInducedError(NetworkError):
-    pass
-    
 class keyeddefaultdict(defaultdict):
     '''Dictionary with factory for missing keys
     Provides key to factory function provided to initialiser'''
@@ -146,7 +138,7 @@ class RPC:
             if instance is None:
                 rpc_instance = None
             else:   
-                rpc_instance = self.rpc_for_instance[instance] = RPCInterface(self.func, instance)
+                rpc_instance = self.rpc_for_instance[instance] = simulated(RPCInterface(self.func, instance))
         
         return rpc_instance
         
@@ -1278,8 +1270,7 @@ class GameLoop(socket):
             
             # Update all replicables
             for replicable in WorldInfo.actors:
-                if allowed_to_run(replicable, replicable.update):
-                    replicable.update(delta_time)
+                replicable.update(delta_time)
     
                 if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
                     replicable.player_update(delta_time)

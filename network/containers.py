@@ -1,9 +1,21 @@
-from .bases import StaticValue
 from .enums import Netmodes
 
 from copy import deepcopy
 from inspect import getmembers
 from .handler_interfaces import static_description
+
+class StaticValue:
+    '''Container for static-type values
+    holds type for value and additional keyword arguments
+    Pretty printable'''
+    __slots__ = '_type', '_kwargs'
+    
+    def __init__(self, type_, **kwargs):
+        self._type = type_
+        self._kwargs = kwargs
+    
+    def __str__(self):
+        return "Static Typed value: {}".format(self._type)
 
 class Attribute(StaticValue):
     '''Replicable attribute descriptor
