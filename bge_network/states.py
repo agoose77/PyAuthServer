@@ -13,18 +13,21 @@ class RenderState:
     def save(self):
         self.transform = self.obj.worldTransform.copy()
         self.angular = self.obj.worldAngularVelocity.copy()
+        
         if self.obj.physics.mode == Physics.character:
-            self.velocity = constraints.getCharacter(self.obj).walkDirection.copy()
+            self.velocity = self.obj.character_controller.walkVelocity.copy()
+            self.vertical_velocity = self.obj.character_controller.verticalVelocity
         else:
-            self.velocity = self.obj.worldLinearVelocity 
+            self.velocity = self.obj.worldLinearVelocity.copy()
     
     def restore(self):
         self.obj.worldTransform = self.transform 
         if self.obj.physics.mode == Physics.character:
-            constraints.getCharacter(self.obj).walkDirection = self.velocity
+            self.obj.character_controller.walkVelocity = self.velocity
+            self.obj.character_controller.verticalVelocity = self.vertical_velocity
         else:
             self.obj.worldLinearVelocity = self.velocity
-        self.obj.worldAngularVelocity = self.angular 
+            self.obj.worldAngularVelocity = self.angular 
      
     def __enter__(self):
         self.ignore = False
@@ -37,14 +40,13 @@ class RenderState:
 class MoveManager:
     def __init__(self):
         self.saved_moves = OrderedDict()
-        self.to_correct = OrderedDict()
         
         self.latest_move = 0
         self.latest_correction = 0
         self.max_id = 65535 
     
     def __bool__(self):
-        return bool(self.saved_moves) or bool(self.to_correct)
+        return bool(self.saved_moves)
     
     def increment_move(self):
         self.latest_move += 1
@@ -61,7 +63,7 @@ class MoveManager:
         return self.saved_moves[move_id]
     
     def remove_move(self, move_id):
-        self.saved_moves.pop(move_id)
+        return self.saved_moves.pop(move_id)
         
     def sorted_moves(self, sort_filter=None):
         if callable(sort_filter):

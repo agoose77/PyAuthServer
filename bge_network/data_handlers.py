@@ -7,6 +7,7 @@ class Euler8:
     float_size = Float8.size()
     
     wrapper = Euler
+    wrapper_length = 3
     
     @classmethod
     def pack(cls, euler):
@@ -17,17 +18,17 @@ class Euler8:
     def unpack(cls, bytes_):
         packer_size = cls.float_size
         unpack = cls.float_unpack
-        return cls.wrapper((unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(3)))
+        return cls.wrapper((unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(cls.wrapper_length)))
     
     @classmethod
     def unpack_merge(cls, euler, bytes_):
         packer_size = cls.float_size
         unpack = cls.float_unpack
-        euler[:] = (unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(3))
+        euler[:] = (unpack(bytes_[i * packer_size: (i + 1) * packer_size]) for i in range(cls.wrapper_length))
         
     @classmethod
     def size(cls, bytes_=None):
-        return cls.float_size * 3
+        return cls.float_size * cls.wrapper_length
         
     unpack_from = unpack    
 
@@ -41,6 +42,14 @@ class Vector8(Euler8):
     
 class Vector4(Euler4):
     wrapper = Vector
+
+class Quaternion4(Euler4):
+    wrapper = Quaternion
+    wrapper_length = 4
+
+class Quaternion8(Euler8):
+    wrapper = Quaternion
+    wrapper_length = 4
 
 class AnimationHandler:
     @classmethod
@@ -76,21 +85,21 @@ class AnimationHandler:
 class PhysicsHandler:
     float_unpack = Float8.unpack_from
     vector_unpack = Vector8.unpack_from
-    euler_unpack = Euler8.unpack_from
+    quaternion_unpack = Quaternion8.unpack_from
     
     float_pack = Float8.pack
     vector_pack = Vector8.pack
-    euler_pack = Euler8.pack
+    quaternion_pack =  Quaternion8.pack
     
     float_size = Float8.size()
     vector_size = Vector8.size()
-    euler_size = Euler8.size()
+    quaternion_size =  Quaternion8.size()
     
     @classmethod
     def pack(cls, phys):
         vector_pack = cls.vector_pack
         phys.timestamp = WorldInfo.elapsed
-        data = UInt8.pack(phys.mode), cls.float_pack(phys.timestamp), vector_pack(phys.position), vector_pack(phys.velocity), vector_pack(phys.angular), cls.euler_pack(phys.orientation)
+        data = UInt8.pack(phys.mode), cls.float_pack(phys.timestamp), vector_pack(phys.position), vector_pack(phys.velocity), vector_pack(phys.angular), cls.quaternion_pack(phys.orientation)
         return b''.join(data)
         
     @classmethod
@@ -108,14 +117,14 @@ class PhysicsHandler:
         bytes_ = bytes_[vector_size:]
         phys.angular = vector_unpack(bytes_)
         bytes_ = bytes_[vector_size:]
-        phys.orientation = cls.euler_unpack(bytes_)
+        phys.orientation = cls.quaternion_unpack(bytes_)
         return phys
     
     unpack_from = unpack
     
     @classmethod
     def size(cls, bytes_ = None):
-        return 1 + cls.float_size + (3 * cls.vector_size) + cls.euler_size
+        return 1 + cls.float_size + (3 * cls.vector_size) + cls.quaternion_size
 
 class InputHandler:
     int_pack = UInt8.pack
@@ -162,6 +171,7 @@ def mathutils_hash(obj): return hash(tuple(obj))
 
 register_handler(Vector, lambda attr: Vector8 if attr._kwargs.get("max_precision") else Vector4, is_condition=True)
 register_handler(Euler, lambda attr: Euler8 if attr._kwargs.get("max_precision") else Euler4, is_condition=True)
+register_handler(Quaternion, lambda attr: Quaternion8 if attr._kwargs.get("max_precision") else Quaternion4, is_condition=True)
 register_handler(PhysicsData, PhysicsHandler)
 register_handler(AnimationData, AnimationHandler)
 register_handler(InputManager, InputHandler)

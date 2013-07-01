@@ -1,7 +1,8 @@
 from network import keyeddefaultdict, TypeRegister
 from bge import logic
-from mathutils import Vector, Euler
+from mathutils import Vector, Euler, Quaternion
 from itertools import chain
+from .tools import quaternion_from_angular
 
 class InputStatus:
     '''A pollable interface to an event status'''
@@ -112,17 +113,18 @@ class AnimationData:
         return hash((self.mode, self.name, self.start_frame, self.end_frame, self.timestamp))
 
 class PhysicsData:
-    __slots__ = "mode", "timestamp", "position", "velocity", "orientation", "angular"
+    __slots__ = "mode", "timestamp", "position", "velocity", "orientation", "angular", "process_dynamics"
     
     def __init__(self, mode, position=None, velocity=None, orientation=None, angular=None):
         self.mode = mode
         self.timestamp = 0.000
+        self.process_dynamics = True
         
         self.angular = Vector() if angular is None else angular
         self.position = Vector() if position is None else position
         self.velocity = Vector() if velocity is None else velocity
-        self.orientation = Euler() if orientation is None else orientation
-    
+        self.orientation = Quaternion() if orientation is None else orientation
+            
     def __repr__(self):
         console = ["Physics:"]
         console.append("Position: {}".format(self.position))
@@ -133,11 +135,13 @@ class PhysicsData:
     
     @property
     def is_active(self):
-        return any(self.angular) or any(self.velocity)
+        return self.angular.length > 0.01 or self.velocity.length > 0.01
     
     def simulate_dynamics(self, deltatime):
-        self.orientation.rotate(Euler(self.angular * deltatime))
-    
+        ori = self.orientation
+        rotation = quaternion_from_angular(self.angular)
+        ori.rotate(rotation)
+        
     def __description__(self):
-        return hash(tuple(chain(self.position, self.velocity, self.angular, self.orientation, (self.mode,))))
+        return hash(tuple(chain(self.position, self.velocity, self.angular, self.orientation, (self.mode, self.timestamp))))
     

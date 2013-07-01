@@ -6,14 +6,18 @@ import sys; sys.path.append(logic.expandPath("//../"))
 from .errors import QuitGame
 from .actors import Actor, PlayerController
 from .enums import Physics
+from .tools import quaternion_from_angular, angular_from_quaternion, CircularAverageProperty, AverageDifferenceProperty
+from .data_types import PhysicsData
 
 from time import monotonic
 from functools import partial
 from collections import deque
-from mathutils import Euler
+
+from mathutils import Vector, Euler, Quaternion
+from math import copysign
 
 class CollisionStatus:    
-    
+    """Handles collision for Actors"""
     def __init__(self, obj, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -53,36 +57,192 @@ class CollisionStatus:
             self._registered.remove(obj)
             self.on_end(obj)
 
+class ExtrapolationState:
+    def __init__(self, value, derivative, timestamp):
+        self.value = value
+        self.derivative = derivative
+        self.timestamp = timestamp
+        
+class Extrapolator:
+    
+    __slots__ = "previous_state", "current_state"
+    
+    step = AverageDifferenceProperty(15)
+    
+    def __init__(self):
+        self.previous_state = None
+        self.current_state = None
+    
+    def _add_values(self, a, b):
+        return a + b
+    
+    def _multiply_values(self, a, b):
+        return a * b
+    
+    def _subtract_values(self, a, b):
+        return a - b
+    
+    def _divide_values(self, a, b):
+        return self._multiply_values(a, 1 / b)
+    
+    def update(self, first):
+        add_values = self._add_values
+        multiply_values = self._multiply_values
+        subtract_values = self._subtract_values
+        divide_values = self._divide_values
+        
+        self.step = first.timestamp
+        
+        debug = "Position" not in self.__class__.__name__
+        
+        if self.previous_state is not None:
+            
+            second = self.previous_state
+            
+            current_from_first = add_values(first.value, 
+                                            multiply_values(first.derivative,
+                                                            self.current_state.timestamp - first.timestamp)) 
+            current_from_second = add_values(second.value, 
+                                            multiply_values(second.derivative,
+                                                            self.current_state.timestamp - second.timestamp))   
+            difference_derivative = divide_values(subtract_values(current_from_first, 
+                                                                current_from_second),
+                                                first.timestamp - second.timestamp)
+            target_for_update = add_values(current_from_first, 
+                                        multiply_values(difference_derivative, 
+                                                        self.current_state.timestamp - first.timestamp ))
+            
+            target_derivative = divide_values(subtract_values(target_for_update,
+                                                            self.current_state.value),
+                                            self.step)
+            self.current_state.derivative = target_derivative
+            
+        self.previous_state = first
+
+class PositionExtrapolator(Extrapolator):
+    pass
+
+class OrientationExtrapolator(Extrapolator):
+    
+    def _add_values(self, a, b):
+        c = a.copy()
+        c.rotate(b)
+        return c
+    
+    def _subtract_values(self, a, b):
+        return self._add_values(a, b.inverted())
+    
+    def _divide_values(self, a, b):
+        return self._multiply_values(a, (1/b))
+
+class PhysicsExtrapolator:
+
+    time_difference = CircularAverageProperty(size=8)
+    
+    def __init__(self):
+        self.position = PositionExtrapolator()
+        self.orientation = OrientationExtrapolator()
+    
+    @property
+    def controller(self):
+        try:
+            return next(WorldInfo.subclass_of(PlayerController))
+        except StopIteration:
+            return None
+    
+    @property
+    def remote_time(self):
+        return WorldInfo.elapsed - self.time_difference
+    
+    def handle_time(self, timestamp):
+        '''Store the time difference so we know where to draw
+        @param timestamp: timestamp of received physics'''
+        try:
+            current_time = timestamp + self.controller.round_trip_time / 2
+        except AttributeError:
+            return
+            
+        self.time_difference = (WorldInfo.elapsed - current_time)
+        self.update_rate = timestamp
+    
+    def set_base(self, physics):
+        timestamp = self.remote_time
+        
+        self.position.current_state.value = physics.position
+        self.position.current_state.timestamp = timestamp
+        
+        self.orientation.current_state.value = physics.orientation
+        self.orientation.current_state.timestamp = timestamp        
+    
+    def update(self, physics):
+        timestamp = physics.timestamp
+        
+        self.handle_time(timestamp)
+        
+        position_state = ExtrapolationState(physics.position, physics.velocity, timestamp)
+        orientation_state = ExtrapolationState(physics.orientation, quaternion_from_angular(physics.angular), timestamp)
+        
+        self.position.update(position_state)
+        self.orientation.update(orientation_state)
+        
+        position_base = self.position.current_state
+        orientation_base = self.orientation.current_state
+        
+        if position_base is None or orientation_base is None:
+            self.position.current_state = ExtrapolationState(Vector(), Vector(), 0.000)
+            self.orientation.current_state = ExtrapolationState(Quaternion(), Quaternion(), 0.000)
+            return
+        
+        physics.position = position_base.value
+        #physics.orientation = orientation_base.value
+        
+        if self.position.previous_state is None or self.orientation.previous_state is None:
+            return
+        
+        physics.velocity = position_base.derivative
+        #physics.angular = angular_from_quaternion(orientation_base.derivative)
+        
 class PhysicsSystem(System):
     
     def __init__(self):
         super().__init__()
         
         self.collision_listeners = {}
+        self.extrapolators = {}
         self.check_for_scene_actors = True
     
     def make_actors_from_scene(self):
         '''Instantiates static actors in scene'''
         scene = logic.getCurrentScene()
         
+        # Iterate over scene objects
         for obj in scene.objects:
+            
+            # Only find objects that haven't been converted yet
             if isinstance(obj, Replicable):
                 continue
             
+            # Try and access actor information or continue
             try:
                 cls_name = obj['actor']
-                static_id = obj.get('static_id')
-                
             except KeyError:
                 continue
             
+            # Ask for a static ID
+            static_id = obj.get('static_id')
+            
+            # Get the class for this name
             cls = Replicable.from_type_name(cls_name)
             
+            # Determine if it is a subclass of the Actor class
             if not issubclass(cls, Actor):
                 continue
             
-            no_mesh = obj.physicsType in (logic.KX_PHYSICS_NAVIGATION_MESH, logic.KX_PHYSICS_OCCLUDER, logic.KX_PHYSICS_NO_COLLISION)
-            
+            # Find objects with physics meshes only
+            no_mesh = obj.physicsType in (logic.KX_PHYSICS_NAVIGATION_MESH, 
+                                        logic.KX_PHYSICS_OCCLUDER, 
+                                        logic.KX_PHYSICS_NO_COLLISION)
+        
             if no_mesh:
                 print("Static actor  {} does not have correct physics".format(obj))
                 continue
@@ -96,17 +256,21 @@ class PhysicsSystem(System):
                 replicable.roles.remote = Roles.none   
         
     def get_replicable_parents(self):
+        '''Generator for the replicables without parents (base)'''
         for replicable in WorldInfo.subclass_of(Actor):
             if not replicable.parent:
                 yield replicable  
     
     def register_actor(self, replicable):
-        '''Registers replicable to physics system'''
+        '''Registers replicable to physics system
+        @param replicable: replicable to register'''
         collision_status = self.collision_listeners[replicable] = CollisionStatus(replicable)
         collision_status.on_start = partial(self.collision_dispatcher, replicable, True)
         collision_status.on_end = partial(self.collision_dispatcher, replicable, False)
         
-        # Static actors have existing world physics settings
+        extrapolator = self.extrapolators[replicable] = PhysicsExtrapolator()
+        
+        # Static actors have existing world physics settings`
         if replicable._static:
             replicable.world_to_physics()
             
@@ -135,14 +299,28 @@ class PhysicsSystem(System):
             func(collided)
         except TypeError as err:
             print(err, "\n")
-
+    
+    def add_extrapolation(self, replicable):
+        extrapolator = self.extrapolators[replicable]
+        extrapolator.update(replicable.physics) 
+    
+    def set_extrapolation_base(self, replicable, deltatime):
+        if replicable.roles.local != Roles.simulated_proxy:
+            return
+        
+        extrapolator = self.extrapolators[replicable]
+        extrapolator.set_base(replicable.physics)       
+    
     def post_physics_condition(self, replicable):
-        # Makes sure we have callbacks for replicable
+        '''Condition to update replicable after physics simulation
+        @param replicable: replicable to check'''
         return replicable.roles.local >= Roles.simulated_proxy
     
     def post_update_condition(self, replicable):
-        return replicable.roles.local >= Roles.simulated_proxy and replicable.roles.remote != Roles.autonomous_proxy
-
+        '''Condition to update replicable after replicable.update
+        @param replicable: replicable to check'''
+        return replicable.roles.local >= Roles.simulated_proxy
+    
     def post_update(self, delta_time):
         '''Update the physics after actor changes
         @param delta_time: delta_time since last frame'''
@@ -155,9 +333,12 @@ class PhysicsSystem(System):
             if physics.mode == Physics.none: 
                 continue   
             
-            replicable.physics_to_world(condition=condition, deltatime=delta_time)
+            replicable.physics_to_world(condition=condition, 
+                                        deltatime=delta_time)
     
     def post_physics(self, delta_time):
+        '''Update the physics after physics simulation is run
+        @param delta_time: delta_time since last frame'''
         # Make short cut
         condition = condition=self.post_physics_condition
         
@@ -175,13 +356,16 @@ class PhysicsSystem(System):
             if physics.mode == Physics.none: 
                 continue   
             
-            replicable.world_to_physics(condition=condition, deltatime=delta_time)
+            # Apply the changes to the physics attributes
+            replicable.world_to_physics(condition=condition, 
+                                        deltatime=delta_time,
+                                        post_callback=self.set_extrapolation_base)
         
         # Update controllers too
         for controller in WorldInfo.subclass_of(PlayerController):
             if hasattr(controller, "player_input"):
                 controller.post_physics(delta_time)
-                               
+                            
 class InputSystem(System):
     
     def pre_update(self, delta_time):
@@ -208,6 +392,7 @@ class Game(GameLoop):
         logic.getCurrentScene().post_draw.append(self.post_physics)
         
     def post_physics(self):
+        ''' Additional support for post_physics callback'''
         delta_time = self.clock.last_delta_time
                 
         for system in System:
@@ -226,10 +411,10 @@ class Game(GameLoop):
         raise QuitGame
     
     def update(self):
-        
+        # Check if we're to quit the game
         if self.is_quit:
             self.quit()
-      
+    
         # Update network
         super().update()
             

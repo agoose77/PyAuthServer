@@ -1,7 +1,7 @@
 from bge_network import Actor, PlayerController, InputManager, PhysicsData, Physics, AttatchmentSocket
 from network import WorldInfo, StaticValue, Attribute, RPC, Netmodes, Roles, reliable, simulated, NetmodeOnly, Replicable
 
-from bge import events, logic, render
+from bge import events, logic, render, constraints
 from mathutils import Vector, Euler
 
 from math import ceil
@@ -11,8 +11,12 @@ class Weapon(Actor):
     
     clip = Attribute(20)
     bullets = Attribute(100)
-    
-    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
+    roles = Attribute(
+                      Roles(
+                            local=Roles.authority, 
+                            remote=Roles.simulated_proxy
+                            )
+                      )
     
     def on_registered(self):
         super().on_registered()
@@ -94,7 +98,7 @@ class RPGInputs(InputManager):
                 'left': events.AKEY, 
                 'shoot': events.LEFTMOUSE,
                 'reload': events.RKEY,
-                'resimulate': events.XKEY}
+                'jump': events.SPACEKEY,}
 
 class RPGController(PlayerController):
     
@@ -104,17 +108,27 @@ class RPGController(PlayerController):
         """Returns velocity and angular velocity of movement
         @param move: move to execute"""
         move_speed = 6.0 
-        rotation_speed = 4.0 
+        rotation_speed = 0.10 
         
         inputs = move.inputs
         
+        if not self.pawn.on_ground:
+            return Vector(), Vector()
+        
+        if inputs.jump.pressed:
+            self.pawn.character_controller.jump()
+        
+        # Get directional signs
         y_direction = (inputs.forward.active - inputs.back.active)
         x_direction = (inputs.left.active - inputs.right.active)
         
+        # Get scaled vectors
         velocity = Vector((0.000, y_direction * move_speed, 0.000))
         angular = Vector((0.000, 0.000, x_direction * rotation_speed))
-    
-        return self.pawn.local_space(velocity), angular
+        
+        # Make the velocity 
+        velocity = self.pawn.local_to_global(velocity)
+        return velocity, angular
             
     @RPC
     def server_perform_move(self, move_id: StaticValue(int, max_value=65535), timestamp: StaticValue(float), deltatime: StaticValue(float), inputs: StaticValue(InputManager), physics: StaticValue(PhysicsData)) -> Netmodes.server:
@@ -180,6 +194,28 @@ class LadderTop(LadderPoint):
 class FloorMesh(Actor):
     object_name = "Plane"
 
+class FloorCollider(Actor):
+    object_name = "FloorCollider"
+    
+    roles = Attribute(
+                      Roles(
+                            Roles.authority, 
+                            Roles.none
+                            )
+                      )
+    
+    def on_registered(self):
+        super().on_registered()
+        self.colliders = []
+        
+    @simulated 
+    def on_new_collision(self, collider):
+        self.colliders.append(collider)
+    
+    @simulated
+    def on_end_collision(self, collider):
+        self.colliders.remove(collider)
+
 class Player(Actor):
     object_name = "Player"
     
@@ -200,7 +236,8 @@ class Player(Actor):
                         PhysicsData(
                                     mode=Physics.character, 
                                     position=Vector((0,0, 3))
-                                    )
+                                    ),
+                        notify=True
                         )
     
     def on_registered(self):
@@ -208,6 +245,13 @@ class Player(Actor):
         
         # Create a fixed attatchment point
         self.attatchment_point = AttatchmentSocket(self, Vector((0, 2, 0)))
+        #self.floor_collider = FloorCollider()
+        
+        # Setup floor collider
+        #self.floor_collider.physics.position = self.physics.position.copy()
+        #self.floor_collider.physics.position.z -= 1.2
+        #self.floor_collider.setParent(self)
+        
         self.allowed_transitions = [LadderPoint, FloorMesh]
         
     def conditions(self, is_owner, is_complaint, is_initial):
@@ -219,6 +263,8 @@ class Player(Actor):
     def on_notify(self, name):
         if name == "weapon":
             self.pickup_weapon(self.weapon)
+        else:
+            super().on_notify(name)
     
     def on_unregistered(self):        
         '''Ensure that the weapon remains in the world'''
@@ -245,7 +291,12 @@ class Player(Actor):
                 self.request_pickup_weapon(other)
                 self.pickup_weapon(other)
                 print("Pickup weapon", other)
-                    
+    
+    @property
+    def on_ground(self):
+        return 1
+        #return any(not isinstance(a, type(self)) for a in self.floor_collider.colliders)
+    
     def on_shot(self, shooter, damage):
         self.health -= damage
         print("shot by {}".format(shooter.name))

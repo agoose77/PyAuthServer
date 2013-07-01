@@ -66,13 +66,14 @@ class Serialiser:
             if not included:
                 continue
 
-            if hasattr(handler, "unpack_merge") and key in previous_values:
+            if key in previous_values and hasattr(handler, "unpack_merge"):
                 value = previous_values[key]
                 
                 if value is None:
                     value = handler.unpack_from(bytes_)
                 else:
                     handler.unpack_merge(value, bytes_)
+                    
             else:
                 value = handler.unpack_from(bytes_)
                 
@@ -80,7 +81,7 @@ class Serialiser:
             
             bytes_ = bytes_[handler.size(bytes_):]
         
-        if self.bools and contents[self.total_contents - 1]:
+        if self.bool_size and contents[self.total_contents - 1]:
             bools = bitarray(); bools.frombytes(bytes_[:self.bool_size])
             bytes_ = bytes_[self.bool_size:]
             
