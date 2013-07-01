@@ -139,7 +139,7 @@ class PhysicsData:
     
     def simulate_dynamics(self, deltatime):
         ori = self.orientation
-        rotation = quaternion_from_angular(self.angular)
+        rotation = quaternion_from_angular(self.angular * deltatime)
         ori.rotate(rotation)
         
     def __description__(self):

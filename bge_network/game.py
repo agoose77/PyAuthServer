@@ -83,7 +83,10 @@ class Extrapolator:
         return a - b
     
     def _divide_values(self, a, b):
-        return self._multiply_values(a, 1 / b)
+        try:
+            return self._multiply_values(a, 1 / b)
+        except ZeroDivisionError:
+            return self._multiply_values(a, 0)
     
     def update(self, first):
         add_values = self._add_values
@@ -108,6 +111,7 @@ class Extrapolator:
             difference_derivative = divide_values(subtract_values(current_from_first, 
                                                                 current_from_second),
                                                 first.timestamp - second.timestamp)
+            
             target_for_update = add_values(current_from_first, 
                                         multiply_values(difference_derivative, 
                                                         self.current_state.timestamp - first.timestamp ))
@@ -115,6 +119,7 @@ class Extrapolator:
             target_derivative = divide_values(subtract_values(target_for_update,
                                                             self.current_state.value),
                                             self.step)
+            
             self.current_state.derivative = target_derivative
             
         self.previous_state = first
@@ -131,9 +136,6 @@ class OrientationExtrapolator(Extrapolator):
     
     def _subtract_values(self, a, b):
         return self._add_values(a, b.inverted())
-    
-    def _divide_values(self, a, b):
-        return self._multiply_values(a, (1/b))
 
 class PhysicsExtrapolator:
 
@@ -201,7 +203,7 @@ class PhysicsExtrapolator:
         
         physics.velocity = position_base.derivative
         #physics.angular = angular_from_quaternion(orientation_base.derivative)
-        
+ 
 class PhysicsSystem(System):
     
     def __init__(self):

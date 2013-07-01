@@ -2,7 +2,14 @@ from collections import OrderedDict, namedtuple
 from bge import logic, constraints
 from .enums import Physics
 
-PlayerMove = namedtuple("PlayerMove", ("timestamp", "deltatime", "inputs"))
+class PlayerMove:
+    def __init__(self, timestamp, deltatime, inputs):
+        self.timestamp=timestamp
+        self.deltatime=deltatime
+        self.inputs=inputs
+    
+    def __iter__(self):
+        return (self.timestamp, self.deltatime, self.inputs).__iter__()
             
 class RenderState:
     def __init__(self, obj):

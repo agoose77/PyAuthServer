@@ -108,7 +108,7 @@ class RPGController(PlayerController):
         """Returns velocity and angular velocity of movement
         @param move: move to execute"""
         move_speed = 6.0 
-        rotation_speed = 0.10 
+        rotation_speed = 4.0
         
         inputs = move.inputs
         
