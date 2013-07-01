@@ -108,7 +108,7 @@ class PlayerController(Controller):
         self.delta_threshold = 0.8
         self.considered_error = 0.1
         
-        self.position_margin = 0.2
+        self.position_margin = 0.4
         self.rotation_margin = radians(3)
         
         self.valid_inputs = 0
