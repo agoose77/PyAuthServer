@@ -107,7 +107,7 @@ class PlayerController(Controller):
         self.last_sent_move_id = None
         
         self.correction_id = 0
-        self.correction = False  
+        self.correction = None
         
         self.delta_threshold = 0.8
         self.considered_error = 0.1
@@ -227,15 +227,8 @@ class PlayerController(Controller):
     
     @RPC
     def client_correct_move(self, move_id: StaticValue(int, max_value=65535), physics: StaticValue(PhysicsData)) -> Netmodes.client:
-        self.correction = True
+        self.correction = physics
         self.correction_id = move_id
-        
-        self.pawn.physics = physics
-        
-        # Stop Bullet running old velocity so we set non-delta-time modified values (pos, ori)
-        self.pawn.stop_simulation()
-        self.pawn.clear_dynamics(target=PhysicsTargets.blender)
-        self.client_acknowledge_good_move(move_id)
         
     def post_physics(self, delta_time):
         moves = self.moves
@@ -250,8 +243,10 @@ class PlayerController(Controller):
         
         latest_id = moves.latest_move
         latest_move = moves.get_move(latest_id)
+        correction = self.correction
         
-        if self.correction:
+        # If we have been corrected
+        if correction is not None:
             correction_id = self.correction_id
             
             # Find the successive moves
@@ -260,7 +255,11 @@ class PlayerController(Controller):
             # Inform console we're resimulating
             print("Resimulating from {} for {} moves".format(correction_id, len(following_moves)))
             print("Are you sure this Controller's pawn is not simulated?\n")
-        
+            
+            # Set corrected position and orientation
+            pawn.physics.position = correction.position
+            pawn.physics.orientation = correction.orientation
+            
             # Re run all moves
             for replay_id, replay_move in following_moves:
                 # Get resimlation of move
@@ -268,6 +267,7 @@ class PlayerController(Controller):
                 # Update bullet
                 update_physics_for(pawn, replay_move.deltatime)
         
+        # Otherwise just run simulation
         else:
             pawn.physics.velocity, pawn.physics.angular = self.calculate_move(latest_move)
             # Ensure that it is simulating
@@ -284,7 +284,7 @@ class PlayerController(Controller):
             self.last_sent_move_id = latest_id
             
         # Empty correction to prevent recorrecting
-        self.correction = False
+        self.correction = None
     
     def update_rtt(self, round_trip_time):
         self.rtt_accumulator.append(round_trip_time)
