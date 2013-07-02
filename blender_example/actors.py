@@ -98,7 +98,8 @@ class RPGInputs(InputManager):
                 'left': events.AKEY, 
                 'shoot': events.LEFTMOUSE,
                 'reload': events.RKEY,
-                'jump': events.SPACEKEY,}
+                'jump': events.SPACEKEY,
+                'simulate': events.XKEY}
 
 class RPGController(PlayerController):
     
@@ -166,11 +167,16 @@ class RPGController(PlayerController):
         
         timestamp = WorldInfo.elapsed
         
+        inputs = self.player_input
+        
         # Sound function
         hear_sound = self.client_hear_sound
 
+        if inputs.simulate.pressed:
+            self.server_correct()
+
         # Play fire effects if can shoot
-        if self.player_input.shoot.active and pawn.weapon:
+        if inputs.shoot.active and pawn.weapon:
             
             if pawn.weapon.fireable(timestamp):
     

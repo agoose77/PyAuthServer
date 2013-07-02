@@ -15,6 +15,8 @@ from operator import lt as less_than_operator
 from math import radians
 from itertools import chain
 
+from time import monotonic
+
 from .enums import Physics, Animations, ParentStates, PhysicsTargets
 from .data_types import PhysicsData, AnimationData, InputManager
 from .states import MoveManager, RenderState, PlayerMove
@@ -100,10 +102,12 @@ class PlayerController(Controller):
         
         # Move data    
         self.moves = MoveManager()
-        self.correction = None    
         
         self.previous_checked_timestamp = None
         self.last_sent_move_id = None
+        
+        self.correction_id = 0
+        self.correction = False  
         
         self.delta_threshold = 0.8
         self.considered_error = 0.1
@@ -113,8 +117,6 @@ class PlayerController(Controller):
         
         self.valid_inputs = 0
         self.invalid_inputs = 0
-        
-        self.invalid = False
         
         # Add input class
         if WorldInfo.netmode != Netmodes.server:
@@ -161,7 +163,7 @@ class PlayerController(Controller):
                     
                 try:
                     if (self.invalid_inputs / self.valid_inputs):
-                        self.invalid = True
+                        pass#self.invalid = True
                 except ZeroDivisionError:
                     pass
             
@@ -183,6 +185,7 @@ class PlayerController(Controller):
 
         # Create a move to simulate
         move = PlayerMove(timestamp, deltatime, inputs)
+        
         # Determine the velocity and rotation outputs
         pawn.physics.velocity, pawn.physics.angular = self.calculate_move(move)
         pawn.start_simulation()
@@ -197,10 +200,17 @@ class PlayerController(Controller):
         # Error between server and client
         position_difference = (pawn.physics.position - physics.position).length
         rotation_difference = abs(pawn.physics.orientation.z - physics.orientation.z)
-                
+        
+        # Conditions for correction
+        error_exists = position_difference > self.position_margin or rotation_difference > self.rotation_margin
+        error_is_outdated = move_id < self.correction_id
+        
         # Check the error between server and client
-        if position_difference > self.position_margin or rotation_difference > self.rotation_margin:
+        if (error_exists and not error_is_outdated) or self.correction:
             self.client_correct_move(move_id, pawn.physics)
+            
+            self.correction_id = move_id
+            self.correction = False
         
         # Otherwise permit the move
         else:
@@ -212,9 +222,16 @@ class PlayerController(Controller):
         self.update_rtt(WorldInfo.elapsed - move.timestamp)
     
     @RPC
+    def server_correct(self) -> Netmodes.server:
+        self.correction = True
+    
+    @RPC
     def client_correct_move(self, move_id: StaticValue(int, max_value=65535), physics: StaticValue(PhysicsData)) -> Netmodes.client:
-        self.correction = move_id, physics
+        self.correction = True
+        self.correction_id = move_id
+        
         self.pawn.physics = physics
+        
         # Stop Bullet running old velocity so we set non-delta-time modified values (pos, ori)
         self.pawn.stop_simulation()
         self.pawn.clear_dynamics(target=PhysicsTargets.blender)
@@ -230,46 +247,44 @@ class PlayerController(Controller):
         # If we have no moves we can't re-simulate or send latest move
         if not moves:
             return
-
-        # If we have no correction then the latest move is set
-        if not self.correction:
-            # Get the move ID
-            move_id = moves.latest_move
-            # If we've not sent it before
-            if move_id != self.last_sent_move_id:
-                # Get the latest move
-                latest_move = moves.get_move(move_id)
-                # Send move
-                self.server_perform_move(move_id, *chain(latest_move, (pawn.physics, )))
-                self.last_sent_move_id = move_id
+        
+        latest_id = moves.latest_move
+        latest_move = moves.get_move(latest_id)
+        
+        if self.correction:
+            correction_id = self.correction_id
             
-            return
+            # Find the successive moves
+            following_moves = list(self.moves.sorted_moves(partial(less_than_operator, correction_id)))
+            
+            # Inform console we're resimulating
+            print("Resimulating from {} for {} moves".format(correction_id, len(following_moves)))
+            print("Are you sure this Controller's pawn is not simulated?\n")
         
-        # Get ID of correction
-        correction_id = self.correction[0]
+            # Re run all moves
+            for replay_id, replay_move in following_moves:
+                # Get resimlation of move
+                pawn.physics.velocity, pawn.physics.angular = self.calculate_move(replay_move)
+                # Update bullet
+                update_physics_for(pawn, replay_move.deltatime)
         
-        # Find the successive moves
-        following_moves = list(self.moves.sorted_moves(partial(less_than_operator, correction_id)))
-        
-        # Inform console we're resimulating
-        print("Resimulating from {} for {} moves".format(correction_id, len(following_moves)))
-        print("Are you sure this Controller's pawn is not simulated?\n")
-        
-        # Re run all moves
-        for replay_id, replay_move in following_moves:
-            # Get resimlation of move
-            pawn.physics.velocity, pawn.physics.angular = self.calculate_move(replay_move)
-            # Update bullet
-            update_physics_for(pawn, replay_move.deltatime)
-        
+        else:
+            pawn.physics.velocity, pawn.physics.angular = self.calculate_move(latest_move)
+            # Ensure that it is simulating
+            pawn.start_simulation()
+            update_physics_for(pawn, latest_move.deltatime)
+            
+            pawn.clear_dynamics(target=PhysicsTargets.blender)
+            pawn.stop_simulation()
+                    
         # We didn't send the last one as it needed simulating
-        if replay_id != self.last_sent_move_id:
+        if latest_id != self.last_sent_move_id:
             # Tell server about move
-            self.server_perform_move(replay_id, *chain(replay_move, (pawn.physics,)))
-            self.last_sent_move_id = replay_id
+            self.server_perform_move(latest_id, *chain(latest_move, (pawn.physics,)))
+            self.last_sent_move_id = latest_id
             
         # Empty correction to prevent recorrecting
-        self.correction = None
+        self.correction = False
     
     def update_rtt(self, round_trip_time):
         self.rtt_accumulator.append(round_trip_time)
@@ -289,17 +304,7 @@ class PlayerController(Controller):
         
         # Create move object (as sent end of tick, playerinput is ok to be muteable)
         move = PlayerMove(timestamp=timestamp, deltatime=delta_time, inputs=self.player_input.static)
-        
-        # If no correction, make use of simulation
-        # Otherwise it would be invalid anyway
-        if self.correction is None:
-            velocity, angular = self.calculate_move(move)
-            # Set angular velocity and velocity (keep Z velocity)
-            pawn.physics.velocity = velocity
-            pawn.physics.angular = angular
-            # Ensure that it is simulating
-            pawn.start_simulation()
-            
+
         # Store move regardless
         self.moves.add_move(move)   
 

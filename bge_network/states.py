@@ -49,7 +49,6 @@ class MoveManager:
         self.saved_moves = OrderedDict()
         
         self.latest_move = 0
-        self.latest_correction = 0
         self.max_id = 65535 
     
     def __bool__(self):
