@@ -5,7 +5,7 @@ Created on 10 Apr 2013
 '''
 
 # Game classes               
-from bge import types, logic, events, constraints
+from bge import types, logic, constraints
 from mathutils import Vector, Matrix, Euler
 from aud import Factory, Device, device as get_audio_device
 
@@ -15,46 +15,12 @@ from operator import lt as less_than_operator
 from math import radians
 from itertools import chain
 
-from time import monotonic
-
 from .enums import Physics, Animations, ParentStates, PhysicsTargets
 from .data_types import PhysicsData, AnimationData, InputManager
 from .states import MoveManager, RenderState, PlayerMove
-from .tools import AttatchmentSocket
+from .physics import update_for
 
-from random import randint
-from functools import partial
-from network import Controller, Replicable, Attribute, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo, simulated, NetmodeOnly
-
-def save(replicable, deltatime):
-    replicable.render_state.save()
-
-def switch(obj, replicable, deltatime):
-    if (replicable in obj.childrenRecursive or replicable == obj):
-        replicable.render_state.save()
-    else:
-        replicable.render_state.restore()
-
-def update_physics_for(obj, deltatime):
-    ''' Calls a physics simulation for deltatime
-    Rewinds other actors so that the individual is the only one that is changed by the end'''
-   
-    # Get all children    
-    for replicable in WorldInfo.subclass_of(Actor):
-        # Start at the parents and traverse
-        if not replicable.parent:
-            replicable.physics_to_world(post_callback=save, deltatime=deltatime)
-            
-    # Tick physics
-    obj.scene.updatePhysics(deltatime)
-    # Create a callback with the obj argument
-    switch_cb = partial(switch, obj)
-    
-    # Restore objects that aren't affiliated with obj
-    for replicable in WorldInfo.subclass_of(Actor):
-        if not replicable.parent:
-            # Apply results
-            replicable.world_to_physics(post_callback=switch_cb, deltatime=deltatime)
+from network import Controller, Replicable, Attribute, Roles, StaticValue, Netmodes, RPC, reliable, WorldInfo, simulated
                        
 class GameObject(types.KX_GameObject):
     '''Creates a Physics and Graphics mesh for replicables
@@ -191,7 +157,7 @@ class PlayerController(Controller):
         pawn.start_simulation()
         
         # Simulate
-        update_physics_for(pawn, deltatime)
+        update_for(pawn, deltatime)
         
         # Stop bullet simulating this in the normal tick
         pawn.clear_dynamics(target=PhysicsTargets.blender)
@@ -265,14 +231,14 @@ class PlayerController(Controller):
                 # Get resimlation of move
                 pawn.physics.velocity, pawn.physics.angular = self.calculate_move(replay_move)
                 # Update bullet
-                update_physics_for(pawn, replay_move.deltatime)
+                update_for(pawn, replay_move.deltatime)
         
         # Otherwise just run simulation
         else:
             pawn.physics.velocity, pawn.physics.angular = self.calculate_move(latest_move)
             # Ensure that it is simulating
             pawn.start_simulation()
-            update_physics_for(pawn, latest_move.deltatime)
+            update_for(pawn, latest_move.deltatime)
             
             pawn.clear_dynamics(target=PhysicsTargets.blender)
             pawn.stop_simulation()
@@ -458,10 +424,10 @@ class Actor(GameObject, Replicable):
         if physics.process_dynamics:
             
             if physics.mode == Physics.rigidbody:
-                self.worldLinearVelocity = physics.velocity
+                self.worldLinearVelocity = velocity
                 
             elif physics.mode == Physics.character:
-                self.character_controller.walkVelocity = physics.velocity
+                self.character_controller.walkVelocity = velocity
                 physics.simulate_dynamics(deltatime)
         
         self.worldPosition = physics.position 

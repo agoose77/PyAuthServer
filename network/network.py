@@ -234,39 +234,46 @@ class PacketCollection:
         if members is None:
             members = []
             
+        # If members are interfaced like a PacketCollection
         if isinstance(members, self.__class__) or isinstance(members, Packet):
-            members = members.members
+            self.members = members.members
+        
+        # Otherwise recreate members
         else:
             new_members = []
+            this_class = self.__class__
             for member in members:
-                if isinstance(member, self.__class__):
+                if isinstance(member, this_class):
                     new_members.extend(member.members)
                 else:
                     new_members.append(member)
-                    
-            members = new_members
-            
-        self.members = members
+            self.members = new_members
     
     @property
     def reliable_members(self):
+        '''The "reliable" members of this packet collection'''
         return (m for m in self.members if m.reliable)
     
     @property
     def unreliable_members(self):
+        '''The "unreliable" members of this packet collection'''
         return (m for m in self.members if not m.reliable)
     
     def to_reliable(self):
+        '''Returns a PacketCollection instance comprised of only reliable members'''
         return type(self)(self.reliable_members)
     
     def to_unreliable(self):
+        '''Returns a PacketCollection instance comprised of only unreliable members'''
         return type(self)(self.unreliable_members)
     
     def on_ack(self):
+        '''Callback for acknowledgement of packet receipt'''
         for member in self.members:
             member.on_ack()
     
     def on_not_ack(self):
+        '''Callback for assumption of packet loss'''
         for member in self.reliable_members:
             member.on_not_ack()
     
@@ -283,6 +290,9 @@ class PacketCollection:
             append(packet)
         
         return self
+    
+    def __bytes__(self):
+        return self.to_bytes()
     
     def __bool__(self):
         return bool(self.members)
@@ -368,33 +378,44 @@ class Packet:
             
         return '\n'.join(to_console)
     
+    def __bytes__(self):
+        return self.to_bytes()
+    
     __radd__ = __add__        
 
 class Channel:
+    
     def __init__(self, connection, replicable):
         # Store important info
         self.replicable = replicable
         self.connection = connection
-        
-        # Set initial replication to True
+        # Set initial (replication status) to True
         self.is_initial = True     
-
         # Get network attributes
         self.attributes = {a: b for a, b in getmembers(replicable.__class__) if isinstance(b, Attribute)}
-       
         # Sort by name (must be the same on both client and server
         self.sorted_attributes = OrderedDict((key, self.attributes[key]) for key in sorted(self.attributes))
-        
         # Create a serialiser instance
         self.serialiser = Serialiser(self.sorted_attributes)
-        
-        # Store dictionary of complaining values
+        # Store dictionary of complaining values (compared with the replicable's account)
         self._complain = copy(replicable._complain)
-        
         # Store dictionary of ids for each attribute value
         self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
+        
+    @property
+    def is_complain(self):
+        # Compare the complaining state of the replicable against the channel
+        return self.replicable._complain == self._complain
+    
+    @is_complain.setter
+    def is_complain(self, value):
+        # Used to stop complaining
+        if not value:
+            self._complain = self.replicable._complain
     
     def get_rpc_calls(self):   
+        '''Returns the requested RPC calls in a packaged format
+        Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
         int_pack = UInt8.pack    
         get_reliable = is_reliable
         
@@ -404,6 +425,8 @@ class Channel:
         self.replicable._calls.clear() 
         
     def invoke_rpc_call(self, rpc_call):
+        '''Invokes an rpc call from packed format
+        @param rpc_call: rpc data (see get_rpc_calls)'''
         rpc_id = UInt8.unpack_from(rpc_call)
         
         try:            method = self.replicable._rpc_functions[rpc_id]
@@ -433,18 +456,7 @@ class ClientChannel(Channel):
                 notifier(name)
                                                                                             
 class ServerChannel(Channel):
-        
-    @property
-    def is_complain(self):
-        # Compare the complaining state of the replicable against the channel
-        return self.replicable._complain == self._complain
     
-    @is_complain.setter
-    def is_complain(self, value):
-        # Used to stop complaining
-        if not value:
-            self._complain = self.replicable._complain
-        
     def get_attributes(self, is_owner):
         # Get replicable and its class
         replicable = self.replicable
@@ -494,7 +506,7 @@ class ServerChannel(Channel):
         # We must have now replicated
         self.is_initial = False
         
-        # Only send bytes if replicated
+        # Outputting bytes asserts we have data
         if data:        
             # Returns packed data
             return self.serialiser.pack(data)
@@ -654,8 +666,8 @@ class ServerConnection(Connection):
         self.dead_channels = set()
         
     def on_delete(self):
-        '''Delete callback
-        Called on delete of connection'''
+        '''Callback for connection deletion
+        Called by ConnectionStatus when deleted'''
         super().on_delete()
         
         # If we own a controller destroy it
@@ -669,9 +681,12 @@ class ServerConnection(Connection):
         try:
             replicable = Replicable._instances[instance_id]
         except KeyError as err:
-            raise LatencyInducedError("Replicable no longer exists with id {}".format(err)) from None
-
+            raise LatencyInducedError("Replicable with id {} does not exist".format(err)) from None
+        
+        # Subscribe to this object's deletion
         replicable.subscribe(self.notify_destroyed_replicable)
+        
+        # Return the new channel
         return ServerChannel(self, replicable)
     
     def notify_destroyed_replicable(self, replicable):
@@ -682,6 +697,7 @@ class ServerConnection(Connection):
         if channel is None:
             return
         
+        # Tag this replicable for later deletion
         self.dead_channels.add(channel)
             
     def get_method_replication(self):
@@ -717,7 +733,7 @@ class ServerConnection(Connection):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.rules.is_relevant
-        packer = UInt8.pack
+        int_packer = UInt8.pack
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
         make_packet = Packet.__call__
@@ -730,6 +746,7 @@ class ServerConnection(Connection):
         
         for replicable in Replicable:
             
+            # We cannot network remote roles of None
             if replicable.roles.remote == no_role:
                 continue
             
@@ -738,7 +755,7 @@ class ServerConnection(Connection):
             
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = packer(instance_id)
+            packed_id = int_packer(instance_id)
             
             # Get attribute channel
             channel = get_channel(instance_id)
@@ -746,7 +763,9 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=method_invoke, 
+                                      payload=packed_id + rpc_call, 
+                                      reliable=reliable)
             
             # Only send attributes if relevant
             if is_owner or is_relevant(self, replicable):
@@ -755,14 +774,17 @@ class ServerConnection(Connection):
                     # Pack the class name
                     packed_class = String.pack(replicable.__class__.type_name)
                     # Send the protocol, class name and owner status to client
-                    yield make_packet(protocol=replication_init, payload=packed_id + packed_class, reliable=True)
+                    yield make_packet(protocol=replication_init, 
+                                      payload=packed_id + packed_class, 
+                                      reliable=True)
              
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
                 # If they have changed                    
                 if attributes:
                     yield make_packet(protocol=replication_update, 
-                            payload=packed_id + attributes, reliable=True)
+                                        payload=packed_id + attributes, 
+                                        reliable=True)
     
         # If any replicables deleted
         if self.dead_channels:
@@ -770,11 +792,13 @@ class ServerConnection(Connection):
             for channel in self.dead_channels:
                 replicable = channel.replicable
                 instance_id = replicable.instance_id
-                packed_id = packer(instance_id)
+                packed_id = int_packer(instance_id)
                 # Remove it
                 self.channels.pop(instance_id)
                 # Send delete packet 
-                yield make_packet(protocol=Protocols.replication_del, payload=packed_id, reliable=True) 
+                yield make_packet(protocol=Protocols.replication_del, 
+                                  payload=packed_id, 
+                                  reliable=True) 
                 
                 # Don't process rest              
             self.dead_channels.clear()
@@ -1130,17 +1154,15 @@ class ElapsedTime:
         self.last = monotonic()
         self.last_delta_time = 0.0
     
-    def __enter__(self):
+    def get_deltatime(self):
         new_time = monotonic()
         delta_time = new_time - self.last
         self.last = new_time
         self.last_delta_time = delta_time
         return delta_time
     
-    def __exit__(self, type, value, traceback):
-        pass
                 
-class GameLoop(socket):
+class Network(socket):
     
     def __init__(self, addr, port, update_interval=1/5):
         '''Network socket initialiser'''
@@ -1246,46 +1268,49 @@ class GameLoop(socket):
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
-    def update(self):   
+    def update(self, delta_time=None):
+        
         # Determine the elapsed time since the last update
-        with self.clock as delta_time:
-            # Update each system at intervals
-            for system in System:
-                # Ensure system is active
-                if system.active:
-                    system.pre_replication(delta_time)
-                    # Update changes to replicable graph
-                    Replicable.update_graph() 
+        if delta_time is None:
+            delta_time = self.clock.get_deltatime()
             
-            # Receive data from peer
-            self.receive()
+        # Update each system at intervals
+        for system in System:
+            # Ensure system is active
+            if system.active:
+                system.pre_replication(delta_time)
+                # Update changes to replicable graph
+                Replicable.update_graph() 
+        
+        # Receive data from peer
+        self.receive()
+        
+        # Update any changes made to replicable graph
+        Replicable.update_graph()
+        
+        # Update each system at intervals
+        for system in System:
+            if system.active:
+                system.pre_update(delta_time)
+                Replicable.update_graph()
+        
+        # Update all replicables
+        for replicable in WorldInfo.actors:
+            replicable.update(delta_time)
+
+            if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
+                replicable.player_update(delta_time)
+        
+        # Update any following changes
+        Replicable.update_graph()
             
-            # Update any changes made to replicable graph
-            Replicable.update_graph()
-            
-            # Update each system at intervals
-            for system in System:
-                if system.active:
-                    system.pre_update(delta_time)
-                    Replicable.update_graph()
-            
-            # Update all replicables
-            for replicable in WorldInfo.actors:
-                replicable.update(delta_time)
-    
-                if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
-                    replicable.player_update(delta_time)
-            
-            # Update any following changes
-            Replicable.update_graph()
-                
-            # Upate before sending
-            for system in System:
-                if system.active:
-                    system.post_update(delta_time)
-                    Replicable.update_graph()
-            
-            self.send()
+        # Upate before sending
+        for system in System:
+            if system.active:
+                system.post_update(delta_time)
+                Replicable.update_graph()
+        
+        self.send()
 
 class LazyReplicableProxy:
     """Lazy loading proxy to Replicable references

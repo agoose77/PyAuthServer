@@ -1,4 +1,4 @@
-from network import GameLoop, Replicable, WorldInfo, Roles, System
+from network import Network, Replicable, WorldInfo, Roles, System
 
 from bge import logic, events, types
 import sys; sys.path.append(logic.expandPath("//../"))

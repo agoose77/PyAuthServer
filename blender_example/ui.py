@@ -15,7 +15,6 @@ class UISystem(bgui.System, metaclass=InstanceRegister):
         super().__init__(instance_id=None, allow_random_key=True, register=False, theme=theme)
 
         self.manager = manager
-        
         self.active = True
     
     def update(self):
