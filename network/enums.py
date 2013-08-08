@@ -13,6 +13,9 @@ class Enum(type):
     def __getitem__(self, index):
         # Add ability to lookup name
         return self.values[index]
+    
+    def __contains__(self, index):
+        return 0 <= index < len(self.values)
 
 class Netmodes(metaclass=Enum):
     values ="server", "client", "listen", "single"

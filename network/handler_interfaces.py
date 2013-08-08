@@ -1,6 +1,3 @@
-from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
-from bitarray import bits2bytes
-
 handlers = {}
 descriptions = {}
 
@@ -27,38 +24,14 @@ def register_description(type_, callable):
     @param type_: type of object
     @param callable: callable for description'''
     descriptions[type_] = callable
-    
-def int_footprint(value):
-    '''Returns the size of the number in bytes'''
-    return bits2bytes(value.bit_length())
-
-def smallest_int_handler(value, bits=False):
-    '''Handles integer sizes specifically'''
-    if bits:
-        bytes_ = bits2bytes(value)
-    else:
-        bytes_ = int_footprint(value)
-        
-    for index, char in enumerate((UInt8, UInt16, UInt32, UInt64)):
-        size = 2 ** index
-        if size >= bytes_:
-            return char
         
 def get_handler(value):
     '''Takes a StaticValue (or subclass thereof) and return handler
     @param value: StaticValue subclass'''
-    if value._type is str:
-        return String
-    
-    elif value._type is int:
-        return smallest_int_handler(value._kwargs.get("max_value", 8))
-    
-    elif value._type is float:
-        return Float8 if value._kwargs.get("max_precision") else Float4
     
     try:    
-        callback, is_condition = handlers[value._type]
+        callback, is_condition = handlers[value.type]
     except KeyError:
-        raise TypeError("No handler for object with type {}".format(value._type))
+        raise TypeError("No handler for object with type {}".format(value.type))
     else:
         return callback(value) if is_condition else callback

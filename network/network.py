@@ -1,26 +1,26 @@
-from .bases import InstanceRegister
-from .containers import Attribute, StaticValue
+from .registers import InstanceRegister, InstanceNotifier
 from .errors import NetworkError, LatencyInducedError
 from .actors import BaseWorldInfo, Controller, Replicable
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
-from .modifiers import reliable, simulated, is_reliable, is_simulated
-from .serialiser import UInt8, UInt16, UInt32, UInt64, Float8, Float4, String
-from .handler_interfaces import static_description, register_handler, get_handler, smallest_int_handler
-
-from bitarray import bitarray, bits2bytes
+from .modifiers import reliable, is_reliable
+from .serialiser import UInt8, String, handler_from_int
+from .argument_serialiser import ArgumentSerialiser
+from .handler_interfaces import static_description, register_handler, get_handler
+from .descriptors import StaticValue
+from .factorydict import FactoryDict
+from .bitfield import Bitfield
 
 from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostbyname
-from collections import deque, defaultdict, OrderedDict
-from inspect import getmembers, signature
+from collections import deque
 from weakref import proxy as weak_proxy
 from itertools import repeat
-from copy import copy
 from time import monotonic
 from functools import wraps
 
-import operator
+from operator import eq as equals_operator
 
 class NetmodeOnly:
+    '''Runs method in netmode specific scope only'''
     def __init__(self, netmode):
         self.netmode = netmode
         
@@ -31,202 +31,7 @@ class NetmodeOnly:
                 return
             return func(*args, **kwargs)
         return wrapper
-        
-class keyeddefaultdict(defaultdict):
-    '''Dictionary with factory for missing keys
-    Provides key to factory function provided to initialiser'''
-    def __missing__(self, key):
-        self[key] = value = self.default_factory(key)
-        return value
-
-class Serialiser:
-    def __init__(self, arguments):
-        '''Accepts ordered dict as argument'''        
-        self.bools = [(name, value) for name, value in arguments.items() if value._type is bool]
-        self.others = [(name, value) for name, value in arguments.items() if value._type is not bool]
-        self.handlers = [(name, get_handler(value)) for name, value in self.others]
-        
-        self.total_normal = len(self.others)
-        self.total_bools = len(self.bools)
-        self.total_contents = self.total_normal + bool(self.total_bools)
-        
-        # Bitfields used for packing (so now bool packing expects cache)
-        self.content_bits = bitarray(False for i in range(self.total_contents))
-        self.bool_bits = bitarray(False for i in range(self.total_bools))
-        
-        self.bool_size = bits2bytes(self.total_bools)
-        self.content_size = bits2bytes(self.total_normal)
-        
-    def unpack(self, bytes_, previous_values={}):
-        '''Accepts ordered bytes, and optional previous values'''
-        contents = bitarray(); contents.frombytes(bytes_[:self.content_size])
-        bytes_ = bytes_[self.content_size:]
-        
-        for included, (key, handler) in zip(contents, self.handlers):
-            if not included:
-                continue
-
-            if key in previous_values and hasattr(handler, "unpack_merge"):
-                value = previous_values[key]
-                
-                if value is None:
-                    value = handler.unpack_from(bytes_)
-                else:
-                    handler.unpack_merge(value, bytes_)
-                    
-            else:
-                value = handler.unpack_from(bytes_)
-                
-            yield (key, value)
-            
-            bytes_ = bytes_[handler.size(bytes_):]
-        
-        if self.bool_size and contents[self.total_contents - 1]:
-            bools = bitarray(); bools.frombytes(bytes_[:self.bool_size])
-            bytes_ = bytes_[self.bool_size:]
-            
-            for value, (key, static_value) in zip(bools, self.bools):
-                yield (key, value)
-
-    def pack(self, data, current_values={}):
-        # Reset content mask
-        contents = self.content_bits
-        contents.setall(False)
-        
-        # Create output list
-        output = []
-
-        # Iterate over non booleans
-        for index, (key, handler) in enumerate(self.handlers):
-            if not key in data:
-                continue
-            
-            contents[index] = True
-            output.append(handler.pack(data.pop(key)))
-        
-        # If we have boolean values remaining
-        if data:
-            # Reset bool mask
-            bools = self.bool_bits
-            bools.setall(False)
-            
-            # Iterate over booleans
-            for index, (key, static) in enumerate(self.bools):
-                if not key in data:
-                    continue
-                
-                bools[index] = data[key]
-                
-            contents[-1] = True
-            output.append(bools.tobytes())
-      
-        return contents.tobytes() + b''.join(output)
-           
-class RPC:
-    '''Manages instances of an RPC function for each object'''
-        
-    def __init__(self, func):
-        self.func = func
-        self.rpc_for_instance = {}
-        self.__annotations__ = func.__annotations__
-    
-    def __get__(self, instance, base):
-        try:
-            rpc_instance = self.rpc_for_instance[instance]
-        
-        except KeyError:
-            
-            if instance is None:
-                rpc_instance = None
-            else:   
-                rpc_instance = self.rpc_for_instance[instance] = simulated(RPCInterface(self.func, instance))
-        
-        return rpc_instance
-        
-class RPCInterface:
-    """Mediates RPC calls to/from peers"""
-    
-    def __init__(self, func, instance):
-        # Used to isolate rpc_for_instance for each function for each instance
-        self.func = func = func.__get__(instance, None)
-        self.instance = instance
-        self.name = func.__qualname__
-        
-        # Get the function signature
-        func_signature = signature(func)
-        self.target = func_signature.return_annotation
-        
-        # Interface between data and bytes
-        self.serialiser = Serialiser(self.ordered_arguments(func_signature))
-        self.binder = func_signature.bind
-        self.__annotations__ = func.__annotations__
-        
-        # Enable modifier lookup
-        self.instance._rpc_functions.append(self)
-    
-    @property
-    def rpc_id(self):
-        return self.instance._rpc_functions.index(self)
-    
-    def ordered_arguments(self, sig):
-        return OrderedDict((value.name, value.annotation) for value in 
-               sig.parameters.values() if isinstance(value.annotation, StaticValue))
-               
-    def __call__(self, *args, **kwargs):
-        # Determines if call should be executed or bounced
-        if self.target == WorldInfo.netmode:
-            return self.func(*args, **kwargs)
-
-        arguments = self.binder(*args, **kwargs).arguments
-        data = self.serialiser.pack(arguments)
-      
-        self.instance._calls.append((self, data))
-    
-    def execute(self, bytes_):
-        # Get object network role
-        local_role = self.instance.roles.local
-        simulated_role = Roles.simulated_proxy
-
-        # Check if we haven't any authority
-        if local_role < simulated_role:
-            return
-        
-        # Or if we need special privileges
-        elif local_role == simulated_role and not is_simulated(self):
-            return
-        
-        # Unpack RPC
-        try:
-            unpacked_data = self.serialiser.unpack(bytes_)
-        except Exception as err:
-            print("Error unpacking {}: {}".format(self.name, err))
-            
-        # Execute function
-        try:
-            self.func(**dict(unpacked_data))
-        except Exception as err:
-            print("Error invoking {}: {}".format(self.name, err))
-            raise
-                
-class BaseRules:
-    '''Base class for game rules'''
-    
-    @classmethod
-    def pre_initialise(cls, addr, netmode):
-        pass
-        
-    @classmethod
-    def post_initialise(cls, conn):
-        return Controller()
-    
-    @classmethod
-    def on_disconnect(cls, replicable):
-        return
-    
-    @classmethod
-    def is_relevant(cls, conn, replicable):        
-        return not isinstance(replicable, Controller)
-    
+             
 class PacketCollection:
     __slots__ = "members",
     
@@ -234,20 +39,13 @@ class PacketCollection:
         if members is None:
             members = []
             
-        # If members are interfaced like a PacketCollection
-        if isinstance(members, self.__class__) or isinstance(members, Packet):
+        # If members support member interface
+        if hasattr(members, "members"):
             self.members = members.members
         
         # Otherwise recreate members
         else:
-            new_members = []
-            this_class = self.__class__
-            for member in members:
-                if isinstance(member, this_class):
-                    new_members.extend(member.members)
-                else:
-                    new_members.append(member)
-            self.members = new_members
+            self.members = [m for p in members for m in p]
     
     @property
     def reliable_members(self):
@@ -311,7 +109,7 @@ class Packet:
     protocol_handler = UInt8
     size_handler = UInt8
     
-    def __init__(self, protocol=None, payload=None, *, reliable=False, on_success=None, on_failure=None):    
+    def __init__(self, protocol=None, payload=None, *, reliable=False, on_success=None, on_failure=None):
         # Force reliability for callbacks
         if on_success or on_failure:
             reliable = True
@@ -390,28 +188,31 @@ class Channel:
         self.replicable = replicable
         self.connection = connection
         # Set initial (replication status) to True
-        self.is_initial = True     
+        self.is_initial = True    
         # Get network attributes
-        self.attributes = {a: b for a, b in getmembers(replicable.__class__) if isinstance(b, Attribute)}
-        # Sort by name (must be the same on both client and server
-        self.sorted_attributes = OrderedDict((key, self.attributes[key]) for key in sorted(self.attributes))
+        self.attribute_storage = replicable.attribute_storage
+        # Sort by name (must be the same on both client and server)
+        self.sorted_attributes = self.attribute_storage.get_ordered_attributes()
         # Create a serialiser instance
-        self.serialiser = Serialiser(self.sorted_attributes)
+        self.serialiser = ArgumentSerialiser(self.sorted_attributes)
         # Store dictionary of complaining values (compared with the replicable's account)
-        self._complain = copy(replicable._complain)
-        # Store dictionary of ids for each attribute value
+        self.complain_status = self.attribute_storage.get_complaint_status()
+        # Store dictionary of id for each attribute value
         self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
-        
+    
     @property
     def is_complain(self):
-        # Compare the complaining state of the replicable against the channel
-        return self.replicable._complain == self._complain
+        '''Get the complaint status of this channel
+        Compares the complaining state of the replicable against the channel'''
+        return self.attribute_storage.get_complaint_status() == self.complain_status
     
     @is_complain.setter
     def is_complain(self, value):
-        # Used to stop complaining
-        if not value:
-            self._complain = self.replicable._complain
+        if value:
+            return
+        
+        # This will only stop complaints
+        self.complain_status.update(self.attribute_storage.get_complaint_status())
     
     def get_rpc_calls(self):   
         '''Returns the requested RPC calls in a packaged format
@@ -419,17 +220,19 @@ class Channel:
         int_pack = UInt8.pack    
         get_reliable = is_reliable
         
-        for (method, data) in self.replicable._calls:
+        storage_data = self.replicable.rpc_storage.data
+        
+        for (method, data) in storage_data:
             yield int_pack(method.rpc_id) + data, get_reliable(method)
           
-        self.replicable._calls.clear() 
+        storage_data.clear() 
         
     def invoke_rpc_call(self, rpc_call):
         '''Invokes an rpc call from packed format
         @param rpc_call: rpc data (see get_rpc_calls)'''
         rpc_id = UInt8.unpack_from(rpc_call)
         
-        try:            method = self.replicable._rpc_functions[rpc_id]
+        try:            method = self.replicable.rpc_storage.functions[rpc_id]
         except IndexError:
             print("Error invoking RPC: No RPC function with id {}".format(rpc_id))
         else:
@@ -441,19 +244,17 @@ class ClientChannel(Channel):
         replicable = self.replicable
         
         # Create local references outside loop
-        replicable_data = replicable._data
-        attribute_references = self.attributes
+        replicable_data = replicable.attribute_storage.data
         notifier = replicable.on_notify
         
         # Process and store new values
-        for name, value in self.serialiser.unpack(data, replicable_data):
-            # Get attribute reference
-            attribute = attribute_references[name]
+        for attribute, value in self.serialiser.unpack(data, replicable_data):
             # Store new value
-            replicable_data[name] = value
+            replicable_data[attribute] = value
+            
             # Check if needs notification
             if attribute.notify:
-                notifier(name)
+                notifier(attribute.name)
                                                                                             
 class ServerChannel(Channel):
     
@@ -468,34 +269,34 @@ class ServerChannel(Channel):
         can_replicate = replicable.conditions(is_owner,
                             self.is_complain,
                             self.is_initial)
-                
-        # List for writing data and mask information
-        can_replicate = list(can_replicate)
         
         # Local access
         previous_hashes = self._sent
-        current_values = replicable._data
         get_description = static_description
+        get_attribute = self.attribute_storage.get_attribute_by_name
+        attribute_data = self.attribute_storage.data
         
-        # Store dict of name-> value
-        data = {}
+        # Store dict of attribute-> value
+        to_serialise = {}
         
         # Iterate over attributes
         for name in can_replicate:
             
             # Get current value
-            value = current_values[name]
+            attribute = get_attribute(name)
+            
+            value = attribute_data[attribute]
             
             # Check if the last hash is the same
             last_hash = previous_hashes[name]
             new_hash = get_description(value)
             
-            # If values match don't update
+            # If values match, don't update
             if last_hash == new_hash:
                 continue 
             
             # Add value to data dict
-            data[name] = value
+            to_serialise[name] = value
             
             # Hash the last sent value (for later comparison)           
             previous_hashes[name] = new_hash
@@ -507,16 +308,35 @@ class ServerChannel(Channel):
         self.is_initial = False
         
         # Outputting bytes asserts we have data
-        if data:        
+        if to_serialise:        
             # Returns packed data
-            return self.serialiser.pack(data)
+            return self.serialiser.pack(to_serialise)
 
-class Connection:
+class Connection(InstanceNotifier):
     
     def __init__(self, netmode):
+        super().__init__()
+        
         self.netmode = netmode
-        self.channels = keyeddefaultdict(self.create_channel)
+        self.channels = {}
+        
+        self.channel_class = None
         self.replicable = None
+        
+        Replicable.subscribe(self)
+    
+    def notify_unregistration(self, replicable):
+        self.channels.pop(replicable.instance_id)
+    
+    def notify_registration(self, instance_id):
+        '''Create channel for replicable with network id
+        @param instance_id: network id of replicable'''
+        try:
+            replicable = WorldInfo.get_actor(instance_id)
+        except KeyError as err:
+            raise LatencyInducedError("Replicable with id {} does not exist".format(err))
+        
+        self.channels[instance_id] = self.channel_class(self, weak_proxy(replicable))
         
     def on_delete(self):
         pass
@@ -525,6 +345,7 @@ class Connection:
         '''Determines if a connection owns this replicable
         Searches for Replicable with same network id as connection Controller'''  
         last = None
+        
         # Walk the parent tree until no parent
         try:
             while replicable:
@@ -539,80 +360,13 @@ class Connection:
             return last.instance_id == self.replicable.instance_id        
         except AttributeError:
             return False     
-    
-    def create_channel(self):
-        return NotImplemented
-    
-class ClientConnection(Connection):
-    
-    def __init__(self, *args, **kwargs):       
-        super().__init__(*args, **kwargs) 
+        
+    def get_method_replication(self):
 
-    def notify_destroyed_replicable(self, replicable):
-        self.channels.pop(replicable.instance_id)
-    
-    def create_channel(self, instance_id):
-        '''Create channel for replicable with network id
-        @param instance_id: network id of replicable'''
-        replicable = Replicable._instances[instance_id]        
-        replicable.subscribe(self.notify_destroyed_replicable)
-        return ClientChannel(self, replicable)
-    
-    def set_replication(self, packet):
-        '''Replication function
-        Accepts replication packets and responds to protocol
-        @param packet: replication packet'''
-        
-        # If an update for a replicable
-        if packet.protocol == Protocols.replication_update:
-            instance_id = UInt8.unpack_from(packet.payload)
-            
-            if instance_id in Replicable._instances:
-                channel = self.channels[instance_id]
-                channel.set_attributes(packet.payload[1:])
-                return channel.replicable
-            
-            else:
-                print("Unable to replicate to replicable with id {}".format(instance_id))
-        
-        # If an RPC call
-        elif packet.protocol == Protocols.method_invoke:
-            instance_id = UInt8.unpack_from(packet.payload)
-            channel = self.channels[instance_id]
-            
-            if self.is_owner(channel.replicable):
-                channel.invoke_rpc_call(packet.payload[1:]) 
-        
-        # If construction for replicable
-        elif packet.protocol == Protocols.replication_init:
-            instance_id = UInt8.unpack_from(packet.payload)
-            type_name = String.unpack_from(packet.payload[1:])
-            # Create replicable of same type           
-            replicable_cls = Replicable.from_type_name(type_name)
-            replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
-
-            # If replicable is Controller
-            if isinstance(replicable, Controller):
-                # Register as own replicable
-                self.replicable = replicable
-        
-        # If it is the deletion request
-        elif packet.protocol == Protocols.replication_del:
-            instance_id = UInt8.unpack_from(packet.payload)
-            
-            # If the replicable exists
-            if instance_id in Replicable._instances:
-                replicable = Replicable._instances[instance_id]
-                replicable.request_unregistration()
-    
-    def send(self, network_tick):
-        '''Client connection send method
-        Sends data using initialised context
-        Sends RPC information
-        Generator'''        
         check_is_owner = self.is_owner
         packer = UInt8.pack
         get_channel = self.channels.__getitem__
+        make_packet = Packet.__call__
         
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
@@ -635,7 +389,74 @@ class ClientConnection(Connection):
             # Send RPC calls if we are the owner
             if is_owner and replicable._calls:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield Packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+                    yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
+    
+class ClientConnection(Connection):
+    
+    def __init__(self, netmode):
+        super().__init__(netmode)
+        
+        self.channel_class = ClientChannel
+    
+    def set_replication(self, packet):
+        '''Replication function
+        Accepts replication packets and responds to protocol
+        @param packet: replication packet'''
+        
+        # If an update for a replicable
+        if packet.protocol == Protocols.replication_update:
+            instance_id = UInt8.unpack_from(packet.payload)
+            
+            if Replicable.graph_has_instance(instance_id):
+                channel = self.channels[instance_id]
+                channel.set_attributes(packet.payload[1:])
+            
+            else:
+                print("Unable to replicate to replicable with id {}".format(instance_id))
+        
+        # If an RPC call
+        elif packet.protocol == Protocols.method_invoke:
+            instance_id = UInt8.unpack_from(packet.payload)
+            
+            if Replicable.graph_has_instance(instance_id):
+                channel = self.channels[instance_id]
+                
+                if self.is_owner(channel.replicable):
+                    channel.invoke_rpc_call(packet.payload[1:]) 
+        
+        # If construction for replicable
+        elif packet.protocol == Protocols.replication_init:
+            instance_id = UInt8.unpack_from(packet.payload)
+            type_name = String.unpack_from(packet.payload[1:])
+            
+            # Create replicable of same type           
+            replicable_cls = Replicable.from_type_name(type_name)
+            replicable = Replicable._create_or_return(replicable_cls, instance_id, register=True)
+
+            # If replicable is Controller
+            if isinstance(replicable, Controller):
+                
+                # Register as own replicable
+                self.replicable = weak_proxy(replicable)
+        
+        # If it is the deletion request
+        elif packet.protocol == Protocols.replication_del:
+            instance_id = UInt8.unpack_from(packet.payload)
+            
+            # If the replicable exists
+            try:
+                replicable = Replicable.get_from_graph(instance_id)
+            except LookupError:
+                pass
+            else:
+                replicable.request_unregistration()
+    
+    def send(self, network_tick):
+        '''Client connection send method
+        Sends data using initialised context
+        Sends RPC information
+        Generator'''        
+        yield from self.get_method_replication()
        
     def receive(self, packets):
         '''Client connection receive method
@@ -660,10 +481,11 @@ class ClientConnection(Connection):
        
 class ServerConnection(Connection):
     
-    def __init__(self, *args, **kwargs):  
-        super().__init__(*args, **kwargs)
+    def __init__(self, netmode):  
+        super().__init__(netmode)
         
-        self.dead_channels = set()
+        self.channel_class = ServerChannel
+        self.cached_packets = set()
         
     def on_delete(self):
         '''Callback for connection deletion
@@ -674,61 +496,20 @@ class ServerConnection(Connection):
         if self.replicable:
             self.replicable.request_unregistration()
             # We must be connected to have a controller
-            print("disconnected!".format(getattr(self.replicable, 'name', "")))
-                
-    def create_channel(self, instance_id):
-        """Creates a replication channel for replicable"""
-        try:
-            replicable = Replicable._instances[instance_id]
-        except KeyError as err:
-            raise LatencyInducedError("Replicable with id {} does not exist".format(err)) from None
-        
-        # Subscribe to this object's deletion
-        replicable.subscribe(self.notify_destroyed_replicable)
-        
-        # Return the new channel
-        return ServerChannel(self, replicable)
-    
-    def notify_destroyed_replicable(self, replicable):
+            print("disconnected!".format(self.replicable.name))
+                    
+    def notify_unregistration(self, replicable):
         '''Called when replicable dies
         @param replicable: replicable that died'''
-        channel = self.channels.get(replicable.instance_id)
+        super().notify_unregistration(replicable)
         
-        if channel is None:
-            return
+        instance_id = replicable.instance_id
+        packed_id = UInt8(instance_id)
         
-        # Tag this replicable for later deletion
-        self.dead_channels.add(channel)
-            
-    def get_method_replication(self):
-
-        check_is_owner = self.is_owner
-        packer = UInt8.pack
-        get_channel = self.channels.__getitem__
-        make_packet = Packet.__call__
-        
-        no_role = Roles.none
-        method_invoke = Protocols.method_invoke
-        
-        for replicable in Replicable:
-            if replicable.roles.remote == no_role:
-                continue
-            
-            # Determine if we own this replicable
-            is_owner = check_is_owner(replicable)
-            
-            # Get network ID
-            instance_id = replicable.instance_id
-            packed_id = packer(instance_id)
-            
-            # Get attribute channel
-            channel = get_channel(instance_id)
-            
-            # Send RPC calls if we are the owner
-            if is_owner and replicable._calls:
-                for rpc_call, reliable in channel.get_rpc_calls():
-                    yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
-                     
+        # Send delete packet 
+        self.cached_packets.add(Packet(protocol=Protocols.replication_del, 
+                                    payload=packed_id, reliable=True))
+                   
     def get_full_replication(self):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
@@ -745,7 +526,6 @@ class ServerConnection(Connection):
         replication_update = Protocols.replication_update
         
         for replicable in Replicable:
-            
             # We cannot network remote roles of None
             if replicable.roles.remote == no_role:
                 continue
@@ -785,23 +565,10 @@ class ServerConnection(Connection):
                     yield make_packet(protocol=replication_update, 
                                         payload=packed_id + attributes, 
                                         reliable=True)
-    
-        # If any replicables deleted
-        if self.dead_channels:
-            
-            for channel in self.dead_channels:
-                replicable = channel.replicable
-                instance_id = replicable.instance_id
-                packed_id = int_packer(instance_id)
-                # Remove it
-                self.channels.pop(instance_id)
-                # Send delete packet 
-                yield make_packet(protocol=Protocols.replication_del, 
-                                  payload=packed_id, 
-                                  reliable=True) 
-                
-                # Don't process rest              
-            self.dead_channels.clear()
+        # Send any additional data
+        if self.cached_packets:
+            yield from self.cached_packets
+            self.cached_packets.clear()
            
     def receive(self, packets):
         '''Server connection receive method
@@ -847,19 +614,17 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
-        self.sequence_handler = smallest_int_handler(self.sequence_max_size)
+        self.sequence_handler = handler_from_int(self.sequence_max_size)
         
         # Number of packets to ack per packet
         self.ack_window = 32
-        self.window_config = list(repeat(False, self.ack_window))
         
         # Bitfield and bitfield size
-        self.ack_bitfield = bitarray(self.window_config)
-        self.ack_size = bits2bytes(self.ack_window)
+        self.ack_bitfield = Bitfield(self.ack_window)
+        self.ack_packer = get_handler(StaticValue(Bitfield))
         
         # Protocol unpacker
         self.protocol_handler = UInt8
-        self.ack_value_handler = UInt8
         
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -897,17 +662,19 @@ class ConnectionInterface(metaclass=InstanceRegister):
         else:
             return super().__new__(cls)
     
-    def convert_address(self, addr):
-        return gethostbyname(addr[0]), addr[1]
-    
     def on_unregistered(self):    
         super().on_unregistered() 
            
         if self.connection:
             self.connection.on_delete()
     
+    def convert_address(self, addr):
+        '''Unifies alias address names
+        @param addr: address to clean'''
+        return gethostbyname(addr[0]), addr[1]
+    
     @classmethod
-    def by_status(cls, status, comparator=operator.eq):   
+    def by_status(cls, status, comparator=equals_operator):   
         count = 0
         for interface in cls:
             if comparator(interface.status, status):
@@ -938,7 +705,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
-            print("timeout")
+            print("Connection to {} timed out".format(self._addr))
             
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
@@ -949,6 +716,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         elif self.status == ConnectionStatus.connected:
             packets = self.connection.send(network_tick)
         
+        # Don't send any data between states
         else:
             return    
         
@@ -963,7 +731,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
             self.buffer.clear()
         
         # Create a bitfield using window config
-        ack_bitfield = bitarray(self.window_config)
+        ack_bitfield = self.ack_bitfield
         
         # The last received sequence number and received list
         remote_sequence = self.remote_sequence
@@ -982,13 +750,17 @@ class ConnectionInterface(metaclass=InstanceRegister):
         sequence = self.next_local_sequence
         
         # Construct header information
-        ack_info = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence), ack_bitfield.tobytes()]
+        ack_info = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence), self.ack_packer.pack(ack_bitfield)]
 
         # Store acknowledge request for reliable members of packet
         self.requested_ack[sequence] = packet_collection
         
-        # Return the packet as bytes
-        ack_info.append(packet_collection.to_bytes())
+        # Add user data after header
+        packet_bytes = packet_collection.to_bytes()
+        if packet_bytes:
+            ack_info.append(packet_bytes)
+
+        # Return as bytes
         return b''.join(ack_info)
 
     def receive(self, bytes_):
@@ -1001,7 +773,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         bytes_ = bytes_[self.sequence_handler.size():]
         
         # Read the acknowledgement bitfield
-        ack_bitfield = bitarray(); ack_bitfield.frombytes(bytes_[:self.ack_size])
+        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
         
         # Recreate packet collection
         packet_collection = PacketCollection().from_bytes(bytes_[self.ack_size:])
@@ -1022,6 +794,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Dictionary of packets waiting for acknowledgement
         requested_ack = self.requested_ack
+        ack_bitfield = self.ack_bitfield
         
         # Iterate over ACK bitfield
         for index in range(self.ack_window):
@@ -1068,24 +841,28 @@ class ServerInterface(ConnectionInterface):
     def __init__(self, addr):
         super().__init__(addr)
         
-        self.auth_error = None
+        self._auth_error = None
     
     def get_handshake(self):
         '''Will only exist if invoked'''
         connection_failed = self.connection is None
         
         if connection_failed:
-            if self.auth_error:
+            
+            if self._auth_error:
                 # Send the error code
-                error_name = self.auth_error.__class__.type_name
-                error_body = self.auth_error.args[0] if self.auth_error.args else ""
+                err_name = String.pack(type(self.auth_error).type_name)
+                err_body = String.pack(self._auth_error.args[0])
                 
-                # Yield reliable packet
-                return Packet(protocol=Protocols.auth_failure, payload=String.pack(error_name) + String.pack(error_body), on_success=self.delete)
+                # Yield a reliable packet
+                return Packet(protocol=Protocols.auth_failure, 
+                              payload=err_name + err_body, 
+                              on_success=self.delete)
         
         else:
             # Send acknowledgement
-            return Packet(protocol=Protocols.auth_success, payload=UInt8.pack(WorldInfo.netmode), 
+            return Packet(protocol=Protocols.auth_success, 
+                          payload=UInt8.pack(WorldInfo.netmode), 
                           on_success=self.connected)
             
     def receive_handshake(self, packet):
@@ -1096,14 +873,15 @@ class ServerInterface(ConnectionInterface):
         try:
             WorldInfo.rules.pre_initialise(self.instance_id, netmode)
         
-        # If a NetworkError is raised, store result
+        # If a NetworkError is raised store the result
         except NetworkError as err:
-            self.auth_error = err            
-            return 
-    
-        self.connection = ServerConnection(netmode)
+            self._auth_error = err            
         
-        self.connection.replicable = WorldInfo.rules.post_initialise(self.connection)
+        else:
+            self.connection = ServerConnection(netmode)
+            returned_replicable = WorldInfo.rules.post_initialise(self.connection)
+            if returned_replicable:
+                self.connection.replicable = weak_proxy(returned_replicable)
 
 class ClientInterface(ConnectionInterface):
     
@@ -1117,51 +895,19 @@ class ClientInterface(ConnectionInterface):
         protocol = packet.protocol
 
         if protocol == Protocols.auth_failure:
-            error_type = String.unpack_from(packet.payload)
-            error_body = String.unpack_from(packet.payload[String.size(packet.payload):])
-            error = NetworkError.from_type_name(error_type)
+            err_type = String.unpack_from(packet.payload)
+            err_body = String.unpack_from(packet.payload[String.size(packet.payload):])
+            err = NetworkError.from_type_name(err_type)
             
-            if error is not None:
-                raise error(error_body) from None
+            if err is not None:
+                raise err(err_body)
         
         # Get remote network mode
         netmode = UInt8.unpack_from(packet.payload)
-
         # Must be success
         self.connection = ClientConnection(netmode)
-        
         self.connected()
-        
-class System(metaclass=InstanceRegister):
-
-    def __init__(self, **kwargs):
-        super().__init__(instance_id=None, allow_random_key=True, register=True, **kwargs)
-        
-        self.active = True
-    
-    def pre_replication(self, delta_time):
-        pass
-    
-    def pre_update(self, delta_time):
-        pass
-    
-    def post_update(self, delta_time):
-        pass
-    
-class ElapsedTime:
-    '''Context manager to determine elapsed time since last call'''
-    def __init__(self):
-        self.last = monotonic()
-        self.last_delta_time = 0.0
-    
-    def get_deltatime(self):
-        new_time = monotonic()
-        delta_time = new_time - self.last
-        self.last = new_time
-        self.last_delta_time = delta_time
-        return delta_time
-    
-                
+                                    
 class Network(socket):
     
     def __init__(self, addr, port, update_interval=1/5):
@@ -1174,7 +920,6 @@ class Network(socket):
         self._interval = update_interval
         self._last_sent = 0.0
         self._started = monotonic()
-        self.clock = ElapsedTime()
         
         self.sent_bytes = 0
         self.received_bytes = 0
@@ -1192,27 +937,22 @@ class Network(socket):
     @property
     def receive_rate(self):
         return (self.received_bytes / (monotonic() - self._started))
-        
-    def on_tick(self):
-        self._last_sent = monotonic()
-    
-    def stop(self):
-        self.close()
-                
-    def stop(self):
-        self.close()
             
+    def stop(self):
+        self.close()
+
     def sendto(self, *args, **kwargs):
         '''Overrides sendto method to record sent time'''
         result = super().sendto(*args, **kwargs)
+        print(args[0])
         self.sent_bytes += result
         return result
     
-    def receive_from(self, buff_size=63553):
+    def recvfrom(self, buff_size=63553):
         '''A partial function for recvfrom
         Used in iter(func, sentinel)'''
         try:
-            return self.recvfrom(buff_size)
+            return super().recvfrom(buff_size)
         except socket_error:
             return    
     
@@ -1222,19 +962,23 @@ class Network(socket):
         get_connection = ConnectionInterface.get_from_graph
         
         # Receives all incoming data
-        for bytes_, addr in iter(self.receive_from, None):
+        for bytes_, addr in iter(self.recvfrom, None):
+            # Find existing connection for address
             try:
                 connection = get_connection(addr)
+                
+            # Create a new interface to handle connection
             except LookupError:
                 connection = ConnectionInterface(addr)
             
+            # Dispatch data to connection
             connection.receive(bytes_)
             self.received_bytes += len(bytes_)
         
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
         
-    def send(self):
+    def send(self, rpc_only=False):
         '''Send all connection data and update timeouts'''
         # A switch between emergency and normal
         network_tick = self.can_send
@@ -1253,7 +997,7 @@ class Network(socket):
                 continue
             
             # Give the option to send nothing
-            data = connection.send(network_tick)
+            data = connection.send(rpc_only)
             
             # If returns data, send it
             if data:
@@ -1261,89 +1005,45 @@ class Network(socket):
                 
         # Delete dead connections
         ConnectionInterface.update_graph()
-        # Remember last non urgent
-        if network_tick:
-            self.on_tick()
     
     def connect_to(self, conn):
         return ConnectionInterface(conn)
     
-    def update(self, delta_time=None):
-        
-        # Determine the elapsed time since the last update
-        if delta_time is None:
-            delta_time = self.clock.get_deltatime()
-            
-        # Update each system at intervals
-        for system in System:
-            # Ensure system is active
-            if system.active:
-                system.pre_replication(delta_time)
-                # Update changes to replicable graph
-                Replicable.update_graph() 
-        
-        # Receive data from peer
-        self.receive()
-        
-        # Update any changes made to replicable graph
-        Replicable.update_graph()
-        
-        # Update each system at intervals
-        for system in System:
-            if system.active:
-                system.pre_update(delta_time)
-                Replicable.update_graph()
-        
-        # Update all replicables
-        for replicable in WorldInfo.actors:
-            replicable.update(delta_time)
-
-            if hasattr(replicable, "player_input") and isinstance(replicable, Controller):
-                replicable.player_update(delta_time)
-        
-        # Update any following changes
-        Replicable.update_graph()
-            
-        # Upate before sending
-        for system in System:
-            if system.active:
-                system.post_update(delta_time)
-                Replicable.update_graph()
-        
-        self.send()
-
-class LazyReplicableProxy:
+class ReplicableProxy:
     """Lazy loading proxy to Replicable references
     Used to send references over the network"""
-    __slots__ = ["obj", "target", "__weakref__"]
+    __slots__ = ["reference", "instance_id", "__weakref__"]
     
-    def __init__(self, target):
-        object.__setattr__(self, "target", target)
-        a = self.__class__
+    def __init__(self, instance_id):
+        object.__setattr__(self, "instance_id", instance_id)
         
     @property
     def _obj(self):
         '''Returns the reference when valid, or None when invalid'''
         try:
-            return object.__getattribute__(self, "obj")
+            return object.__getattribute__(self, "reference")
+        
         except AttributeError:
-            instance_id = object.__getattribute__(self, "target")
+            instance_id = object.__getattribute__(self, "instance_id")
+            
+            # Get the instance by instance id
             try:
                 replicable_instance = WorldInfo.get_actor(instance_id)
             except LookupError:
                 return
             
+            # Don't return proxy to local authorities
             if replicable_instance._local_authority:
                 return
             
             child = weak_proxy(replicable_instance)
-            object.__setattr__(self, "obj", child)
+            object.__setattr__(self, "reference", child)
+            
             return child
         
     def __getattribute__(self, name):
         return getattr(object.__getattribute__(self, "_obj"), name)
 
-        
     def __delattr__(self, name):
         delattr(object.__getattribute__(self, "_obj"), name)
         
@@ -1395,25 +1095,25 @@ class LazyReplicableProxy:
         return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
     
     def __new__(cls, obj, *args, **kwargs):
-        """
-        creates an proxy instance referencing `obj`. (obj, *args, **kwargs) are
-        passed to this class' __init__, so deriving classes can define an 
-        __init__ method of their own.
-        note: _class_proxy_cache is unique per deriving class (each deriving
-        class must hold its own cache)
-        """
-        try:
-            cache = cls.__dict__["_class_proxy_cache"]
-        except KeyError:
-            cls._class_proxy_cache = cache = {}
-        
-        try:
-            theclass = cache[obj.__class__]
-        except KeyError:
-            theclass = cache[obj.__class__] = cls._create_class_proxy(obj.__class__)
-        ins = object.__new__(theclass)
-        theclass.__init__(ins, obj, *args, **kwargs)
-        return ins
+            """
+            creates an proxy instance referencing `obj`. (obj, *args, **kwargs) are
+            passed to this class' __init__, so deriving classes can define an 
+            __init__ method of their own.
+            note: _class_proxy_cache is unique per deriving class (each deriving
+            class must hold its own cache)
+            """
+            try:
+                cache = cls.__dict__["_class_proxy_cache"]
+            except KeyError:
+                cls._class_proxy_cache = cache = {}
+            
+            try:
+                theclass = cache[obj.__class__]
+            except KeyError:
+                theclass = cache[obj.__class__] = cls._create_class_proxy(obj.__class__)
+            ins = object.__new__(theclass)
+            theclass.__init__(ins, obj, *args, **kwargs)
+            return ins
     
 class ReplicableProxyHandler:
     """Handler for packing replicable proxy
@@ -1432,12 +1132,12 @@ class ReplicableProxyHandler:
         try:
             replicable = WorldInfo.get_actor(instance_id)
             # Check that it was made locally and has a remote role
-            assert replicable._local_authority and replicable.roles.remote != Roles.none
-            return replicable
+            assert replicable._local_authority #and replicable.roles.remote != Roles.none
+            return weak_proxy(replicable)
         
         # We can't be sure that this is the correct instance, use proxy to delay checks (hoping it will have now been replicated)
         except (LookupError, AssertionError):
-            return LazyReplicableProxy(instance_id)
+            return ReplicableProxy(instance_id)
         
     unpack_from = unpack    
     size = UInt8.size

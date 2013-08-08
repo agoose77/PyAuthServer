@@ -1,40 +1,42 @@
-from .bases import PermissionRegister
-from .enums import Roles
-from .containers import Attribute
+from .registers import ReplicableRegister
+from .enums import Roles, Netmodes
+from .containers import Attribute, AttributeStorageContainer, RPCStorageContainer
 from .modifiers import simulated
-from inspect import getmembers
-from collections import defaultdict, deque
+from .rules import BaseRules
 
+from collections import defaultdict
 
-class Replicable(metaclass=PermissionRegister):
+class Replicable(metaclass=ReplicableRegister):
     '''Replicable base class
     Holds record of instantiated replicables and replicable types
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors) and complaining attributes'''
     _by_types = defaultdict(list)
      
-    roles = Attribute(Roles(Roles.authority, Roles.none))
+    roles = Attribute(
+                      Roles(
+                            Roles.authority, 
+                            Roles.none
+                            )
+                      )
     
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
-        # If this is a static mapping  
-        self._static = static and instance_id is not None
         
-        # Setup data access
-        self._calls = deque()
-        self._data = {}
-        self._complain = {}    
-        self._subscribers = []  
-        self._rpc_functions = []
+        # If this is a static mapping (requires static flag and a matchable ID)
+        self._static = static and instance_id is not None
         
         # Instantiate parent (this is where the creation callback may be called from)
         super().__init__(instance_id=instance_id, register=register, allow_random_key=True, **kwargs)
         
-        # Ensures all RPC / attributes registered for use
-        for name, value in sorted(getmembers(self)):
-            getattr(self, name)
-    
+        # Setup the attribute storage
+        self.attribute_storage = AttributeStorageContainer(self)
+        self.rpc_storage = RPCStorageContainer(self)
+        
+        self.attribute_storage.register_storage_interfaces()
+        self.rpc_storage.register_storage_interfaces()
+        
     @classmethod
     def _create_or_return(cls, base_cls, instance_id, register=False):
         '''Called by the replication system, assumes non static if creating
@@ -51,7 +53,7 @@ class Replicable(metaclass=PermissionRegister):
         
         else:
             # If we find a locally defined replicable (if instance_id was None when created -> not static)
-            if existing._local_authority: # Without authority
+            if existing._local_authority:
                 # Make the class and overwrite the id
                 return base_cls(instance_id=instance_id, register=register, static=False)
             
@@ -63,14 +65,13 @@ class Replicable(metaclass=PermissionRegister):
         Handles edge cases such as static replicables
         @param instance_id: instance id to register with
         @param verbose: if verbose debugging should occur'''
-        # This is static or replicated then it's local
+        # This is not static or replicated then it's local
         if instance_id is None: 
             self._local_authority = True
             
         # Therefore we will have authority to change things
-        if instance_id in self.get_entire_graph_ids():
-            instance = self.remove_from_entire_graph(instance_id)
-            
+        if instance_id in self.__class__.get_entire_graph_ids(instigator=self):
+            instance = self.__class__.remove_from_entire_graph(instance_id)
             # If the instance is not local, then we have a conflict
             assert instance._local_authority, "Authority over instance id {} is unresolveable".format(instance_id)
             
@@ -98,30 +99,18 @@ class Replicable(metaclass=PermissionRegister):
         '''Called on unpossession by replicable
         May be due to death of replicable'''
         self.owner = None
-    
-    def subscribe(self, subscriber):
-        '''Subscribes to death of replicable
-        @param subscriber: subscriber to notify'''
-        self._subscribers.append(subscriber)
-    
-    def unsubscribe(self, subscriber):
-        '''Unsubscribes from death notification
-        @param subscriber: subscriber to remove'''
-        self._subscribers.remove(subscriber)
         
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
-        self.__class__._by_types[type(self)].append(self)
         super().on_registered()
+        self.__class__._by_types[type(self)].append(self)
         
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
         super().on_unregistered()
         self.__class__._by_types[type(self)].remove(self) 
-        for subscriber in self._subscribers:
-            subscriber(self)
     
     def on_notify(self, name):
         '''Called on notifier attribute change
@@ -152,12 +141,20 @@ class Replicable(metaclass=PermissionRegister):
     
 class BaseWorldInfo(Replicable):
     '''Holds info about game state'''
-    netmode = None
-    rules = None
-    game = None
+    netmode = Netmodes.server
+    rules = BaseRules
     
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))    
+    roles = Attribute(
+                      Roles(
+                            Roles.authority, 
+                            Roles.simulated_proxy
+                            )
+                      )    
     elapsed = Attribute(0.0, complain=False)
+    
+    def conditions(self, is_owner, is_complain, is_initial):
+        if is_initial:
+            yield "elapsed"
     
     @property
     def actors(self):
@@ -168,10 +165,6 @@ class BaseWorldInfo(Replicable):
         '''Returns registered actors that are subclasses of a given type
         @param actor_type: type to compare against'''
         return (a for a in self.actors if isinstance(a, actor_type))
-    
-    def conditions(self, is_owner, is_complain, is_initial):
-        if is_initial:
-            yield "elapsed"
 
     @simulated
     def update(self, delta):
@@ -182,7 +175,8 @@ class BaseWorldInfo(Replicable):
         return Replicable._by_types.get(name)
         
     get_actor = simulated(Replicable.get_from_graph)
-                
+    has_actor = simulated(Replicable.graph_has_instance)
+     
 class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
