@@ -12,9 +12,9 @@ class ArgumentSerialiser:
     
     def __init__(self, arguments):
         '''Accepts ordered dict as argument'''        
-        self.bools = [(name, value) for name, value in arguments.items() if value.type is bool]
-        self.others = [(name, value) for name, value in arguments.items() if value.type is not bool]
-        self.handlers = [(name, get_handler(value)) for name, value in self.others]
+        self.bools = [(key, value) for key, value in arguments.items() if value.type is bool]
+        self.others = [(key, value) for key, value in arguments.items() if value.type is not bool]
+        self.handlers = [(key, get_handler(value)) for key, value in self.others]
         
         self.total_normal = len(self.others)
         self.total_bools = len(self.bools)
@@ -25,7 +25,22 @@ class ArgumentSerialiser:
         self.bool_bits = Bitfield(size=self.total_bools)
         
         self.bitfield_packer = get_handler(StaticValue(Bitfield))
+    
+    def get_size(self, bytes_):
+        self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
+        bytes_ = bytes_[self.content_bits.footprint:]
         
+        size = self.bitfield_packer.size()
+        
+        for included, (key, handler) in zip(self.content_bits, self.handlers):
+            if not included:
+                continue
+            
+            size += handler.size(bytes_)
+            bytes_ = bytes_[handler.size(bytes_):]
+        
+        return size
+    
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
         self.bitfield_packer.unpack_merge(self.content_bits, bytes_)

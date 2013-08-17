@@ -1,5 +1,8 @@
 from math import ceil 
 
+from .serialiser import UInt8, handler_from_byte_length, handler_from_bit_length, bits2bytes
+from .handler_interfaces import register_handler
+
 class Bitfield:
     
     @classmethod
@@ -52,5 +55,32 @@ class Bitfield:
     def clear(self):
         self._value = 0
 
-def bits2bytes(bits):
-    return ceil(bits / 8)
+class BitfieldInt:
+    @classmethod
+    def pack(cls, field):
+        # Get the smallest needed packer for this bitfield
+        field_packer = handler_from_byte_length(field.footprint)
+        return UInt8.pack(field._size) + field_packer.pack(field._value)
+    
+    @classmethod
+    def unpack(cls, bytes_):
+        field_size = UInt8.unpack_from(bytes_)
+        field_packer = handler_from_bit_length(field_size)
+        
+        # Assume 8 bits
+        field = Bitfield(field_size, field_packer.unpack_from(bytes_[1:]))
+        return field
+    
+    @classmethod
+    def unpack_merge(cls, field, bytes_):
+        field_packer = handler_from_byte_length(field.footprint)
+        field._value = field_packer.unpack_from(bytes_[1:])
+        
+    unpack_from = unpack
+    
+    @classmethod
+    def size(cls, bytes_):
+        field_size = UInt8.unpack_from(bytes_)
+        return bits2bytes(field_size) + 1 
+
+register_handler(Bitfield, BitfieldInt)

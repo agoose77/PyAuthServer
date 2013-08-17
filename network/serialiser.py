@@ -1,5 +1,6 @@
 from struct import Struct
-from .bitfield import bits2bytes, Bitfield
+from math import ceil
+
 from .handler_interfaces import register_handler
 
 class IStruct(Struct):
@@ -21,6 +22,9 @@ Float8 = IStruct("@d")
 
 int_packers = [UInt8, UInt16, UInt32, UInt64]
 int_sized = {x.size():x for x in int_packers}
+
+def bits2bytes(bits):
+    return ceil(bits / 8)
 
 def handler_from_bit_length(bits):
     bytes_ = bits2bytes(bits)
@@ -51,39 +55,10 @@ class String:
     @classmethod
     def unpack_from(cls, bytes_):
         length = cls.size(bytes_)
-        return cls.unpack(bytes_[:length])
-
-class BitfieldInt:
-    @classmethod
-    def pack(cls, field):
-        # Get the smallest needed packer for this bitfield
-        field_packer = handler_from_byte_length(field.footprint)
-        return UInt8.pack(field._size) + field_packer.pack(field._value)
-    
-    @classmethod
-    def unpack(cls, bytes_):
-        field_size = UInt8.unpack_from(bytes_)
-        field_packer = handler_from_bit_length(field_size)
-        
-        # Assume 8 bits
-        field = Bitfield(field_size, field_packer.unpack_from(bytes_[1:]))
-        return field
-    
-    @classmethod
-    def unpack_merge(cls, field, bytes_):
-        field_packer = handler_from_byte_length(field.footprint)
-        field._value = field_packer.unpack_from(bytes[1:])
-        
-    unpack_from = unpack
-    
-    @classmethod
-    def size(cls, bytes_):
-        field_size = UInt8.unpack_from(bytes_)
-        return bits2bytes(field_size) + 1        
+        return cls.unpack(bytes_[:length])       
 
 # Register handlers for native types
 register_handler(str, String)
 register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 8)), is_condition=True)
 register_handler(float, lambda x: Float8 if x.data.get("max_precision") else Float4, is_condition=True)
-register_handler(Bitfield, BitfieldInt)
 

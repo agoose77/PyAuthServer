@@ -29,9 +29,17 @@ def get_handler(value):
     '''Takes a StaticValue (or subclass thereof) and return handler
     @param value: StaticValue subclass'''
     
-    try:    
-        callback, is_condition = handlers[value.type]
-    except KeyError:
-        raise TypeError("No handler for object with type {}".format(value.type))
-    else:
-        return callback(value) if is_condition else callback
+    value_type = value.type
+    
+    if not value_type in handlers:
+        
+        handled_superclasses = [cls for cls in value.type.__mro__ if cls in handlers]
+        
+        try:
+            value_type = handled_superclasses[0]
+        except IndexError:
+            raise TypeError("No handler for object with type {}".format(value.type))
+    
+    callback, is_condition = handlers[value_type]
+    
+    return callback(value) if is_condition else callback

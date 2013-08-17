@@ -113,8 +113,14 @@ class InstanceRegister(TypeRegister):
         for subscriber in cls._subscribers:
             subscriber.notify_unregistration(instance)
     
-    def subscribe(cls, subscriber):
+    def subscribe(cls, subscriber, ignore_existing=False):
         cls._subscribers.add(subscriber)
+        # Register existing instances
+        if ignore_existing:
+            return
+        
+        for instance in cls._instances.values():
+            subscriber.notify_registration(instance)
         
     def unsubscribe(cls, subscriber):
         cls._subscribers.remove(subscriber)
@@ -244,7 +250,7 @@ class ReplicableRegister(InstanceRegister):
         
         @wraps(func)
         def func_wrapper(*args, **kwargs):
-            print("Checking permission...")
+
             try:
                 assumed_instance = args[0]
                 

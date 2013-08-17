@@ -45,7 +45,7 @@ class PacketCollection:
         
         # Otherwise recreate members
         else:
-            self.members = [m for p in members for m in p]
+            self.members = [m for p in members for m in p.members]
     
     @property
     def reliable_members(self):
@@ -81,7 +81,6 @@ class PacketCollection:
     def from_bytes(self, bytes_):
         members = self.members = []
         append = members.append
-        
         while bytes_:
             packet = Packet()
             bytes_ = packet.take_from(bytes_)
@@ -192,28 +191,10 @@ class Channel:
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
         # Sort by name (must be the same on both client and server)
-        self.sorted_attributes = self.attribute_storage.get_ordered_attributes()
+        self.sorted_attributes = self.attribute_storage.get_ordered_members()
         # Create a serialiser instance
         self.serialiser = ArgumentSerialiser(self.sorted_attributes)
-        # Store dictionary of complaining values (compared with the replicable's account)
-        self.complain_status = self.attribute_storage.get_complaint_status()
-        # Store dictionary of id for each attribute value
-        self._sent = {key: static_description(value.value) for key, value in self.attributes.items()}
-    
-    @property
-    def is_complain(self):
-        '''Get the complaint status of this channel
-        Compares the complaining state of the replicable against the channel'''
-        return self.attribute_storage.get_complaint_status() == self.complain_status
-    
-    @is_complain.setter
-    def is_complain(self, value):
-        if value:
-            return
         
-        # This will only stop complaints
-        self.complain_status.update(self.attribute_storage.get_complaint_status())
-    
     def get_rpc_calls(self):   
         '''Returns the requested RPC calls in a packaged format
         Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
@@ -237,7 +218,11 @@ class Channel:
             print("Error invoking RPC: No RPC function with id {}".format(rpc_id))
         else:
             method.execute(rpc_call[1:]) 
-                 
+    
+    @property
+    def has_rpc_calls(self):
+        return bool(self.replicable.rpc_storage.data)
+            
 class ClientChannel(Channel):      
         
     def set_attributes(self, data):
@@ -258,22 +243,28 @@ class ClientChannel(Channel):
                                                                                             
 class ServerChannel(Channel):
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Store dictionary of complaining values (compared with the replicable's account)
+        self.complain_status = self.attribute_storage.complaints.copy()
+    
     def get_attributes(self, is_owner):
         # Get replicable and its class
         replicable = self.replicable
-
+        is_complain = self.attribute_storage.complaints == self.complain_status
+        
         # Set the role context for whom we replicate
         replicable.roles.context = is_owner
         
         # Get names of replicable attributes
-        can_replicate = replicable.conditions(is_owner,
-                            self.is_complain,
-                            self.is_initial)
+        can_replicate = replicable.conditions(is_owner, is_complain, self.is_initial)
         
         # Local access
-        previous_hashes = self._sent
+        previous_hashes = self.complain_status
+        complaint_hashes = self.attribute_storage.complaints
+        
         get_description = static_description
-        get_attribute = self.attribute_storage.get_attribute_by_name
+        get_attribute = self.attribute_storage.get_member_by_name
         attribute_data = self.attribute_storage.data
         
         # Store dict of attribute-> value
@@ -288,22 +279,20 @@ class ServerChannel(Channel):
             value = attribute_data[attribute]
             
             # Check if the last hash is the same
-            last_hash = previous_hashes[name]
-            new_hash = get_description(value)
+            last_hash = previous_hashes[attribute]
+            
+            # Use existing hash or new one if not stored
+            new_hash = complaint_hashes[attribute] if attribute in complaint_hashes else get_description(value)
             
             # If values match, don't update
             if last_hash == new_hash:
                 continue 
             
             # Add value to data dict
-            to_serialise[name] = value
+            to_serialise[attribute] = value
             
-            # Hash the last sent value (for later comparison)           
-            previous_hashes[name] = new_hash
-        
-        # Stop complaining attributes for this channel
-        self.is_complain = False
-        
+            previous_hashes[attribute] = new_hash
+                            
         # We must have now replicated
         self.is_initial = False
         
@@ -314,13 +303,14 @@ class ServerChannel(Channel):
 
 class Connection(InstanceNotifier):
     
+    channel_class = None
+    
     def __init__(self, netmode):
         super().__init__()
         
         self.netmode = netmode
         self.channels = {}
         
-        self.channel_class = None
         self.replicable = None
         
         Replicable.subscribe(self)
@@ -328,15 +318,12 @@ class Connection(InstanceNotifier):
     def notify_unregistration(self, replicable):
         self.channels.pop(replicable.instance_id)
     
-    def notify_registration(self, instance_id):
+    def notify_registration(self, replicable):
         '''Create channel for replicable with network id
         @param instance_id: network id of replicable'''
-        try:
-            replicable = WorldInfo.get_actor(instance_id)
-        except KeyError as err:
-            raise LatencyInducedError("Replicable with id {} does not exist".format(err))
-        
-        self.channels[instance_id] = self.channel_class(self, weak_proxy(replicable))
+        proxy = weak_proxy(replicable)
+        channel = self.channel_class(self, proxy)    
+        self.channels[replicable.instance_id] = channel
         
     def on_delete(self):
         pass
@@ -345,21 +332,17 @@ class Connection(InstanceNotifier):
         '''Determines if a connection owns this replicable
         Searches for Replicable with same network id as connection Controller'''  
         last = None
-        
+            
         # Walk the parent tree until no parent
-        try:
-            while replicable:
-                owner = getattr(replicable, "owner", None)
-                last, replicable = replicable, owner
-        
-        except AttributeError:
-            pass
+        while replicable:
+            owner = getattr(replicable, "owner", None)
+            last, replicable = replicable, owner
         
         # Return the condition of parent id equating to the connection controller id 
         try:                   
-            return last.instance_id == self.replicable.instance_id        
+            return last.instance_id == self.replicable.instance_id     
         except AttributeError:
-            return False     
+            return False  
         
     def get_method_replication(self):
 
@@ -370,15 +353,12 @@ class Connection(InstanceNotifier):
         
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
-        
+                
         for replicable in Replicable:
-            
+
             if replicable.roles.remote == no_role:
                 continue
-            
-            # Determine if we own this replicable
-            is_owner = check_is_owner(replicable)
-            
+          
             # Get network ID
             instance_id = replicable.instance_id
             packed_id = packer(instance_id)
@@ -387,16 +367,13 @@ class Connection(InstanceNotifier):
             channel = get_channel(instance_id)
             
             # Send RPC calls if we are the owner
-            if is_owner and replicable._calls:
+            if channel.has_rpc_calls and check_is_owner(replicable):
                 for rpc_call, reliable in channel.get_rpc_calls():
                     yield make_packet(protocol=method_invoke, payload=packed_id + rpc_call, reliable=reliable)
     
 class ClientConnection(Connection):
     
-    def __init__(self, netmode):
-        super().__init__(netmode)
-        
-        self.channel_class = ClientChannel
+    channel_class = ClientChannel
     
     def set_replication(self, packet):
         '''Replication function
@@ -481,10 +458,10 @@ class ClientConnection(Connection):
        
 class ServerConnection(Connection):
     
+    channel_class = ServerChannel
+    
     def __init__(self, netmode):  
         super().__init__(netmode)
-        
-        self.channel_class = ServerChannel
         self.cached_packets = set()
         
     def on_delete(self):
@@ -504,7 +481,7 @@ class ServerConnection(Connection):
         super().notify_unregistration(replicable)
         
         instance_id = replicable.instance_id
-        packed_id = UInt8(instance_id)
+        packed_id = UInt8.pack(instance_id)
         
         # Send delete packet 
         self.cached_packets.add(Packet(protocol=Protocols.replication_del, 
@@ -529,7 +506,7 @@ class ServerConnection(Connection):
             # We cannot network remote roles of None
             if replicable.roles.remote == no_role:
                 continue
-            
+
             # Determine if we own this replicable
             is_owner = check_is_owner(replicable)
             
@@ -541,14 +518,14 @@ class ServerConnection(Connection):
             channel = get_channel(instance_id)
 
             # Send RPC calls if we are the owner
-            if is_owner and replicable._calls:
+            if channel.has_rpc_calls and is_owner:
                 for rpc_call, reliable in channel.get_rpc_calls():
                     yield make_packet(protocol=method_invoke, 
                                       payload=packed_id + rpc_call, 
                                       reliable=reliable)
             
-            # Only send attributes if relevant
-            if is_owner or is_relevant(self, replicable):
+            # Only send attributes if relevant (player controller and replicable)
+            if is_owner or is_relevant(self.replicable, replicable):
                 # If we've never replicated to this channel
                 if channel.is_initial:
                     # Pack the class name
@@ -706,7 +683,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
             print("Connection to {} timed out".format(self._addr))
-            
+               
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
             packets = self.get_handshake()
@@ -757,6 +734,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Add user data after header
         packet_bytes = packet_collection.to_bytes()
+        
         if packet_bytes:
             ack_info.append(packet_bytes)
 
@@ -774,9 +752,10 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Read the acknowledgement bitfield
         self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
+        bytes_ = bytes_[self.ack_packer.size(bytes_):]
         
         # Recreate packet collection
-        packet_collection = PacketCollection().from_bytes(bytes_[self.ack_size:])
+        packet_collection = PacketCollection().from_bytes(bytes_)
     
         # Store the received time
         self.last_received = monotonic()
@@ -875,12 +854,13 @@ class ServerInterface(ConnectionInterface):
         
         # If a NetworkError is raised store the result
         except NetworkError as err:
-            self._auth_error = err            
-        
+            self._auth_error = err           
+
         else:
             self.connection = ServerConnection(netmode)
             returned_replicable = WorldInfo.rules.post_initialise(self.connection)
-            if returned_replicable:
+            # Replicable is boolean false until registered (user can force register though)!
+            if returned_replicable is not None:
                 self.connection.replicable = weak_proxy(returned_replicable)
 
 class ClientInterface(ConnectionInterface):
@@ -944,7 +924,7 @@ class Network(socket):
     def sendto(self, *args, **kwargs):
         '''Overrides sendto method to record sent time'''
         result = super().sendto(*args, **kwargs)
-        print(args[0])
+      
         self.sent_bytes += result
         return result
     
@@ -978,11 +958,11 @@ class Network(socket):
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
         
-    def send(self, rpc_only=False):
+    def send(self):
         '''Send all connection data and update timeouts'''
         # A switch between emergency and normal
         network_tick = self.can_send
-        
+       
         # Get connections
         to_delete = []
         
@@ -997,12 +977,15 @@ class Network(socket):
                 continue
             
             # Give the option to send nothing
-            data = connection.send(rpc_only)
+            data = connection.send(network_tick)
             
             # If returns data, send it
             if data:
                 send_func(data, connection.instance_id) 
-                
+        
+        if network_tick:
+            self._last_sent = monotonic()
+        
         # Delete dead connections
         ConnectionInterface.update_graph()
     

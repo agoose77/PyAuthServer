@@ -15,22 +15,19 @@ class StaticValue:
         return "Static Typed value: {}".format(self.type)
 
 class Attribute(StaticValue):
-    '''Replicable attribute descriptor
-    Extends Static Value, using type of initial value
-    Holds additional behavioural parameters'''
-    
     __slots__ = "notify", "complain", "name", "_data", "_value"
     
-    def __init__(self, value=None, notify=False, complain=True, type_of=None, **kwargs):
+    def __init__(self, value=None, type_of=None, notify=False, complain=True, **kwargs):
             
         super().__init__(type_of or type(value), **kwargs)
         
         self.notify = notify
         self.complain = complain
+        
         self.name = None
         
-        self._value = value
         self._data = {}
+        self._value = value
     
     @property
     def copied_value(self):
@@ -43,7 +40,6 @@ class Attribute(StaticValue):
         '''Registers attribute for instance
         Stores name of attribute through search'''
         self._data[instance] = storage_interface
-        
         storage_interface.value = self.copied_value
     
     def __get__(self, instance, base):        
@@ -79,3 +75,4 @@ class Attribute(StaticValue):
          
     def __str__(self):
         return "[Attribute] name: {}, type: {}, initial value: {}".format(self.name, self.type.__name__, self._value)
+

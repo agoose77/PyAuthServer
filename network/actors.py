@@ -1,6 +1,7 @@
 from .registers import ReplicableRegister
 from .enums import Roles, Netmodes
-from .containers import Attribute, AttributeStorageContainer, RPCStorageContainer
+from .containers import AttributeStorageContainer, RPCStorageContainer
+from .descriptors import Attribute
 from .modifiers import simulated
 from .rules import BaseRules
 
@@ -23,12 +24,9 @@ class Replicable(metaclass=ReplicableRegister):
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
-        
+        print("New", self)
         # If this is a static mapping (requires static flag and a matchable ID)
         self._static = static and instance_id is not None
-        
-        # Instantiate parent (this is where the creation callback may be called from)
-        super().__init__(instance_id=instance_id, register=register, allow_random_key=True, **kwargs)
         
         # Setup the attribute storage
         self.attribute_storage = AttributeStorageContainer(self)
@@ -36,6 +34,9 @@ class Replicable(metaclass=ReplicableRegister):
         
         self.attribute_storage.register_storage_interfaces()
         self.rpc_storage.register_storage_interfaces()
+        
+        # Instantiate parent (this is where the creation callback may be called from)
+        super().__init__(instance_id=instance_id, register=register, allow_random_key=True, **kwargs)
         
     @classmethod
     def _create_or_return(cls, base_cls, instance_id, register=False):

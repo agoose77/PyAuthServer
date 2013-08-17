@@ -7,3 +7,4 @@ from .actors import *
 from .handler_interfaces import *
 from .descriptors import *
 from .rpc import *
+from .data_struct import *

@@ -21,7 +21,7 @@ class Netmodes(metaclass=Enum):
     values ="server", "client", "listen", "single"
 
 class Roles(metaclass=Enum):
-    values = "none", "simulated_proxy", "autonomous_proxy", "authority"
+    values = "none", "dumb_proxy", "simulated_proxy", "autonomous_proxy", "authority"
     
     __slots__ = "local", "remote", "context"
     
