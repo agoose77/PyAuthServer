@@ -1,34 +1,35 @@
-from bge import logic, types, context
+from bge import logic, types
 from functools import wraps
 
 from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo, Struct, Attribute
-from mathutils import Vector, Euler, Quaternion
+from mathutils import Vector, Euler, Quaternion, Matrix
 
 class RigidBodyState(Struct):
     
     def __init__(self):
         super().__init__()
-        self._modified = self._container.complaints.copy()
+        
+        self._modified = self.__description__()
         
     @property
     def modified(self):
-        return self._modified == self._container.complaints
+        return self._modified == self.__description__()
     
     @modified.setter
     def modified(self, status):
         if not status:
-            self._modified = self._container.complaints.copy()
+            self._modified = self.__description__()
     
     position = Attribute(Vector())
     velocity = Attribute(Vector())
     angular = Attribute(Vector())
     rotation = Attribute(Euler())
-    timestamp = Attribute(0.0)
 
 class EngineObject:
     
     def __new__(cls, obj_name, *args, **kwargs):
-        obj = logic.addObject(obj_name, context.object)
+        scene = logic.getCurrentScene()
+        obj = scene.addObject(obj_name, scene.objects['Cube'], 0)
         return super().__new__(cls, obj)
     
 class GameObject(EngineObject, types.KX_GameObject):

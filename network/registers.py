@@ -184,16 +184,28 @@ class InstanceRegister(TypeRegister):
     def _register_to_graph(cls, instance):
         cls._instances[instance.instance_id] = instance
         cls._to_register.remove(instance)
-        instance.on_registered()
         
-        cls.notify_of_registration(instance)
+        try:
+            instance.on_registered()
+            
+        except Exception as err:
+            raise err
+        
+        finally:
+            cls.notify_of_registration(instance)
         
     def _unregister_from_graph(cls, instance):
         cls._instances.pop(instance.instance_id)
         cls._to_unregister.remove(instance)
-        instance.on_unregistered()
         
-        cls.notify_of_unregistration(instance)
+        try:
+            instance.on_unregistered()
+            
+        except Exception as err:
+            raise err
+        
+        finally:
+            cls.notify_of_unregistration(instance)
         
     def __iter__(cls):
         return iter(cls._instances.values()) 

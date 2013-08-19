@@ -1,5 +1,4 @@
-from bge_network import Network, BaseRules, WorldInfo, Netmodes, Pawn, PlayerController, AuthError
-from cProfile import runctx
+from bge_network import BaseRules, WorldInfo, Netmodes, Pawn, PlayerController, AuthError, ServerLoop
 
 class TeamDeathMatchRules(BaseRules):
     relevant_radius_squared = 20 ** 2
@@ -22,17 +21,14 @@ class TeamDeathMatchRules(BaseRules):
     def post_initialise(cls, conn):
         replicable = PlayerController()
         replicable.possess(Pawn())
+        replicable.pawn.skeleton_name = "Suzanne_Skeleton"
         return replicable
     
-WorldInfo.rules = TeamDeathMatchRules
-WorldInfo.netmode = Netmodes.server
 
-for i in range(100):
-    Pawn()
-
-network = Network("", 1200, update_interval=1/25)
-
-def main():
-    network.receive()
-    Pawn.update_graph()
-    network.send()
+class Server(ServerLoop):
+    
+    def create_network(self):
+        network = super().create_network()
+        
+        WorldInfo.rules = TeamDeathMatchRules
+        return network

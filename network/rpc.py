@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
+from .factorydict import FactoryDict
 
 class RPC:
     '''Manages instances of an RPC function for each object'''
@@ -16,28 +17,29 @@ class RPC:
         self._by_instance = {}
     
     def __get__(self, instance, base):
+        if instance is None:
+            return self
+        
         try:
             return self._by_instance[instance]
-        
         except KeyError:
-            return None
-        
-    def register(self, instance, interface, register_function):
-        bound_function = self._func.__get__(instance, None)
-        
-        rpc_interface = RPCInterface(interface, bound_function, register_function)
-        self._by_instance[instance] = rpc_interface
-            
+            pass
+    
+    def create_rpc_interface(self, instance):
+        bound_func = self._func.__get__(instance)
+        self._by_instance[instance] = RPCInterface(bound_func)
+        return self._by_instance[instance]
+                    
 class RPCInterface:
     """Mediates RPC calls to/from peers"""
     
-    def __init__(self, interface, function, get_rpc_id):
+    def __init__(self, function):
         
         # Used to isolate rpc_for_instance for each function for each instance
         self._function = function
         self._function_signature = signature(function)
         
-        self.rpc_id = get_rpc_id(self)
+        # Information about RPC
         self.name = function.__qualname__
         self.__annotations__ = function.__annotations__
         
@@ -47,10 +49,13 @@ class RPCInterface:
         # Interface between data and bytes
         self._serialiser = ArgumentSerialiser(self.ordered_arguments(self._function_signature))
         self._binder = self._function_signature.bind
-        self._interface = interface
         
         from .network import WorldInfo
         self._system_netmode = WorldInfo.netmode
+    
+    def register(self, interface, rpc_id):
+        self.rpc_id = rpc_id
+        self._interface = interface
     
     def ordered_arguments(self, sig):
         return OrderedDict((value.name, value.annotation) 

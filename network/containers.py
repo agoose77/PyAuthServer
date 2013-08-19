@@ -87,15 +87,22 @@ class RPCStorageContainer(AbstractStorageContainer):
     def _add_call(self, member, value):
         self.data.append((member, value))
     
-    def _add_function(self, func):
+    def store_rpc(self, func):
         self.functions.append(func)
         return self.functions.index(func)
     
+    def interface_register(self, instance):
+        return partial(self._add_call, instance)
+    
     def new_storage_interface(self, name, member):
-        adder = partial(self._add_call, member)
-        interface = RPCStorageInterface(adder)
         
-        member.register(self._instance, interface, self._add_function)
+        rpc_instance = member.create_rpc_interface(self._instance)
+        rpc_id = self.store_rpc(rpc_instance)
+        
+        adder_func = partial(self._add_call, rpc_instance)
+        
+        interface = RPCStorageInterface(adder_func)
+        rpc_instance.register(interface, rpc_id)
         
         return interface
 
@@ -138,4 +145,3 @@ class AttributeStorageInterface(StorageInterface):
         
         self.set_complaint = complaint
 
-        

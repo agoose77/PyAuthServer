@@ -24,7 +24,7 @@ class Replicable(metaclass=ReplicableRegister):
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
-        print("New", self)
+
         # If this is a static mapping (requires static flag and a matchable ID)
         self._static = static and instance_id is not None
         
@@ -182,9 +182,7 @@ class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True)
-    
-    input_class = None
-    
+        
     def possess(self, replicable):
         self.pawn = replicable
         self.pawn.possessed_by(self)
@@ -200,10 +198,6 @@ class Controller(Replicable):
     def conditions(self, is_owner, is_complaint, is_initial):
         if is_complaint:
             yield "pawn"  
-        
-    def create_player_input(self):
-        if callable(self.input_class):
-            self.player_input = self.input_class()
             
     def player_update(self, elapsed):
         pass

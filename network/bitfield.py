@@ -27,25 +27,33 @@ class Bitfield:
     def __getitem__(self, index):
         if isinstance(index, slice):
             value = self._value
-            start, stop, step = slice.indices(self._size)            
-            return [bool(value & (1 << index)) for index in range(start, stop, step)]
+            start, stop, step = index.indices(self._size)            
+            return [bool(value & (1 << index)) for index in range(*index.indices(self._size))]
         
         else:
             
             if index < 0:
                 index += self._size
-                
+            
+            if index >= self._size:
+                raise IndexError("Index out of range")
+            
             return bool(self._value & (1 << index))
     
     def __setitem__(self, index, value):
         if isinstance(index, slice):
-
-            for index, slice_value in zip(range(index.start or 0, index.stop or self._size, index.step or 1), value):
+            
+            current_value = self._value
+            
+            for shift_depth, slice_value in zip(range(*index.indices(self._size)), value):
+                
                 if slice_value:
-                    self._value |= 1 << index
+                    current_value |= 1 << shift_depth
                 else:
-                    self._value &= ~(1 << index)
-        
+                    current_value &= ~(1 << shift_depth)
+                    
+            self._value = current_value
+            
         else:
             if value:
                 self._value |= 1 << index

@@ -1,12 +1,9 @@
-from bge_network import Network, BaseRules, Pawn, WorldInfo, Netmodes
+from bge_network import ClientLoop
 
-WorldInfo.netmode = Netmodes.client
-
-network = Network("localhost", 0)
-
-network.connect_to(("localhost", 1200))
-
-def main():
-    network.receive()
-    Pawn.update_graph()
-    network.send()
+class Client(ClientLoop):
+    
+    def create_network(self):
+        network = super().create_network()
+        
+        network.connect_to(("localhost", 1200))
+        return network
