@@ -44,14 +44,14 @@ class ArgumentSerialiser:
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
         self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
-        bytes_ = bytes_[self.content_bits.footprint:]
-        
+        bytes_ = bytes_[self.bitfield_packer.size(bytes_):]
+
         contents = list(self.content_bits)
-        
+
         for included, (key, handler) in zip(contents, self.handlers):
             if not included:
                 continue
-            
+
             # If the value can be merged with an existing value
             if key in previous_values and hasattr(handler, "unpack_merge"):
                 value = previous_values[key]
@@ -85,10 +85,12 @@ class ArgumentSerialiser:
 
         # Iterate over non booleans
         for index, (key, handler) in enumerate(self.handlers):
+
             if not key in data:
                 continue
             
             contents[index] = True
+
             output.append(handler.pack(data.pop(key)))
         
         # If we have boolean values remaining
@@ -105,6 +107,6 @@ class ArgumentSerialiser:
                 bools[index] = data[key]
                 
             contents[-1] = True
+
             output.append(self.bitfield_packer.pack(bools))
-      
         return self.bitfield_packer.pack(contents) + b''.join(output)

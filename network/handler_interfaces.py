@@ -7,10 +7,18 @@ def static_description(obj):
     if hasattr(obj, "__description__"):
         return obj.__description__()
     
-    elif type(obj) in descriptions:
-        return descriptions[type(obj)](obj)
+    value_type = type(obj)
     
-    return hash(obj)
+    if not value_type in descriptions:
+        handled_superclasses = [cls for cls in value_type.__mro__ if cls in descriptions]
+            
+        try:
+            value_type = handled_superclasses[0]
+            print("Fell back to subclass for description func", value_type)
+        except IndexError:
+            return hash(obj)
+    
+    return descriptions[value_type](obj)
 
 def register_handler(type_, callable_, is_condition=False):
     '''Registers new handler for custom serialisers
@@ -37,6 +45,7 @@ def get_handler(value):
         
         try:
             value_type = handled_superclasses[0]
+            print("Fell back to subclass for handler func", value_type)
         except IndexError:
             raise TypeError("No handler for object with type {}".format(value.type))
     

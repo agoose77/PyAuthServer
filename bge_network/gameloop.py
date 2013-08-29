@@ -19,23 +19,26 @@ class GameLoop(types.KX_PythonLogicLoop):
         self.network_scene = logic.getSceneList()[0]
         self.network = self.create_network()
 
-        self.physics_system = PhysicsSystem(self.physics_callback)
+        self.physics_system = PhysicsSystem(self.physics_callback, self.apply_physics)
+        
+        WorldInfo.physics = self.physics_system
         
         print("Network initialised")
+    
+    def apply_physics(self):
+        self.update_scenegraph(self.get_time())
     
     def physics_callback(self, delta_time):
         self.update_physics(self.get_time(), delta_time)
         
-    def main(self):
-        self.__init__()
-        
+    def run(self):
         while not self.check_quit():
-            
             start_time = current_time = self.get_time()
             delta_time = current_time - self.last_time
             
             # If this is too early, skip frame
             if self.use_tick_rate and delta_time < (1 / self.tick_rate):
+                self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
                 continue
                 
             # Update IO events from Blender
@@ -43,19 +46,25 @@ class GameLoop(types.KX_PythonLogicLoop):
             
             for scene in logic.getSceneList():
                 current_time = self.get_time()
-
+        
                 self.set_current_scene(scene)
-
+        
                 if scene == self.network_scene:
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
                     self.network.receive()
-                    
+                                        
                     Replicable.update_graph()
                     
-                    self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-                    self.physics_system.update(delta_time)
+                    for replicable in WorldInfo.actors:
+                        replicable.update(delta_time)
+                        
+                        if hasattr(replicable, "inputs"):
+                            replicable.player_update(delta_time)
                     
-                else:
+                    self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
+                    self.physics_system.update(scene, delta_time)
+                    
+                elif 1:
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
                     self.update_physics(current_time, delta_time)
                     
@@ -73,9 +82,18 @@ class GameLoop(types.KX_PythonLogicLoop):
             self.update_scenes()
             self.start_profile(logic.KX_ENGINE_DEBUG_RASTERIZER)
             self.update_render()
-
+        
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
             self.last_time = start_time
+    
+    def main(self):
+        self.__init__()
+        
+        try:
+            self.run()                
+        except Exception as err:
+            self.network.stop()
+            raise
         
         self.network.stop()
             

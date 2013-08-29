@@ -1,4 +1,4 @@
-from bge_network import BaseRules, WorldInfo, Netmodes, Pawn, PlayerController, AuthError, ServerLoop
+from bge_network import BaseRules, WorldInfo, Netmodes, Pawn, PlayerController, AuthError, ServerLoop, PlayerReplicationInfo
 
 class TeamDeathMatchRules(BaseRules):
     relevant_radius_squared = 20 ** 2
@@ -8,9 +8,7 @@ class TeamDeathMatchRules(BaseRules):
         player_pawn = player_controller.pawn
         
         if isinstance(replicable, Pawn):
-            rbs = replicable.rigid_body_state
-            rbs2 = player_pawn.rigid_body_state
-            return (rbs.position - rbs2.position).length_squared <= cls.relevant_radius_squared
+            return (replicable.position - player_pawn.position).length_squared <= cls.relevant_radius_squared
     
     @classmethod
     def pre_initialise(cls, addr, netmode):
@@ -20,11 +18,17 @@ class TeamDeathMatchRules(BaseRules):
     @classmethod 
     def post_initialise(cls, conn):
         replicable = PlayerController()
-        replicable.possess(Pawn())
+        player_pawn = Pawn()
+        player_info = PlayerReplicationInfo()
+        
+        replicable.possess(player_pawn)
+        replicable.info = player_info
+        
+        # Not registered yet so this is allowed
         replicable.pawn.skeleton_name = "Suzanne_Skeleton"
+        
         return replicable
     
-
 class Server(ServerLoop):
     
     def create_network(self):

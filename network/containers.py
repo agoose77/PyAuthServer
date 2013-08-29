@@ -111,7 +111,7 @@ class AttributeStorageContainer(AbstractStorageContainer):
     def __init__(self, instance):
         super().__init__(instance)
         
-        self.complaints = self.get_complaint_descriptions(self.data)
+        self.complaints = {}
 
     def get_complaint_descriptions(self, data):
         return {attribute: static_description(value) for attribute, value in data.items()}

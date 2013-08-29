@@ -89,6 +89,9 @@ class InstanceMixins:
     
     def __bool__(self):
         return self.registered
+    
+    def __str__(self):
+        return "(RegisteredInstance {}: {})".format(self.__class__.__name__, self.instance_id)
         
 class InstanceRegister(TypeRegister):
     

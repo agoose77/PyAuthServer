@@ -1,5 +1,5 @@
 from .registers import InstanceRegister, InstanceNotifier
-from .errors import NetworkError, LatencyInducedError
+from .errors import NetworkError, ReplicableAccessError
 from .actors import BaseWorldInfo, Controller, Replicable
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
 from .modifiers import reliable, is_reliable
@@ -230,29 +230,31 @@ class ClientChannel(Channel):
         
         # Create local references outside loop
         replicable_data = replicable.attribute_storage.data
+        get_attribute = replicable.attribute_storage.get_member_by_name
         notifier = replicable.on_notify
         
         # Process and store new values
-        for attribute, value in self.serialiser.unpack(data, replicable_data):
+        for attribute_name, value in self.serialiser.unpack(data, replicable_data):
+            attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
             
             # Check if needs notification
             if attribute.notify:
-                notifier(attribute.name)
+                notifier(attribute_name)
                                                                                             
 class ServerChannel(Channel):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Store dictionary of complaining values (compared with the replicable's account)
-        self.complain_status = self.attribute_storage.complaints.copy()
+        self.complain_status = {}
     
     def get_attributes(self, is_owner):
         # Get replicable and its class
         replicable = self.replicable
-        is_complain = self.attribute_storage.complaints == self.complain_status
-        
+        is_complain = self.attribute_storage.complaints != self.complain_status
+
         # Set the role context for whom we replicate
         replicable.roles.context = is_owner
         
@@ -279,17 +281,20 @@ class ServerChannel(Channel):
             value = attribute_data[attribute]
             
             # Check if the last hash is the same
-            last_hash = previous_hashes[attribute]
+            try:
+                last_hash = previous_hashes[attribute]
+            except KeyError:
+                last_hash = None
             
             # Use existing hash or new one if not stored
             new_hash = complaint_hashes[attribute] if attribute in complaint_hashes else get_description(value)
-            
+
             # If values match, don't update
             if last_hash == new_hash:
                 continue 
             
             # Add value to data dict
-            to_serialise[attribute] = value
+            to_serialise[name] = value
             
             previous_hashes[attribute] = new_hash
                             
@@ -471,9 +476,9 @@ class ServerConnection(Connection):
         
         # If we own a controller destroy it
         if self.replicable:
-            self.replicable.request_unregistration()
             # We must be connected to have a controller
-            print("disconnected!".format(self.replicable.name))
+            print("{} disconnected!".format(self.replicable))
+            self.replicable.request_unregistration()
                     
     def notify_unregistration(self, replicable):
         '''Called when replicable dies
@@ -530,18 +535,21 @@ class ServerConnection(Connection):
                 if channel.is_initial:
                     # Pack the class name
                     packed_class = String.pack(replicable.__class__.type_name)
+                    
                     # Send the protocol, class name and owner status to client
                     yield make_packet(protocol=replication_init, 
                                       payload=packed_id + packed_class, 
                                       reliable=True)
-             
+                    
+                    
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
+                
                 # If they have changed                    
                 if attributes:
-                    yield make_packet(protocol=replication_update, 
-                                        payload=packed_id + attributes, 
-                                        reliable=True)
+                    # This ensures references exist
+                    self.cached_packets.add(make_packet(protocol=replication_update, payload=packed_id + attributes, reliable=True))
+                    
         # Send any additional data
         if self.cached_packets:
             yield from self.cached_packets
@@ -1025,7 +1033,13 @@ class ReplicableProxy:
             return child
         
     def __getattribute__(self, name):
-        return getattr(object.__getattribute__(self, "_obj"), name)
+        target = object.__getattribute__(self, "_obj")
+        try:
+            return getattr(target, name)
+        except AttributeError:
+            if target is None:
+                raise ReplicableAccessError()
+            raise
 
     def __delattr__(self, name):
         delattr(object.__getattribute__(self, "_obj"), name)

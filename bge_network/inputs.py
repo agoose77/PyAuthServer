@@ -1,5 +1,6 @@
 from bge import events, logic
 from network import FactoryDict, Bitfield, StaticValue, get_handler, register_handler
+from functools import partial
 
 class EventInterface:
     def __init__(self, name, status):
@@ -12,16 +13,8 @@ class EventInterface:
     
     @property
     def active(self):
-        return self.status == logic.KX_INPUT_ACTIVE
-    
-    @property
-    def triggered(self):
-        return self.status == logic.KX_INPUT_JUST_ACTIVATED
-    
-    @property
-    def released(self):
-        return self.status == logic.KX_INPUT_JUST_RELEASED
-    
+        return self.status == logic.KX_INPUT_ACTIVE or self.status == logic.KX_INPUT_JUST_ACTIVATED
+        
 class InputManager:
     def __init__(self, keybindings, status_lookup=None):
         self.keybindings = keybindings
@@ -29,6 +22,23 @@ class InputManager:
         
         self._event_interfaces = FactoryDict(self.new_event_interface)
         self._devices_for_keybindings = FactoryDict(self.choose_device)
+    
+    def using_interface(self, lookup_func):
+        self._lookup = self.status_lookup
+        self.status_lookup = lookup_func
+        return self
+    
+    def restore_interface(self, *args, **kwargs):
+        self.status_lookup = self._lookup
+    
+    def __enter__(self):
+        pass
+    
+    def __exit__(self, *args):
+        self.restore_interface()
+    
+    def to_tuple(self):
+        return (self._event_interfaces[k].active for k in sorted(self.keybindings))
     
     def choose_device(self, name):
         binding_code = self.keybindings[name]
@@ -44,7 +54,13 @@ class InputManager:
     
     def __getattr__(self, name):
         return self._event_interfaces[name]
-
+    
+    def __str__(self):
+        data = []
+        for key in self.keybindings:
+            data.append("{}:{}".format(key, getattr(self, key).active))
+        return "Input Manager:" + ', '.join(data)
+    
 class InputPacker:
     fields = []
     handler = get_handler(StaticValue(Bitfield))
@@ -55,10 +71,15 @@ class InputPacker:
         return cls.handler.pack(values)
     
     @classmethod
+    def to_active(cls, data, name):
+        return logic.KX_INPUT_ACTIVE if data[name] else logic.KX_INPUT_NONE
+    
+    @classmethod
     def unpack(cls, bytes_):
         values = Bitfield(len(cls.fields))
         cls.handler.unpack_merge(values, bytes_)
-        return values
+        data = dict(zip(cls.fields, values))
+        return InputManager(data, status_lookup=partial(cls.to_active, data))
     
     @classmethod
     def callback(cls, static_value):

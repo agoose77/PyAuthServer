@@ -4,32 +4,25 @@ from functools import wraps
 from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo, Struct, Attribute
 from mathutils import Vector, Euler, Quaternion, Matrix
 
+def get_armature(obj, recurse=False):
+    children = obj.children if not recurse else obj.childrenRecursive
+    for ob in children:
+        if isinstance(ob, types.BL_ArmatureObject):
+            return ob
+
 class RigidBodyState(Struct):
-    
-    def __init__(self):
-        super().__init__()
-        
-        self._modified = self.__description__()
-        
-    @property
-    def modified(self):
-        return self._modified == self.__description__()
-    
-    @modified.setter
-    def modified(self, status):
-        if not status:
-            self._modified = self.__description__()
-    
-    position = Attribute(Vector())
-    velocity = Attribute(Vector())
-    angular = Attribute(Vector())
-    rotation = Attribute(Euler())
+
+    position = Attribute(Vector(), complain=True)
+    velocity = Attribute(Vector(), complain=True)
+    angular = Attribute(Vector(), complain=True)
+    rotation = Attribute(Euler(), complain=True)
 
 class EngineObject:
     
     def __new__(cls, obj_name, *args, **kwargs):
         scene = logic.getCurrentScene()
-        obj = scene.addObject(obj_name, scene.objects['Cube'], 0)
+        transform = Matrix.Identity(4)
+        obj = scene.addObject(obj_name, transform, 0, -1)
         return super().__new__(cls, obj)
     
 class GameObject(EngineObject, types.KX_GameObject):
@@ -126,9 +119,9 @@ def mathutils_description(obj):
     return hash(tuple(obj))
 
 # Register packers
-register_handler(Vector, lambda attr: Vector8 if attr._kwargs.get("max_precision") else Vector4, is_condition=True)
-register_handler(Euler, lambda attr: Euler8 if attr._kwargs.get("max_precision") else Euler4, is_condition=True)
-register_handler(Quaternion, lambda attr: Quaternion8 if attr._kwargs.get("max_precision") else Quaternion4, is_condition=True)
+register_handler(Vector, lambda attr: Vector8 if attr.data.get("max_precision") else Vector4, is_condition=True)
+register_handler(Euler, lambda attr: Euler8 if attr.data.get("max_precision") else Euler4, is_condition=True)
+register_handler(Quaternion, lambda attr: Quaternion8 if attr.data.get("max_precision") else Quaternion4, is_condition=True)
 
 # Register custom hash-like descriptions
 register_description(Vector, mathutils_description)

@@ -39,7 +39,7 @@ class Replicable(metaclass=ReplicableRegister):
         super().__init__(instance_id=instance_id, register=register, allow_random_key=True, **kwargs)
         
     @classmethod
-    def _create_or_return(cls, base_cls, instance_id, register=False):
+    def _create_or_return(cls, base_cls, instance_id, register=True):
         '''Called by the replication system, assumes non static if creating
         Creates a replicable if it is not already instantiated (and identity matches)
         @param base_cls: base class of replicable to instantiate
@@ -181,7 +181,7 @@ class BaseWorldInfo(Replicable):
 class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
-    pawn = Attribute(type_of=Replicable, complain=True)
+    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
         
     def possess(self, replicable):
         self.pawn = replicable
@@ -194,8 +194,16 @@ class Controller(Replicable):
     def on_unregistered(self):
         super().on_unregistered()  
         self.pawn.request_unregistration()
-                
+    
+    def on_notify(self, name):
+        if name == "pawn":
+            self.possess(self.pawn)
+        else:
+            super().on_notify(name)       
+         
     def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
         if is_complaint:
             yield "pawn"  
             

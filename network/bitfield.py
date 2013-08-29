@@ -54,7 +54,13 @@ class Bitfield:
                     
             self._value = current_value
             
-        else:
+        else:            
+            if index < 0:
+                index += self._size
+            
+            if index >= self._size:
+                raise IndexError("Index out of range")
+            
             if value:
                 self._value |= 1 << index
             else:
