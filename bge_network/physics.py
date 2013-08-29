@@ -7,6 +7,8 @@ from collections import defaultdict
 from bge import logic
 from functools import partial
 
+from time import monotonic
+
 class SimulationEntry:
     
     def __init__(self, actor, callback=None):
@@ -60,31 +62,37 @@ class PhysicsSystem:
     def update_for(self, actor, delta_time):
         if actor.physics < PhysicsType.rigid_body:
             return
-        
-        self._update_func(delta_time)
-        
-        # Restore other objects
+
         for this_actor in WorldInfo.subclass_of(Actor):
-            
             if this_actor == actor:
                 continue
-
-            this_actor.transform = this_actor.transform
+            this_actor.suspend_physics()
+            
+        self._update_func(delta_time)
         
+        
+        for this_actor in WorldInfo.subclass_of(Actor):
+            if this_actor == actor:
+                continue
+            this_actor.restore_physics()
+            
         self._apply_func()
     
     def restore_objects(self):
-        for actor in WorldInfo.subclass_of(Actor):
-            if actor.physics < PhysicsType.rigid_body:
-                actor.restore_physics()
+        pass
     
-    def update(self, scene, delta_time):        
+    def update(self, scene, delta_time):  
+
+        # Restore scheduled objects
+        for actor in self._exempt_actors:
+            actor.suspend_physics()
+            
         self._update_func(delta_time)
         
         # Restore scheduled objects
         for actor in self._exempt_actors:
             actor.restore_physics()
-
+            
         self._apply_func()
         self.restore_objects()
         
@@ -95,10 +103,6 @@ class ServerPhysics(PhysicsSystem):
         
         for actor in WorldInfo.subclass_of(Actor):
             
-            if actor.physics < PhysicsType.rigid_body:
-                actor.restore_physics()
-                continue
-            
             state = actor.rigid_body_state
             
             # Can probably do this once then use muteable property
@@ -106,17 +110,19 @@ class ServerPhysics(PhysicsSystem):
             state.velocity = actor.velocity.copy()
             state.rotation = actor.rotation #.copy()
             state.angular = actor.angular.copy()
-            
+
 class ClientPhysics(PhysicsSystem):
     
-    small_correction_squared = 0.2 ** 2
+    small_correction_squared = 1# ** 2
     
     def actor_replicated(self, actor, actor_physics):
         difference = actor_physics.position - actor.position
-        
-        if difference.length_squared < self.small_correction_squared:
+
+        small_correction = difference.length_squared < self.small_correction_squared
+
+        if small_correction:
             actor.position += difference * 0.2
-            actor.velocity = actor_physics.velocity + difference * 0.8
+            actor.velocity = actor_physics.velocity.copy() + difference * .2
             
         else:
             actor.position = actor_physics.position.copy()

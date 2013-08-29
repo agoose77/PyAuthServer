@@ -57,19 +57,21 @@ class GameLoop(types.KX_PythonLogicLoop):
                     
                     for replicable in WorldInfo.actors:
                         replicable.update(delta_time)
-                        
+
                         if hasattr(replicable, "inputs"):
                             replicable.player_update(delta_time)
+                            
+                    Replicable.update_graph()
                     
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
                     self.physics_system.update(scene, delta_time)
                     
-                elif 1:
+                else:
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
                     self.update_physics(current_time, delta_time)
                     
-                self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)  
-                self.update_scenegraph(current_time)
+                    self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)  
+                    self.update_scenegraph(current_time)
                 
                 if scene == self.network_scene:
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)

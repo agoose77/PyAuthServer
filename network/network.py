@@ -31,7 +31,7 @@ class NetmodeOnly:
                 return
             return func(*args, **kwargs)
         return wrapper
-             
+            
 class PacketCollection:
     __slots__ = "members",
     

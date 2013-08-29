@@ -1,9 +1,9 @@
-from network import Replicable, Attribute, Roles, Controller, WorldInfo, Netmodes, StaticValue, NetmodeOnly
+from network import Replicable, Attribute, Roles, Controller, WorldInfo, simulated, Netmodes, StaticValue, NetmodeOnly
 from mathutils import Euler, Vector
 
 from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
-from bge import logic, events
+from bge import logic, events, constraints
 from collections import namedtuple, OrderedDict
 
 from .enums import PhysicsType
@@ -63,10 +63,14 @@ class PlayerController(Controller):
 
         self.current_move_id = 0
         self.previous_moves = OrderedDict()
-        
-    def execute_move(self, inputs, delta_time):
-        vel = Vector((0, inputs.forward.active, self.pawn.velocity.z))
+    
+    def get_acceleration(self, inputs):
+        vel = Vector()
         ang = Vector()
+        return vel, ang
+    
+    def execute_move(self, inputs, delta_time):
+        vel, ang = self.get_acceleration(inputs)
         
         self.pawn.velocity.xy = vel.xy
         self.pawn.angular = ang
@@ -84,7 +88,7 @@ class PlayerController(Controller):
         
         if pos_difference.length_squared < self.move_error_limit:
             return
-        
+        print(pos_difference)
         # Create correction if neccessary
         correction = RigidBodyState()
         
@@ -92,7 +96,7 @@ class PlayerController(Controller):
         correction.rotation = self.pawn.rotation
         correction.velocity = self.pawn.velocity
         correction.angular = self.pawn.angular
-        
+
         return correction
         
     def server_validate(self, move_id:StaticValue(int), 
@@ -135,7 +139,7 @@ class PlayerController(Controller):
         self.pawn.angular = correction.angular
    
         lookup_dict = {}
-        
+
         with self.inputs.using_interface(lookup_dict):
         
             for move_id, move in self.previous_moves.items():
@@ -151,7 +155,6 @@ class PlayerController(Controller):
         
         self.execute_move(self.inputs, delta_time)
         self.server_validate(self.current_move_id, self.inputs, delta_time, self.pawn.position, self.pawn.rotation)
-        
         self.save_move(self.current_move_id, delta_time, self.inputs.to_tuple())
 
         self.current_move_id += 1
@@ -170,12 +173,17 @@ class Actor(Replicable):
                           )
     
     actor_name = ""
+    verbose_execution = True
     
     def on_registered(self):
         super().on_registered()
         
         self.object = GameObject(self.actor_name)
         self.update_simulated_physics = True
+    
+    def on_unregistered(self):
+        self.object.endObject()
+        super().on_unregistered()
     
     def on_notify(self, name):
         if name == "rigid_body_state":
@@ -198,10 +206,18 @@ class Actor(Replicable):
                 yield "rigid_body_state"
                 yield "physics"
     
-    def restore_physics(self):
+    def restorse_physics(self):
         self.object.worldTransform = self.object.worldTransform
         self.object.worldLinearVelocity = self.object.worldLinearVelocity
         self.object.worldAngularVelocity = self.object.worldAngularVelocity
+    
+    @simulated
+    def suspend_physics(self):
+        self.object.suspendDynamics()
+    
+    @simulated
+    def restore_physics(self):
+        self.object.restoreDynamics()
     
     @property
     def transform(self):

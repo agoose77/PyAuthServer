@@ -1,4 +1,6 @@
-from bge_network import BaseRules, WorldInfo, Netmodes, Pawn, PlayerController, AuthError, ServerLoop, PlayerReplicationInfo
+from bge_network import BaseRules, WorldInfo, Netmodes, Pawn, AuthError, ServerLoop, PlayerReplicationInfo
+
+from actors import ExampleController
 
 class TeamDeathMatchRules(BaseRules):
     relevant_radius_squared = 20 ** 2
@@ -17,7 +19,7 @@ class TeamDeathMatchRules(BaseRules):
     
     @classmethod 
     def post_initialise(cls, conn):
-        replicable = PlayerController()
+        replicable = ExampleController()
         player_pawn = Pawn()
         player_info = PlayerReplicationInfo()
         
@@ -25,7 +27,7 @@ class TeamDeathMatchRules(BaseRules):
         replicable.info = player_info
         
         # Not registered yet so this is allowed
-        replicable.pawn.skeleton_name = "Suzanne_Skeleton"
+        #replicable.pawn.skeleton_name = "Suzanne_Skeleton"
         
         return replicable
     

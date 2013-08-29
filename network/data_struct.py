@@ -51,13 +51,8 @@ class Struct:
 
 class StructHandler:
     
-    struct_cls = None
-    
-    @classmethod
-    def callback(cls, static_value):
-        handler = cls()
-        handler.struct_cls = static_value.type
-        return handler
+    def __init__(self, static_value):
+        self.struct_cls = static_value.type
     
     def pack(self, struct):
         bytes_ = struct.to_bytes()
@@ -72,6 +67,6 @@ class StructHandler:
         struct.from_bytes(bytes_[1:])
     
     def size(self, bytes_):
-        return UInt8.unpack_from(bytes_)
+        return UInt8.unpack_from(bytes_) + 1
     
-register_handler(Struct, StructHandler.callback, True)
+register_handler(Struct, StructHandler, True)
