@@ -1,24 +1,25 @@
-from network import Replicable, Attribute, Roles, Controller, WorldInfo, simulated, Netmodes, StaticValue, NetmodeOnly
-from mathutils import Euler, Vector
+from network import Replicable, Attribute, Roles, Controller, ReplicableInfo, WorldInfo, simulated, Netmodes, StaticValue, NetmodeOnly
+from mathutils import Euler, Vector, Matrix
 
 from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
-from bge import logic, events, constraints
+from bge import logic, events, render
 from collections import namedtuple, OrderedDict
+from math import pi
 
 from .enums import PhysicsType
-from .bge_data import Armature, RigidBodyState, GameObject
+from .bge_data import RigidBodyState, GameObject, CameraObject
 from .inputs import InputManager
 
 SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs", "mouse_x", "mouse_y"))
 
-class PlayerReplicationInfo(Replicable):
+class PlayerReplicationInfo(ReplicableInfo):
     
     name = Attribute("")
 
 class PlayerController(Controller):
     
-    input_fields = ["forward", "backwards", "left", "right"]
+    input_fields = []
     
     move_error_limit = 0.4 ** 2 
     
@@ -44,41 +45,51 @@ class PlayerController(Controller):
         keybindings = self.load_keybindings()
         self.inputs = InputManager(keybindings)
         print("Created input manager")
+    
+    def setup_camera(self, camera):
+        camera_socket = self.pawn.sockets['camera']     
+        camera.parent_to(camera_socket)
+        camera.position = Vector()
+        camera.rotation = Euler((pi / 2, 0, 0))
+    
+    def set_camera(self, camera):   
+        super().set_camera(camera)
         
+        self.setup_camera(camera)
+                    
     def possess(self, actor):
         WorldInfo.physics.add_exemption(actor)
         
         super().possess(actor)
     
-    def unpossess(self):
-        WorldInfo.physics.remove_exemption(self.pawn)
-        
-        super().unpossess()
-        
-    def on_registered(self):
-        super().on_registered()
-        
+    def on_initialised(self):
+        super().on_initialised()
+                
         self.setup_input()
 
         self.current_move_id = 0
         self.previous_moves = OrderedDict()
         
         self.mouse_setup = False
-    
+        self.camera_setup = False
+        
+    def unpossess(self):
+        WorldInfo.physics.remove_exemption(self.pawn)
+        
+        super().unpossess()
+            
     def on_unregistered(self):
         super().on_unregistered()
         
         if self.pawn:
             self.pawn.request_unregistration()
+            self.camera.request_unregistration()
+            
+            self.remove_camera()
             self.unpossess()
     
-    def get_acceleration(self, inputs, mouse_diff_x, mouse_diff_y):
-        vel = Vector()
-        ang = Vector()
-        return vel, ang
-    
     def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
-        vel, ang = self.get_acceleration(inputs, mouse_diff_x, mouse_diff_y)
+        vel, ang = Vector(), Vector()
         
         self.pawn.velocity.xy = vel.xy
         self.pawn.angular = ang
@@ -108,7 +119,7 @@ class PlayerController(Controller):
         return correction
         
     def server_validate(self, move_id:StaticValue(int), 
-                    inputs: StaticValue(InputManager, fields=input_fields), 
+                    inputs: StaticValue(InputManager, class_data={"fields": "input_fields"}), 
                     mouse_diff_x: StaticValue(float),
                     mouse_diff_y: StaticValue(float),
                     delta_time: StaticValue(float),
@@ -162,7 +173,7 @@ class PlayerController(Controller):
                 self.save_move(move_id, move.delta_time, move.inputs, move.mouse_x, move.mouse_y)
     
     def player_update(self, delta_time):
-        if not self.pawn:
+        if not (self.pawn and self.camera):
             return
         
         mouse = logic.mouse
@@ -196,19 +207,24 @@ class Actor(Replicable):
                                 Roles.autonomous_proxy
                                 )
                           )
-    
+        
     actor_name = ""
+    actor_class = GameObject
+    
     verbose_execution = True
     
-    def on_registered(self):
-        super().on_registered()
+    def on_initialised(self):
+        super().on_initialised()
         
-        self.object = GameObject(self.actor_name)
+        self.object = self.actor_class(self.actor_name)
         self.update_simulated_physics = True
+        self.camera_radius = 1
+        self.always_relevant = False
     
     def on_unregistered(self):
-        self.object.endObject()
         super().on_unregistered()
+
+        self.object.endObject()
     
     def on_notify(self, name):
         if name == "rigid_body_state":
@@ -216,18 +232,27 @@ class Actor(Replicable):
         else:
             super().on_notify(name)
             
-    
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
         
         remote_role = self.roles.remote
-
+        
         # If simulated, send rigid body state
         if (remote_role == Roles.simulated_proxy) or (remote_role == Roles.dumb_proxy) or (self.roles.remote == Roles.autonomous_proxy and not is_owner):
             
             if self.update_simulated_physics or is_initial:
                 yield "rigid_body_state"
-        
+    
+    @simulated
+    def parent_to(self, obj):
+        if isinstance(obj, Actor):
+            obj = object.object
+        self.object.setParent(obj)
+    
+    @simulated
+    def remove_parent(self):
+        self.object.removeParent()
+    
     @simulated
     def suspend_physics(self):
         self.object.suspendDynamics()
@@ -235,15 +260,26 @@ class Actor(Replicable):
     @simulated
     def restore_physics(self):
         self.object.restoreDynamics()
+        
+    @property
+    def sockets(self):
+        return {s['socket']: s for s in self.object.childrenRecursive if "socket" in s}
+    
+    @property
+    def visible(self):
+        return any(o.visible for o in self.object.childrenRecursive)
     
     @property
     def physics(self):
         return self.object.physicsType
     
     @property
+    def has_dynamics(self):
+        return self.object.physicsType in (PhysicsType.rigid_body, PhysicsType.dynamic)
+    
+    @property
     def transform(self):
         return self.object.localTransform
-    
     @transform.setter
     def transform(self, val):
         self.object.localTransform = val
@@ -251,7 +287,6 @@ class Actor(Replicable):
     @property
     def rotation(self):
         return self.object.localOrientation.to_euler()
-    
     @rotation.setter
     def rotation(self, rot):
         self.object.localOrientation = rot
@@ -259,42 +294,96 @@ class Actor(Replicable):
     @property
     def position(self):
         return self.object.localPosition
-    
     @position.setter
     def position(self, pos):
         self.object.localPosition = pos
     
     @property
-    def velocity(self):
-        return self.object.localLinearVelocity
+    def world_position(self):
+        """if not self.owner:
+            return self.position
+        
+        else:
+            owners = [self]
+            owner = self.owner
+            while owner:
+                if isinstance(owner, Actor):
+                    owners.append(actor)
+                else:
+                    break
+                owner = owner.owner
+            
+            transform = Matrix.Identity(4)
+            for owner in reversed(owners):
+                transform = owner.transform * transform
+            return transform.to_translation()"""
+        return self.object.worldPosition
+    @world_position.setter
+    def world_position(self, pos):
+        self.object.worldPosition = pos
     
+    @property
+    def velocity(self):
+        if not self.has_dynamics:
+            return Vector() 
+        
+        return self.object.localLinearVelocity
     @velocity.setter
     def velocity(self, vel):
-        self.object.localLinearVelocity = vel
+        if not self.has_dynamics:
+            return
         
+        self.object.localLinearVelocity = vel      
+          
     @property
     def angular(self):
+        if not self.has_dynamics:
+            return Vector()
+        
         return self.object.localAngularVelocity
-    
     @angular.setter
     def angular(self, vel):
+        if not self.has_dynamics:
+            return
+        
         self.object.localAngularVelocity = vel
-    
-class WeaponAttatchment(Actor):
-    mesh_name = ""
-    
-    def on_registration(self):
-        super().on_registration()
-        
-        self.mesh = Armature(self.mesh_name)
 
-class Weapon(Actor):
-    attachment_class = None
+class Camera(Actor):
     
-    def on_registration(self):
-        super().on_registration()
+    actor_name = "Camera"
+    actor_class = CameraObject        
+    
+    @property
+    def active(self):
+        return self.object == logic.getCurrentScene().active_camera
+    
+    @active.setter
+    def active(self, status):
+        if status:
+            logic.getCurrentScene().active_camera = self.object
+    
+    @property
+    def lens(self):
+        return self.object.lens
+    @lens.setter
+    def lens(self, value):
+        self.object.lens = value
+    
+    @property
+    def fov(self):
+        return self.object.fov
+    @fov.setter
+    def fov(self, value):
+        self.object.fov = value
         
-        self.attatchment = self.attachment_class()
+    def trace(self, x_coord, y_coord, distance=0):
+        return self.object.getScreenRay(x_coord, y_coord, distance)
+    
+    def sees_actor(self, actor):            
+        result =self.object.sphereInsideFrustum(actor.world_position, actor.camera_radius)
+        render.drawLine(actor.world_position, actor.world_position + Vector((0, actor.camera_radius, 0)), [1,0,0])
+        for status in "OUTSIDE", "INSIDE", "INTERSECT":
+            print(result == getattr(self.object, status), status)
         
 class Pawn(Actor):
     flash_count = Attribute(0, notify=True)

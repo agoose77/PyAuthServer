@@ -1,10 +1,12 @@
 from .modifiers import is_simulated
 from inspect import signature
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
 from .factorydict import FactoryDict
+
+from copy import deepcopy
 
 class RPC:
     '''Manages instances of an RPC function for each object'''
@@ -15,7 +17,8 @@ class RPC:
         self._func = func
         self._simulated = is_simulated(self)
         self._by_instance = {}
-    
+        self._replacements = {}
+        
     def __get__(self, instance, base):
         if instance is None:
             return self
@@ -24,9 +27,33 @@ class RPC:
             return self._by_instance[instance]
         except KeyError:
             pass
-    
+        
+    def update_class_arguments(self, func, instance):
+        annotations = func.__annotations__
+        
+        instance_cls = instance.__class__
+
+        for name, static_value in annotations.items():
+            if not isinstance(static_value, StaticValue):
+                continue
+            
+            replace = static_value.data.get("class_data", {})
+            replace_data = self._replacements.get(name, {})
+            
+            for key, attr_name in replace.items():
+                try:
+                    value = replace_data[key]
+                except KeyError:
+                    value = getattr(instance_cls, attr_name)
+                    replace_data[key] = value
+                    
+                static_value.data[key] = value
+            
     def create_rpc_interface(self, instance):
         bound_func = self._func.__get__(instance)
+        
+        self.update_class_arguments(bound_func, instance)
+        
         self._by_instance[instance] = RPCInterface(bound_func)
         return self._by_instance[instance]
                     

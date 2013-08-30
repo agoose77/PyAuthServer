@@ -20,6 +20,8 @@ class Replicable(metaclass=ReplicableRegister):
                             )
                       )
     
+    owner = None
+    
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
@@ -58,6 +60,9 @@ class Replicable(metaclass=ReplicableRegister):
                 return base_cls(instance_id=instance_id, register=register, static=False)
             
             return existing
+    
+    def on_initialised(self):
+        pass
     
     def request_registration(self, instance_id, verbose=False):
         '''Handles registration of instances
@@ -98,12 +103,13 @@ class Replicable(metaclass=ReplicableRegister):
     def unpossessed(self):
         '''Called on unpossession by replicable
         May be due to death of replicable'''
-        self.owner = None
+        pass
         
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
         super().on_registered()
+        
         self.__class__._by_types[type(self)].append(self)
         
     def on_unregistered(self):
@@ -181,11 +187,22 @@ class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
+    camera = Attribute(type_of=Replicable, complain=True, notify=True)
     info = Attribute(type_of=Replicable)
+    
+    def on_initialise(self):
+        self.camera_setup = False
     
     def receive_broadcast(self, sender:StaticValue(Replicable), message_string:StaticValue(str)) -> Netmodes.client:
         print("BROADCAST: {}".format(message_string))
-        
+    
+    def set_camera(self, camera):
+        self.camera = camera
+        self.camera.possessed_by(self)
+    
+    def remove_camera(self):
+        self.camera.unpossessed()
+    
     def possess(self, replicable):
         self.pawn = replicable
         self.pawn.possessed_by(self)
@@ -196,6 +213,8 @@ class Controller(Replicable):
     def on_notify(self, name):
         if name == "pawn":
             self.possess(self.pawn)
+        elif name == "camera":
+            self.set_camera(self.camera)
         else:
             super().on_notify(name)       
          
@@ -204,9 +223,11 @@ class Controller(Replicable):
 
         if is_complaint:
             yield "pawn"  
+            yield "camera"
             yield "info"
             
     def player_update(self, elapsed):
         pass
     
-        
+class ReplicableInfo(Replicable):
+    pass        

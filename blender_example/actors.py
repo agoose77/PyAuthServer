@@ -1,7 +1,7 @@
-from bge_network import PlayerController, Replicable, Attribute, Roles, simulated
-from mathutils import Vector
+from bge_network import PlayerController, ReplicableInfo, Replicable, Attribute, Roles, simulated, WorldInfo, StaticValue, InputManager, Netmodes
+from mathutils import Vector, Euler
 
-class GameReplicationInfo(Replicable):
+class GameReplicationInfo(ReplicableInfo):
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
     
     time_to_start = Attribute(0.0)
@@ -15,7 +15,9 @@ class GameReplicationInfo(Replicable):
     
 class ExampleController(PlayerController):
     
-    def get_acceleration(self, inputs, mouse_x, mouse_y):
+    input_fields = "forward", "backwards", "left", "right", "shoot"
+        
+    def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
         y_plane = inputs.forward.active - inputs.backwards.active
         x_plane = inputs.right.active - inputs.left.active
         
@@ -28,6 +30,9 @@ class ExampleController(PlayerController):
         velocity = Vector((side, forward, 0.0))
         velocity.length = forward_speed
         
-        angular = Vector((0, 0, mouse_x * turn_speed))
+        angular = Vector((0, 0, mouse_diff_x * turn_speed))
         
-        return velocity, angular
+        self.pawn.velocity.xy = velocity.xy
+        self.pawn.angular = angular
+
+        WorldInfo.physics.update_for(self.pawn, delta_time)

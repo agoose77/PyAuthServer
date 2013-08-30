@@ -60,6 +60,13 @@ class InstanceMixins:
         if register:
             self.__class__.update_graph()
         
+        # Run clean init function
+        if hasattr(self, "on_initialised"):
+            try:
+                self.on_initialised()
+            except Exception as err:
+                print(err)
+        
     def request_unregistration(self, unregister=False):
         if not self.registered:
             return

@@ -63,14 +63,13 @@ class PhysicsSystem:
     def update_for(self, actor, delta_time):
         if not actor.physics in self._active_physics:
             return
-
+        
         for this_actor in WorldInfo.subclass_of(Actor):
             if this_actor == actor:
                 continue
             this_actor.suspend_physics()
             
         self._update_func(delta_time)
-        
         
         for this_actor in WorldInfo.subclass_of(Actor):
             if this_actor == actor:
@@ -103,7 +102,6 @@ class ServerPhysics(PhysicsSystem):
     def restore_objects(self):
         
         for actor in WorldInfo.subclass_of(Actor):
-            
             state = actor.rigid_body_state
             
             # Can probably do this once then use muteable property

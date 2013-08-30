@@ -18,6 +18,9 @@ class RigidBodyState(Struct):
     rotation = Attribute(Euler(), complain=True)
 
 class EngineObject:
+        
+    def __init__(self, name):
+        self.owner = None
     
     def __new__(cls, obj_name, *args, **kwargs):
         scene = logic.getCurrentScene()
@@ -26,44 +29,16 @@ class EngineObject:
         return super().__new__(cls, obj)
     
 class GameObject(EngineObject, types.KX_GameObject):
-        
-    def __init__(self, name):
-        self.owner = None
+    pass
     
-    def attach_to(self, target):
-        assert isinstance(target, types.KX_GameObject)
-        self.setParent(target)
-    
-    def detatch(self):
-        self.removeParent()
-    
-    def destroy(self):
-        self.endObject()
-
 class Socket(GameObject):
-    
-    def attatch(self, obj):
-        obj.attach_to(self)
-        obj.localOrientation.zero()
+    pass
+        
+class CameraObject(EngineObject, types.KX_Camera):
+    pass
 
 class Armature(EngineObject, types.BL_ArmatureObject):
-    
-    def __init__(self, name):
-        self.owner = None
-    
-    def attach_to(self, target):
-        assert isinstance(target, types.KX_GameObject)
-        self.setParent(target)
-    
-    def detatch(self):
-        self.removeParent()
-    
-    def destroy(self):
-        self.endObject()
-        
-    @property
-    def sockets(self):
-        return {s.name: s for s in self.childrenRecursive() if "socket" in s}
+    pass
 
 class Euler8:
     float_pack = Float8.pack

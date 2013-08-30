@@ -1,52 +1,58 @@
-from bge_network import WorldInfo, Netmodes, Pawn, AuthError, ServerLoop, PlayerReplicationInfo, BaseGameInfo, ConnectionStatus, ConnectionInterface, Attribute, Roles, Replicable, InstanceNotifier
+from bge_network import WorldInfo, Netmodes, ReplicableInfo, Actor, Pawn, Camera, AuthError, ServerLoop, PlayerReplicationInfo, BaseGameInfo, ConnectionStatus, ConnectionInterface, InstanceNotifier
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
+from functools import partial
 
 from actors import *
     
-class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
+class TeamDeathMatch(BaseGameInfo):
     
-    relevant_radius_squared = 20 ** 2
+    relevant_radius_squared = 3 ** 2
     countdown_running = False
     
-    countdown_start = 3
+    countdown_start = 0
     
     player_controller_class = ExampleController
     player_replication_info_class = PlayerReplicationInfo
     player_pawn_class = Pawn
+    player_camera_class = Camera
     
     def on_registered(self):
         super().on_registered()
         
         self.info = GameReplicationInfo(register=True)
-
-        self.pending_ownership = {}
-
-        Replicable.subscribe(self)
-    
-    def notify_registration(self, replicable):
-        # Possess and transform
-        if replicable in self.pending_ownership:
-            controller, position = self.pending_ownership.pop(replicable)
-            controller.possess(replicable)
-            replicable.position = position
     
     def is_relevant(self, player_controller, replicable):
         player_pawn = player_controller.pawn
+        player_camera = player_controller.camera
         
-        if isinstance(replicable, GameReplicationInfo):
+        if isinstance(replicable, PlayerController):
+            return False
+        
+        if isinstance(replicable, ReplicableInfo):
             return True
-        
-        if isinstance(replicable, Pawn) and player_pawn:
-            return (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
-    
+
+        if isinstance(replicable, Actor) and (replicable.visible or replicable.always_relevant):
+            in_range = player_pawn and (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
+            
+            in_camera = (player_camera and player_camera.sees_actor(replicable))
+           # print(replicable, in_camera)
+            
+            if (in_range or in_camera):
+                return True
+            
     def pre_initialise(self, addr, netmode):
         if netmode == Netmodes.server:
             raise AuthError("Peer was not a client")
-    
-    def spawn_default_pawn_for(self, controller, point):
+        
+    def create_new_player(self, controller, callback_data=None):
         pawn = self.player_pawn_class()
-        self.pending_ownership[pawn] = controller, point
+        camera = self.player_camera_class()
+        
+        controller.possess(pawn)
+        controller.set_camera(camera)
+        
+        pawn.position = Vector()
     
     def killed(self, killer, killed, killed_pawn):
         pass
@@ -76,7 +82,7 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
     
     def start_match(self):
         for controller in WorldInfo.subclass_of(ExampleController):
-            self.spawn_default_pawn_for(controller, Vector())
+            self.create_new_player(controller)
         
         self.info.match_started = True
     
@@ -87,7 +93,7 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
         controller.info = player_info
         
         if self.info.match_started:
-            self.spawn_default_pawn_for(controller, Vector())
+            self.create_new_player(controller)
         
         return controller
     

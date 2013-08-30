@@ -213,6 +213,9 @@ class Channel:
         @param rpc_call: rpc data (see get_rpc_calls)'''
         rpc_id = UInt8.unpack_from(rpc_call)
         
+        if not self.replicable.registered:
+            return
+        
         try:            method = self.replicable.rpc_storage.functions[rpc_id]
         except IndexError:
             print("Error invoking RPC: No RPC function with id {}".format(rpc_id))
@@ -233,6 +236,8 @@ class ClientChannel(Channel):
         get_attribute = self.attribute_storage.get_member_by_name
         notifier = replicable.on_notify
         
+        notifications = []
+        
         # Process and store new values
         for attribute_name, value in self.serialiser.unpack(data, replicable_data):
             attribute = get_attribute(attribute_name)
@@ -241,8 +246,13 @@ class ClientChannel(Channel):
             
             # Check if needs notification
             if attribute.notify:
+                notifications.append(attribute_name)
+        
+        # Notify after all values are set
+        if notifications:
+            for attribute_name in notifications:
                 notifier(attribute_name)
-                                                                                            
+                                                                                   
 class ServerChannel(Channel):
     
     def __init__(self, *args, **kwargs):
