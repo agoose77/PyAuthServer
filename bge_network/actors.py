@@ -152,7 +152,7 @@ class PlayerController(Controller):
     def player_update(self, delta_time):
         if not self.pawn:
             return
-        
+
         self.execute_move(self.inputs, delta_time)
         self.server_validate(self.current_move_id, self.inputs, delta_time, self.pawn.position, self.pawn.rotation)
         self.save_move(self.current_move_id, delta_time, self.inputs.to_tuple())

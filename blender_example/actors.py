@@ -1,6 +1,22 @@
-from bge_network import PlayerController
+from bge_network import PlayerController, Replicable, Attribute, Roles, simulated
 from mathutils import Vector
 
+class GameReplicationInfo(Replicable):
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
+    
+    time_to_start = Attribute(0.0)
+    match_started = Attribute(False)
+    
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        yield "match_started"
+        yield "time_to_start"
+    
+#     @simulated
+#     def update(self, dt):
+#         print(self.time_to_start, self.match_started)
+#         
 class ExampleController(PlayerController):
     
     def get_acceleration(self, inputs):

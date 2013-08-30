@@ -245,7 +245,9 @@ class ReplicableRegister(InstanceRegister):
         try:
             annotations = func.__annotations__
         except AttributeError:
-            return False
+            if not hasattr(func, "__func__"):
+                return False
+            annotations = func.__func__.__annotations__
         
         try:
             return_type = annotations['return']

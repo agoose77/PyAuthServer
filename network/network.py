@@ -284,7 +284,7 @@ class ServerChannel(Channel):
             try:
                 last_hash = previous_hashes[attribute]
             except KeyError:
-                last_hash = None
+                last_hash = previous_hashes[attribute] = get_description(value)
             
             # Use existing hash or new one if not stored
             new_hash = complaint_hashes[attribute] if attribute in complaint_hashes else get_description(value)
@@ -292,7 +292,7 @@ class ServerChannel(Channel):
             # If values match, don't update
             if last_hash == new_hash:
                 continue 
-            
+
             # Add value to data dict
             to_serialise[name] = value
             
@@ -495,7 +495,7 @@ class ServerConnection(Connection):
     def get_full_replication(self):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
-        is_relevant = WorldInfo.rules.is_relevant
+        is_relevant = WorldInfo.game_info.is_relevant
         int_packer = UInt8.pack
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
@@ -858,7 +858,7 @@ class ServerInterface(ConnectionInterface):
        
         # Store replicable
         try:
-            WorldInfo.rules.pre_initialise(self.instance_id, netmode)
+            WorldInfo.game_info.pre_initialise(self.instance_id, netmode)
         
         # If a NetworkError is raised store the result
         except NetworkError as err:
@@ -866,7 +866,7 @@ class ServerInterface(ConnectionInterface):
 
         else:
             self.connection = ServerConnection(netmode)
-            returned_replicable = WorldInfo.rules.post_initialise(self.connection)
+            returned_replicable = WorldInfo.game_info.post_initialise(self.connection)
             # Replicable is boolean false until registered (user can force register though)!
             if returned_replicable is not None:
                 self.connection.replicable = weak_proxy(returned_replicable)
@@ -898,7 +898,7 @@ class ClientInterface(ConnectionInterface):
                                     
 class Network(socket):
     
-    def __init__(self, addr, port, update_interval=1/5):
+    def __init__(self, addr, port, update_interval=1/15):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         

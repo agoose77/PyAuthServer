@@ -48,6 +48,8 @@ class GameLoop(types.KX_PythonLogicLoop):
                 current_time = self.get_time()
         
                 self.set_current_scene(scene)
+                
+                self.update_logic_bricks(current_time)
         
                 if scene == self.network_scene:
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
@@ -73,16 +75,14 @@ class GameLoop(types.KX_PythonLogicLoop):
                     self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)  
                     self.update_scenegraph(current_time)
                 
-                self.update_logic_bricks(current_time)
-                
                 if scene == self.network_scene:
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
                     self.network.send()
             
             # End of frame updates
             self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
-            self.update_mouse()
             self.update_keyboard()
+            self.update_mouse()
             self.update_scenes()
             self.start_profile(logic.KX_ENGINE_DEBUG_RASTERIZER)
             self.update_render()

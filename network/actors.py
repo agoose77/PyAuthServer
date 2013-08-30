@@ -1,9 +1,8 @@
 from .registers import ReplicableRegister
 from .enums import Roles, Netmodes
 from .containers import AttributeStorageContainer, RPCStorageContainer
-from .descriptors import Attribute
+from .descriptors import Attribute, StaticValue
 from .modifiers import simulated
-from .rules import BaseRules
 
 from collections import defaultdict
 
@@ -143,7 +142,7 @@ class Replicable(metaclass=ReplicableRegister):
 class BaseWorldInfo(Replicable):
     '''Holds info about game state'''
     netmode = Netmodes.server
-    rules = BaseRules
+    game_info = None
     
     roles = Attribute(
                       Roles(
@@ -182,6 +181,9 @@ class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
+    
+    def receive_broadcast(self, sender:StaticValue(Replicable), message_string:StaticValue(str)) -> Netmodes.client:
+        print("BROADCAST: {}".format(message_string))
         
     def possess(self, replicable):
         self.pawn = replicable
@@ -191,8 +193,10 @@ class Controller(Replicable):
         self.pawn.unpossessed()
     
     def on_unregistered(self):
-        super().on_unregistered()  
-        self.unpossess()
+        super().on_unregistered()
+        
+        if self.pawn:    
+            self.unpossess()
     
     def on_notify(self, name):
         if name == "pawn":
@@ -208,3 +212,5 @@ class Controller(Replicable):
             
     def player_update(self, elapsed):
         pass
+    
+        
