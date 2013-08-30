@@ -73,6 +73,8 @@ class GameLoop(types.KX_PythonLogicLoop):
                     self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)  
                     self.update_scenegraph(current_time)
                 
+                self.update_logic_bricks(current_time)
+                
                 if scene == self.network_scene:
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
                     self.network.send()

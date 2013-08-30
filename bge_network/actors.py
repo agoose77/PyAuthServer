@@ -47,9 +47,9 @@ class PlayerController(Controller):
         print("Created input manager")
         
     def possess(self, actor):
-        super().possess(actor)
-        
         WorldInfo.physics.add_exemption(actor)
+        
+        super().possess(actor)
     
     def unpossess(self):
         WorldInfo.physics.remove_exemption(self.pawn)
@@ -88,7 +88,7 @@ class PlayerController(Controller):
         
         if pos_difference.length_squared < self.move_error_limit:
             return
-        print(pos_difference)
+
         # Create correction if neccessary
         correction = RigidBodyState()
         
@@ -139,7 +139,7 @@ class PlayerController(Controller):
         self.pawn.angular = correction.angular
    
         lookup_dict = {}
-
+        print("Correct")
         with self.inputs.using_interface(lookup_dict):
         
             for move_id, move in self.previous_moves.items():
@@ -148,7 +148,7 @@ class PlayerController(Controller):
                 # Execute move
                 self.execute_move(self.inputs, move.delta_time)
                 self.save_move(move_id, move.delta_time, move.inputs)
-                
+    
     def player_update(self, delta_time):
         if not self.pawn:
             return
@@ -205,12 +205,7 @@ class Actor(Replicable):
                 
                 yield "rigid_body_state"
                 yield "physics"
-    
-    def restorse_physics(self):
-        self.object.worldTransform = self.object.worldTransform
-        self.object.worldLinearVelocity = self.object.worldLinearVelocity
-        self.object.worldAngularVelocity = self.object.worldAngularVelocity
-    
+        
     @simulated
     def suspend_physics(self):
         self.object.suspendDynamics()

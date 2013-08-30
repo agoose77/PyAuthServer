@@ -189,11 +189,10 @@ class Controller(Replicable):
     
     def unpossess(self):
         self.pawn.unpossessed()
-        self.pawn = None
     
     def on_unregistered(self):
         super().on_unregistered()  
-        self.pawn.request_unregistration()
+        self.unpossess()
     
     def on_notify(self, name):
         if name == "pawn":

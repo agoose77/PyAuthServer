@@ -122,7 +122,7 @@ class ClientPhysics(PhysicsSystem):
 
         if small_correction:
             actor.position += difference * 0.2
-            actor.velocity = actor_physics.velocity.copy() + difference * .2
+            actor.velocity = actor_physics.velocity.copy() 
             
         else:
             actor.position = actor_physics.position.copy()
