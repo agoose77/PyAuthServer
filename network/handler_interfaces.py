@@ -14,7 +14,6 @@ def static_description(obj):
             
         try:
             value_type = handled_superclasses[0]
-            print("Fell back to subclass for description func", value_type)
         except IndexError:
             return hash(obj)
     
@@ -45,7 +44,6 @@ def get_handler(value):
         
         try:
             value_type = handled_superclasses[0]
-            print("Fell back to subclass for handler func", value_type)
         except IndexError:
             raise TypeError("No handler for object with type {}".format(value.type))
     

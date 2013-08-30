@@ -51,6 +51,7 @@ class PhysicsSystem:
         self._exempt_actors = []        
         self._update_func = update_func
         self._apply_func = apply_func
+        self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
         
     def add_exemption(self, actor):
         print("{} is exempt from default physics".format(actor))
@@ -60,7 +61,7 @@ class PhysicsSystem:
         self._exempt_actors.remove(actor)        
     
     def update_for(self, actor, delta_time):
-        if actor.physics < PhysicsType.rigid_body:
+        if not actor.physics in self._active_physics:
             return
 
         for this_actor in WorldInfo.subclass_of(Actor):
@@ -108,7 +109,7 @@ class ServerPhysics(PhysicsSystem):
             # Can probably do this once then use muteable property
             state.position = actor.position.copy()
             state.velocity = actor.velocity.copy()
-            state.rotation = actor.rotation #.copy()
+            state.rotation = actor.rotation.copy()
             state.angular = actor.angular.copy()
 
 class ClientPhysics(PhysicsSystem):
@@ -128,7 +129,7 @@ class ClientPhysics(PhysicsSystem):
             actor.position = actor_physics.position.copy()
             actor.velocity = actor_physics.velocity.copy()
         
-        actor.rotation = actor_physics.rotation #.copy()
+        actor.rotation = actor_physics.rotation.copy()
         actor.angular = actor_physics.angular.copy()
             
         

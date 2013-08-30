@@ -24,7 +24,7 @@ class Struct:
         return new_struct
     
     def __description__(self):
-        return hash(tuple(self._container.get_complaint_descriptions(self._container.data).values()))
+        return hash(tuple(self._container.get_descriptions(self._container.data).values()))
             
     def to_bytes(self):
         return self._serialiser.pack({a.name: v for a, v in self._container.data.items()})

@@ -9,7 +9,7 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
     relevant_radius_squared = 20 ** 2
     countdown_running = False
     
-    countdown_start = 5
+    countdown_start = 3
     
     player_controller_class = ExampleController
     player_replication_info_class = PlayerReplicationInfo
@@ -37,7 +37,7 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
         if isinstance(replicable, GameReplicationInfo):
             return True
         
-        if isinstance(replicable, Pawn):
+        if isinstance(replicable, Pawn) and player_pawn:
             return (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
     
     def pre_initialise(self, addr, netmode):
@@ -72,7 +72,7 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
     
     def can_start_countdown(self):
         player_count = self.get_player_count()
-        return player_count > 1
+        return player_count > 0
     
     def start_match(self):
         for controller in WorldInfo.subclass_of(ExampleController):
@@ -80,13 +80,16 @@ class TeamDeathMatch(BaseGameInfo, InstanceNotifier):
         
         self.info.match_started = True
     
-    def post_initialise(self, conn):
-        replicable = self.player_controller_class()
+    def post_initialise(self, connection):
+        controller = self.player_controller_class()
         player_info = self.player_replication_info_class()
         
-        replicable.info = player_info
+        controller.info = player_info
         
-        return replicable
+        if self.info.match_started:
+            self.spawn_default_pawn_for(controller, Vector())
+        
+        return controller
     
     def update(self, delta_time):
             

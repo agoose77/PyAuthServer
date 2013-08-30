@@ -10,7 +10,7 @@ from .enums import PhysicsType
 from .bge_data import Armature, RigidBodyState, GameObject
 from .inputs import InputManager
 
-SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs"))
+SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs", "mouse_x", "mouse_y"))
 
 class PlayerReplicationInfo(Replicable):
     
@@ -19,7 +19,6 @@ class PlayerReplicationInfo(Replicable):
 class PlayerController(Controller):
     
     input_fields = ["forward", "backwards", "left", "right"]
-    info = Attribute(type_of=Replicable)
     
     move_error_limit = 0.4 ** 2 
     
@@ -63,24 +62,33 @@ class PlayerController(Controller):
 
         self.current_move_id = 0
         self.previous_moves = OrderedDict()
+        
+        self.mouse_setup = False
     
-    def get_acceleration(self, inputs):
+    def on_unregistered(self):
+        super().on_unregistered()
+        
+        if self.pawn:
+            self.pawn.request_unregistration()
+            self.unpossess()
+    
+    def get_acceleration(self, inputs, mouse_diff_x, mouse_diff_y):
         vel = Vector()
         ang = Vector()
         return vel, ang
     
-    def execute_move(self, inputs, delta_time):
-        vel, ang = self.get_acceleration(inputs)
+    def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
+        vel, ang = self.get_acceleration(inputs, mouse_diff_x, mouse_diff_y)
         
         self.pawn.velocity.xy = vel.xy
         self.pawn.angular = ang
 
         WorldInfo.physics.update_for(self.pawn, delta_time)
     
-    def save_move(self, move_id, delta_time, input_tuple):
+    def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x, mouse_diff_y):
         self.previous_moves[move_id] = SavedMove(self.pawn.position.copy(), self.pawn.rotation.copy(), 
-                                                              self.pawn.velocity.copy(), self.pawn.angular.copy(), 
-                                                              delta_time, input_tuple)
+                                                  self.pawn.velocity.copy(), self.pawn.angular.copy(), 
+                                                  delta_time, input_tuple, mouse_diff_x, mouse_diff_y)
     
     def get_corrected_state(self, position, rotation):
         
@@ -101,15 +109,17 @@ class PlayerController(Controller):
         
     def server_validate(self, move_id:StaticValue(int), 
                     inputs: StaticValue(InputManager, fields=input_fields), 
+                    mouse_diff_x: StaticValue(float),
+                    mouse_diff_y: StaticValue(float),
                     delta_time: StaticValue(float),
                     position: StaticValue(Vector),
                     rotation: StaticValue(Euler)) -> Netmodes.server:
         
         self.current_move_id = move_id       
          
-        self.execute_move(inputs, delta_time)
+        self.execute_move(inputs, mouse_diff_x, mouse_diff_y, delta_time)
         
-        self.save_move(move_id, delta_time, inputs.to_tuple())
+        self.save_move(move_id, delta_time, inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
         
         correction = self.get_corrected_state(position, rotation)
 
@@ -139,23 +149,39 @@ class PlayerController(Controller):
         self.pawn.angular = correction.angular
    
         lookup_dict = {}
-        print("Correct")
+        
+        print("Correcting ... ")
+        
         with self.inputs.using_interface(lookup_dict):
         
             for move_id, move in self.previous_moves.items():
                 # Restore inputs
                 lookup_dict.update(zip(sorted(self.inputs.keybindings), move.inputs))
                 # Execute move
-                self.execute_move(self.inputs, move.delta_time)
-                self.save_move(move_id, move.delta_time, move.inputs)
+                self.execute_move(self.inputs, move.delta_time, move.mouse_x, move.mouse_y)
+                self.save_move(move_id, move.delta_time, move.inputs, move.mouse_x, move.mouse_y)
     
     def player_update(self, delta_time):
         if not self.pawn:
             return
-
-        self.execute_move(self.inputs, delta_time)
-        self.server_validate(self.current_move_id, self.inputs, delta_time, self.pawn.position, self.pawn.rotation)
-        self.save_move(self.current_move_id, delta_time, self.inputs.to_tuple())
+        
+        mouse = logic.mouse
+        m_pos = mouse.position
+        s_center = mouse.screen_center
+        
+        if self.mouse_setup:
+            mouse_diff_x = s_center[0] - m_pos[0]
+            mouse_diff_y = s_center[1] - m_pos[1]
+        else:
+            mouse_diff_x = mouse_diff_y = 0.0
+            
+            self.mouse_setup = True
+        
+        mouse.position = 0.5, 0.5
+        
+        self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
+        self.server_validate(self.current_move_id, self.inputs, mouse_diff_x, mouse_diff_y, delta_time, self.pawn.position, self.pawn.rotation)
+        self.save_move(self.current_move_id, delta_time, self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
 
         self.current_move_id += 1
         if self.current_move_id == 255:
@@ -163,8 +189,7 @@ class PlayerController(Controller):
                 
 class Actor(Replicable):
 
-    rigid_body_state = Attribute(RigidBodyState(), notify=True)
-    physics          = Attribute(PhysicsType.none)
+    rigid_body_state = Attribute(RigidBodyState(), notify=True, complain=False)
     roles            = Attribute(
                           Roles(
                                 Roles.authority, 
@@ -188,7 +213,6 @@ class Actor(Replicable):
     def on_notify(self, name):
         if name == "rigid_body_state":
             WorldInfo.physics.actor_replicated(self, self.rigid_body_state)
-            
         else:
             super().on_notify(name)
             
@@ -202,9 +226,7 @@ class Actor(Replicable):
         if (remote_role == Roles.simulated_proxy) or (remote_role == Roles.dumb_proxy) or (self.roles.remote == Roles.autonomous_proxy and not is_owner):
             
             if self.update_simulated_physics or is_initial:
-                
                 yield "rigid_body_state"
-                yield "physics"
         
     @simulated
     def suspend_physics(self):
@@ -213,6 +235,10 @@ class Actor(Replicable):
     @simulated
     def restore_physics(self):
         self.object.restoreDynamics()
+    
+    @property
+    def physics(self):
+        return self.object.physicsType
     
     @property
     def transform(self):

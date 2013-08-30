@@ -181,6 +181,7 @@ class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
+    info = Attribute(type_of=Replicable)
     
     def receive_broadcast(self, sender:StaticValue(Replicable), message_string:StaticValue(str)) -> Netmodes.client:
         print("BROADCAST: {}".format(message_string))
@@ -191,12 +192,6 @@ class Controller(Replicable):
     
     def unpossess(self):
         self.pawn.unpossessed()
-    
-    def on_unregistered(self):
-        super().on_unregistered()
-        
-        if self.pawn:    
-            self.unpossess()
     
     def on_notify(self, name):
         if name == "pawn":
@@ -209,6 +204,7 @@ class Controller(Replicable):
 
         if is_complaint:
             yield "pawn"  
+            yield "info"
             
     def player_update(self, elapsed):
         pass

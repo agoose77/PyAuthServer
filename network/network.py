@@ -229,8 +229,8 @@ class ClientChannel(Channel):
         replicable = self.replicable
         
         # Create local references outside loop
-        replicable_data = replicable.attribute_storage.data
-        get_attribute = replicable.attribute_storage.get_member_by_name
+        replicable_data = self.attribute_storage.data
+        get_attribute = self.attribute_storage.get_member_by_name
         notifier = replicable.on_notify
         
         # Process and store new values
@@ -248,22 +248,26 @@ class ServerChannel(Channel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Store dictionary of complaining values (compared with the replicable's account)
-        self.complain_status = {}
-    
+        # Data may changed from default values (we want to look at 
+        self.hash_dict = self.attribute_storage.get_default_descriptions()
+        self.complaint_dict =self.attribute_storage.get_default_complaints()
+        
     def get_attributes(self, is_owner):
         # Get replicable and its class
         replicable = self.replicable
-        is_complain = self.attribute_storage.complaints != self.complain_status
 
         # Set the role context for whom we replicate
         replicable.roles.context = is_owner
         
-        # Get names of replicable attributes
-        can_replicate = replicable.conditions(is_owner, is_complain, self.is_initial)
-        
         # Local access
-        previous_hashes = self.complain_status
+        previous_hashes = self.hash_dict
+        previous_complaints = self.complaint_dict
+        
         complaint_hashes = self.attribute_storage.complaints
+        is_complaining = previous_complaints != complaint_hashes
+                
+        # Get names of replicable attributes
+        can_replicate = replicable.conditions(is_owner, is_complaining, self.is_initial)
         
         get_description = static_description
         get_attribute = self.attribute_storage.get_member_by_name
@@ -281,14 +285,12 @@ class ServerChannel(Channel):
             value = attribute_data[attribute]
             
             # Check if the last hash is the same
-            try:
-                last_hash = previous_hashes[attribute]
-            except KeyError:
-                last_hash = previous_hashes[attribute] = get_description(value)
-            
-            # Use existing hash or new one if not stored
-            new_hash = complaint_hashes[attribute] if attribute in complaint_hashes else get_description(value)
+            last_hash = previous_hashes[attribute]
 
+            # Get value hash, use the complaint hash if it is there to save computation
+            new_hash = complaint_hashes[attribute] if attribute in complaint_hashes else get_description(value)
+            
+                        
             # If values match, don't update
             if last_hash == new_hash:
                 continue 
@@ -296,7 +298,12 @@ class ServerChannel(Channel):
             # Add value to data dict
             to_serialise[name] = value
             
+            # Remember hash of value
             previous_hashes[attribute] = new_hash
+
+            # Set new complaint hash if it was complaining
+            if attribute in complaint_hashes and attribute.complain:
+                previous_complaints[attribute] = new_hash
                             
         # We must have now replicated
         self.is_initial = False

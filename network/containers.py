@@ -111,10 +111,16 @@ class AttributeStorageContainer(AbstractStorageContainer):
     def __init__(self, instance):
         super().__init__(instance)
         
-        self.complaints = {}
+        self.complaints = self.get_default_complaints()
 
-    def get_complaint_descriptions(self, data):
+    def get_descriptions(self, data):
         return {attribute: static_description(value) for attribute, value in data.items()}
+    
+    def get_default_descriptions(self):
+        return self.get_descriptions({a: self.get_initial_data(a) for a in self.data})
+    
+    def get_default_complaints(self):
+        return {a: v for a, v in self.get_default_descriptions().items() if a.complain}
     
     def check_is_supported(self, member):
         return isinstance(member, Attribute)

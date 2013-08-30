@@ -13,18 +13,14 @@ class GameReplicationInfo(Replicable):
         yield "match_started"
         yield "time_to_start"
     
-#     @simulated
-#     def update(self, dt):
-#         print(self.time_to_start, self.match_started)
-#         
 class ExampleController(PlayerController):
     
-    def get_acceleration(self, inputs):
+    def get_acceleration(self, inputs, mouse_x, mouse_y):
         y_plane = inputs.forward.active - inputs.backwards.active
         x_plane = inputs.right.active - inputs.left.active
         
         forward_speed = 4.0
-        turn_speed = 2.0
+        turn_speed = 20
         
         forward = forward_speed * y_plane
         side = forward_speed * x_plane
@@ -32,6 +28,6 @@ class ExampleController(PlayerController):
         velocity = Vector((side, forward, 0.0))
         velocity.length = forward_speed
         
-        angular = Vector()
+        angular = Vector((0, 0, mouse_x * turn_speed))
         
         return velocity, angular

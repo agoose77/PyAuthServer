@@ -74,5 +74,6 @@ class Attribute(StaticValue):
         storage_interface.value = value
          
     def __str__(self):
-        return "[Attribute] name: {}, type: {}, initial value: {}".format(self.name, self.type.__name__, self._value)
-
+        return "[Attribute] name: {}, type: {}".format(self.name, self.type.__name__)
+    
+    __repr__ = __str__
