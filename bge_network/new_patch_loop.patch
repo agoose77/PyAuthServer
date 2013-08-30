@@ -1,0 +1,2644 @@
+Index: doc/python_api/rst/bge.logic.rst
+===================================================================
+--- doc/python_api/rst/bge.logic.rst	(revision 59220)
++++ doc/python_api/rst/bge.logic.rst	(working copy)
+@@ -302,7 +302,40 @@
+    
+    :return: The logic frequency in Hz
+    :rtype: float
++   
++.. function:: getAnimationTicRate()
+ 
++   Gets the animation update frequency.
++   
++   :return: The animation frequency in Hz
++   :rtype: float
++   
++.. function:: setAnimationTicRate(ticrate)
++
++   Sets the animation update frequency.
++   
++   The animation update frequency is the number of animation frames per second.
++   The default is 24 Hz if using fixed animation rate.
++   
++   :arg ticrate: The new animation update frequency (in Hz).
++   :type ticrate: float
++   
++.. function:: getRestrictAnimationUpdates()
++
++   Gets the animation respect frame rate status
++   
++   :return: The fixed animation framerate value
++   :rtype: bool
++   
++.. function:: setRestrictAnimationUpdates(restrict)
++
++   Sets the animation respect frame rate status
++   
++   This toggles the animation system ability to use a fixed framerate.
++   
++   :arg restrict: The new fixed animation framerate value.
++   :type restrict: bool
++
+ .. function:: setLogicTicRate(ticrate)
+ 
+    Sets the logic update frequency.
+@@ -334,13 +367,27 @@
+ 
+    .. warning: Not implimented yet
+ 
+-.. function:: getExitKey()
++.. function:: getUseFrameRate()
+ 
+    Gets the key used to exit the game engine
+ 
+    :return: The key (defaults to :mod:`bge.events.ESCKEY`)
+    :rtype: int
+ 
++.. function:: setUseFrameRate(status)
++
++   Sets the option to use a fixed framerate, rather than render as many frames as possible
++
++   :arg status: The new use framerate value
++   :type key: bool
++   
++.. function:: getUseFrameRate()
++
++   Gets the option to use a fixed framerate, rather than render as many frames as possible
++
++   :return: The use framerate value
++   :rtype: bool
++
+ .. function:: setExitKey(key)
+ 
+    Sets the key used to exit the game engine
+@@ -348,10 +395,6 @@
+    :arg key: A key constant from :mod:`bge.events`
+    :type key: int
+ 
+-.. function:: NextFrame()
+-
+-   Render next frame (if Python has control)
+-
+ *****************
+ Utility functions
+ *****************
+@@ -1089,6 +1132,20 @@
+ .. data:: KX_INPUT_ACTIVE
+ .. data:: KX_INPUT_JUST_RELEASED
+ 
++------------
++Physics Type
++------------
++.. _gameobject-physics-type:
++.. data:: KX_PHYSICS_STATIC
++.. data:: KX_PHYSICS_DYNAMIC
++.. data:: KX_PHYSICS_SENSOR
++.. data:: KX_PHYSICS_CHARACTER
++.. data:: KX_PHYSICS_OCCLUDER
++.. data:: KX_PHYSICS_SOFT_BODY
++.. data:: KX_PHYSICS_RIGID_BODY
++.. data:: KX_PHYSICS_NAVIGATION_MESH
++.. data:: KX_PHYSICS_NO_COLLISION
++
+ -------------
+ KX_GameObject
+ -------------
+@@ -1138,6 +1195,48 @@
+ .. data:: KX_MOUSE_BUT_MIDDLE
+ .. data:: KX_MOUSE_BUT_RIGHT
+ 
++--------------------
++Profile category IDs
++--------------------
++
++.. _profile_category_id:
++
++.. data:: KX_ENGINE_DEBUG_PHYSICS
++
++   Physics profile category ID.
++   
++.. data:: KX_ENGINE_DEBUG_ANIMATION
++
++   Animation profile category ID.
++   
++.. data:: KX_ENGINE_DEBUG_MESSAGES
++
++   Messages profile category ID.
++    
++.. data:: KX_ENGINE_DEBUG_LOGIC
++
++   Logic profile category ID.
++       
++.. data:: KX_ENGINE_DEBUG_SCENEGRAPH
++
++   Scenegraph profile category ID.
++          
++.. data:: KX_ENGINE_DEBUG_RASTERIZER
++
++   Rasterizer profile category ID.
++            
++.. data:: KX_ENGINE_DEBUG_SERVICES
++
++   Services profile category ID.
++               
++.. data:: KX_ENGINE_DEBUG_OVERHEAD
++
++   Overhead profile category ID.
++               
++.. data:: KX_ENGINE_DEBUG_OUTSIDE
++
++   Outside profile category ID.
++   
+ --------------------------
+ Navigation Mesh Draw Modes
+ --------------------------
+Index: doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst
+===================================================================
+--- doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst	(revision 59220)
++++ doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst	(working copy)
+@@ -270,6 +270,20 @@
+ 
+       :type: int
+ 
++   .. attribute:: physicsType
++
++      Type of physics mode, (read-only).
++
++      Use one of :ref:`these constants<gameobject-physics-type>`.
++      
++      :type: integer, one of KX_PHYSICS_* constants
++
++   .. attribute:: isActor
++
++      If the object is an Actor, (read-only).
++      
++      :type: boolean
++	  
+    .. attribute:: meshes
+ 
+       a list meshes for this object.
+Index: doc/python_api/rst/bge_types/bge.types.KX_Scene.rst
+===================================================================
+--- doc/python_api/rst/bge_types/bge.types.KX_Scene.rst	(revision 59220)
++++ doc/python_api/rst/bge_types/bge.types.KX_Scene.rst	(working copy)
+@@ -125,16 +125,18 @@
+ 
+       :type: list [fx, fy, fz]
+ 
+-   .. method:: addObject(object, other, time=0)
++   .. method:: addObject(object, other, time=0, layer=0)
+ 
+       Adds an object to the scene like the Add Object Actuator would.
+ 
+       :arg object: The object to add
+       :type object: :class:`KX_GameObject` or string
+-      :arg other: The object's center to use when adding the object
+-      :type other: :class:`KX_GameObject` or string
++      :arg other: The source for the new transform, using an object, or transform matrix
++      :type other: :class:`KX_GameObject`, :class:`Matrix` or string
+       :arg time: The lifetime of the added object, in frames. A time of 0 means the object will last forever.
+       :type time: integer
++      :arg layer: The layer of the added object. This should only be specified if a matrix is used, otherwise it is ignored.
++      :type layer: integer
+       :return: The newly added object.
+       :rtype: :class:`KX_GameObject`
+ 
+Index: release/scripts/startup/bl_ui/properties_game.py
+===================================================================
+--- release/scripts/startup/bl_ui/properties_game.py	(revision 59220)
++++ release/scripts/startup/bl_ui/properties_game.py	(working copy)
+@@ -422,6 +422,9 @@
+         row = layout.row()
+         row.label("Exit Key")
+         row.prop(gs, "exit_key", text="", event=True)
++		
++		row = layout.row()
++		row.prop(gs, "custom_loop")
+ 
+ 
+ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
+Index: source/blender/makesdna/DNA_scene_types.h
+===================================================================
+--- source/blender/makesdna/DNA_scene_types.h	(revision 59220)
++++ source/blender/makesdna/DNA_scene_types.h	(working copy)
+@@ -638,6 +638,7 @@
+ 	float eyeseparation;
+ 	RecastData recastData;
+ 
++	char custom_loop[64];
+ 
+ 	/* physics (it was in world)*/
+ 	float gravity; /*Gravitation constant for the game world*/
+Index: source/blender/makesrna/intern/rna_scene.c
+===================================================================
+--- source/blender/makesrna/intern/rna_scene.c	(revision 59220)
++++ source/blender/makesrna/intern/rna_scene.c	(working copy)
+@@ -3430,6 +3430,10 @@
+ 	RNA_def_property_ui_text(prop, "Display Lists",
+ 	                         "Use display lists to speed up rendering by keeping geometry on the GPU");
+ 
++	prop = RNA_def_property(srna, "custom_loop", PROP_STRING, PROP_NONE);
++	RNA_def_property_string_sdna(prop, NULL, "custom_loop");
++	RNA_def_property_ui_text(prop, "Custom gameloop class", "Filepath to custom gameloop class");
++
+ 	prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
+ 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);
+ 	RNA_def_property_ui_text(prop, "Deprecation Warnings",
+Index: source/gameengine/BlenderRoutines/BL_KetsjiEmbedStart.cpp
+===================================================================
+--- source/gameengine/BlenderRoutines/BL_KetsjiEmbedStart.cpp	(revision 59220)
++++ source/gameengine/BlenderRoutines/BL_KetsjiEmbedStart.cpp	(working copy)
+@@ -55,7 +55,11 @@
+ #include "KX_PythonInit.h"
+ #include "KX_PyConstraintBinding.h"
+ #include "KX_PythonMain.h"
++#include "KX_EngineCallbackData.h"
++#include "KX_KetsjiLogicLoop.h"
++#include "KX_PythonLogicLoop.h"
+ 
++
+ #include "RAS_GLExtensionManager.h"
+ #include "RAS_OpenGLRasterizer.h"
+ #include "RAS_ListRasterizer.h"
+@@ -105,58 +109,58 @@
+ static BlendFileData *load_game_data(char *filename)
+ {
+ 	ReportList reports;
+-	BlendFileData *bfd;
++	BlendFileData *blend_file_data;
+ 	
+ 	BKE_reports_init(&reports, RPT_STORE);
+-	bfd= BLO_read_from_file(filename, &reports);
++	blend_file_data = BLO_read_from_file(filename, &reports);
+ 
+-	if (!bfd) {
++	if (!blend_file_data) {
+ 		printf("Loading %s failed: ", filename);
+ 		BKE_reports_print(&reports, RPT_ERROR);
+ 	}
+ 
+ 	BKE_reports_clear(&reports);
+ 
+-	return bfd;
++	return blend_file_data;
+ }
+ 
+-static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWindow *win, Scene *scene, ARegion *ar,
+-                              KX_BlenderKeyboardDevice* keyboarddevice, KX_BlenderMouseDevice* mousedevice, int draw_letterbox)
++void KX_RenderCallback(KX_EngineCallbackData *data)
+ {
+-	int exitrequested;
+-
+-	// first check if we want to exit
+-	exitrequested = ketsjiengine->GetExitCode();
+-
+-	// kick the engine
+-	bool render = ketsjiengine->NextFrame();
+-
+-	if (render) {
+-		if (draw_letterbox) {
++	if (data->draw_letterbox) {
+ 			// Clear screen to border color
+ 			// We do this here since we set the canvas to be within the frames. This means the engine
+ 			// itself is unaware of the extra space, so we clear the whole region for it.
+-			glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
+-			glViewport(ar->winrct.xmin, ar->winrct.ymin,
+-			           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
++		glClearColor(data->scene->gm.framing.col[0], 
++			data->scene->gm.framing.col[1], 
++			data->scene->gm.framing.col[2], 1.0f);
++
++		glViewport(data->ar->winrct.xmin, 
++			data->ar->winrct.ymin,
++			BLI_rcti_size_x(&data->ar->winrct), 
++			BLI_rcti_size_y(&data->ar->winrct));
++
+ 			glClear(GL_COLOR_BUFFER_BIT);
+ 		}
+-
+-		// render the frame
+-		ketsjiengine->Render();
+-	}
+-
++}
++	
++void KX_EventCallback(KX_EngineCallbackData *data){
++	// test for the ESC key
++	//XXX while (qtest())
++	wmWindow *win = data->win;
++	KX_BlenderKeyboardDevice *keyboarddevice = (KX_BlenderKeyboardDevice*)data->ketsjiengine->GetKeyboardDevice();
++	KX_BlenderMouseDevice *mousedevice = (KX_BlenderMouseDevice*)data->ketsjiengine->GetMouseDevice();
++	ARegion *ar = data->ar;
++	
+ 	wm_window_process_events_nosleep();
+ 
+-	// test for the ESC key
+-	//XXX while (qtest())
+ 	while (wmEvent *event= (wmEvent *)win->queue.first) {
+ 		short val = 0;
+ 		//unsigned short event = 0; //XXX extern_qread(&val);
++		if (keyboarddevice->ConvertBlenderEvent(event->type, event->val))
++		{
++			data->ketsjiengine->RequestExit(KX_EXIT_REQUEST_BLENDER_ESC);
++		}
+ 
+-		if (keyboarddevice->ConvertBlenderEvent(event->type,event->val))
+-			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
+-
+ 		/* Coordinate conversion... where
+ 		 * should this really be?
+ 		 */
+@@ -176,133 +180,99 @@
+ 		wm_event_free(event);
+ 	}
+ 
+-	if (win != CTX_wm_window(C)) {
+-		exitrequested= KX_EXIT_REQUEST_OUTSIDE; /* window closed while bge runs */
++	if (win != CTX_wm_window(data->C)) {
++		data->ketsjiengine->RequestExit(KX_EXIT_REQUEST_OUTSIDE); // window closed while bge runs
+ 	}
+-	return exitrequested;
+ }
++void setupMaterials(GlobalSettings globalsettings, KX_ISceneConverter *sceneconverter, Scene *scene)
++{
++	bool usemat, useglslmat = false;
++	if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
++		usemat = true;
++ 
++	if (GPU_glsl_support())
++		useglslmat = true;
+ 
+-static struct BL_KetsjiNextFrameState {
+-	class KX_KetsjiEngine* ketsjiengine;
+-	struct bContext *C;
+-	struct wmWindow* win;
+-	struct Scene* scene;
+-	struct ARegion *ar;
+-	KX_BlenderKeyboardDevice* keyboarddevice;
+-	KX_BlenderMouseDevice* mousedevice;
+-	int draw_letterbox;
+-} ketsjinextframestate;
++	else if (globalsettings.matmode == GAME_MAT_GLSL)
++		usemat = false;
+ 
+-static int BL_KetsjiPyNextFrame(void *state0)
+-{
+-	BL_KetsjiNextFrameState *state = (BL_KetsjiNextFrameState *) state0;
+-	return BL_KetsjiNextFrame(
+-		state->ketsjiengine, 
+-		state->C, 
+-		state->win, 
+-		state->scene, 
+-		state->ar,
+-		state->keyboarddevice, 
+-		state->mousedevice, 
+-		state->draw_letterbox);
++	if (usemat && (globalsettings.matmode != GAME_MAT_TEXFACE))
++		sceneconverter->SetMaterials(true);
++	if (useglslmat && (globalsettings.matmode == GAME_MAT_GLSL))
++		sceneconverter->SetGLSLMaterials(true);
++	if (scene->gm.flag & GAME_NO_MATERIAL_CACHING)
++		sceneconverter->SetCacheMaterials(false);
+ }
+ 
+-extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing)
++BlendFileData *getBlendFileData(char *pathname, STR_String exitstring)
+ {
+-	/* context values */
+-	struct wmWindowManager *wm= CTX_wm_manager(C);
+-	struct wmWindow *win= CTX_wm_window(C);
+-	struct Scene *startscene= CTX_data_scene(C);
+-	struct Main* maggie1= CTX_data_main(C);
+-
+-
+-	RAS_Rect area_rect;
+-	area_rect.SetLeft(cam_frame->xmin);
+-	area_rect.SetBottom(cam_frame->ymin);
+-	area_rect.SetRight(cam_frame->xmax);
+-	area_rect.SetTop(cam_frame->ymax);
+-
+-	int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
+-	Main* blenderdata = maggie1;
+-
+-	char* startscenename = startscene->id.name+2;
+-	char pathname[FILE_MAXDIR+FILE_MAXFILE], oldsce[FILE_MAXDIR+FILE_MAXFILE];
+-	STR_String exitstring = "";
+-	BlendFileData *bfd= NULL;
+-
+-	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+-	BLI_strncpy(oldsce, G.main->name, sizeof(oldsce));
+-#ifdef WITH_PYTHON
+-	resetGamePythonPath(); // need this so running a second time wont use an old blendfiles path
+-	setGamePythonPath(G.main->name);
+-
+-	// Acquire Python's GIL (global interpreter lock)
+-	// so we can safely run Python code and API calls
+-	PyGILState_STATE gilstate = PyGILState_Ensure();
++	char basedpath[FILE_MAX];
++	// base the actuator filename with respect
++	// to the original file working directory
++	if (exitstring != "")
++		BLI_strncpy(basedpath, exitstring.ReadPtr(), sizeof(basedpath));
+ 	
+-	PyObject *pyGlobalDict = PyDict_New(); /* python utility storage, spans blend file loading */
+-#endif
+-	
+-	bgl::InitExtensions(true);
++	// load relative to the last loaded file, this used to be relative
++	// to the first file but that makes no sense, relative paths in
++	// blend files should be relative to that file, not some other file
++	// that happened to be loaded first
++	BLI_path_abs(basedpath, pathname);
++	BlendFileData *blend_file_data = load_game_data(basedpath);
+ 
+-	// VBO code for derived mesh is not compatible with BGE (couldn't find why), so disable
+-	int disableVBO = (U.gameflags & USER_DISABLE_VBO);
+-	U.gameflags |= USER_DISABLE_VBO;
++	// If the path didn't load, try a "relative" path
++	if (!blend_file_data)
++	{
++		// just add "//" in front of it
++		char temppath[242];
++		strcpy(temppath, "//");
++		strcat(temppath, basedpath);
++		BLI_path_abs(temppath, pathname);
++		blend_file_data = load_game_data(temppath);
++	}
++	if (!blend_file_data)
++		return NULL;
+ 
+-	// Globals to be carried on over blender files
+-	GlobalSettings gs;
+-	gs.matmode= startscene->gm.matmode;
+-	gs.glslflag= startscene->gm.flag;
++	return blend_file_data;
++}
+ 
+-	do
+-	{
+-		View3D *v3d= CTX_wm_view3d(C);
+-		RegionView3D *rv3d= CTX_wm_region_view3d(C);
+ 
+-		// get some preferences
++KX_KetsjiEngine *setupKetsjiEngine(Scene *startscene, RAS_ICanvas *canvas, GlobalSettings *globalsettings)
++{
++		// Handle command line options
+ 		SYS_SystemHandle syshandle = SYS_GetSystem();
++
+ 		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
+-		bool usefixed = (SYS_GetCommandLineInt(syshandle, "fixedtime", 0) != 0);
+ 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
+ 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
+ 		bool animation_record = (SYS_GetCommandLineInt(syshandle, "animation_record", 0) != 0);
++		bool usefixed = (SYS_GetCommandLineInt(syshandle, "fixedtime", 0) != 0) && !animation_record;
+ 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0);
+ #ifdef WITH_PYTHON
+ 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 0) != 0);
+ #endif
++		// Scene properties 
+ 		// bool novertexarrays = (SYS_GetCommandLineInt(syshandle, "novertexarrays", 0) != 0);
+ 		bool mouse_state = startscene->gm.flag & GAME_SHOW_MOUSE;
+ 		bool restrictAnimFPS = startscene->gm.flag & GAME_RESTRICT_ANIM_UPDATES;
+ 
+-		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
++		// Determine user-specified mouse mode
++		RAS_ICanvas::RAS_MouseState mouse_mode = mouse_state ? RAS_ICanvas::MOUSE_NORMAL : RAS_ICanvas::MOUSE_INVISIBLE;
++		// Apply to canvas
++		canvas->SetMouseState(mouse_mode);
+ 
+-		// create the canvas, rasterizer and rendertools
+-		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
+-		
+-		// default mouse state set on render panel
+-		if (mouse_state)
+-			canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+-		else
+-			canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+-
+ 		// Setup vsync
+-		int previous_vsync = canvas->GetSwapInterval();
+-		if (startscene->gm.vsync == VSYNC_ADAPTIVE)
+-			canvas->SetSwapInterval(-1);
+-		else
+-			canvas->SetSwapInterval(!startscene->gm.vsync); // VSYNC_OFF == 1, VSYNC_ON == 0, so this works
++		int vsync_value = (startscene->gm.vsync == VSYNC_ADAPTIVE) ? -1 : startscene->gm.vsync;
++		canvas->SetSwapInterval(vsync_value); // VSYNC_OFF == 0, VSYNC_ON == 1, so this works
+ 
+ 		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
+ 		RAS_IRasterizer* rasterizer = NULL;
++
+ 		//Don't use displaylists with VBOs
+ 		//If auto starts using VBOs, make sure to check for that here
+ 		if (displaylists && startscene->gm.raster_storage != RAS_STORE_VBO)
+ 			rasterizer = new RAS_ListRasterizer(canvas, true, startscene->gm.raster_storage);
+ 		else
+ 			rasterizer = new RAS_OpenGLRasterizer(canvas, startscene->gm.raster_storage);
+-
+-		RAS_IRasterizer::MipmapOption mipmapval = rasterizer->GetMipmapping();
+-
+ 		
+ 		// create the inputdevices
+ 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
+@@ -312,7 +282,6 @@
+ 		NG_NetworkDeviceInterface* networkdevice = new
+ 			NG_LoopBackNetworkDeviceInterface();
+ 
+-		//
+ 		// create a ketsji/blendersystem (only needed for timing and stuff)
+ 		KX_BlenderSystem* kxsystem = new KX_BlenderSystem();
+ 		
+@@ -326,18 +295,166 @@
+ 		ketsjiengine->SetCanvas(canvas);
+ 		ketsjiengine->SetRenderTools(rendertools);
+ 		ketsjiengine->SetRasterizer(rasterizer);
++
++	// set the local settings
+ 		ketsjiengine->SetUseFixedTime(usefixed);
++	ketsjiengine->SetAnimRecordMode(animation_record);
+ 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
+ 		ketsjiengine->SetRestrictAnimationFPS(restrictAnimFPS);
++
++	// set the exit key
+ 		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(startscene->gm.exitkey));
+ 
+-		//set the global settings (carried over if restart/load new files)
+-		ketsjiengine->SetGlobalSettings(&gs);
++	// set the global settings (carried over if restart/load new files)
++	ketsjiengine->SetGlobalSettings(globalsettings);
+ 
++	// set the warning status for deprecated methods/accessors
+ #ifdef WITH_PYTHON
+ 		CValue::SetDeprecationWarnings(nodepwarnings);
+ #endif
+ 
++	return ketsjiengine;
++};
++
++void setupPythonGameloop(KX_KetsjiEngine *ketsjiengine, char *custom_loop)
++{
++	// Setup python gameloop
++
++	if (!strcmp(custom_loop, ""))
++	{
++		return;
++	}
++	// Collect the path information
++	std::vector<STR_String> path_parts = STR_String(custom_loop).Explode('.');
++
++		if (path_parts.size() < 2)
++	{
++			printf("Python class name formatting error:\n\texpected \"SomeModule.Class\", got \"%s\"\n", custom_loop);
++			return;
++	}
++
++	// Now recombine the module path (excludes the class)
++	STR_String mod_path = STR_String("");
++	char* class_string = path_parts[path_parts.size()-1].Ptr();
++	int parts_size = path_parts.size();
++	unsigned int j = 0;
++
++	for (NULL; j<parts_size-1; j++)
++			mod_path += path_parts[j];
++		if (j != parts_size - 1)
++				mod_path + ".";
++
++	// Import the module containing the path
++	PyObject* mod = PyImport_ImportModule(mod_path.Ptr());
++
++	if (mod == NULL)
++	{
++			printf("Python module not found: %s\n", mod_path.Ptr());
++			PyErr_Print();
++			return;
++	}
++
++	// Get the class object
++	PyObject* py_class = PyObject_GetAttrString(mod, class_string);
++
++	if (py_class == NULL)
++	{
++			printf("Python module found, but could not find class \"%s\"\n", class_string);
++			Py_DECREF(mod);
++			return;
++	}
++
++	// Check to make sure the object is actually a class
++	if (!PyType_Check(py_class))
++	{
++			printf("%s is not a class\n", class_string);
++			Py_DECREF(mod);
++			Py_DECREF(py_class);
++			return;
++	}
++
++	// Finally set the class
++	KX_PythonLogicLoop *loop = new KX_PythonLogicLoop(ketsjiengine);
++	loop->setPythonClass((PyTypeObject*) py_class);
++
++	// Tell engine to setup using loop (old one is deleted)
++	ketsjiengine->SetLogicLoop(loop);
++
++	Py_DECREF(mod);
++	Py_DECREF(py_class);
++}
++
++extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing)
++{
++	/* context values */
++	struct wmWindowManager *wm= CTX_wm_manager(C);
++	struct wmWindow *win= CTX_wm_window(C);
++	struct Scene *startscene= CTX_data_scene(C);
++	struct Main* maggie1= CTX_data_main(C);
++
++	RAS_Rect area_rect;
++	area_rect.SetLeft(cam_frame->xmin);
++	area_rect.SetBottom(cam_frame->ymin);
++	area_rect.SetRight(cam_frame->xmax);
++	area_rect.SetTop(cam_frame->ymax);
++
++	int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
++	Main* blenderdata = maggie1;
++
++	char* startscenename = startscene->id.name+2;
++	char pathname[FILE_MAXDIR+FILE_MAXFILE], oldsce[FILE_MAXDIR+FILE_MAXFILE];
++	STR_String exitstring = "";
++	BlendFileData *blend_file_data= NULL;
++
++	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
++	BLI_strncpy(oldsce, G.main->name, sizeof(oldsce));
++
++#ifdef WITH_PYTHON
++	resetGamePythonPath(); // need this so running a second time wont use an old blendfiles path
++	setGamePythonPath(G.main->name);
++
++	// Acquire Python's GIL (global interpreter lock)
++	// so we can safely run Python code and API calls
++	PyGILState_STATE gilstate = PyGILState_Ensure();
++	
++	PyObject *pyGlobalDict = PyDict_New(); /* python utility storage, spans blend file loading */
++#endif
++	
++	bgl::InitExtensions(true);
++
++	// VBO code for derived mesh is not compatible with BGE (couldn't find why), so disable
++	int disableVBO = (U.gameflags & USER_DISABLE_VBO);
++	U.gameflags |= USER_DISABLE_VBO;
++
++	// Globals to be carried on over blender files
++	GlobalSettings gs;
++	gs.matmode= startscene->gm.matmode;
++	gs.glslflag= startscene->gm.flag;
++				
++	// Create callbacks for render setup and event setup pre engine
++	KX_EngineCallbackData *callbacks = new KX_EngineCallbackData();
++
++	// User defined Python gameloop path
++	char *custom_loop = startscene->gm.custom_loop;
++
++	do
++	{
++		View3D *v3d= CTX_wm_view3d(C);
++		RegionView3D *rv3d= CTX_wm_region_view3d(C);
++
++		// Create the canvas
++		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
++
++		// Setup vsync
++		int previous_vsync = canvas->GetSwapInterval();
++
++		// Create the engine
++		KX_KetsjiEngine *ketsjiengine = setupKetsjiEngine(startscene, canvas, &gs);
++			
++		// Get the rasterizer (from engine creation call)
++		RAS_IRasterizer *rasterizer = ketsjiengine->GetRasterizer();
++		RAS_IRasterizer::MipmapOption mipmapval = rasterizer->GetMipmapping();
++
+ 		//lock frame and camera enabled - storing global values
+ 		int tmp_lay= startscene->lay;
+ 		Object *tmp_camera = startscene->camera;
+@@ -348,7 +465,7 @@
+ 		}
+ 
+ 		// some blender stuff
+-		float camzoom;
++		float camzoom = 2.0;
+ 		int draw_letterbox = 0;
+ 		
+ 		if (rv3d->persp==RV3D_CAMOB) {
+@@ -356,15 +473,11 @@
+ 				camzoom = 1.0f;
+ 				draw_letterbox = 1;
+ 			}
+-			else {
++			else
+ 				camzoom = 1.0f / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
+ 			}
+-		}
+-		else {
+-			camzoom = 2.0;
+-		}
+ 
+-
++		// Set the drawing type from the 3D viewport
+ 		ketsjiengine->SetDrawType(v3d->drawtype);
+ 		ketsjiengine->SetCameraZoom(camzoom);
+ 		
+@@ -372,38 +485,18 @@
+ 		if (exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME || exitrequested == KX_EXIT_REQUEST_RESTART_GAME)
+ 		{
+ 			exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
+-			if (bfd) BLO_blendfiledata_free(bfd);
+-			
+-			char basedpath[FILE_MAX];
+-			// base the actuator filename with respect
+-			// to the original file working directory
+ 
+-			if (exitstring != "")
+-				BLI_strncpy(basedpath, exitstring.ReadPtr(), sizeof(basedpath));
+-
+-			// load relative to the last loaded file, this used to be relative
+-			// to the first file but that makes no sense, relative paths in
+-			// blend files should be relative to that file, not some other file
+-			// that happened to be loaded first
+-			BLI_path_abs(basedpath, pathname);
+-			bfd = load_game_data(basedpath);
++			if (blend_file_data) 
++				BLO_blendfiledata_free(blend_file_data);
+ 			
+-			// if it wasn't loaded, try it forced relative
+-			if (!bfd)
+-			{
+-				// just add "//" in front of it
+-				char temppath[FILE_MAX] = "//";
+-				BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
++			// Get the blend file data from path
++			blend_file_data = getBlendFileData(pathname, exitstring);
+ 				
+-				BLI_path_abs(temppath, pathname);
+-				bfd = load_game_data(temppath);
+-			}
+-			
+ 			// if we got a loaded blendfile, proceed
+-			if (bfd)
++			if (blend_file_data)
+ 			{
+-				blenderdata = bfd->main;
+-				startscenename = bfd->curscene->id.name + 2;
++				blenderdata = blend_file_data->main;
++				startscenename = blend_file_data->curscene->id.name + 2;
+ 
+ 				if (blenderdata) {
+ 					BLI_strncpy(G.main->name, blenderdata->name, sizeof(G.main->name));
+@@ -413,28 +506,30 @@
+ #endif
+ 				}
+ 			}
+-			// else forget it, we can't find it
++			// Else we cannot do anything, so exit!
+ 			else
+-			{
+ 				exitrequested = KX_EXIT_REQUEST_QUIT_GAME;
+ 			}
+-		}
+ 
+-		Scene *scene= bfd ? bfd->curscene : (Scene *)BLI_findstring(&blenderdata->scene, startscenename, offsetof(ID, name) + 2);
++		// Get a scene to start with
++		Scene *scene = blend_file_data ? blend_file_data->curscene : (Scene *)BLI_findstring(&blenderdata->scene, startscenename, offsetof(ID, name) + 2);
+ 
++		// If it exists, setup scene
+ 		if (scene)
+ 		{
+-			int startFrame = scene->r.cfra;
+-			ketsjiengine->SetAnimRecordMode(animation_record, startFrame);
+-			
++			// Start animation recording from scene's current frame (if enabled)
++			ketsjiengine->SetAnimationFrame(scene->r.cfra);
++
++			// Setup stero rendering if enabled
++			if (scene->gm.stereoflag == STEREO_ENABLED) {
+ 			// Quad buffered needs a special window.
+-			if (scene->gm.stereoflag == STEREO_ENABLED) {
+ 				if (scene->gm.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
+ 					rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) scene->gm.stereomode);
+-
++				// Setup stereo eye separation
+ 				rasterizer->SetEyeSeparation(scene->gm.eyeseparation);
+ 			}
+ 
++			// Set background color of window from scene
+ 			rasterizer->SetBackColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 0.0f);
+ 		}
+ 		
+@@ -446,52 +541,35 @@
+ 				ketsjiengine->SetCameraOverrideUseOrtho((rv3d->persp == RV3D_ORTHO));
+ 				ketsjiengine->SetCameraOverrideProjectionMatrix(MT_CmMatrix4x4(rv3d->winmat));
+ 				ketsjiengine->SetCameraOverrideViewMatrix(MT_CmMatrix4x4(rv3d->viewmat));
+-				if (rv3d->persp == RV3D_ORTHO)
+-				{
+ 					ketsjiengine->SetCameraOverrideClipping(v3d->near, v3d->far);
+-				}
+-				else
+-				{
+-					ketsjiengine->SetCameraOverrideClipping(v3d->near, v3d->far);
+-				}
+ 				ketsjiengine->SetCameraOverrideLens(v3d->lens);
+ 			}
+ 			
+-			// create a scene converter, create and convert the startingscene
++			// Create the scene converter
+ 			KX_ISceneConverter* sceneconverter = new KX_BlenderSceneConverter(blenderdata, ketsjiengine);
++
++			// Set the scene converter
+ 			ketsjiengine->SetSceneConverter(sceneconverter);
+-			sceneconverter->addInitFromFrame=false;
++			sceneconverter->addInitFromFrame = false;
++
+ 			if (always_use_expand_framing)
+ 				sceneconverter->SetAlwaysUseExpandFraming(true);
+ 
+-			bool usemat = false, useglslmat = false;
+-
+-			if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
+-				usemat = true;
+-
+-			if (GPU_glsl_support())
+-				useglslmat = true;
+-			else if (gs.matmode == GAME_MAT_GLSL)
+-				usemat = false;
+-
+-			if (usemat && (gs.matmode != GAME_MAT_TEXFACE))
+-				sceneconverter->SetMaterials(true);
+-			if (useglslmat && (gs.matmode == GAME_MAT_GLSL))
+-				sceneconverter->SetGLSLMaterials(true);
+-			if (scene->gm.flag & GAME_NO_MATERIAL_CACHING)
+-				sceneconverter->SetCacheMaterials(false);
++			// Setup the materials for the sceneconverter
++			setupMaterials(gs, sceneconverter, scene);
+ 					
+-			KX_Scene* startscene = new KX_Scene(keyboarddevice,
+-				mousedevice,
+-				networkdevice,
+-				startscenename,
+-				scene,
+-				canvas);
++			// Create the initial scene
++			KX_Scene* startscene = new KX_Scene(ketsjiengine->GetKeyboardDevice(), ketsjiengine->GetMouseDevice(),
++												ketsjiengine->GetNetworkDevice(), startscenename, scene, canvas);
+ 
+ #ifdef WITH_PYTHON
+-			// some python things
++			// Create namespaces
+ 			PyObject *gameLogic, *gameLogic_keys;
++			// Setup Python API imports
+ 			setupGamePython(ketsjiengine, startscene, blenderdata, pyGlobalDict, &gameLogic, &gameLogic_keys, 0, NULL);
++			// Setup GameLoop from Python
++			setupPythonGameloop(ketsjiengine, custom_loop);
++			
+ #endif // WITH_PYTHON
+ 
+ 			//initialize Dome Settings
+@@ -513,13 +591,11 @@
+ 			if (blenderdata->versionfile < 250)
+ 				do_versions_ipos_to_animato(blenderdata);
+ 
++			// Convert starting scene
+ 			if (sceneconverter)
+ 			{
+ 				// convert and add scene
+-				sceneconverter->ConvertScene(
+-					startscene,
+-					rendertools,
+-					canvas);
++				sceneconverter->ConvertScene(startscene, ketsjiengine->GetRenderTools(), canvas);
+ 				ketsjiengine->AddScene(startscene);
+ 				
+ 				// init the rasterizer
+@@ -527,88 +603,68 @@
+ 				
+ 				// start the engine
+ 				ketsjiengine->StartEngine(true);
+-				
+ 
+ 				// Set the animation playback rate for ipo's and actions
+ 				// the framerate below should patch with FPS macro defined in blendef.h
+ 				// Could be in StartEngine set the framerate, we need the scene to do this
+ 				ketsjiengine->SetAnimFrameRate(FPS);
+-				
+-#ifdef WITH_PYTHON
+-				char *python_main = NULL;
+-				pynextframestate.state = NULL;
+-				pynextframestate.func = NULL;
+-				python_main = KX_GetPythonMain(scene);
++				//exitrequested = BL_KetsjiNextFrame(ketsjiengine, C, win, scene, ar, keyboarddevice, mousedevice, draw_letterbox);
+ 
+-				// the mainloop
++				callbacks->C = C;
++				callbacks->win = win;
++				callbacks->scene = scene;
++				callbacks->ar = ar;
++				callbacks->draw_letterbox = draw_letterbox;
++				callbacks->rendercallback = KX_RenderCallback;
++				callbacks->eventcallback = KX_EventCallback;
++				callbacks->ketsjiengine = ketsjiengine;
++
++				// Pass callbacks to refresh display, events
++				ketsjiengine->SetEngineCallbacks(callbacks);
++
++				// Starting gameloop
+ 				printf("\nBlender Game Engine Started\n");
+-				if (python_main) {
+-					char *python_code = KX_GetPythonCode(blenderdata, python_main);
+-					if (python_code) {
+-						ketsjinextframestate.ketsjiengine = ketsjiengine;
+-						ketsjinextframestate.C = C;
+-						ketsjinextframestate.win = win;
+-						ketsjinextframestate.scene = scene;
+-						ketsjinextframestate.ar = ar;
+-						ketsjinextframestate.keyboarddevice = keyboarddevice;
+-						ketsjinextframestate.mousedevice = mousedevice;
+-						ketsjinextframestate.draw_letterbox = draw_letterbox;
+-			
+-						pynextframestate.state = &ketsjinextframestate;
+-						pynextframestate.func = &BL_KetsjiPyNextFrame;
+-						printf("Yielding control to Python script '%s'...\n", python_main);
+-						PyRun_SimpleString(python_code);
+-						printf("Exit Python script '%s'\n", python_main);
+-						MEM_freeN(python_code);
+-					}
+-				}
+-				else
+-#endif  /* WITH_PYTHON */
+-				{
+-					while (!exitrequested)
+-					{
+-						exitrequested = BL_KetsjiNextFrame(ketsjiengine, C, win, scene, ar, keyboarddevice, mousedevice, draw_letterbox);
+-					}
+-				}
++
++				// Allow engine to run loop
++				KX_KetsjiLogicLoop *loop = ketsjiengine->GetLogicLoop();
++				loop->GiveHandle();
++				loop = NULL;
++
++				// Gameloop now exiting
+ 				printf("Blender Game Engine Finished\n");
++
++				// Get exit data
+ 				exitstring = ketsjiengine->GetExitString();
+-#ifdef WITH_PYTHON
+-				if (python_main) MEM_freeN(python_main);
+-#endif  /* WITH_PYTHON */
++				exitrequested = ketsjiengine->GetExitCode();
+ 
+ 				gs = *(ketsjiengine->GetGlobalSettings());
+ 
+-				// when exiting the mainloop
+ #ifdef WITH_PYTHON
+-				// Clears the dictionary by hand:
+-				// This prevents, extra references to global variables
+-				// inside the GameLogic dictionary when the python interpreter is finalized.
+-				// which allows the scene to safely delete them :)
+-				// see: (space.c)->start_game
++				/* Clears the dictionary by hand:
++				This prevents, extra references to global variables	inside the
++				GameLogic dictionary when the python interpreter is finalized.
++				This allows the scene to safely delete them; see (space.c)->start_game
++				PyDict_Clear(PyModule_GetDict(gameLogic)); */
+ 				
+-				//PyDict_Clear(PyModule_GetDict(gameLogic));
++				// Keep original items, means python plugins will autocomplete members
++				PyObject *new_gameLogic_keys = PyDict_Keys(PyModule_GetDict(gameLogic));
++				const Py_ssize_t numitems= PyList_GET_SIZE(new_gameLogic_keys);
+ 				
+-				// Keep original items, means python plugins will autocomplete members
+-				PyObject *gameLogic_keys_new = PyDict_Keys(PyModule_GetDict(gameLogic));
+-				const Py_ssize_t numitems= PyList_GET_SIZE(gameLogic_keys_new);
+-				Py_ssize_t listIndex;
+-				for (listIndex=0; listIndex < numitems; listIndex++) {
+-					PyObject *item = PyList_GET_ITEM(gameLogic_keys_new, listIndex);
++				for (Py_ssize_t index=0; index < numitems; index++) {
++					PyObject *item = PyList_GET_ITEM(new_gameLogic_keys, index);
++
+ 					if (!PySequence_Contains(gameLogic_keys, item)) {
+-						PyDict_DelItem(	PyModule_GetDict(gameLogic), item);
++						PyDict_DelItem(PyModule_GetDict(gameLogic), item);
+ 					}
+ 				}
+-				Py_DECREF(gameLogic_keys_new);
+-				gameLogic_keys_new = NULL;
++
++				Py_DECREF(new_gameLogic_keys);
++				new_gameLogic_keys = NULL;
+ #endif
+ 				ketsjiengine->StopEngine();
+ #ifdef WITH_PYTHON
+ 				exitGamePythonScripting();
+ #endif
+-				networkdevice->Disconnect();
+-			}
+-			if (sceneconverter)
+-			{
+ 				delete sceneconverter;
+ 				sceneconverter = NULL;
+ 			}
+@@ -624,6 +680,7 @@
+ 			startscene->camera= tmp_camera;
+ 		}
+ 
++		// Reset mouse state
+ 		if (exitrequested != KX_EXIT_REQUEST_OUTSIDE)
+ 		{
+ 			// set the cursor back to normal
+@@ -639,36 +696,15 @@
+ 			delete ketsjiengine;
+ 			ketsjiengine = NULL;
+ 		}
+-		if (kxsystem)
++		if (callbacks)
+ 		{
+-			delete kxsystem;
+-			kxsystem = NULL;
++			delete callbacks;
++			callbacks = NULL;
+ 		}
+-		if (networkdevice)
+-		{
+-			delete networkdevice;
+-			networkdevice = NULL;
+-		}
+-		if (keyboarddevice)
+-		{
+-			delete keyboarddevice;
+-			keyboarddevice = NULL;
+-		}
+-		if (mousedevice)
+-		{
+-			delete mousedevice;
+-			mousedevice = NULL;
+-		}
+ 		if (rasterizer)
+ 		{
+-			delete rasterizer;
+ 			rasterizer = NULL;
+ 		}
+-		if (rendertools)
+-		{
+-			delete rendertools;
+-			rendertools = NULL;
+-		}
+ 		if (canvas)
+ 		{
+ 			canvas->SetSwapInterval(previous_vsync); // Set the swap interval back
+@@ -684,11 +720,13 @@
+ 	if (!disableVBO)
+ 		U.gameflags &= ~USER_DISABLE_VBO;
+ 
+-	if (bfd) BLO_blendfiledata_free(bfd);
++	if (blend_file_data) 
++		BLO_blendfiledata_free(blend_file_data);
+ 
+ 	BLI_strncpy(G.main->name, oldsce, sizeof(G.main->name));
+ 
+ #ifdef WITH_PYTHON
++	// Decrement the globalDict reference
+ 	Py_DECREF(pyGlobalDict);
+ 
+ 	// Release Python's GIL
+Index: source/gameengine/Converter/BL_BlenderDataConversion.cpp
+===================================================================
+--- source/gameengine/Converter/BL_BlenderDataConversion.cpp	(revision 59220)
++++ source/gameengine/Converter/BL_BlenderDataConversion.cpp	(working copy)
+@@ -1592,22 +1592,58 @@
+ 	//int userigidbody = SYS_GetCommandLineInt(syshandle,"norigidbody",0);
+ 	//bool bRigidBody = (userigidbody == 0);
+ 
++	bool dynamic = (blenderobject->gameflag & OB_DYNAMIC) != 0;
++	bool actor = (blenderobject->gameflag & OB_ACTOR)!=0;
++	bool softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
++	bool rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
++	bool character = (blenderobject->gameflag & OB_CHARACTER) != 0;
++	bool navmesh = (blenderobject->gameflag & OB_NAVMESH) != 0;
++	bool sensor = (blenderobject->gameflag & OB_SENSOR) != 0;
++	bool ghost = (blenderobject->gameflag & OB_GHOST) != 0;
++	bool collision = (blenderobject->gameflag & OB_COLLISION) !=0;
++	bool occluder = (blenderobject->gameflag & OB_OCCLUDER) != 0;
++
++	gameobj->m_physicsActor = actor;
++
+ 	// object has physics representation?
+-	if (!(blenderobject->gameflag & OB_COLLISION)) {
++	if (!collision) {
++
+ 		// Respond to all collisions so that Near sensors work on No Collision
+ 		// objects.
+ 		gameobj->SetUserCollisionGroup(0xff);
+ 		gameobj->SetUserCollisionMask(0xff);
++
++		// Non collider Enumes (ghost objects are still handled by collisions)
++		if (navmesh)
++			gameobj->m_physicsType = KX_GameObject::NAVIGATION_MESH;
++
++		else if (occluder)
++			gameobj->m_physicsType = KX_GameObject::OCCLUDER;
++
+ 		return;
+ 	}
+ 
++	// Set m_physicsType enum to read in game
++	if (softbody)
++		gameobj->m_physicsType = KX_GameObject::SOFT_BODY;
++	else if (character)
++		gameobj->m_physicsType = KX_GameObject::CHARACTER;
++	else if (rigidbody)
++		gameobj->m_physicsType = KX_GameObject::RIGID_BODY;
++	else if (dynamic)
++		gameobj->m_physicsType = KX_GameObject::DYNAMIC;
++	else if (sensor)
++		gameobj->m_physicsType = KX_GameObject::SENSOR;
++	else
++		gameobj->m_physicsType = KX_GameObject::STATIC;
++
+ 	gameobj->SetUserCollisionGroup(blenderobject->col_group);
+ 	gameobj->SetUserCollisionMask(blenderobject->col_mask);
+ 
+ 	// get Root Parent of blenderobject
+ 	struct Object* parent= blenderobject->parent;
+ 	while (parent && parent->parent) {
+-		parent= parent->parent;
++		parent = parent->parent;
+ 	}
+ 
+ 	bool isCompoundChild = false;
+@@ -1646,11 +1682,13 @@
+ 	objprop.m_margin = blenderobject->margin;
+ 	
+ 	// ACTOR is now a separate feature
+-	objprop.m_isactor = (blenderobject->gameflag & OB_ACTOR)!=0;
+-	objprop.m_dyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
+-	objprop.m_softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
+-	objprop.m_angular_rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
+-	objprop.m_character = (blenderobject->gameflag & OB_CHARACTER) != 0;
++	objprop.m_isactor = actor;
++	objprop.m_dyna = dynamic;
++	objprop.m_softbody = softbody;
++	objprop.m_angular_rigidbody = rigidbody;
++	objprop.m_character = character;
++	objprop.m_sensor = sensor;
++	objprop.m_ghost = ghost;
+ 	
+ 	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
+ 	if (objprop.m_angular_rigidbody || !objprop.m_dyna )
+@@ -1660,10 +1698,8 @@
+ 	{
+ 		objprop.m_contactProcessingThreshold = 0.f;
+ 	}
+-
+-	objprop.m_sensor = (blenderobject->gameflag & OB_SENSOR) != 0;
+ 	
+-	if (objprop.m_softbody)
++	if (softbody)
+ 	{
+ 		///for game soft bodies
+ 		if (blenderobject->bsoft)
+@@ -1752,7 +1788,6 @@
+ 		}
+ 	}
+ 
+-	objprop.m_ghost = (blenderobject->gameflag & OB_GHOST) != 0;
+ 	objprop.m_disableSleeping = (blenderobject->gameflag & OB_COLLISION_RESPONSE) != 0;//abuse the OB_COLLISION_RESPONSE flag
+ 	//mmm, for now, taks this for the size of the dynamicobject
+ 	// Blender uses inertia for radius of dynamic object
+@@ -1762,12 +1797,12 @@
+ 	objprop.m_isdeformable = ((blenderobject->gameflag2 & 2)) != 0;
+ 	objprop.m_boundclass = objprop.m_dyna?KX_BOUNDSPHERE:KX_BOUNDMESH;
+ 	
+-	if ((blenderobject->gameflag & OB_SOFT_BODY) && !(blenderobject->gameflag & OB_BOUNDS))
++	if (softbody && !(blenderobject->gameflag & OB_BOUNDS))
+ 	{
+ 		objprop.m_boundclass = KX_BOUNDMESH;
+ 	}
+ 
+-	if ((blenderobject->gameflag & OB_CHARACTER) && !(blenderobject->gameflag & OB_BOUNDS))
++	if (character && !(blenderobject->gameflag & OB_BOUNDS))
+ 	{
+ 		objprop.m_boundclass = KX_BOUNDSPHERE;
+ 	}
+@@ -1842,8 +1877,8 @@
+ 		KX_GameObject *parentgameobject = converter->FindGameObject(parent);
+ 		objprop.m_dynamic_parent = parentgameobject;
+ 		//cannot be dynamic:
+-		objprop.m_dyna = false;
+-		objprop.m_softbody = false;
++		objprop.m_dyna = dynamic = false;
++		objprop.m_softbody = softbody = false;
+ 		shapeprops->m_mass = 0.f;
+ 	}
+ 
+Index: source/gameengine/GameLogic/SCA_IScene.h
+===================================================================
+--- source/gameengine/GameLogic/SCA_IScene.h	(revision 59220)
++++ source/gameengine/GameLogic/SCA_IScene.h	(working copy)
+@@ -36,6 +36,7 @@
+ 
+ #include "STR_String.h"
+ #include "RAS_2DFilterManager.h"
++#include "MT_Matrix4x4.h"
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+@@ -58,7 +59,8 @@
+ 	SCA_IScene();
+ 	virtual ~SCA_IScene();
+ 	virtual class SCA_IObject* AddReplicaObject(class CValue* gameobj,
+-												class CValue* locationobj,
++											  MT_Matrix4x4 temp,
++											  int layer,
+ 												int lifespan=0)=0;
+ 	virtual void	RemoveObject(class CValue* gameobj)=0;
+ 	virtual void	DelayedRemoveObject(class CValue* gameobj)=0;
+Index: source/gameengine/GameLogic/SCA_LogicManager.cpp
+===================================================================
+--- source/gameengine/GameLogic/SCA_LogicManager.cpp	(revision 59220)
++++ source/gameengine/GameLogic/SCA_LogicManager.cpp	(working copy)
+@@ -119,6 +119,14 @@
+ CValue* SCA_LogicManager::GetGameObjectByName(const STR_String& gameobjname)
+ {
+ 	STR_HashedString mn = gameobjname;
++
++	int total = m_mapStringToGameObjects.size();
++
++	for (int i=0; i < total; i++)
++	{
++		CValue** gam = m_mapStringToGameObjects.at(i);
++	}
++
+ 	CValue** gameptr = m_mapStringToGameObjects[mn];
+ 	
+ 	if (gameptr)
+Index: source/gameengine/Ketsji/KX_GameObject.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_GameObject.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_GameObject.cpp	(working copy)
+@@ -113,7 +113,10 @@
+       m_pInstanceObjects(NULL),
+       m_pDupliGroupObject(NULL),
+       m_actionManager(NULL),
+-      m_isDeformable(false)
++      m_isDeformable(false),
++	  m_physicsType(NO_COLLISION),
++	  m_physicsActor(false)
++
+ #ifdef WITH_PYTHON
+     , m_attr_dict(NULL)
+ #endif
+@@ -1702,6 +1705,8 @@
+ PyAttributeDef KX_GameObject::Attributes[] = {
+ 	KX_PYATTRIBUTE_RO_FUNCTION("name",		KX_GameObject, pyattr_get_name),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("parent",	KX_GameObject, pyattr_get_parent),
++	KX_PYATTRIBUTE_RO_FUNCTION("physicsType",	KX_GameObject, pyattr_get_physics),
++	KX_PYATTRIBUTE_RO_FUNCTION("isActor",	KX_GameObject, pyattr_get_physics_actor),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("groupMembers",	KX_GameObject, pyattr_get_group_members),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("groupObject",	KX_GameObject, pyattr_get_group_object),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("scene",		KX_GameObject, pyattr_get_scene),
+@@ -1998,6 +2003,18 @@
+ 	Py_RETURN_NONE;
+ }
+ 
++PyObject *KX_GameObject::pyattr_get_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	return PyLong_FromLong((long)self->m_physicsType);
++}
++
++PyObject *KX_GameObject::pyattr_get_physics_actor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	return PyBool_FromLong((long)self->m_physicsActor);
++}
++
+ PyObject *KX_GameObject::pyattr_get_group_members(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+ {
+ 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+@@ -3462,7 +3479,9 @@
+ 	}
+ 	
+ 	if (PyUnicode_Check(value)) {
+-		*object = (KX_GameObject*)SCA_ILogicBrick::m_sCurrentLogicManager->GetGameObjectByName(STR_String( _PyUnicode_AsString(value) ));
++		STR_String obj_name = STR_String(_PyUnicode_AsString(value));
++		SCA_LogicManager* logicmgr = SCA_ILogicBrick::m_sCurrentLogicManager;
++		*object = (KX_GameObject*)logicmgr->GetGameObjectByName(obj_name);
+ 		
+ 		if (*object) {
+ 			return true;
+Index: source/gameengine/Ketsji/KX_GameObject.h
+===================================================================
+--- source/gameengine/Ketsji/KX_GameObject.h	(revision 59220)
++++ source/gameengine/Ketsji/KX_GameObject.h	(working copy)
+@@ -129,6 +129,8 @@
+ 	
+ public:
+ 	bool								m_isDeformable;
++	bool								m_physicsActor;
++	enum                                GamePhysicsType {STATIC, DYNAMIC, RIGID_BODY, SOFT_BODY, OCCLUDER, SENSOR, NAVIGATION_MESH, CHARACTER, NO_COLLISION} m_physicsType;
+ 
+ 	/**
+ 	 * Helper function for modules that can't include KX_ClientObjectInfo.h
+@@ -990,6 +992,8 @@
+ 	/* attributes */
+ 	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static PyObject*	pyattr_get_parent(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static PyObject*	pyattr_get_physics(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static PyObject*	pyattr_get_physics_actor(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 
+ 	static PyObject*	pyattr_get_group_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static PyObject*	pyattr_get_group_members(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+Index: source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiEngine.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_KetsjiEngine.cpp	(working copy)
+@@ -59,6 +59,7 @@
+ #include "KX_PythonInit.h"
+ #include "KX_PyConstraintBinding.h"
+ #include "PHY_IPhysicsEnvironment.h"
++#include "KX_KetsjiLogicBrickLoop.h"
+ 
+ #ifdef WITH_AUDASPACE
+ #  include "AUD_C-API.h"
+@@ -111,6 +112,7 @@
+ double KX_KetsjiEngine::m_suspendeddelta = 0.0;
+ double KX_KetsjiEngine::m_average_framerate = 0.0;
+ bool   KX_KetsjiEngine::m_restrict_anim_fps = false;
++bool   KX_KetsjiEngine::m_bFixedTime = false;
+ short  KX_KetsjiEngine::m_exitkey = 130; //ESC Key
+ 
+ 
+@@ -132,7 +134,6 @@
+ 
+ 	m_bInitialized(false),
+ 	m_activecam(0),
+-	m_bFixedTime(false),
+ 	
+ 	m_firstframe(true),
+ 	
+@@ -141,7 +142,6 @@
+ 	m_previousClockTime(0.f),
+ 	m_previousAnimTime(0.f),
+ 
+-
+ 	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
+ 	m_exitstring(""),
+ 	
+@@ -157,6 +157,8 @@
+ 	m_curreye(0),
+ 
+ 	m_logger(NULL),
++	m_logicloop(NULL),
++	m_logiccallbacks(NULL),
+ 	
+ 	// Set up timing info display variables
+ 	m_show_framerate(false),
+@@ -179,6 +181,7 @@
+ {
+ 	// Initialize the time logger
+ 	m_logger = new KX_TimeCategoryLogger (25);
++	m_logicloop = new KX_KetsjiLogicBrickLoop (this);
+ 
+ 	for (int i = tc_first; i < tc_numCategories; i++)
+ 		m_logger->AddCategory((KX_TimeCategory)i);
+@@ -196,6 +199,14 @@
+ KX_KetsjiEngine::~KX_KetsjiEngine()
+ {
+ 	delete m_logger;
++	delete m_logicloop;
++	delete m_keyboarddevice;
++	delete m_mousedevice;
++	delete m_rendertools;
++	delete m_rasterizer;
++	delete m_networkdevice;
++	delete m_kxsystem;
++
+ 	if (m_usedome)
+ 		delete m_dome;
+ 
+@@ -204,16 +215,24 @@
+ #endif
+ }
+ 
++void KX_KetsjiEngine::SetEngineCallbacks(KX_EngineCallbackData *callbacks)
++{
++	m_logiccallbacks = callbacks;
++}
+ 
+ 
++void KX_KetsjiEngine::SetLogger(KX_TimeCategoryLogger* logger)
++{
++	MT_assert(logger);
++	m_logger = logger;
++}
++
+ void KX_KetsjiEngine::SetKeyboardDevice(SCA_IInputDevice* keyboarddevice)
+ {
+ 	MT_assert(keyboarddevice);
+ 	m_keyboarddevice = keyboarddevice;
+ }
+ 
+-
+-
+ void KX_KetsjiEngine::SetMouseDevice(SCA_IInputDevice* mousedevice)
+ {
+ 	MT_assert(mousedevice);
+@@ -221,7 +240,6 @@
+ }
+ 
+ 
+-
+ void KX_KetsjiEngine::SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice)
+ {
+ 	MT_assert(networkdevice);
+@@ -269,7 +287,21 @@
+ }
+ #endif
+ 
++void KX_KetsjiEngine::SetLogicLoop(KX_KetsjiLogicLoop* logicloop)
++{
++	// Get existing loop and delete it
++	KX_KetsjiLogicLoop *old_loop = m_logicloop;
+ 
++	if (old_loop)
++	{
++		delete old_loop;
++		old_loop = NULL;
++	}
++
++	MT_assert(logicloop);
++	m_logicloop = logicloop;
++}
++
+ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
+ {
+ 	MT_assert(sceneconverter);
+@@ -556,292 +588,22 @@
+ //#include "PIL_time.h"
+ //#include "LinearMath/btQuickprof.h"
+ 
+-
+-bool KX_KetsjiEngine::NextFrame()
++void KX_KetsjiEngine::UpdateEvents()
+ {
+-	double timestep = 1.0/m_ticrate;
+-	double framestep = timestep;
+-	//	static hidden::Clock sClock;
+-
+-	m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(),true);
+-
+-	//float dt = sClock.getTimeMicroseconds() * 0.000001f;
+-	//sClock.reset();
+-
+-	if (m_bFixedTime) {
+-		m_clockTime += timestep;
+-	}
+-	else {
+-		// m_clockTime += dt;
+-		m_clockTime = m_kxsystem->GetTimeInSeconds();
+-	}
+-	
+-	double deltatime = m_clockTime - m_frameTime;
+-	if (deltatime<0.f)
+-	{
+-		// We got here too quickly, which means there is nothing todo, just return and don't render.
+-		// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
+-		return false;
+-	}
+-
+-
+-	// Compute the number of logic frames to do each update (fixed tic bricks)
+-	int frames =int(deltatime*m_ticrate+1e-6);
+-//	if (frames>1)
+-//		printf("****************************************");
+-//	printf("dt = %f, deltatime = %f, frames = %d\n",dt, deltatime,frames);
+-	
+-//	if (!frames)
+-//		PIL_sleep_ms(1);
+-	
+-	KX_SceneList::iterator sceneit;
+-	
+-	if (frames>m_maxPhysicsFrame)
+-	{
+-	
+-	//	printf("framedOut: %d\n",frames);
+-		m_frameTime+=(frames-m_maxPhysicsFrame)*timestep;
+-		frames = m_maxPhysicsFrame;
+-	}
+-	
+-
+-	bool doRender = frames>0;
+-
+-	if (frames > m_maxLogicFrame)
+-	{
+-		framestep = (frames*timestep)/m_maxLogicFrame;
+-		frames = m_maxLogicFrame;
+-	}
+-
+-	while (frames)
+-	{
+-	
+-
+-		m_frameTime += framestep;
+-		
+-		m_sceneconverter->MergeAsyncLoads();
+-
+-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
+-		// for each scene, call the proceed functions
+-		{
+-			KX_Scene* scene = *sceneit;
+-	
+-			/* Suspension holds the physics and logic processing for an
+-			 * entire scene. Objects can be suspended individually, and
+-			 * the settings for that precede the logic and physics
+-			 * update. */
+-			m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+-
+-			m_sceneconverter->resetNoneDynamicObjectToIpo();//this is for none dynamic objects with ipo
+-
+-			scene->UpdateObjectActivity();
+-	
+-			if (!scene->IsSuspended())
+-			{
+-				// if the scene was suspended recalcutlate the delta tu "curtime"
+-				m_suspendedtime = scene->getSuspendedTime();
+-				if (scene->getSuspendedTime()!=0.0)
+-					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
+-				m_suspendeddelta = scene->getSuspendedDelta();
+-
+-				
+-				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_NETWORK);
+-				scene->GetNetworkScene()->proceed(m_frameTime);
+-	
+-				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				//SG_SetActiveStage(SG_STAGE_NETWORK_UPDATE);
+-				//scene->UpdateParents(m_frameTime);
+-				
+-				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_PHYSICS1);
+-				// set Python hooks for each scene
+-#ifdef WITH_PYTHON
+-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
+-#endif
+-				KX_SetActiveScene(scene);
+-	
+-				scene->GetPhysicsEnvironment()->endFrame();
+-				
+-				// Update scenegraph after physics step. This maps physics calculations
+-				// into node positions.
+-				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
+-				//scene->UpdateParents(m_frameTime);
+-				
+-				// Process sensors, and controllers
+-				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_CONTROLLER);
+-				scene->LogicBeginFrame(m_frameTime);
+-	
+-				// Scenegraph needs to be updated again, because Logic Controllers 
+-				// can affect the local matrices.
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_CONTROLLER_UPDATE);
+-				scene->UpdateParents(m_frameTime);
+-	
+-				// Process actuators
+-	
+-				// Do some cleanup work for this logic frame
+-				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_ACTUATOR);
+-				scene->LogicUpdateFrame(m_frameTime, true);
+-				
+-				scene->LogicEndFrame();
+-	
+-				// Actuators can affect the scenegraph
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
+-				scene->UpdateParents(m_frameTime);
+-
+-				if (!GetRestrictAnimationFPS())
+-				{
+-					m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
+-					SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+-					scene->UpdateAnimations(m_frameTime);
+-				}
+-
+-				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_PHYSICS2);
+-				scene->GetPhysicsEnvironment()->beginFrame();
+-		
+-				// Perform physics calculations on the scene. This can involve 
+-				// many iterations of the physics solver.
+-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_frameTime,timestep,framestep);//m_deltatimerealDeltaTime);
+-
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
+-				scene->UpdateParents(m_frameTime);
+-			
+-			
+-				if (m_animation_record)
+-				{
+-					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
+-				}
+-
+-				scene->setSuspendedTime(0.0);
+-			} // suspended
+-			else
+-				if (scene->getSuspendedTime()==0.0)
+-					scene->setSuspendedTime(m_clockTime);
+-			
+-			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
+-		}
+-
+-		// update system devices
+-		m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+-		if (m_keyboarddevice)
+-			m_keyboarddevice->NextFrame();
+-	
+-		if (m_mousedevice)
+-			m_mousedevice->NextFrame();
+-		
+-		if (m_networkdevice)
+-			m_networkdevice->NextFrame();
+-
+-		// scene management
+-		ProcessScheduledScenes();
+-		
+-		frames--;
+-	}
+-
+-	bool bUseAsyncLogicBricks= false;//true;
+-
+-	if (bUseAsyncLogicBricks)
+-	{
+-		// Logic update sub frame: this will let some logic bricks run at the
+-		// full frame rate.
+-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
+-		// for each scene, call the proceed functions
+-		{
+-			KX_Scene* scene = *sceneit;
+-
+-			if (!scene->IsSuspended())
+-			{
+-				// if the scene was suspended recalcutlate the delta tu "curtime"
+-				m_suspendedtime = scene->getSuspendedTime();
+-				if (scene->getSuspendedTime()!=0.0)
+-					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
+-				m_suspendeddelta = scene->getSuspendedDelta();
+-				
+-				// set Python hooks for each scene
+-#ifdef WITH_PYTHON
+-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
+-#endif
+-				KX_SetActiveScene(scene);
+-				
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_PHYSICS1);
+-				scene->UpdateParents(m_clockTime);
+-
+-				// Perform physics calculations on the scene. This can involve 
+-				// many iterations of the physics solver.
+-				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
+-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
+-				// Update scenegraph after physics step. This maps physics calculations
+-				// into node positions.
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_PHYSICS2);
+-				scene->UpdateParents(m_clockTime);
+-				
+-				// Do some cleanup work for this logic frame
+-				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+-				scene->LogicUpdateFrame(m_clockTime, false);
+-
+-				// Actuators can affect the scenegraph
+-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+-				SG_SetActiveStage(SG_STAGE_ACTUATOR);
+-				scene->UpdateParents(m_clockTime);
+-
+-				scene->setSuspendedTime(0.0);
+-			} // suspended
+-			else
+-				if (scene->getSuspendedTime()==0.0)
+-					scene->setSuspendedTime(m_clockTime);
+-
+-			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
+-		}
+-	}
+-
+-		
+-	// Handle the animations independently of the logic time step
+-	if (GetRestrictAnimationFPS())
+-	{
+-		double clocktime = m_kxsystem->GetTimeInSeconds();
+-		m_logger->StartLog(tc_animations, clocktime, true);
+-		SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+-
+-		double anim_timestep = 1.0/KX_GetActiveScene()->GetAnimationFPS();
+-		if (clocktime - m_previousAnimTime > anim_timestep)
+-		{
+-			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
+-			// printf("Anim fps: %f\n", 1.0/(m_clockTime - m_previousAnimTime));
+-			m_previousAnimTime = clocktime;
+-			for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
+-			{
+-				(*sceneit)->UpdateAnimations(clocktime);
+-			}
+-		}
+-	}
+-	
+-	// Start logging time spend outside main loop
+-	m_logger->StartLog(tc_outside, m_kxsystem->GetTimeInSeconds(), true);
+-	
+-	return doRender;
++	m_logiccallbacks->eventcallback(m_logiccallbacks);
+ }
+ 
+-
+-
+ void KX_KetsjiEngine::Render()
+ {
++	m_logiccallbacks->rendercallback(m_logiccallbacks);
++
+ 	if (m_usedome) {
+ 		RenderDome();
+ 		return;
+ 	}
+ 	KX_Scene* firstscene = *m_scenes.begin();
+ 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
+-
+-	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
++	 
+ 	SG_SetActiveStage(SG_STAGE_RENDER);
+ 
+ 	// hiding mouse cursor each frame
+@@ -993,14 +755,11 @@
+ }
+ 
+ 
+-
+ void KX_KetsjiEngine::SetNameNextGame(const STR_String& nextgame)
+ {
+ 	m_exitstring = nextgame;
+ }
+ 
+-
+-
+ int KX_KetsjiEngine::GetExitCode()
+ {
+ 	// if a gameactuator has set an exitcode or if there are no scenes left
+@@ -1382,6 +1141,10 @@
+ 
+ 		// cleanup all the stuff
+ 		m_rasterizer->Exit();
++
++		// Disconnect network device
++		if (m_networkdevice)
++			m_networkdevice->Disconnect();
+ 	}
+ }
+ 
+@@ -1816,28 +1579,57 @@
+ 	m_bFixedTime = bUseFixedTime;
+ }
+ 
++bool KX_KetsjiEngine::GetAnimationRecord()
++{
++	return m_animation_record;
++}
+ 
+-void	KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
++int KX_KetsjiEngine::GetAnimationFrame()
+ {
++	return m_currentFrame;
++}
++
++void KX_KetsjiEngine::SetAnimationFrame(int frame)
++{
++	m_currentFrame = frame;
++}
++
++void KX_KetsjiEngine::SetAnimRecordMode(bool animation_record)
++{
+ 	m_animation_record = animation_record;
++
+ 	if (animation_record)
+ 	{
+ 		//when recording physics keyframes, run at a variable (capped) frame rate (fixed time == full speed)
+ 		m_bFixedTime = false;
+ 	}
+-	m_currentFrame = startFrame;
+ }
+ 
+-bool KX_KetsjiEngine::GetUseFixedTime(void) const
++bool KX_KetsjiEngine::GetUseFixedTime() 
+ {
+ 	return m_bFixedTime;
+ }
+ 
++void KX_KetsjiEngine::SetSuspendedTime(double time)
++{
++	m_suspendedtime = time;
++}
++
++void KX_KetsjiEngine::SetSuspendedDelta(double time)
++{
++	m_suspendeddelta = time;
++}
++
+ double KX_KetsjiEngine::GetSuspendedDelta()
+ {
+ 	return m_suspendeddelta;
+ }
+ 
++double KX_KetsjiEngine::GetSuspendedTime()
++{
++	return m_suspendedtime;
++}
++
+ double KX_KetsjiEngine::GetTicRate()
+ {
+ 	return m_ticrate;
+@@ -1888,6 +1680,16 @@
+ 	return m_clockTime;
+ }
+ 
++void KX_KetsjiEngine::SetClockTime(double time)
++{
++	m_clockTime = time;
++}
++
++void KX_KetsjiEngine::SetFrameTime(double time)
++{
++	m_frameTime = time;
++}
++
+ double KX_KetsjiEngine::GetFrameTime(void) const
+ {
+ 	return m_frameTime;
+Index: source/gameengine/Ketsji/KX_KetsjiEngine.h
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiEngine.h	(revision 59220)
++++ source/gameengine/Ketsji/KX_KetsjiEngine.h	(working copy)
+@@ -40,6 +40,8 @@
+ #include "KX_Scene.h"
+ #include "KX_Python.h"
+ #include "KX_WorldInfo.h"
++#include "KX_EngineCallbackData.h"
++#include "KX_KetsjiLogicLoop.h"
+ #include <vector>
+ 
+ class KX_TimeCategoryLogger;
+@@ -59,6 +61,25 @@
+ 	KX_EXIT_REQUEST_MAX
+ };
+ 
++
++
++
++/** Categories for profiling display. */
++typedef enum {
++		tc_first = 0,
++		tc_physics = 0,
++		tc_logic,
++		tc_animations,
++		tc_network,
++		tc_scenegraph,
++		tc_rasterizer,
++		tc_services,	// time spent in miscelaneous activities
++		tc_overhead,	// profile info drawing overhead
++		tc_outside,		// time spent outside main loop
++		tc_latency,		// time spent waiting on the gpu
++		tc_numCategories
++	} KX_TimeCategory;
++
+ typedef struct {
+ 	short matmode;
+ 	short glslflag;
+@@ -77,6 +98,7 @@
+ 	class RAS_IRenderTools*				m_rendertools;
+ 	class KX_ISceneConverter*			m_sceneconverter;
+ 	class NG_NetworkDeviceInterface*	m_networkdevice;
++	class KX_KetsjiLogicLoop*			m_logicloop;
+ #ifdef WITH_PYTHON
+ 	/* borrowed from sys.modules["__main__"], don't manage ref's */
+ 	PyObject*					m_pythondictionary;
+@@ -102,7 +124,6 @@
+ 
+ 	bool				m_bInitialized;
+ 	int					m_activecam;
+-	bool				m_bFixedTime;
+ 	
+ 	
+ 	bool				m_firstframe;
+@@ -120,6 +141,7 @@
+ 	static double			m_anim_framerate; /* for animation playback only - ipo and action */
+ 
+ 	static bool				m_restrict_anim_fps;
++	static bool				m_bFixedTime;
+ 
+ 	static double			m_suspendedtime;
+ 	static double			m_suspendeddelta;
+@@ -148,25 +170,10 @@
+ 
+ 	bool m_stereo;
+ 	int m_curreye;
+-
+-	/** Categories for profiling display. */
+-	typedef enum {
+-		tc_first = 0,
+-		tc_physics = 0,
+-		tc_logic,
+-		tc_animations,
+-		tc_network,
+-		tc_scenegraph,
+-		tc_rasterizer,
+-		tc_services,	// time spent in miscelaneous activities
+-		tc_overhead,	// profile info drawing overhead
+-		tc_outside,		// time spent outside main loop
+-		tc_latency,		// time spent waiting on the gpu
+-		tc_numCategories
+-	} KX_TimeCategory;
+-
++	
+ 	/** Time logger. */
+ 	KX_TimeCategoryLogger*	m_logger;
++	KX_EngineCallbackData* m_logiccallbacks;
+ 	
+ 	/** Labels for profiling display. */
+ 	static const char		m_profileLabels[tc_numCategories][15];
+@@ -208,6 +215,7 @@
+ 	void					SetBackGround(KX_WorldInfo* worldinfo);
+ 
+ public:
++
+ 	KX_KetsjiEngine(class KX_ISystem* system);
+ 	virtual ~KX_KetsjiEngine();
+ 
+@@ -219,28 +227,36 @@
+ 	void			SetCanvas(RAS_ICanvas* canvas);
+ 	void			SetRenderTools(RAS_IRenderTools* rendertools);
+ 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
++	void			SetLogicLoop(KX_KetsjiLogicLoop* logicloop);
++	void			SetLogger(KX_TimeCategoryLogger* logger);
++	void			SetEngineCallbacks(KX_EngineCallbackData* callbacks);
++
+ #ifdef WITH_PYTHON
+ 	void			SetPyNamespace(PyObject *pythondictionary);
+ 	PyObject*		GetPyNamespace() { return m_pythondictionary; }
+ 	PyObject*		GetPyProfileDict();
+ #endif
+ 	void			SetSceneConverter(KX_ISceneConverter* sceneconverter);
+-	void			SetAnimRecordMode(bool animation_record, int startFrame);
++	void			SetAnimRecordMode(bool animation_record);
+ 
++	KX_EngineCallbackData*		GetEngineCallbacks() {return m_logiccallbacks;}
+ 	RAS_IRasterizer*		GetRasterizer() { return m_rasterizer; }
+ 	RAS_ICanvas*		    GetCanvas() { return m_canvas; }
+ 	RAS_IRenderTools*	    GetRenderTools() { return m_rendertools; }
+ 	SCA_IInputDevice*		GetKeyboardDevice() { return m_keyboarddevice; }
+ 	SCA_IInputDevice*		GetMouseDevice() { return m_mousedevice; }
+-
++	KX_TimeCategoryLogger*		GetLogger() { return m_logger; }
++	NG_NetworkDeviceInterface*	GetNetworkDevice() { return m_networkdevice; }
++	KX_ISceneConverter*			GetSceneConverter() { return m_sceneconverter; }
++	KX_KetsjiLogicLoop*		GetLogicLoop() { return m_logicloop; }
++	
+ 	/// Dome functions
+ 	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
+ 	void			EndDome();
+ 	void			RenderDome();
+ 	bool			m_usedome;
+ 
+-	///returns true if an update happened to indicate -> Render
+-	bool			NextFrame();
++	void			UpdateEvents();
+ 	void			Render();
+ 	
+ 	void			StartEngine(bool clearIpo);
+@@ -250,6 +266,7 @@
+ 	void			RequestExit(int exitrequestmode);
+ 	void			SetNameNextGame(const STR_String& nextgame);
+ 	int				GetExitCode();
++
+ 	const STR_String&	GetExitString();
+ 
+ 	KX_SceneList*	CurrentScenes();
+@@ -265,8 +282,10 @@
+ 	void			GetSceneViewport(KX_Scene* scene, KX_Camera* cam, RAS_Rect& area, RAS_Rect& viewport);
+ 
+ 	void SetDrawType(int drawingtype);
++
+ 	int  GetDrawType() { return m_drawingmode; }
+ 
++public:
+ 	void SetCameraZoom(float camzoom);
+ 	
+ 	void EnableCameraOverride(const STR_String& forscene);
+@@ -276,35 +295,44 @@
+ 	void SetCameraOverrideViewMatrix(const MT_CmMatrix4x4& mat);
+ 	void SetCameraOverrideClipping(float near, float far);
+ 	void SetCameraOverrideLens(float lens);
+-	
+-	/**
+-	 * Sets display of all frames.
+-	 * \param bUseFixedTime	New setting for display all frames.
+-	 */ 
+-	void SetUseFixedTime(bool bUseFixedTime);
+ 
+ 	/**
+ 	 * Returns display of all frames.
+ 	 * \return Current setting for display all frames.
+ 	 */ 
+-	bool GetUseFixedTime(void) const;
+-
++	double GetPreviousAnimTime(){return m_previousAnimTime;};
++	void SetPreviousAnimTime(double time){m_previousAnimTime = time;};
+ 	/**
+ 	 * Returns current render frame clock time
+ 	 */
++	void SetClockTime(double time);
+ 	double GetClockTime(void) const;
+ 	/**
+ 	 * Returns current logic frame clock time
+ 	 */
++	void SetFrameTime(double time);
+ 	double GetFrameTime(void) const;
+ 
+ 	double GetRealTime(void) const;
++	
+ 	/**
++	 * Sets display of all frames.
++	 * \param bUseFixedTime	New setting for display all frames.
++	 */ 
++	static void SetUseFixedTime(bool bUseFixedTime);
++
++	static bool GetUseFixedTime();
++
++	/**
+ 	 * Returns the difference between the local time of the scene (when it
+ 	 * was running and not suspended) and the "curtime"
+ 	 */
+ 	static double GetSuspendedDelta();
++	static double GetSuspendedTime();
+ 
++	static void SetSuspendedTime(double time);
++	static void SetSuspendedDelta(double time);
++
+ 	/**
+ 	 * Gets the number of logic updates per second.
+ 	 */
+@@ -334,7 +362,12 @@
+ 	 * Gets whether or not to lock animation updates to the animframerate
+ 	 */
+ 	static bool GetRestrictAnimationFPS();
++	
++	bool GetAnimationRecord();
+ 
++	int GetAnimationFrame();
++	void SetAnimationFrame(int frame);
++
+ 	/**
+ 	 * Sets whether or not to lock animation updates to the animframerate
+ 	 */
+@@ -425,6 +458,7 @@
+ 	 * It's only called from Blenderplayer.
+ 	 */
+ 	void			Resize();
++	void			ProcessScheduledScenes(void);
+ 
+ protected:
+ 	/**
+@@ -433,7 +467,6 @@
+ 	 * SceneListsChanged(void) is called.
+ 	 * \see SceneListsChanged(void).
+ 	 */
+-	void			ProcessScheduledScenes(void);
+ 
+ 	/**
+ 	 * This method is invoked when the scene lists have changed.
+Index: source/gameengine/Ketsji/KX_PythonInit.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_PythonInit.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_PythonInit.cpp	(working copy)
+@@ -415,6 +415,52 @@
+ 	return resultlist;
+ }
+ 
++static PyObject *gPySetAnimationTicRate(PyObject *, PyObject *args)
++{
++	float ticrate;
++	if (!PyArg_ParseTuple(args, "f:setAnimationTicRate", &ticrate))
++		return NULL;
++	
++	KX_KetsjiEngine::SetAnimFrameRate(ticrate);
++	Py_RETURN_NONE;
++}
++
++static PyObject *gPyGetAnimationTicRate(PyObject *)
++{
++	return PyFloat_FromDouble(KX_KetsjiEngine::GetAnimFrameRate());
++}
++
++static PyObject *gPySetUseFrameRate(PyObject *, PyObject *args)
++{
++	bool condition;
++	if (!PyArg_ParseTuple(args, "p:setUseFixedTime", &condition))
++		return NULL;
++	
++	KX_KetsjiEngine::SetUseFixedTime(condition);
++	Py_RETURN_NONE;
++}
++
++static PyObject *gPyGetUseFrameRate(PyObject *)
++{
++	// For some reason m_bFixedTime is false when using fixed timestep
++	return PyBool_FromLong(!KX_KetsjiEngine::GetUseFixedTime());
++}
++
++static PyObject *gPySetRestrictAnimationUpdates(PyObject *, PyObject *args)
++{
++	bool condition;
++	if (!PyArg_ParseTuple(args, "p:setRestrictAnimationUpdates", &condition))
++		return NULL;
++	
++	KX_KetsjiEngine::SetRestrictAnimationFPS(condition);
++	Py_RETURN_NONE;
++}
++
++static PyObject *gPyGetRestrictAnimationUpdates(PyObject *)
++{
++	return PyBool_FromLong(KX_KetsjiEngine::GetRestrictAnimationFPS());
++}
++
+ static PyObject *gPySetLogicTicRate(PyObject *, PyObject *args)
+ {
+ 	float ticrate;
+@@ -819,23 +865,7 @@
+ 	return list;
+ }
+ 
+-struct PyNextFrameState pynextframestate;
+-static PyObject *gPyNextFrame(PyObject *)
+-{
+-	if (pynextframestate.func == NULL) Py_RETURN_NONE;
+-	if (pynextframestate.state == NULL) Py_RETURN_NONE; //should never happen; raise exception instead?
+ 
+-	if (pynextframestate.func(pynextframestate.state)) //nonzero = stop
+-	{ 
+-		Py_RETURN_TRUE;
+-	}
+-	else // 0 = go on
+-	{
+-		Py_RETURN_FALSE;
+-	}
+-}
+-
+-
+ static struct PyMethodDef game_methods[] = {
+ 	{"expandPath", (PyCFunction)gPyExpandPath, METH_VARARGS, (const char *)gPyExpandPath_doc},
+ 	{"startGame", (PyCFunction)gPyStartGame, METH_VARARGS, (const char *)gPyStartGame_doc},
+@@ -857,6 +887,12 @@
+ 	{"setMaxPhysicsFrame", (PyCFunction) gPySetMaxPhysicsFrame, METH_VARARGS, (const char *)"Sets the max number of physics farme per render frame"},
+ 	{"getLogicTicRate", (PyCFunction) gPyGetLogicTicRate, METH_NOARGS, (const char *)"Gets the logic tic rate"},
+ 	{"setLogicTicRate", (PyCFunction) gPySetLogicTicRate, METH_VARARGS, (const char *)"Sets the logic tic rate"},
++	{"getUseFrameRate", (PyCFunction) gPyGetUseFrameRate, METH_NOARGS, (const char *)"Gets the status of use frame rate"},
++	{"setUseFrameRate", (PyCFunction) gPySetUseFrameRate, METH_VARARGS, (const char *)"Sets the status of use frame rate"},
++	{"getRestrictAnimationUpdates", (PyCFunction) gPyGetRestrictAnimationUpdates, METH_NOARGS, (const char *)"Gets the status of fixed animation updates"},
++	{"SetRestrictAnimationUpdates", (PyCFunction) gPySetRestrictAnimationUpdates, METH_VARARGS, (const char *)"Sets the status of fixed animation updates"},
++	{"getAnimationTicRate", (PyCFunction) gPyGetAnimationTicRate, METH_NOARGS, (const char *)"Gets the animation tic rate"},
++	{"setAnimationTicRate", (PyCFunction) gPySetAnimationTicRate, METH_VARARGS, (const char *)"Sets the animation tic rate"},
+ 	{"getPhysicsTicRate", (PyCFunction) gPyGetPhysicsTicRate, METH_NOARGS, (const char *)"Gets the physics tic rate"},
+ 	{"setPhysicsTicRate", (PyCFunction) gPySetPhysicsTicRate, METH_VARARGS, (const char *)"Sets the physics tic rate"},
+ 	{"getExitKey", (PyCFunction) gPyGetExitKey, METH_NOARGS, (const char *)"Gets the key used to exit the game engine"},
+@@ -865,7 +901,6 @@
+ 	{"getBlendFileList", (PyCFunction)gPyGetBlendFileList, METH_VARARGS, (const char *)"Gets a list of blend files in the same directory as the current blend file"},
+ 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, (const char *)"Prints GL Extension Info"},
+ 	{"PrintMemInfo", (PyCFunction)pyPrintStats, METH_NOARGS, (const char *)"Print engine statistics"},
+-	{"NextFrame", (PyCFunction)gPyNextFrame, METH_NOARGS, (const char *)"Render next frame (if Python has control)"},
+ 	{"getProfileInfo", (PyCFunction)gPyGetProfileInfo, METH_NOARGS, gPyGetProfileInfo_doc},
+ 	/* library functions */
+ 	{"LibLoad", (PyCFunction)gLibLoad, METH_VARARGS|METH_KEYWORDS, (const char *)""},
+@@ -1824,6 +1859,28 @@
+ 	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_BLEND, BL_Action::ACT_BLEND_BLEND);
+ 	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_ADD, BL_Action::ACT_BLEND_ADD);
+ 
++	/* KX_KetsjiEngine debug modes */
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_PHYSICS, KX_TimeCategory::tc_physics);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_MESSAGES, KX_TimeCategory::tc_network);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_ANIMATIONS, KX_TimeCategory::tc_animations);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_LOGIC, KX_TimeCategory::tc_logic);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_SCENEGRAPH, KX_TimeCategory::tc_scenegraph);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_RASTERIZER, KX_TimeCategory::tc_rasterizer);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_SERVICES, KX_TimeCategory::tc_services);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_OVERHEAD, KX_TimeCategory::tc_overhead);
++	KX_MACRO_addTypesToDict(d, KX_ENGINE_DEBUG_OUTSIDE, KX_TimeCategory::tc_outside);
++
++	/* Physics type */
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_STATIC,  KX_GameObject:: STATIC);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_DYNAMIC,  KX_GameObject::DYNAMIC);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_SENSOR,  KX_GameObject::SENSOR);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_CHARACTER,  KX_GameObject::CHARACTER);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_SOFT_BODY,  KX_GameObject::SOFT_BODY);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_RIGID_BODY,  KX_GameObject::RIGID_BODY);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_NAVIGATION_MESH,  KX_GameObject::NAVIGATION_MESH);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_NO_COLLISION,  KX_GameObject::NO_COLLISION);
++	KX_MACRO_addTypesToDict(d, KX_PHYSICS_OCCLUDER,  KX_GameObject::OCCLUDER);
++
+ 	// Check for errors
+ 	if (PyErr_Occurred())
+ 	{
+Index: source/gameengine/Ketsji/KX_PythonInit.h
+===================================================================
+--- source/gameengine/Ketsji/KX_PythonInit.h	(revision 59220)
++++ source/gameengine/Ketsji/KX_PythonInit.h	(working copy)
+@@ -72,16 +72,6 @@
+ class KX_Scene* KX_GetActiveScene();
+ class KX_KetsjiEngine* KX_GetActiveEngine();
+ 
+-typedef int (*PyNextFrameFunc)(void *);
+-
+-struct PyNextFrameState {
+-	/** can be either a GPG_NextFrameState or a BL_KetsjiNextFrameState */
+-	void *state;
+-	/** can be either GPG_PyNextFrame or BL_KetsjiPyNextFrame */
+-	PyNextFrameFunc func;
+-};
+-extern struct PyNextFrameState pynextframestate;
+-
+ #include "MT_Vector3.h"
+ 
+ void		KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color);
+Index: source/gameengine/Ketsji/KX_PythonInitTypes.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_PythonInitTypes.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_PythonInitTypes.cpp	(working copy)
+@@ -98,6 +98,7 @@
+ #include "SCA_RandomActuator.h"
+ #include "SCA_IController.h"
+ #include "KX_NavMeshObject.h"
++#include "KX_PythonLogicLoop.h"
+ 
+ static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
+ {
+@@ -199,6 +200,7 @@
+ 		PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
+ 		PyType_Ready_Attr(dict, KX_GameActuator, init_getset);
+ 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
++		PyType_Ready_Attr(dict, KX_PythonLogicLoop, init_getset);
+ 		PyType_Ready_Attr(dict, KX_IpoActuator, init_getset);
+ 		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
+ 		PyType_Ready_Attr(dict, KX_LightObject, init_getset);
+Index: source/gameengine/Ketsji/KX_SCA_AddObjectActuator.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_SCA_AddObjectActuator.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_SCA_AddObjectActuator.cpp	(working copy)
+@@ -40,6 +40,7 @@
+ #include "KX_GameObject.h"
+ #include "KX_IPhysicsController.h"
+ #include "PyObjectPlus.h" 
++#include "MT_Matrix4x4.h"
+ 
+ /* ------------------------------------------------------------------------- */
+ /* Native functions                                                          */
+@@ -253,9 +254,14 @@
+ {
+ 	if (m_OriginalObject)
+ 	{
++		// Get the gameobject world transform and layer
++		KX_GameObject *obj = (KX_GameObject*)GetParent();
++		MT_Matrix4x4 transform = obj->GetOpenGLMatrix();
++		int layer = obj->GetLayer();
++
+ 		// Add an identical object, with properties inherited from the original object
+ 		// Now it needs to be added to the current scene.
+-		SCA_IObject* replica = m_scene->AddReplicaObject(m_OriginalObject,GetParent(),m_timeProp );
++		SCA_IObject* replica = m_scene->AddReplicaObject(m_OriginalObject, transform, layer, m_timeProp);
+ 		KX_GameObject * game_obj = static_cast<KX_GameObject *>(replica);
+ 		game_obj->setLinearVelocity(m_linear_velocity, m_localLinvFlag);
+ 		game_obj->setAngularVelocity(m_angular_velocity,m_localAngvFlag);
+Index: source/gameengine/Ketsji/KX_Scene.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_Scene.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_Scene.cpp	(working copy)
+@@ -1,34 +1,34 @@
+ /*
+- * ***** BEGIN GPL LICENSE BLOCK *****
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version 2
+- * of the License, or (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software Foundation,
+- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+- *
+- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+- * All rights reserved.
+- *
+- * The Original Code is: all of this file.
+- *
+- * Contributor(s): none yet.
+- *
+- * ***** END GPL LICENSE BLOCK *****
+- * Ketsji scene. Holds references to all scene data.
+- */
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
++* All rights reserved.
++*
++* The Original Code is: all of this file.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++* Ketsji scene. Holds references to all scene data.
++*/
+ 
+ /** \file gameengine/Ketsji/KX_Scene.cpp
+- *  \ingroup ketsji
+- */
++*  \ingroup ketsji
++*/
+ 
+ 
+ #ifdef _MSC_VER
+@@ -36,6 +36,7 @@
+ #endif
+ 
+ #include "KX_Scene.h"
++#include "BLI_math.h"
+ #include "KX_PythonInit.h"
+ #include "MT_assert.h"
+ #include "KX_KetsjiEngine.h"
+@@ -349,7 +350,7 @@
+ 
+ 
+ 
+- 
++
+ list<class KX_Camera*>* KX_Scene::GetCameras()
+ {
+ 	return &m_cameras;
+@@ -361,11 +362,11 @@
+ };
+ 
+ /**
+- * Return a const reference to the framing 
+- * type set by the above call.
+- * The contents are not guaranteed to be sensible
+- * if you don't call the above function.
+- */
++* Return a const reference to the framing 
++* type set by the above call.
++* The contents are not guaranteed to be sensible
++* if you don't call the above function.
++*/
+ const RAS_FrameSettings& KX_Scene::GetFramingType() const 
+ {
+ 	return m_frame_settings;
+@@ -374,9 +375,9 @@
+ 
+ 
+ /**
+- * Store the current scene's viewport on the 
+- * game engine canvas.
+- */
++* Store the current scene's viewport on the 
++* game engine canvas.
++*/
+ void KX_Scene::SetSceneViewport(const RAS_Rect &viewport)
+ {
+ 	m_viewport = viewport;
+@@ -841,12 +842,21 @@
+ 	}
+ }
+ 
+-
+ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
+-										class CValue* parentobject,
++										MT_Matrix4x4 transformation,
++										int layer,
+ 										int lifespan)
+ {
++	// Setup matrix
++	float transform[4][4];
++	float loc[3], size[3];
++	float rot[3][3];
+ 
++	MT_Matrix3x3 orientation;
++	transformation.getValue(*transform);
++	mat4_to_loc_rot_size(loc, rot, size, transform);
++	
++	// Now use
+ 	m_logicHierarchicalGameObjects.clear();
+ 	m_map_gameobject_to_replica.clear();
+ 	m_groupGameObjects.clear();
+@@ -854,7 +864,6 @@
+ 	// todo: place a timebomb in the object, for temporarily objects :)
+ 	// lifespan of zero means 'this object lives forever'
+ 	KX_GameObject* originalobj = (KX_GameObject*) originalobject;
+-	KX_GameObject* parentobj = (KX_GameObject*) parentobject;
+ 
+ 	m_ueberExecutionPriority++;
+ 
+@@ -877,7 +886,6 @@
+ 	m_parentlist->Add(replica->AddRef());
+ 
+ 	// recurse replication into children nodes
+-
+ 	NodeList& children = originalobj->GetSGNode()->GetSGChildren();
+ 
+ 	replica->GetSGNode()->ClearSGChildren();
+@@ -891,21 +899,19 @@
+ 
+ 	// At this stage all the objects in the hierarchy have been duplicated,
+ 	// we can update the scenegraph, we need it for the duplication of logic
+-	MT_Point3 newpos = ((KX_GameObject*) parentobject)->NodeGetWorldPosition();
+-	replica->NodeSetLocalPosition(newpos);
++	replica->NodeSetWorldPosition(MT_Point3(loc));
++	//MT_Matrix3x3's constructor expects a 4x4 matrix
++	orientation = MT_Matrix3x3();
++	orientation.setValue3x3(*rot);
++	replica->NodeSetGlobalOrientation(orientation);
+ 
+-	MT_Matrix3x3 newori = ((KX_GameObject*) parentobject)->NodeGetWorldOrientation();
+-	replica->NodeSetLocalOrientation(newori);
+-	
+-	// get the rootnode's scale
+-	MT_Vector3 newscale = parentobj->GetSGNode()->GetRootSGParent()->GetLocalScale();
++	// set the replica's relative scale with the transform's scale
++	replica->NodeSetWorldScale(MT_Vector3(size));
+ 
+-	// set the replica's relative scale with the rootnode's scale
+-	replica->NodeSetRelativeScale(newscale);
+-
+ 	replica->GetSGNode()->UpdateWorldData(0);
+ 	replica->GetSGNode()->SetBBox(originalobj->GetSGNode()->BBox());
+ 	replica->GetSGNode()->SetRadius(originalobj->GetSGNode()->Radius());
++
+ 	// the size is correct, we can add the graphic controller to the physic engine
+ 	replica->ActivateGraphicController(true);
+ 
+@@ -922,12 +928,12 @@
+ 		// this will also relink the actuators in the hierarchy
+ 		(*git)->Relink(&m_map_gameobject_to_replica);
+ 		// add the object in the layer of the parent
+-		(*git)->SetLayer(parentobj->GetLayer());
++		(*git)->SetLayer(layer);
+ 		// If the object was a light, we need to update it's RAS_LightObject as well
+ 		if ((*git)->GetGameObjectType()==SCA_IObject::OBJ_LIGHT)
+ 		{
+ 			KX_LightObject* lightobj = static_cast<KX_LightObject*>(*git);
+-			lightobj->GetLightData()->m_layer = parentobj->GetLayer();
++			lightobj->GetLightData()->m_layer = layer;
+ 		}
+ 	}
+ 
+@@ -955,8 +961,6 @@
+ 	return replica;
+ }
+ 
+-
+-
+ void KX_Scene::RemoveObject(class CValue* gameobj)
+ {
+ 	KX_GameObject* newobj = (KX_GameObject*) gameobj;
+@@ -1642,8 +1646,8 @@
+ 
+ 
+ /**
+- * UpdateParents: SceneGraph transformation update.
+- */
++* UpdateParents: SceneGraph transformation update.
++*/
+ void KX_Scene::UpdateParents(double curtime)
+ {
+ 	// we use the SG dynamic list
+@@ -1780,7 +1784,7 @@
+ 		m_logicmgr->RegisterEventManager(touchmgr);
+ 	}
+ }
+- 
++
+ void KX_Scene::setSuspendedTime(double suspendedtime)
+ {
+ 	m_suspendedtime = suspendedtime;
+@@ -2387,27 +2391,64 @@
+ };
+ 
+ KX_PYMETHODDEF_DOC(KX_Scene, addObject,
+-"addObject(object, other, time=0)\n"
++"addObject(object, other, time=0, layer=-1)\n"
+ "Returns the added object.\n")
+ {
+ 	PyObject *pyob, *pyother;
+ 	KX_GameObject *ob, *other;
+ 
++	MT_Matrix4x4 trans;
++	int layer = -1;
++
+ 	int time = 0;
+ 
+-	if (!PyArg_ParseTuple(args, "OO|i:addObject", &pyob, &pyother, &time))
++	if (!PyArg_ParseTuple(args, "OO|ii:addObject", &pyob, &pyother, &time, &layer))
+ 		return NULL;
+ 
+-	if (	!ConvertPythonToGameObject(pyob, &ob, false, "scene.addObject(object, other, time): KX_Scene (first argument)") ||
+-			!ConvertPythonToGameObject(pyother, &other, false, "scene.addObject(object, other, time): KX_Scene (second argument)") )
++	// Fix for addObject outside of logic bricks
++	SCA_ILogicBrick::m_sCurrentLogicManager = this->m_logicmgr;
++
++	if (!ConvertPythonToGameObject(pyob, &ob, false, "scene.addObject(object, other, time, layer): KX_Scene (first argument)"))
+ 		return NULL;
++	
++	// Convert other to gameobject
++	if (!ConvertPythonToGameObject(pyother, &other, false, "scene.addObject(object, other, time, layer): KX_Scene (second argument)"))
++	{
++		// Otherwise try and convert to transform
++		if (!PyMatTo(pyother, trans))
++		{
++			PyErr_Format(PyExc_TypeError, "scene.addObject(object, other, time, layer): KX_Scene (second argument), expect a Matrix (4X4), KX_GameObject or a string");
++			return NULL;
+ 
++		// This is called after the first exception so we clear it
++		}
++		else
++		{
++			PyErr_Clear();
++		}
++	}
++	
+ 	if (!m_inactivelist->SearchValue(ob)) {
+-		PyErr_Format(PyExc_ValueError, "scene.addObject(object, other, time): KX_Scene (first argument): object must be in an inactive layer");
++		PyErr_Format(PyExc_ValueError, "scene.addObject(object, other, time, layer): KX_Scene (first argument): object must be in an inactive layer");
+ 		return NULL;
+ 	}
+-	SCA_IObject* replica = AddReplicaObject((SCA_IObject*)ob, other, time);
+ 	
++	// Get the transform and layer of object
++	if (other)
++	{
++		trans = other->GetOpenGLMatrix();
++		if (layer == -1)
++			layer = other->GetLayer();
++	}
++	// Make sure layer is set
++	else
++	{
++		if (layer == -1)
++			layer = 0;
++	}
++
++	SCA_IObject* replica = AddReplicaObject((SCA_IObject*)ob, trans, layer, time);
++	
+ 	// release here because AddReplicaObject AddRef's
+ 	// the object is added to the scene so we don't want python to own a reference
+ 	replica->Release();
+Index: source/gameengine/Ketsji/KX_Scene.h
+===================================================================
+--- source/gameengine/Ketsji/KX_Scene.h	(revision 59220)
++++ source/gameengine/Ketsji/KX_Scene.h	(working copy)
+@@ -44,6 +44,7 @@
+ #include "SG_IObject.h"
+ #include "SCA_IScene.h"
+ #include "MT_Transform.h"
++#include "MT_Matrix4x4.h"
+ 
+ #include "RAS_FramingManager.h"
+ #include "RAS_Rect.h"
+@@ -326,7 +327,8 @@
+ 	}
+ 	void AddObjectDebugProperties(class KX_GameObject* gameobj);
+ 	SCA_IObject* AddReplicaObject(CValue* gameobj,
+-	                              CValue* locationobj,
++	                              MT_Matrix4x4 temp,
++								  int layer,
+ 	                              int lifespan=0);
+ 	KX_GameObject* AddNodeReplicaObject(SG_IObject* node,
+ 	                                    CValue* gameobj);
