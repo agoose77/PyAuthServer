@@ -18,7 +18,7 @@ from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostby
 from time import monotonic
 from weakref import proxy as weak_proxy
 
-class NetmodeOnly:
+class run_only_on:
     '''Runs method in netmode specific scope only'''
     def __init__(self, netmode):
         self.netmode = netmode

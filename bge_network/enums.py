@@ -5,3 +5,6 @@ class PhysicsType(metaclass=Enum):
 
 class ShotType(metaclass=Enum):
     values = "instant", "projectile"
+    
+class CameraMode(metaclass=Enum):
+    values = "first_person", "third_person"

@@ -1,5 +1,5 @@
 from .bge_data import RigidBodyState, GameObject, CameraObject
-from .enums import PhysicsType, ShotType
+from .enums import PhysicsType, ShotType, CameraMode
 from .inputs import InputManager
 
 from aud import Factory, device as AudioDevice
@@ -9,10 +9,10 @@ from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
 from math import pi
 from mathutils import Euler, Vector, Matrix
-from network import Replicable, Attribute, Roles, Controller, ReplicableInfo, WorldInfo, simulated, Netmodes, StaticValue, NetmodeOnly, TypeRegister
+from network import Replicable, Attribute, Roles, Controller, ReplicableInfo, WorldInfo, simulated, Netmodes, StaticValue, run_only_on, TypeRegister
 from os import path
 
-SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs", "mouse_x", "mouse_y", "view_pitch"))
+SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs", "mouse_x", "mouse_y"))
 
 class PlayerReplicationInfo(ReplicableInfo):
     
@@ -24,6 +24,24 @@ class PlayerController(Controller):
     
     move_error_limit = 0.5 ** 2 
     config_filepath = "inputs.conf"
+    
+    @property
+    def mouse_delta(self):
+        mouse = logic.mouse
+        m_pos = mouse.position
+        s_center = mouse.screen_center
+        
+        if self.mouse_setup:
+            mouse_diff_x = s_center[0] - m_pos[0]
+            mouse_diff_y = s_center[1] - m_pos[1]
+            
+        else:
+            mouse_diff_x = mouse_diff_y = 0.0
+            self.mouse_setup = True
+        
+        mouse.position = 0.5, 0.5
+        
+        return mouse_diff_x, mouse_diff_y
     
     def acknowledge_good_move(self, move_id: StaticValue(int)) -> Netmodes.client:
         try:
@@ -60,11 +78,9 @@ class PlayerController(Controller):
                 self.save_move(move_id, move.delta_time, move.inputs, move.mouse_x, move.mouse_y)
     
     def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
-        vel, ang = Vector(), Vector()
+        self.update_inputs(inputs, delta_time)
+        self.update_mouse(mouse_diff_x, mouse_diff_y, delta_time)
         
-        self.pawn.velocity.xy = vel.xy
-        self.pawn.angular = ang
-
         WorldInfo.physics.update_for(self.pawn, delta_time)
                 
     def get_corrected_state(self, position, rotation):
@@ -83,7 +99,7 @@ class PlayerController(Controller):
         correction.angular = self.pawn.angular
 
         return correction
-    
+        
     def hear_sound(self, sound_path: StaticValue(str), source: StaticValue(Vector)) -> Netmodes.client:
         return
         full_path = logic.expandPath('//{}'.format(sound_path))
@@ -91,8 +107,13 @@ class PlayerController(Controller):
         device = AudioDevice()
         
         handle = device.play(factory)
-        
-    @NetmodeOnly(Netmodes.client)
+    
+    def increment_move(self):
+        self.current_move_id += 1
+        if self.current_move_id == 255:
+            self.current_move_id = 0
+    
+    @run_only_on(Netmodes.client)
     def load_keybindings(self):
         all_events = {x[0]: str(x[1]) for x in getmembers(events) if isinstance(x[1], int)}        
         filepath = logic.expandPath("//" + self.config_filepath) 
@@ -135,31 +156,18 @@ class PlayerController(Controller):
         if not (self.pawn and self.camera):
             return
         
-        mouse = logic.mouse
-        m_pos = mouse.position
-        s_center = mouse.screen_center
-        
-        if self.mouse_setup:
-            mouse_diff_x = s_center[0] - m_pos[0]
-            mouse_diff_y = s_center[1] - m_pos[1]
-            
-        else:
-            mouse_diff_x = mouse_diff_y = 0.0
-            
-            self.mouse_setup = True
-        
-        mouse.position = 0.5, 0.5
+        mouse_diff_x, mouse_diff_y = self.mouse_delta
         
         if self.inputs.shoot.active:
             self.start_fire()
-        
+            
         self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
-        self.server_validate(self.current_move_id, self.inputs, mouse_diff_x, mouse_diff_y, delta_time, self.pawn.position, self.pawn.rotation)
+        self.server_validate(self.current_move_id, self.inputs, mouse_diff_x, 
+                             mouse_diff_y, delta_time, self.pawn.position, self.pawn.rotation)
+        
         self.save_move(self.current_move_id, delta_time, self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
 
-        self.current_move_id += 1
-        if self.current_move_id == 255:
-            self.current_move_id = 0
+        self.increment_move()
                         
     def possess(self, actor):
         WorldInfo.physics.add_exemption(actor)
@@ -169,10 +177,9 @@ class PlayerController(Controller):
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x, mouse_diff_y):
         self.previous_moves[move_id] = SavedMove(self.pawn.position.copy(), self.pawn.rotation.copy(), 
                                                   self.pawn.velocity.copy(), self.pawn.angular.copy(), 
-                                                  delta_time, input_tuple, mouse_diff_x, mouse_diff_y, 
-                                                  self.pawn.view_pitch)  
+                                                  delta_time, input_tuple, mouse_diff_x, mouse_diff_y)  
                 
-    @NetmodeOnly(Netmodes.client)
+    @run_only_on(Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
         
@@ -191,7 +198,7 @@ class PlayerController(Controller):
         self.current_move_id = move_id       
          
         self.execute_move(inputs, mouse_diff_x, mouse_diff_y, delta_time)
-        
+
         self.save_move(move_id, delta_time, inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
         
         correction = self.get_corrected_state(position, rotation)
@@ -207,9 +214,18 @@ class PlayerController(Controller):
         
         camera_socket = self.pawn.sockets['camera']     
         camera.parent_to(camera_socket)
-        camera.position = Vector()
-        camera.rotation = Euler((pi / 2, 0, 0))
+        
+        self.setup_camera_perspective(camera)
     
+    def setup_camera_perspective(self, camera):
+        if camera.look_mode == CameraMode.first_person:
+            camera.position = Vector()
+            
+        else:
+            camera.position = Vector((0, -camera.third_person_offset, 0 ))
+            
+        camera.rotation = Euler((pi / 2, 0, 0))
+            
     def setup_weapon(self, weapon):
         super().set_weapon(weapon)
 
@@ -246,7 +262,13 @@ class PlayerController(Controller):
         WorldInfo.physics.remove_exemption(self.pawn)
         
         super().unpossess()
-                
+    
+    def update_inputs(self, inputs, delta_time):
+        pass
+    
+    def update_mouse(self, mouse_x, mouse_y, delta_time):
+        pass
+    
 class Actor(Replicable):
 
     rigid_body_state = Attribute(RigidBodyState(), notify=True, complain=False)
@@ -435,7 +457,7 @@ class Weapon(Replicable):
             
         self.last_fired_time = WorldInfo.elapsed
     
-    @NetmodeOnly(Netmodes.server)
+    @run_only_on(Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(self.maximum_range)
 
@@ -518,6 +540,13 @@ class Camera(Actor):
     def draw_from_center(self, length=2, colour=[1, 0, 1]):
         render.drawLine(self.world_position, self.world_position + self.object.worldOrientation * Vector((0, 0, -length)), colour)
     
+    def on_initialised(self):
+        super().on_initialised()
+        
+        
+        self.look_mode = CameraMode.third_person
+        self.third_person_offset = 6.0
+    
     def render_temporary(self, render_func):
         cam = self.object
         scene = cam.scene
@@ -526,7 +555,13 @@ class Camera(Actor):
         scene.active_camera = cam
         render_func()
         scene.active_camera = old_camera    
-    
+     
+    def sees_actor(self, actor):        
+        if actor.camera_radius < 0.5 :
+            return self.object.pointInsideFrustum(actor.world_position)
+            
+        return self.object.sphereInsideFrustum(actor.world_position, actor.camera_radius) != self.object.OUTSIDE
+        
     def trace(self, x_coord, y_coord, distance=0):
         return self.object.getScreenRay(x_coord, y_coord, distance)
     
@@ -535,12 +570,6 @@ class Camera(Actor):
         target.rotate(Euler((pi/2, 0, 0)))
         target.rotate(self.world_rotation)
         return self.object.rayCast(target, self.world_position, distance)
-    
-    def sees_actor(self, actor):        
-        if actor.camera_radius < 0.5 :
-            return self.object.pointInsideFrustum(actor.world_position)
-            
-        return self.object.sphereInsideFrustum(actor.world_position, actor.camera_radius) != self.object.OUTSIDE
    
 class Pawn(Actor):
     
