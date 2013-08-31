@@ -1,8 +1,8 @@
+from .actors import Camera
+from .physics import PhysicsSystem
+
 from bge import logic, events, types
 from network import Netmodes, WorldInfo, Network, Replicable, InstanceNotifier
-
-from .physics import PhysicsSystem
-from .actors import Camera
 
 class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
     
@@ -65,7 +65,7 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
                                         
                     Replicable.update_graph()
                     
-                    for replicable in WorldInfo.actors:
+                    for replicable in WorldInfo.replicables:
                         replicable.update(delta_time)
 
                         if hasattr(replicable, "inputs"):

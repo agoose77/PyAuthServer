@@ -4,7 +4,7 @@ descriptions = {}
 def static_description(obj):
     '''Uses hash-like comparison of muteable and/or immuteable data
     @param obj: object to describe'''
-    if hasattr(obj, "__description__"):
+    if hasattr(obj, "__description__") and hasattr(obj.__description__, "__self__"):
         return obj.__description__()
     
     value_type = type(obj)

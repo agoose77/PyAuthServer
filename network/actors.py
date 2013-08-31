@@ -1,8 +1,8 @@
-from .registers import ReplicableRegister
-from .enums import Roles, Netmodes
 from .containers import AttributeStorageContainer, RPCStorageContainer
 from .descriptors import Attribute, StaticValue
+from .enums import Roles, Netmodes
 from .modifiers import simulated
+from .registers import ReplicableRegister
 
 from collections import defaultdict
 
@@ -163,14 +163,14 @@ class BaseWorldInfo(Replicable):
             yield "elapsed"
     
     @property
-    def actors(self):
+    def replicables(self):
         return Replicable.get_graph_instances()
     
     @simulated
     def subclass_of(self, actor_type):
         '''Returns registered actors that are subclasses of a given type
         @param actor_type: type to compare against'''
-        return (a for a in self.actors if isinstance(a, actor_type))
+        return (a for a in self.replicables if isinstance(a, actor_type))
 
     @simulated
     def update(self, delta):
@@ -180,44 +180,16 @@ class BaseWorldInfo(Replicable):
     def type_is(self, name):
         return Replicable._by_types.get(name)
         
-    get_actor = simulated(Replicable.get_from_graph)
-    has_actor = simulated(Replicable.graph_has_instance)
+    get_replicable = simulated(Replicable.get_from_graph)
+    has_replicable = simulated(Replicable.graph_has_instance)
      
 class Controller(Replicable):
     
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))    
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
     camera = Attribute(type_of=Replicable, complain=True, notify=True)
+    weapon = Attribute(type_of=Replicable, complain=True, notify=True)
     info = Attribute(type_of=Replicable)
-    
-    def on_initialise(self):
-        self.camera_setup = False
-    
-    def receive_broadcast(self, sender:StaticValue(Replicable), message_string:StaticValue(str)) -> Netmodes.client:
-        print("BROADCAST: {}".format(message_string))
-    
-    def set_camera(self, camera):
-        self.camera = camera
-        self.camera.possessed_by(self)
-    
-    def remove_camera(self):
-        self.camera.unpossessed()
-    
-    def possess(self, replicable):
-        self.pawn = replicable
-        self.pawn.possessed_by(self)
-    
-    def unpossess(self):
-        self.pawn.unpossessed()
-    
-    def on_notify(self, name):
-        if name == "pawn":
-            self.possess(self.pawn)
-        elif name == "camera":
-            self.set_camera(self.camera)
-            #self.camera.active = True
-        else:
-            super().on_notify(name)       
          
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -225,10 +197,49 @@ class Controller(Replicable):
         if is_complaint:
             yield "pawn"  
             yield "camera"
+            yield "weapon"
             yield "info"
+    
+    def on_initialise(self):
+        self.camera_setup = False
+    
+    def on_notify(self, name):
+        if name == "pawn":
+            self.possess(self.pawn)
+            
+        elif name == "camera":
+            self.set_camera(self.camera)
+            self.camera.active = True
+            
+        elif name == "weapon":
+            self.set_weapon(self.weapon)
+            
+        else:
+            super().on_notify(name)  
             
     def player_update(self, elapsed):
-        pass
+        pass 
+    
+    def possess(self, replicable):
+        self.pawn = replicable
+        self.pawn.possessed_by(self)
+    
+    def receive_broadcast(self, sender:StaticValue(Replicable), message_string:StaticValue(str)) -> Netmodes.client:
+        print("BROADCAST: {}".format(message_string))
+        
+    def remove_camera(self):
+        self.camera.unpossessed()
+    
+    def set_camera(self, camera):
+        self.camera = camera
+        self.camera.possessed_by(self)
+        
+    def set_weapon(self, weapon):
+        self.weapon = weapon
+        self.weapon.possessed_by(self)
+    
+    def unpossess(self):
+        self.pawn.unpossessed()    
     
 class ReplicableInfo(Replicable):
     pass        

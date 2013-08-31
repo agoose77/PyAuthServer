@@ -73,22 +73,32 @@ class BitfieldInt:
     @classmethod
     def pack(cls, field):
         # Get the smallest needed packer for this bitfield
-        field_packer = handler_from_byte_length(field.footprint)
-        return UInt8.pack(field._size) + field_packer.pack(field._value)
+        footprint = field.footprint
+        if footprint:
+            field_packer = handler_from_byte_length(footprint)
+            return UInt8.pack(field._size) + field_packer.pack(field._value)
+        else:
+            return UInt8.pack(field._size)
     
     @classmethod
     def unpack(cls, bytes_):
         field_size = UInt8.unpack_from(bytes_)
-        field_packer = handler_from_bit_length(field_size)
         
+        if field_size:
+            field_packer = handler_from_bit_length(field_size)
+            data = field_packer.unpack_from(bytes_[1:])
+        else:
+            data = 0
         # Assume 8 bits
-        field = Bitfield(field_size, field_packer.unpack_from(bytes_[1:]))
+        field = Bitfield(field_size, data)
         return field
     
     @classmethod
     def unpack_merge(cls, field, bytes_):
-        field_packer = handler_from_byte_length(field.footprint)
-        field._value = field_packer.unpack_from(bytes_[1:])
+        footprint = field.footprint
+        if footprint:
+            field_packer = handler_from_byte_length(footprint)
+            field._value = field_packer.unpack_from(bytes_[1:])
         
     unpack_from = unpack
     

@@ -1,8 +1,7 @@
 from bge import logic, types
 from functools import wraps
-
-from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo, Struct, Attribute
 from mathutils import Vector, Euler, Quaternion, Matrix
+from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo, Struct, Attribute
 
 def get_armature(obj, recurse=False):
     children = obj.children if not recurse else obj.childrenRecursive

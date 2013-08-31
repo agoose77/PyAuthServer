@@ -1,23 +1,22 @@
-from .registers import InstanceRegister, InstanceNotifier
-from .errors import NetworkError, ReplicableAccessError
 from .actors import BaseWorldInfo, Controller, Replicable
-from .enums import Netmodes, Roles, Protocols, ConnectionStatus
-from .modifiers import reliable, is_reliable
-from .serialiser import UInt8, String, handler_from_int
 from .argument_serialiser import ArgumentSerialiser
-from .handler_interfaces import static_description, register_handler, get_handler
-from .descriptors import StaticValue
-from .factorydict import FactoryDict
 from .bitfield import Bitfield
+from .descriptors import StaticValue
+from .enums import Netmodes, Roles, Protocols, ConnectionStatus
+from .errors import NetworkError, ReplicableAccessError
+from .factorydict import FactoryDict
+from .handler_interfaces import static_description, register_handler, get_handler, register_description
+from .modifiers import reliable, is_reliable
+from .registers import InstanceRegister, InstanceNotifier, TypeRegister
+from .serialiser import UInt8, String, handler_from_int
 
-from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostbyname
 from collections import deque
-from weakref import proxy as weak_proxy
-from itertools import repeat
-from time import monotonic
 from functools import wraps
-
+from itertools import repeat
 from operator import eq as equals_operator
+from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostbyname
+from time import monotonic
+from weakref import proxy as weak_proxy
 
 class NetmodeOnly:
     '''Runs method in netmode specific scope only'''
@@ -915,7 +914,7 @@ class ClientInterface(ConnectionInterface):
                                     
 class Network(socket):
     
-    def __init__(self, addr, port, update_interval=1/15):
+    def __init__(self, addr, port, update_interval=1/20):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
         
@@ -1036,7 +1035,7 @@ class ReplicableProxy:
             
             # Get the instance by instance id
             try:
-                replicable_instance = WorldInfo.get_actor(instance_id)
+                replicable_instance = WorldInfo.get_replicable(instance_id)
             except LookupError:
                 return
             
@@ -1144,7 +1143,7 @@ class ReplicableProxyHandler:
         
         # Return only a replicable that was created by the network
         try:
-            replicable = WorldInfo.get_actor(instance_id)
+            replicable = WorldInfo.get_replicable(instance_id)
             # Check that it was made locally and has a remote role
             assert replicable._local_authority #and replicable.roles.remote != Roles.none
             return weak_proxy(replicable)
@@ -1155,6 +1154,25 @@ class ReplicableProxyHandler:
         
     unpack_from = unpack    
     size = UInt8.size
+
+class TypeHandler:
+    
+    def __init__(self, static_value):
+        self.base_type = static_value.data['pointer_type']
+    
+    def pack(self, cls):
+        return String.pack(cls.type_name)
+    
+    def unpack(self, bytes_):
+        name = String.unpack_from(bytes_)
+        cls = self.base_type.from_type_name(name)
+        return cls
+    
+    unpack_from = unpack
+    size = String.size        
+
+def type_description(cls):
+    return hash(cls.type_name)
 
 class RolesHandler:
     int_pack = UInt8.pack
@@ -1176,6 +1194,9 @@ class RolesHandler:
     unpack_from = unpack
         
 register_handler(Replicable, ReplicableProxyHandler)
+register_handler(TypeRegister, TypeHandler, True)
 register_handler(Roles, RolesHandler)
+
+register_description(TypeRegister, type_description)
 
 WorldInfo = BaseWorldInfo(255, register=True)

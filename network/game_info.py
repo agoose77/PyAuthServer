@@ -1,7 +1,7 @@
-from .network import WorldInfo
 from .actors import Replicable, Controller
 from .descriptors import StaticValue, Attribute
 from .enums import Roles, Netmodes
+from .network import WorldInfo
     
 class BaseGameInfo(Replicable):
     roles = Attribute(

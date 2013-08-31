@@ -1,60 +1,37 @@
-from bge_network import WorldInfo, Netmodes, ReplicableInfo, Actor, Pawn, Camera, AuthError, ServerLoop, PlayerReplicationInfo, BaseGameInfo, ConnectionStatus, ConnectionInterface, InstanceNotifier
+from actors import *
+from bge_network import WorldInfo, Netmodes, PlayerController, ReplicableInfo, Actor, Pawn, Camera, AuthError, ServerLoop, PlayerReplicationInfo, BaseGameInfo, ConnectionStatus, ConnectionInterface, InstanceNotifier, BlacklistError
+from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
-from functools import partial
 
-from actors import *
-    
 class TeamDeathMatch(BaseGameInfo):
     
-    relevant_radius_squared = 3 ** 2
     countdown_running = False
-    
     countdown_start = 0
+    minimum_players_for_countdown = 0
     
-    player_controller_class = ExampleController
+    player_camera_class = Camera 
+    player_controller_class = LegendController
+    player_pawn_class = RobertNeville
     player_replication_info_class = PlayerReplicationInfo
-    player_pawn_class = Pawn
-    player_camera_class = Camera
+    player_weapon_class = M4A1Weapon
     
-    def on_registered(self):
-        super().on_registered()
-        
-        self.info = GameReplicationInfo(register=True)
+    relevant_radius_squared = 9 ** 2
     
-    def is_relevant(self, player_controller, replicable):
-        player_pawn = player_controller.pawn
-        player_camera = player_controller.camera
-        
-        if isinstance(replicable, PlayerController):
-            return False
-        
-        if isinstance(replicable, ReplicableInfo):
-            return True
-
-        if isinstance(replicable, Actor) and (replicable.visible or replicable.always_relevant):
-            in_range = player_pawn and (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
-            
-            in_camera = (player_camera and player_camera.sees_actor(replicable))
-        
-            if (in_range or in_camera):
-                return True
-            
-    def pre_initialise(self, addr, netmode):
-        if netmode == Netmodes.server:
-            raise AuthError("Peer was not a client")
+    def can_start_countdown(self):
+        player_count = self.get_player_count()
+        return player_count >= self.minimum_players_for_countdown
         
     def create_new_player(self, controller, callback_data=None):
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
+        weapon = self.player_weapon_class()
         
         controller.possess(pawn)
         controller.set_camera(camera)
+        controller.setup_weapon(weapon)
         
         pawn.position = Vector()
-    
-    def killed(self, killer, killed, killed_pawn):
-        pass
     
     def end_countdown(self, aborted=True):
         self.reset_countdown()
@@ -65,26 +42,44 @@ class TeamDeathMatch(BaseGameInfo):
         
         self.start_match()
     
-    def reset_countdown(self):
-        self.info.time_to_start = float(self.countdown_start)
-    
-    def start_countdown(self):
-        self.reset_countdown()
-        self.countdown_running = True
-    
     def get_player_count(self):
         return ConnectionInterface.by_status(ConnectionStatus.disconnected, more_than)
     
-    def can_start_countdown(self):
-        player_count = self.get_player_count()
-        return player_count > 0
+    def is_relevant(self, player_controller, replicable):
+        
+        # Check by distance, then frustum checks
+        if isinstance(replicable, Actor) and (replicable.visible or replicable.always_relevant):
+            player_pawn = player_controller.pawn
+            
+            in_range = player_pawn and (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
+            
+            player_camera = player_controller.camera
+            
+            if in_range or (player_controller.camera and player_camera.sees_actor(replicable)):
+                return True
+            
+        if isinstance(replicable, Weapon):
+            return False
+        
+        if isinstance(replicable, WeaponAttachment):
+            return True
+        
+        # We always allow ReplicableInfo classes
+        if isinstance(replicable, ReplicableInfo):
+            return True
+            
+        # We never allow PlayerController classes
+        if isinstance(replicable, PlayerController):
+            return False
     
-    def start_match(self):
-        for controller in WorldInfo.subclass_of(ExampleController):
-            self.create_new_player(controller)
-        for i in range(20):
-            Pawn()
-        self.info.match_started = True
+    def killed(self, killer, killed, killed_pawn):
+        pass
+    
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.info = GameReplicationInfo(register=True)
+        self.black_list = []
     
     def post_initialise(self, connection):
         controller = self.player_controller_class()
@@ -96,6 +91,29 @@ class TeamDeathMatch(BaseGameInfo):
             self.create_new_player(controller)
         
         return controller
+            
+    def pre_initialise(self, addr, netmode):
+        
+        if netmode == Netmodes.server:
+            raise AuthError("Peer was not a client")
+        
+        ip, port = addr
+        
+        if ip in self.black_list:
+            raise BlacklistError()
+    
+    def reset_countdown(self):
+        self.info.time_to_start = float(self.countdown_start)
+    
+    def start_countdown(self):
+        self.reset_countdown()
+        self.countdown_running = True
+    
+    def start_match(self):
+        for controller in WorldInfo.subclass_of(PlayerController):
+            self.create_new_player(controller)
+
+        self.info.match_started = True
     
     def update(self, delta_time):
             

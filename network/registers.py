@@ -1,10 +1,11 @@
+from .enums import Roles, Netmodes
+from .modifiers import is_simulated
+from .rpc import RPC
+
+from functools import wraps
 from itertools import chain
 from types import FunctionType
-from functools import wraps
-
-from .modifiers import is_simulated
-from .enums import Roles, Netmodes
-from .rpc import RPC
+from traceback import print_exc
 
 class TypeRegister(type):
     '''Registers all subclasses of parent class
@@ -12,7 +13,7 @@ class TypeRegister(type):
     
     def __new__(meta, name, parents, attrs):        
         cls = super().__new__(meta, name, parents, attrs)
-        
+
         if not hasattr(cls, "_types"):
             cls._types = []
             
@@ -58,10 +59,7 @@ class InstanceMixins:
         
         # Run clean init function
         if hasattr(self, "on_initialised"):
-            try:
-                self.on_initialised()
-            except Exception as err:
-                print(err)
+            self.on_initialised()
                 
         # Update graph
         if register:

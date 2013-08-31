@@ -1,12 +1,11 @@
-from .modifiers import is_simulated
-from inspect import signature
-from collections import OrderedDict, defaultdict
-
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
 from .factorydict import FactoryDict
+from .modifiers import is_simulated
 
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
+from inspect import signature
 
 class RPC:
     '''Manages instances of an RPC function for each object'''

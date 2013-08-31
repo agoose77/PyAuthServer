@@ -1,6 +1,5 @@
+from actors import *
 from bge_network import ClientLoop, Camera, InstanceNotifier
-
-from actors import ExampleController
 
 class Client(ClientLoop):
     

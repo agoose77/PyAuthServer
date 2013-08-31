@@ -62,33 +62,27 @@ class InputManager:
         return "Input Manager:" + ', '.join(data)
     
 class InputPacker:
-    fields = []
     handler = get_handler(StaticValue(Bitfield))
     
-    @classmethod
-    def pack(cls, input_):
-        values = Bitfield.from_iterable([getattr(input_, name).active for name in cls.fields])
-        return cls.handler.pack(values)
+    def __init__(self, static_value):
+        self.fields = static_value.data['fields']
     
-    @classmethod
-    def to_active(cls, data, name):
+    def pack(self, input_):
+        values = Bitfield.from_iterable([getattr(input_, name).active for name in self.fields])
+        return self.handler.pack(values)
+    
+    def to_active(self, data, name):
         return logic.KX_INPUT_ACTIVE if data[name] else logic.KX_INPUT_NONE
     
-    @classmethod
-    def unpack(cls, bytes_):
-        values = Bitfield(len(cls.fields))
-        cls.handler.unpack_merge(values, bytes_)
-        data = dict(zip(cls.fields, values))
-        return InputManager(data, status_lookup=partial(cls.to_active, data))
-    
-    @classmethod
-    def callback(cls, static_value):
-        cls.fields = static_value.data["fields"]
-        return cls
+    def unpack(self, bytes_):
+        values = Bitfield(len(self.fields))
+        self.handler.unpack_merge(values, bytes_)
+        data = dict(zip(self.fields, values))
+        return InputManager(data, status_lookup=partial(self.to_active, data))
     
     unpack_from = unpack
     size = handler.size
     
 # Register handler for input manager
-register_handler(InputManager, InputPacker.callback, True)
+register_handler(InputManager, InputPacker, True)
     

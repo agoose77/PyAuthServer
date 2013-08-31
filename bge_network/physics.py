@@ -1,12 +1,10 @@
 from .actors import Actor
 from .enums import PhysicsType
 
-from network import WorldInfo, Netmodes
-from collections import defaultdict
-
 from bge import logic
+from collections import defaultdict
 from functools import partial
-
+from network import WorldInfo, Netmodes
 from time import monotonic
 
 class SimulationEntry:
@@ -85,7 +83,10 @@ class PhysicsSystem:
 
         # Restore scheduled objects
         for actor in self._exempt_actors:
-            actor.suspend_physics()
+            try:
+                actor.suspend_physics()
+            except RuntimeError:
+                print(actor, "was not removed from the exempt actors list")
             
         self._update_func(delta_time)
         
@@ -95,8 +96,7 @@ class PhysicsSystem:
             
         self._apply_func()
         self.restore_objects()
-        
-        
+                
 class ServerPhysics(PhysicsSystem):
     
     def restore_objects(self):
@@ -118,15 +118,15 @@ class ClientPhysics(PhysicsSystem):
         difference = actor_physics.position - actor.position
 
         small_correction = difference.length_squared < self.small_correction_squared
-
+        
         if small_correction:
             actor.position += difference * 0.2
-            actor.velocity = actor_physics.velocity.copy() 
+            actor.velocity = actor_physics.velocity + difference * 0.8
             
         else:
             actor.position = actor_physics.position.copy()
             actor.velocity = actor_physics.velocity.copy()
-        
+
         actor.rotation = actor_physics.rotation.copy()
         actor.angular = actor_physics.angular.copy()
             
