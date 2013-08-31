@@ -354,6 +354,10 @@ class Camera(Actor):
     actor_class = CameraObject        
     
     @property
+    def visible(self):
+        return False
+    
+    @property
     def active(self):
         return self.object == logic.getCurrentScene().active_camera
     
@@ -375,19 +379,28 @@ class Camera(Actor):
     @fov.setter
     def fov(self, value):
         self.object.fov = value
+    
+    def render_temporary(self, render_func):
+        cam = self.object
+        scene = cam.scene
         
+        old_camera = scene.active_camera
+        scene.active_camera = cam
+        render_func()
+        scene.active_camera = old_camera    
+    
     def trace(self, x_coord, y_coord, distance=0):
         return self.object.getScreenRay(x_coord, y_coord, distance)
     
-    def sees_actor(self, actor):            
-        result =self.object.sphereInsideFrustum(actor.world_position, actor.camera_radius)
-        render.drawLine(actor.world_position, actor.world_position + Vector((0, actor.camera_radius, 0)), [1,0,0])
-        for status in "OUTSIDE", "INSIDE", "INTERSECT":
-            print(result == getattr(self.object, status), status)
+    def sees_actor(self, actor):        
+        if actor.camera_radius < 0.5 :
+            return self.object.pointInsideFrustum(actor.world_position)
+            
+        return self.object.sphereInsideFrustum(actor.world_position, actor.camera_radius) != self.object.OUTSIDE
+   
         
 class Pawn(Actor):
     flash_count = Attribute(0, notify=True)
-    physics = Attribute(PhysicsType.rigid_body)
     
     actor_name = "Suzanne_Physics"
     

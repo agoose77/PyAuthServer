@@ -56,16 +56,16 @@ class InstanceMixins:
         # Add to register queue
         self.request_registration(instance_id)
         
-        # Update graph
-        if register:
-            self.__class__.update_graph()
-        
         # Run clean init function
         if hasattr(self, "on_initialised"):
             try:
                 self.on_initialised()
             except Exception as err:
                 print(err)
+                
+        # Update graph
+        if register:
+            self.__class__.update_graph()
         
     def request_unregistration(self, unregister=False):
         if not self.registered:

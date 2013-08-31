@@ -157,7 +157,20 @@ Index: doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst
 ===================================================================
 --- doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst	(revision 59220)
 +++ doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst	(working copy)
-@@ -270,6 +270,20 @@
+@@ -134,6 +134,12 @@
+ 
+       :type: :class:`KX_GameObject` or None
+ 
++   .. attribute:: collisionCallbacks
++
++      A list of callables to be run when a collision occurs.
++
++      :type: list
++	  
+    .. attribute:: scene
+ 
+       The object's scene. (read-only).
+@@ -270,6 +276,20 @@
  
        :type: int
  
@@ -178,6 +191,197 @@ Index: doc/python_api/rst/bge_types/bge.types.KX_GameObject.rst
     .. attribute:: meshes
  
        a list meshes for this object.
+Index: doc/python_api/rst/bge_types/bge.types.KX_PythonLogicLoop.rst
+===================================================================
+--- doc/python_api/rst/bge_types/bge.types.KX_PythonLogicLoop.rst	(revision 0)
++++ doc/python_api/rst/bge_types/bge.types.KX_PythonLogicLoop.rst	(working copy)
+@@ -0,0 +1,185 @@
++KX_PythonLogicLoop(PyObjectPlus)
++================================
++
++.. module:: bge.types
++
++base class --- :class:`PyObjectPlus`
++
++.. class:: KX_PythonLogicLoop(PyObjectPlus)
++
++   A Python base class for a Logic Loop.
++
++   .. method:: main()
++
++      The entry point into the logic loop
++	  .. code-block:: python
++
++		from bge import logic, events, types
++
++		class Loop(types.KX_PythonLogicLoop):
++				
++			def __init__(self):
++				self.pause = False
++				self.framerate = 60
++				
++				self.last_time = self.get_time()
++				self.last_anim_time = self.get_time()
++			
++			def main(self):    
++				# Run whilst the engine allows us
++				while not self.check_quit():
++								
++					# Setup frame
++					self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
++					
++					start_time = current_time = self.get_time()
++					deltatime = current_time - self.last_time
++					
++					# Check if the system wishes to run animation at a fixed rate
++					restrict_animation_fps = logic.getRestrictAnimationUpdates()
++					use_fixed_framerate = logic.getUseFrameRate()
++					
++					# Fixed frame rate requires skipping frames
++					if use_fixed_framerate:
++						if deltatime < (1 /  self.framerate):
++							continue
++		 
++					# Update blender events
++					self.update_blender()
++					
++					# Receive messages
++					self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
++					self.receive_messages(current_time)
++					
++					for scene in logic.getSceneList():
++						self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
++						
++						# Set current game scene
++						self.set_current_scene(scene)
++						current_time = self.get_time()
++										   
++						if not self.pause:                    
++							self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
++							self.update_physics(current_time, deltatime)
++							
++							self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)
++							self.update_scenegraph(current_time)
++							
++							if not restrict_animation_fps:
++								self.update_animations(current_time)
++								
++					# Treat the rest as outside
++					self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
++					
++					# If animations must run at a fixed framerate
++					if restrict_animation_fps:
++						self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
++						
++						animation_timestep = 1 / logic.getAnimationTicRate()
++						
++						if (current_time - self.last_anim_time) > animation_timestep:
++							self.last_anim_time = current_time
++							
++							for scene in logic.getSceneList():
++								self.set_current_scene(scene)
++								self.update_animations(current_time)
++											
++					# Called after logic updated
++					self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
++					self.update_keyboard()
++					self.update_mouse()
++					self.update_messages()
++					self.update_scenes()
++
++					# Finally we render
++					self.start_profile(logic.KX_ENGINE_DEBUG_RASTERIZER)
++					self.update_render()    
++					
++					# And rest is delegated to outside
++					self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE) 
++					self.last_time = start_time
++
++   .. method:: start_profile(profile_id, stop_others=True, current_time=None)
++
++      Informs the KX_KetsjiEngine to start profiling a profile category
++	  By default, the method will stop other categories (to run sequentially)
++	  If no time value is passed, it will use the internal current time
++
++      :arg profile_id: The ID of the profile category, can be one of :ref:`these constants <profile_category_id>`
++      :type scene: int
++      :arg stop_others: A switch that will stop other profiling categories
++      :type scene: bool
++      :arg current_time: The start time of the profile call
++      :type scene: float
++	  
++   .. method:: stop_profile(profile_id, current_time=None)
++
++      Informs the KX_KetsjiEngine to stop profiling a profile category
++	  If no time value is passed, it will use the internal current time
++
++      :arg profile_id: The ID of the profile category, can be one of :ref:`these constants <profile_category_id>`
++      :type scene: int
++      :arg current_time: The stop time of the profile call
++      :type scene: float
++	  
++   .. method:: update_render()
++
++      Invokes a render step
++	 
++   .. method:: update_blender()
++
++      Updates keyboard and mouse events from Blender
++	  
++   .. method:: update_messages()
++
++      Informs the message loopback that one frame has elapsed
++	  
++   .. method:: update_keyboard()
++
++      Informs the BGE keyboard that one frame has elapsed
++
++   .. method:: update_scenes()
++
++      Updates the scene management (add/remove scenes)
++	  
++   .. method:: update_physics(current_time, deltatime)
++
++      Updates physics for the current internally active scene
++	  :arg current_time: The current time of the update
++      :type scene: float
++      :arg deltatime: The deltatime since last frame
++      :type scene: float
++
++   .. method:: receive_messages()
++
++      Refreshes messages from the loopback interface
++	  
++   .. method:: update_scenegraph()
++
++      Updates the scene graph for the current internally active scene
++	  	  
++   .. method:: update_animations()
++
++      Updates the animations for the current internally active scene
++	  	  	  
++   .. method:: set_current_scene(scene)
++
++      Sets the current internally active scene
++	  :arg scene: The scene to set as active
++      :type scene: :class:`KX_Scene`
++
++   .. method:: check_quit()
++   
++	  Returns the exit status of the engine
++	  
++	  :return: The exit status of the engine
++	  :rtype: bool
++
++   .. method:: get_time()
++   
++	  Returns the current internal time of the engine
++	  
++	  :return: The current time
++	  :rtype: float
++	  
++	  
+\ No newline at end of file
 Index: doc/python_api/rst/bge_types/bge.types.KX_Scene.rst
 ===================================================================
 --- doc/python_api/rst/bge_types/bge.types.KX_Scene.rst	(revision 59220)
@@ -208,16 +412,1239 @@ Index: release/scripts/startup/bl_ui/properties_game.py
 ===================================================================
 --- release/scripts/startup/bl_ui/properties_game.py	(revision 59220)
 +++ release/scripts/startup/bl_ui/properties_game.py	(working copy)
-@@ -422,6 +422,9 @@
-         row = layout.row()
-         row.label("Exit Key")
-         row.prop(gs, "exit_key", text="", event=True)
+@@ -22,726 +22,729 @@
+ 
+ 
+ class PhysicsButtonsPanel():
+-    bl_space_type = 'PROPERTIES'
+-    bl_region_type = 'WINDOW'
+-    bl_context = "physics"
++	bl_space_type = 'PROPERTIES'
++	bl_region_type = 'WINDOW'
++	bl_context = "physics"
+ 
+ 
+ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
+-    bl_label = "Physics"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Physics"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        ob = context.active_object
+-        rd = context.scene.render
+-        return ob and ob.game and (rd.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		ob = context.active_object
++		rd = context.scene.render
++		return ob and ob.game and (rd.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        ob = context.active_object
+-        game = ob.game
+-        soft = ob.game.soft_body
++		ob = context.active_object
++		game = ob.game
++		soft = ob.game.soft_body
+ 
+-        layout.prop(game, "physics_type")
+-        layout.separator()
++		layout.prop(game, "physics_type")
++		layout.separator()
+ 
+-        physics_type = game.physics_type
++		physics_type = game.physics_type
+ 
+-        if physics_type == 'CHARACTER':
+-            layout.prop(game, "use_actor")
+-            layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
+-            layout.prop(game, "step_height", slider=True)
+-            layout.prop(game, "jump_speed")
+-            layout.prop(game, "fall_speed")
++		if physics_type == 'CHARACTER':
++			layout.prop(game, "use_actor")
++			layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
++			layout.prop(game, "step_height", slider=True)
++			layout.prop(game, "jump_speed")
++			layout.prop(game, "fall_speed")
+ 
+-        elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
+-            split = layout.split()
++		elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.prop(game, "use_actor")
+-            col.prop(game, "use_ghost")
+-            col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
++			col = split.column()
++			col.prop(game, "use_actor")
++			col.prop(game, "use_ghost")
++			col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
+ 
+-            col = split.column()
+-            col.prop(game, "use_material_physics_fh")
+-            col.prop(game, "use_rotate_from_normal")
+-            col.prop(game, "use_sleep")
++			col = split.column()
++			col.prop(game, "use_material_physics_fh")
++			col.prop(game, "use_rotate_from_normal")
++			col.prop(game, "use_sleep")
+ 
+-            layout.separator()
++			layout.separator()
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Attributes:")
+-            col.prop(game, "mass")
+-            col.prop(game, "radius")
+-            col.prop(game, "form_factor")
++			col = split.column()
++			col.label(text="Attributes:")
++			col.prop(game, "mass")
++			col.prop(game, "radius")
++			col.prop(game, "form_factor")
+ 
+-            col = split.column()
+-            sub = col.column()
+-            sub.prop(game, "use_anisotropic_friction")
+-            subsub = sub.column()
+-            subsub.active = game.use_anisotropic_friction
+-            subsub.prop(game, "friction_coefficients", text="", slider=True)
++			col = split.column()
++			sub = col.column()
++			sub.prop(game, "use_anisotropic_friction")
++			subsub = sub.column()
++			subsub.active = game.use_anisotropic_friction
++			subsub.prop(game, "friction_coefficients", text="", slider=True)
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Velocity:")
+-            sub = col.column(align=True)
+-            sub.prop(game, "velocity_min", text="Minimum")
+-            sub.prop(game, "velocity_max", text="Maximum")
++			col = split.column()
++			col.label(text="Velocity:")
++			sub = col.column(align=True)
++			sub.prop(game, "velocity_min", text="Minimum")
++			sub.prop(game, "velocity_max", text="Maximum")
+ 
+-            col = split.column()
+-            col.label(text="Damping:")
+-            sub = col.column(align=True)
+-            sub.prop(game, "damping", text="Translation", slider=True)
+-            sub.prop(game, "rotation_damping", text="Rotation", slider=True)
++			col = split.column()
++			col.label(text="Damping:")
++			sub = col.column(align=True)
++			sub.prop(game, "damping", text="Translation", slider=True)
++			sub.prop(game, "rotation_damping", text="Rotation", slider=True)
+ 
+-            layout.separator()
++			layout.separator()
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Lock Translation:")
+-            col.prop(game, "lock_location_x", text="X")
+-            col.prop(game, "lock_location_y", text="Y")
+-            col.prop(game, "lock_location_z", text="Z")
++			col = split.column()
++			col.label(text="Lock Translation:")
++			col.prop(game, "lock_location_x", text="X")
++			col.prop(game, "lock_location_y", text="Y")
++			col.prop(game, "lock_location_z", text="Z")
+ 
+-            col = split.column()
+-            col.label(text="Lock Rotation:")
+-            col.prop(game, "lock_rotation_x", text="X")
+-            col.prop(game, "lock_rotation_y", text="Y")
+-            col.prop(game, "lock_rotation_z", text="Z")
++			col = split.column()
++			col.label(text="Lock Rotation:")
++			col.prop(game, "lock_rotation_x", text="X")
++			col.prop(game, "lock_rotation_y", text="Y")
++			col.prop(game, "lock_rotation_z", text="Z")
+ 
+-        elif physics_type == 'SOFT_BODY':
+-            col = layout.column()
+-            col.prop(game, "use_actor")
+-            col.prop(game, "use_ghost")
+-            col.prop(ob, "hide_render", text="Invisible")
++		elif physics_type == 'SOFT_BODY':
++			col = layout.column()
++			col.prop(game, "use_actor")
++			col.prop(game, "use_ghost")
++			col.prop(ob, "hide_render", text="Invisible")
+ 
+-            layout.separator()
++			layout.separator()
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Attributes:")
+-            col.prop(game, "mass")
+-            # disabled in the code
+-            # col.prop(soft, "weld_threshold")
+-            col.prop(soft, "location_iterations")
+-            col.prop(soft, "linear_stiffness", slider=True)
+-            col.prop(soft, "dynamic_friction", slider=True)
+-            col.prop(soft, "collision_margin", slider=True)
+-            col.prop(soft, "use_bending_constraints", text="Bending Constraints")
++			col = split.column()
++			col.label(text="Attributes:")
++			col.prop(game, "mass")
++			# disabled in the code
++			# col.prop(soft, "weld_threshold")
++			col.prop(soft, "location_iterations")
++			col.prop(soft, "linear_stiffness", slider=True)
++			col.prop(soft, "dynamic_friction", slider=True)
++			col.prop(soft, "collision_margin", slider=True)
++			col.prop(soft, "use_bending_constraints", text="Bending Constraints")
+ 
+-            col = split.column()
+-            col.prop(soft, "use_shape_match")
+-            sub = col.column()
+-            sub.active = soft.use_shape_match
+-            sub.prop(soft, "shape_threshold", slider=True)
++			col = split.column()
++			col.prop(soft, "use_shape_match")
++			sub = col.column()
++			sub.active = soft.use_shape_match
++			sub.prop(soft, "shape_threshold", slider=True)
+ 
+-            col.separator()
++			col.separator()
+ 
+-            col.label(text="Cluster Collision:")
+-            col.prop(soft, "use_cluster_rigid_to_softbody")
+-            col.prop(soft, "use_cluster_soft_to_softbody")
+-            sub = col.column()
+-            sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
+-            sub.prop(soft, "cluster_iterations", text="Iterations")
++			col.label(text="Cluster Collision:")
++			col.prop(soft, "use_cluster_rigid_to_softbody")
++			col.prop(soft, "use_cluster_soft_to_softbody")
++			sub = col.column()
++			sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
++			sub.prop(soft, "cluster_iterations", text="Iterations")
+ 
+-        elif physics_type == 'STATIC':
+-            col = layout.column()
+-            col.prop(game, "use_actor")
+-            col.prop(game, "use_ghost")
+-            col.prop(ob, "hide_render", text="Invisible")
++		elif physics_type == 'STATIC':
++			col = layout.column()
++			col.prop(game, "use_actor")
++			col.prop(game, "use_ghost")
++			col.prop(ob, "hide_render", text="Invisible")
+ 
+-            layout.separator()
++			layout.separator()
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Attributes:")
+-            col.prop(game, "radius")
++			col = split.column()
++			col.label(text="Attributes:")
++			col.prop(game, "radius")
+ 
+-            col = split.column()
+-            sub = col.column()
+-            sub.prop(game, "use_anisotropic_friction")
+-            subsub = sub.column()
+-            subsub.active = game.use_anisotropic_friction
+-            subsub.prop(game, "friction_coefficients", text="", slider=True)
++			col = split.column()
++			sub = col.column()
++			sub.prop(game, "use_anisotropic_friction")
++			subsub = sub.column()
++			subsub.active = game.use_anisotropic_friction
++			subsub.prop(game, "friction_coefficients", text="", slider=True)
+ 
+-        elif physics_type == 'SENSOR':
+-            col = layout.column()
+-            col.prop(game, "use_actor", text="Detect Actors")
+-            col.prop(ob, "hide_render", text="Invisible")
++		elif physics_type == 'SENSOR':
++			col = layout.column()
++			col.prop(game, "use_actor", text="Detect Actors")
++			col.prop(ob, "hide_render", text="Invisible")
+ 
+-        elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
+-            layout.prop(ob, "hide_render", text="Invisible")
++		elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
++			layout.prop(ob, "hide_render", text="Invisible")
+ 
+-        elif physics_type == 'NAVMESH':
+-            layout.operator("mesh.navmesh_face_copy")
+-            layout.operator("mesh.navmesh_face_add")
++		elif physics_type == 'NAVMESH':
++			layout.operator("mesh.navmesh_face_copy")
++			layout.operator("mesh.navmesh_face_add")
+ 
+-            layout.separator()
++			layout.separator()
+ 
+-            layout.operator("mesh.navmesh_reset")
+-            layout.operator("mesh.navmesh_clear")
++			layout.operator("mesh.navmesh_reset")
++			layout.operator("mesh.navmesh_clear")
+ 
+-        if physics_type not in {'NO_COLLISION', 'OCCLUDE'}:
+-            layout.separator()
+-            split = layout.split()
++		if physics_type not in {'NO_COLLISION', 'OCCLUDE'}:
++			layout.separator()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.prop(game, "collision_group")
+-            col = split.column()
+-            col.prop(game, "collision_mask")
++			col = split.column()
++			col.prop(game, "collision_group")
++			col = split.column()
++			col.prop(game, "collision_mask")
+ 
+ 
+ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
+-    bl_label = "Collision Bounds"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Collision Bounds"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        game = context.object.game
+-        rd = context.scene.render
+-        return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC', 'CHARACTER'}) and (rd.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		game = context.object.game
++		rd = context.scene.render
++		return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC', 'CHARACTER'}) and (rd.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw_header(self, context):
+-        game = context.active_object.game
++	def draw_header(self, context):
++		game = context.active_object.game
+ 
+-        self.layout.prop(game, "use_collision_bounds", text="")
++		self.layout.prop(game, "use_collision_bounds", text="")
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        game = context.active_object.game
++		game = context.active_object.game
+ 
+-        layout.active = game.use_collision_bounds
+-        layout.prop(game, "collision_bounds_type", text="Bounds")
++		layout.active = game.use_collision_bounds
++		layout.prop(game, "collision_bounds_type", text="Bounds")
+ 
+-        row = layout.row()
+-        row.prop(game, "collision_margin", text="Margin", slider=True)
+-        row.prop(game, "use_collision_compound", text="Compound")
++		row = layout.row()
++		row.prop(game, "collision_margin", text="Margin", slider=True)
++		row.prop(game, "use_collision_compound", text="Compound")
+ 
+ 
+ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
+-    bl_label = "Create Obstacle"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Create Obstacle"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        game = context.object.game
+-        rd = context.scene.render
+-        return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC'}) and (rd.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		game = context.object.game
++		rd = context.scene.render
++		return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC'}) and (rd.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw_header(self, context):
+-        game = context.active_object.game
++	def draw_header(self, context):
++		game = context.active_object.game
+ 
+-        self.layout.prop(game, "use_obstacle_create", text="")
++		self.layout.prop(game, "use_obstacle_create", text="")
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        game = context.active_object.game
++		game = context.active_object.game
+ 
+-        layout.active = game.use_obstacle_create
++		layout.active = game.use_obstacle_create
+ 
+-        row = layout.row()
+-        row.prop(game, "obstacle_radius", text="Radius")
+-        row.label()
++		row = layout.row()
++		row.prop(game, "obstacle_radius", text="Radius")
++		row.label()
+ 
+ 
+ class RenderButtonsPanel():
+-    bl_space_type = 'PROPERTIES'
+-    bl_region_type = 'WINDOW'
+-    bl_context = "render"
++	bl_space_type = 'PROPERTIES'
++	bl_region_type = 'WINDOW'
++	bl_context = "render"
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        rd = context.scene.render
+-        return (rd.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		rd = context.scene.render
++		return (rd.engine in cls.COMPAT_ENGINES)
+ 
+ 
+ class RENDER_PT_embedded(RenderButtonsPanel, Panel):
+-    bl_label = "Embedded Player"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Embedded Player"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        rd = context.scene.render
++		rd = context.scene.render
+ 
+-        row = layout.row()
+-        row.operator("view3d.game_start", text="Start")
+-        row.label()
+-        row = layout.row()
+-        row.label(text="Resolution:")
+-        row = layout.row(align=True)
+-        row.prop(rd, "resolution_x", slider=False, text="X")
+-        row.prop(rd, "resolution_y", slider=False, text="Y")
++		row = layout.row()
++		row.operator("view3d.game_start", text="Start")
++		row.label()
++		row = layout.row()
++		row.label(text="Resolution:")
++		row = layout.row(align=True)
++		row.prop(rd, "resolution_x", slider=False, text="X")
++		row.prop(rd, "resolution_y", slider=False, text="Y")
+ 
+ 
+ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
+-    bl_label = "Standalone Player"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Standalone Player"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
++		gs = context.scene.game_settings
+ 
+-        row = layout.row()
+-        row.operator("wm.blenderplayer_start", text="Start")
+-        row.label()
++		row = layout.row()
++		row.operator("wm.blenderplayer_start", text="Start")
++		row.label()
+ 
+-        row = layout.row()
+-        row.label(text="Resolution:")
+-        row = layout.row(align=True)
+-        row.prop(gs, "resolution_x", slider=False, text="X")
+-        row.prop(gs, "resolution_y", slider=False, text="Y")
+-        row = layout.row()
+-        col = row.column()
+-        col.prop(gs, "show_fullscreen")
+-        col = row.column()
+-        col.prop(gs, "use_desktop")
+-        col.active = gs.show_fullscreen
++		row = layout.row()
++		row.label(text="Resolution:")
++		row = layout.row(align=True)
++		row.prop(gs, "resolution_x", slider=False, text="X")
++		row.prop(gs, "resolution_y", slider=False, text="Y")
++		row = layout.row()
++		col = row.column()
++		col.prop(gs, "show_fullscreen")
++		col = row.column()
++		col.prop(gs, "use_desktop")
++		col.active = gs.show_fullscreen
+ 
+-        col = layout.column()
+-        col.label(text="Quality:")
+-        col.prop(gs, "samples")
+-        col = layout.column(align=True)
+-        col.prop(gs, "depth", text="Bit Depth", slider=False)
+-        col.prop(gs, "frequency", text="Refresh Rate", slider=False)
++		col = layout.column()
++		col.label(text="Quality:")
++		col.prop(gs, "samples")
++		col = layout.column(align=True)
++		col.prop(gs, "depth", text="Bit Depth", slider=False)
++		col.prop(gs, "frequency", text="Refresh Rate", slider=False)
+ 
+ 
+ class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
+-    bl_label = "Stereo"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Stereo"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
+-        stereo_mode = gs.stereo
++		gs = context.scene.game_settings
++		stereo_mode = gs.stereo
+ 
+-        # stereo options:
+-        layout.prop(gs, "stereo", expand=True)
++		# stereo options:
++		layout.prop(gs, "stereo", expand=True)
+ 
+-        # stereo:
+-        if stereo_mode == 'STEREO':
+-            layout.prop(gs, "stereo_mode")
+-            layout.prop(gs, "stereo_eye_separation")
++		# stereo:
++		if stereo_mode == 'STEREO':
++			layout.prop(gs, "stereo_mode")
++			layout.prop(gs, "stereo_eye_separation")
+ 
+-        # dome:
+-        elif stereo_mode == 'DOME':
+-            layout.prop(gs, "dome_mode", text="Dome Type")
++		# dome:
++		elif stereo_mode == 'DOME':
++			layout.prop(gs, "dome_mode", text="Dome Type")
+ 
+-            dome_type = gs.dome_mode
++			dome_type = gs.dome_mode
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            if dome_type in {'FISHEYE', 'TRUNCATED_REAR', 'TRUNCATED_FRONT'}:
+-                col = split.column()
+-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
+-                col.prop(gs, "dome_angle", slider=True)
++			if dome_type in {'FISHEYE', 'TRUNCATED_REAR', 'TRUNCATED_FRONT'}:
++				col = split.column()
++				col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
++				col.prop(gs, "dome_angle", slider=True)
+ 
+-                col = split.column()
+-                col.prop(gs, "dome_tessellation", text="Tessellation")
+-                col.prop(gs, "dome_tilt")
++				col = split.column()
++				col.prop(gs, "dome_tessellation", text="Tessellation")
++				col.prop(gs, "dome_tilt")
+ 
+-            elif dome_type == 'PANORAM_SPH':
+-                col = split.column()
+-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
++			elif dome_type == 'PANORAM_SPH':
++				col = split.column()
++				col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
+ 
+-                col = split.column()
+-                col.prop(gs, "dome_tessellation", text="Tessellation")
++				col = split.column()
++				col.prop(gs, "dome_tessellation", text="Tessellation")
+ 
+-            else:  # cube map
+-                col = split.column()
+-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
++			else:  # cube map
++				col = split.column()
++				col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
+ 
+-                col = split.column()
++				col = split.column()
+ 
+-            layout.prop(gs, "dome_text")
++			layout.prop(gs, "dome_text")
+ 
+ 
+ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
+-    bl_label = "Shading"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Shading"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
++		gs = context.scene.game_settings
+ 
+-        layout.prop(gs, "material_mode", expand=True)
++		layout.prop(gs, "material_mode", expand=True)
+ 
+-        if gs.material_mode == 'GLSL':
+-            split = layout.split()
++		if gs.material_mode == 'GLSL':
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.prop(gs, "use_glsl_lights", text="Lights")
+-            col.prop(gs, "use_glsl_shaders", text="Shaders")
+-            col.prop(gs, "use_glsl_shadows", text="Shadows")
+-            col.prop(gs, "use_glsl_color_management", text="Color Management")
++			col = split.column()
++			col.prop(gs, "use_glsl_lights", text="Lights")
++			col.prop(gs, "use_glsl_shaders", text="Shaders")
++			col.prop(gs, "use_glsl_shadows", text="Shadows")
++			col.prop(gs, "use_glsl_color_management", text="Color Management")
+ 
+-            col = split.column()
+-            col.prop(gs, "use_glsl_ramps", text="Ramps")
+-            col.prop(gs, "use_glsl_nodes", text="Nodes")
+-            col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
++			col = split.column()
++			col.prop(gs, "use_glsl_ramps", text="Ramps")
++			col.prop(gs, "use_glsl_nodes", text="Nodes")
++			col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
+ 
+ 
+ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
+-    bl_label = "System"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "System"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
+-        col = layout.column()
+-        row = col.row()
+-        col = row.column()
+-        col.prop(gs, "use_frame_rate")
+-        col.prop(gs, "use_restrict_animation_updates")
+-        col.prop(gs, "use_material_caching")
+-        col = row.column()
+-        col.prop(gs, "use_display_lists")
+-        col.active = gs.raster_storage != 'VERTEX_BUFFER_OBJECT'
++		gs = context.scene.game_settings
++		col = layout.column()
++		row = col.row()
++		col = row.column()
++		col.prop(gs, "use_frame_rate")
++		col.prop(gs, "use_restrict_animation_updates")
++		col.prop(gs, "use_material_caching")
++		col = row.column()
++		col.prop(gs, "use_display_lists")
++		col.active = gs.raster_storage != 'VERTEX_BUFFER_OBJECT'
+ 
+-        row = layout.row()
+-        row.prop(gs, "vsync")
++		row = layout.row()
++		row.prop(gs, "vsync")
+ 
+-        row = layout.row()
+-        row.prop(gs, "raster_storage")
++		row = layout.row()
++		row.prop(gs, "raster_storage")
+ 
+-        row = layout.row()
+-        row.label("Exit Key")
+-        row.prop(gs, "exit_key", text="", event=True)
++		row = layout.row()
++		row.label("Exit Key")
++		row.prop(gs, "exit_key", text="", event=True)
 +		
 +		row = layout.row()
 +		row.prop(gs, "custom_loop")
  
  
  class RENDER_PT_game_display(RenderButtonsPanel, Panel):
+-    bl_label = "Display"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Display"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
++		gs = context.scene.game_settings
+ 
+-        layout.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
++		layout.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
+ 
+-        flow = layout.column_flow()
+-        flow.prop(gs, "show_debug_properties", text="Debug Properties")
+-        flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
+-        flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
+-        flow.prop(gs, "use_deprecation_warnings")
+-        flow.prop(gs, "show_mouse", text="Mouse Cursor")
++		flow = layout.column_flow()
++		flow.prop(gs, "show_debug_properties", text="Debug Properties")
++		flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
++		flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
++		flow.prop(gs, "use_deprecation_warnings")
++		flow.prop(gs, "show_mouse", text="Mouse Cursor")
+ 
+-        col = layout.column()
+-        col.label(text="Framing:")
+-        col.row().prop(gs, "frame_type", expand=True)
+-        if gs.frame_type == 'LETTERBOX':
+-            col.prop(gs, "frame_color", text="")
++		col = layout.column()
++		col.label(text="Framing:")
++		col.row().prop(gs, "frame_type", expand=True)
++		if gs.frame_type == 'LETTERBOX':
++			col.prop(gs, "frame_color", text="")
+ 
+ 
+ class SceneButtonsPanel():
+-    bl_space_type = 'PROPERTIES'
+-    bl_region_type = 'WINDOW'
+-    bl_context = "scene"
++	bl_space_type = 'PROPERTIES'
++	bl_region_type = 'WINDOW'
++	bl_context = "scene"
+ 
+ 
+ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
+-    bl_label = "Navigation mesh"
+-    bl_options = {'DEFAULT_CLOSED'}
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Navigation mesh"
++	bl_options = {'DEFAULT_CLOSED'}
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        scene = context.scene
+-        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		scene = context.scene
++		return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        rd = context.scene.game_settings.recast_data
++		rd = context.scene.game_settings.recast_data
+ 
+-        layout.operator("mesh.navmesh_make", text="Build navigation mesh")
++		layout.operator("mesh.navmesh_make", text="Build navigation mesh")
+ 
+-        col = layout.column()
+-        col.label(text="Rasterization:")
+-        row = col.row()
+-        row.prop(rd, "cell_size")
+-        row.prop(rd, "cell_height")
++		col = layout.column()
++		col.label(text="Rasterization:")
++		row = col.row()
++		row.prop(rd, "cell_size")
++		row.prop(rd, "cell_height")
+ 
+-        col = layout.column()
+-        col.label(text="Agent:")
+-        split = col.split()
++		col = layout.column()
++		col.label(text="Agent:")
++		split = col.split()
+ 
+-        col = split.column()
+-        col.prop(rd, "agent_height", text="Height")
+-        col.prop(rd, "agent_radius", text="Radius")
++		col = split.column()
++		col.prop(rd, "agent_height", text="Height")
++		col.prop(rd, "agent_radius", text="Radius")
+ 
+-        col = split.column()
+-        col.prop(rd, "slope_max")
+-        col.prop(rd, "climb_max")
++		col = split.column()
++		col.prop(rd, "slope_max")
++		col.prop(rd, "climb_max")
+ 
+-        col = layout.column()
+-        col.label(text="Region:")
+-        row = col.row()
+-        row.prop(rd, "region_min_size")
+-        row.prop(rd, "region_merge_size")
++		col = layout.column()
++		col.label(text="Region:")
++		row = col.row()
++		row.prop(rd, "region_min_size")
++		row.prop(rd, "region_merge_size")
+ 
+-        col = layout.column()
+-        col.label(text="Polygonization:")
+-        split = col.split()
++		col = layout.column()
++		col.label(text="Polygonization:")
++		split = col.split()
+ 
+-        col = split.column()
+-        col.prop(rd, "edge_max_len")
+-        col.prop(rd, "edge_max_error")
++		col = split.column()
++		col.prop(rd, "edge_max_len")
++		col.prop(rd, "edge_max_error")
+ 
+-        split.prop(rd, "verts_per_poly")
++		split.prop(rd, "verts_per_poly")
+ 
+-        col = layout.column()
+-        col.label(text="Detail Mesh:")
+-        row = col.row()
+-        row.prop(rd, "sample_dist")
+-        row.prop(rd, "sample_max_error")
++		col = layout.column()
++		col.label(text="Detail Mesh:")
++		row = col.row()
++		row.prop(rd, "sample_dist")
++		row.prop(rd, "sample_max_error")
+ 
+ 
+ class RENDER_PT_game_sound(RenderButtonsPanel, Panel):
+-    bl_label = "Sound"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Sound"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        scene = context.scene
++		scene = context.scene
+ 
+-        layout.prop(scene, "audio_distance_model")
++		layout.prop(scene, "audio_distance_model")
+ 
+-        col = layout.column(align=True)
+-        col.prop(scene, "audio_doppler_speed", text="Speed")
+-        col.prop(scene, "audio_doppler_factor")
++		col = layout.column(align=True)
++		col.prop(scene, "audio_doppler_speed", text="Speed")
++		col.prop(scene, "audio_doppler_factor")
+ 
+ 
+ class WorldButtonsPanel():
+-    bl_space_type = 'PROPERTIES'
+-    bl_region_type = 'WINDOW'
+-    bl_context = "world"
++	bl_space_type = 'PROPERTIES'
++	bl_region_type = 'WINDOW'
++	bl_context = "world"
+ 
+ 
+ class WORLD_PT_game_context_world(WorldButtonsPanel, Panel):
+-    bl_label = ""
+-    bl_options = {'HIDE_HEADER'}
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = ""
++	bl_options = {'HIDE_HEADER'}
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        rd = context.scene.render
+-        return (context.scene) and (rd.use_game_engine)
++	@classmethod
++	def poll(cls, context):
++		rd = context.scene.render
++		return (context.scene) and (rd.use_game_engine)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        scene = context.scene
+-        world = context.world
+-        space = context.space_data
++		scene = context.scene
++		world = context.world
++		space = context.space_data
+ 
+-        split = layout.split(percentage=0.65)
+-        if scene:
+-            split.template_ID(scene, "world", new="world.new")
+-        elif world:
+-            split.template_ID(space, "pin_id")
++		split = layout.split(percentage=0.65)
++		if scene:
++			split.template_ID(scene, "world", new="world.new")
++		elif world:
++			split.template_ID(space, "pin_id")
+ 
+ 
+ class WORLD_PT_game_world(WorldButtonsPanel, Panel):
+-    bl_label = "World"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "World"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        scene = context.scene
+-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		scene = context.scene
++		return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        world = context.world
++		world = context.world
+ 
+-        row = layout.row()
+-        row.column().prop(world, "horizon_color")
+-        row.column().prop(world, "ambient_color")
++		row = layout.row()
++		row.column().prop(world, "horizon_color")
++		row.column().prop(world, "ambient_color")
+ 
+ 
+ class WORLD_PT_game_mist(WorldButtonsPanel, Panel):
+-    bl_label = "Mist"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Mist"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        scene = context.scene
+-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		scene = context.scene
++		return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw_header(self, context):
+-        world = context.world
++	def draw_header(self, context):
++		world = context.world
+ 
+-        self.layout.prop(world.mist_settings, "use_mist", text="")
++		self.layout.prop(world.mist_settings, "use_mist", text="")
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        world = context.world
++		world = context.world
+ 
+-        layout.active = world.mist_settings.use_mist
++		layout.active = world.mist_settings.use_mist
+ 
+-        layout.prop(world.mist_settings, "falloff")
++		layout.prop(world.mist_settings, "falloff")
+ 
+-        row = layout.row(align=True)
+-        row.prop(world.mist_settings, "start")
+-        row.prop(world.mist_settings, "depth")
++		row = layout.row(align=True)
++		row.prop(world.mist_settings, "start")
++		row.prop(world.mist_settings, "depth")
+ 
+-        layout.prop(world.mist_settings, "intensity", text="Minimum Intensity")
++		layout.prop(world.mist_settings, "intensity", text="Minimum Intensity")
+ 
+ 
+ class WORLD_PT_game_physics(WorldButtonsPanel, Panel):
+-    bl_label = "Physics"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Physics"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        scene = context.scene
+-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		scene = context.scene
++		return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
++		gs = context.scene.game_settings
+ 
+-        layout.prop(gs, "physics_engine", text="Engine")
+-        if gs.physics_engine != 'NONE':
+-            layout.prop(gs, "physics_gravity", text="Gravity")
++		layout.prop(gs, "physics_engine", text="Engine")
++		if gs.physics_engine != 'NONE':
++			layout.prop(gs, "physics_gravity", text="Gravity")
+ 
+-            split = layout.split()
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Physics Steps:")
+-            sub = col.column(align=True)
+-            sub.prop(gs, "physics_step_max", text="Max")
+-            sub.prop(gs, "physics_step_sub", text="Substeps")
+-            col.prop(gs, "fps", text="FPS")
++			col = split.column()
++			col.label(text="Physics Steps:")
++			sub = col.column(align=True)
++			sub.prop(gs, "physics_step_max", text="Max")
++			sub.prop(gs, "physics_step_sub", text="Substeps")
++			col.prop(gs, "fps", text="FPS")
+ 
+-            col = split.column()
+-            col.label(text="Logic Steps:")
+-            col.prop(gs, "logic_step_max", text="Max")
++			col = split.column()
++			col.label(text="Logic Steps:")
++			col.prop(gs, "logic_step_max", text="Max")
+ 
+-            col = layout.column()
+-            col.label(text="Physics Deactivation:")
+-            sub = col.row(align=True)
+-            sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
+-            sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
+-            sub = col.row()
+-            sub.prop(gs, "deactivation_time", text="Time")
++			col = layout.column()
++			col.label(text="Physics Deactivation:")
++			sub = col.row(align=True)
++			sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
++			sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
++			sub = col.row()
++			sub.prop(gs, "deactivation_time", text="Time")
+ 
+-            col = layout.column()
+-            col.prop(gs, "use_occlusion_culling", text="Occlusion Culling")
+-            sub = col.column()
+-            sub.active = gs.use_occlusion_culling
+-            sub.prop(gs, "occlusion_culling_resolution", text="Resolution")
++			col = layout.column()
++			col.prop(gs, "use_occlusion_culling", text="Occlusion Culling")
++			sub = col.column()
++			sub.active = gs.use_occlusion_culling
++			sub.prop(gs, "occlusion_culling_resolution", text="Resolution")
+ 
+-        else:
+-            split = layout.split()
++		else:
++			split = layout.split()
+ 
+-            col = split.column()
+-            col.label(text="Physics Steps:")
+-            col.prop(gs, "fps", text="FPS")
++			col = split.column()
++			col.label(text="Physics Steps:")
++			col.prop(gs, "fps", text="FPS")
+ 
+-            col = split.column()
+-            col.label(text="Logic Steps:")
+-            col.prop(gs, "logic_step_max", text="Max")
++			col = split.column()
++			col.label(text="Logic Steps:")
++			col.prop(gs, "logic_step_max", text="Max")
+ 
+ 
+ class WORLD_PT_game_physics_obstacles(WorldButtonsPanel, Panel):
+-    bl_label = "Obstacle simulation"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Obstacle simulation"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        scene = context.scene
+-        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		scene = context.scene
++		return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        gs = context.scene.game_settings
++		gs = context.scene.game_settings
+ 
+-        layout.prop(gs, "obstacle_simulation", text="Type")
+-        if gs.obstacle_simulation != 'NONE':
+-            layout.prop(gs, "level_height")
+-            layout.prop(gs, "show_obstacle_simulation")
++		layout.prop(gs, "obstacle_simulation", text="Type")
++		if gs.obstacle_simulation != 'NONE':
++			layout.prop(gs, "level_height")
++			layout.prop(gs, "show_obstacle_simulation")
+ 
+ 
+ class DataButtonsPanel():
+-    bl_space_type = 'PROPERTIES'
+-    bl_region_type = 'WINDOW'
+-    bl_context = "data"
++	bl_space_type = 'PROPERTIES'
++	bl_region_type = 'WINDOW'
++	bl_context = "data"
+ 
+ 
+ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
+-    bl_label = "Shadow"
+-    COMPAT_ENGINES = {'BLENDER_GAME'}
++	bl_label = "Shadow"
++	COMPAT_ENGINES = {'BLENDER_GAME'}
+ 
+-    @classmethod
+-    def poll(cls, context):
+-        COMPAT_LIGHTS = {'SPOT', 'SUN'}
+-        lamp = context.lamp
+-        engine = context.scene.render.engine
+-        return (lamp and lamp.type in COMPAT_LIGHTS) and (engine in cls.COMPAT_ENGINES)
++	@classmethod
++	def poll(cls, context):
++		COMPAT_LIGHTS = {'SPOT', 'SUN'}
++		lamp = context.lamp
++		engine = context.scene.render.engine
++		return (lamp and lamp.type in COMPAT_LIGHTS) and (engine in cls.COMPAT_ENGINES)
+ 
+-    def draw_header(self, context):
+-        lamp = context.lamp
++	def draw_header(self, context):
++		lamp = context.lamp
+ 
+-        self.layout.prop(lamp, "use_shadow", text="")
++		self.layout.prop(lamp, "use_shadow", text="")
+ 
+-    def draw(self, context):
+-        layout = self.layout
++	def draw(self, context):
++		layout = self.layout
+ 
+-        lamp = context.lamp
++		lamp = context.lamp
+ 
+-        layout.active = lamp.use_shadow
++		layout.active = lamp.use_shadow
+ 
+-        split = layout.split()
++		split = layout.split()
+ 
+-        col = split.column()
+-        col.prop(lamp, "shadow_color", text="")
++		col = split.column()
++		col.prop(lamp, "shadow_color", text="")
+ 
+-        col = split.column()
+-        col.prop(lamp, "use_shadow_layer", text="This Layer Only")
+-        col.prop(lamp, "use_only_shadow")
++		col = split.column()
++		col.prop(lamp, "use_shadow_layer", text="This Layer Only")
++		col.prop(lamp, "use_only_shadow")
+ 
+-        col = layout.column()
+-        col.label("Buffer Type:")
+-        col.prop(lamp, "ge_shadow_buffer_type", text="", toggle=True)
+-        col.label("Quality:")
+-        col = layout.column(align=True)
+-        col.prop(lamp, "shadow_buffer_size", text="Size")
+-        col.prop(lamp, "shadow_buffer_bias", text="Bias")
+-        col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
++		col = layout.column()
++		col.label("Buffer Type:")
++		col.prop(lamp, "ge_shadow_buffer_type", text="", toggle=True)
++		col.label("Quality:")
++		col = layout.column(align=True)
++		col.prop(lamp, "shadow_buffer_size", text="Size")
++		col.prop(lamp, "shadow_buffer_bias", text="Bias")
++		col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
+ 
+-        row = layout.row()
+-        row.label("Clipping:")
+-        row = layout.row(align=True)
+-        row.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
+-        row.prop(lamp, "shadow_buffer_clip_end", text="Clip End")
++		row = layout.row()
++		row.label("Clipping:")
++		row = layout.row(align=True)
++		row.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
++		row.prop(lamp, "shadow_buffer_clip_end", text="Clip End")
+ 
+-        if lamp.type == 'SUN':
+-            row = layout.row()
+-            row.prop(lamp, "shadow_frustum_size", text="Frustum Size")
++		if lamp.type == 'SUN':
++			row = layout.row()
++			row.prop(lamp, "shadow_frustum_size", text="Frustum Size")
+ 
+ 
+ if __name__ == "__main__":  # only for live edit.
+-    bpy.utils.register_module(__name__)
++	bpy.utils.register_module(__name__)
 Index: source/blender/makesdna/DNA_scene_types.h
 ===================================================================
 --- source/blender/makesdna/DNA_scene_types.h	(revision 59220)
@@ -1276,11 +2703,168 @@ Index: source/gameengine/GameLogic/SCA_LogicManager.cpp
  	CValue** gameptr = m_mapStringToGameObjects[mn];
  	
  	if (gameptr)
+Index: source/gameengine/GameLogic/SCA_PythonMouse.cpp
+===================================================================
+--- source/gameengine/GameLogic/SCA_PythonMouse.cpp	(revision 59220)
++++ source/gameengine/GameLogic/SCA_PythonMouse.cpp	(working copy)
+@@ -87,6 +87,7 @@
+ PyAttributeDef SCA_PythonMouse::Attributes[] = {
+ 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonMouse, pyattr_get_events),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonMouse, pyattr_get_active_events),
++	KX_PYATTRIBUTE_RO_FUNCTION("screen_center", SCA_PythonMouse, pyattr_get_screen_center),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("position", SCA_PythonMouse, pyattr_get_position, pyattr_set_position),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("visible", SCA_PythonMouse, pyattr_get_visible, pyattr_set_visible),
+ 	{ NULL }	//Sentinel
+@@ -123,6 +124,27 @@
+ 	return self->m_event_dict;
+ }
+ 
++PyObject *SCA_PythonMouse::pyattr_get_screen_center(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
++
++	float x_coord, y_coord;
++	int x, y;
++
++	x = (int)(0.5 * self->m_canvas->GetWidth());
++	y = (int)(0.5 * self->m_canvas->GetHeight());
++
++	x_coord = self->m_canvas->GetMouseNormalizedX(x);
++	y_coord = self->m_canvas->GetMouseNormalizedY(y);
++
++	PyObject *ret = PyTuple_New(2);
++
++	PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(x_coord));
++	PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(y_coord));
++
++	return ret;
++}
++
+ PyObject *SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+ {
+ 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
+Index: source/gameengine/GameLogic/SCA_PythonMouse.h
+===================================================================
+--- source/gameengine/GameLogic/SCA_PythonMouse.h	(revision 59220)
++++ source/gameengine/GameLogic/SCA_PythonMouse.h	(working copy)
+@@ -49,6 +49,7 @@
+ 
+ 	static PyObject *pyattr_get_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static PyObject *pyattr_get_active_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static PyObject *pyattr_get_screen_center(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static PyObject *pyattr_get_position(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static int       pyattr_set_position(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+ 	static PyObject *pyattr_get_visible(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+Index: source/gameengine/Ketsji/KX_Camera.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_Camera.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_Camera.cpp	(working copy)
+@@ -144,6 +144,12 @@
+ }
+ 
+ 
++void KX_Camera::UpdateModelviewMatrix()
++{
++	MT_Transform camtrans(GetWorldToCamera());
++	MT_Matrix4x4 viewmat(camtrans);
++	SetModelviewMatrix(viewmat);
++}
+ 
+ /**
+  * Sets the modelview matrix that is used by the rasterizer.
+@@ -594,6 +600,8 @@
+ 		MT_Point3 center;
+ 		if (PyVecTo(pycenter, center))
+ 		{
++	
++			UpdateModelviewMatrix();
+ 			return PyLong_FromLong(SphereInsideFrustum(center, radius)); /* new ref */
+ 		}
+ 	}
+@@ -645,6 +653,8 @@
+ 			return NULL;
+ 	}
+ 	
++	UpdateModelviewMatrix();
++
+ 	return PyLong_FromLong(BoxInsideFrustum(box)); /* new ref */
+ }
+ 
+@@ -665,6 +675,9 @@
+ )
+ {
+ 	MT_Point3 point;
++	
++	UpdateModelviewMatrix();
++
+ 	if (PyVecTo(value, point))
+ 	{
+ 		return PyLong_FromLong(PointInsideFrustum(point)); /* new ref */
+@@ -882,6 +895,7 @@
+ PyObject *KX_Camera::pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+ {
+ 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
++	self->UpdateModelviewMatrix();
+ 	return PyObjectFrom(self->GetModelviewMatrix()); 
+ }
+ 
+@@ -991,6 +1005,8 @@
+ 	GLdouble modelmatrix[16];
+ 	GLdouble projmatrix[16];
+ 
++	this->UpdateModelviewMatrix();
++
+ 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
+ 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
+ 
+@@ -1034,6 +1050,8 @@
+ 	GLdouble modelmatrix[16];
+ 	GLdouble projmatrix[16];
+ 
++	this->UpdateModelviewMatrix();
++
+ 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
+ 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
+ 
+Index: source/gameengine/Ketsji/KX_Camera.h
+===================================================================
+--- source/gameengine/Ketsji/KX_Camera.h	(revision 59220)
++++ source/gameengine/Ketsji/KX_Camera.h	(working copy)
+@@ -164,6 +164,8 @@
+ 	MT_Transform		GetWorldToCamera() const;
+ 	MT_Transform		GetCameraToWorld() const;
+ 
++	void				UpdateModelviewMatrix();
++
+ 	/**
+ 	 * Not implemented.
+ 	 */
+Index: source/gameengine/Ketsji/KX_EngineCallbackData.h
+===================================================================
+--- source/gameengine/Ketsji/KX_EngineCallbackData.h	(revision 0)
++++ source/gameengine/Ketsji/KX_EngineCallbackData.h	(working copy)
+@@ -0,0 +1,15 @@
++#ifndef __KX_ENGINECALLBACKDATA_H__
++#define __KX_ENGINECALLBACKDATA_H__
++
++struct KX_EngineCallbackData {
++
++	class KX_KetsjiEngine* ketsjiengine;
++	struct bContext *C;
++	struct wmWindow* win;
++	struct Scene* scene;
++	struct ARegion *ar;
++	int draw_letterbox;
++	void (*rendercallback)(KX_EngineCallbackData *data);
++	void (*eventcallback)(KX_EngineCallbackData *data);
++};
++#endif
+\ No newline at end of file
 Index: source/gameengine/Ketsji/KX_GameObject.cpp
 ===================================================================
 --- source/gameengine/Ketsji/KX_GameObject.cpp	(revision 59220)
 +++ source/gameengine/Ketsji/KX_GameObject.cpp	(working copy)
-@@ -113,7 +113,10 @@
+@@ -113,9 +113,13 @@
        m_pInstanceObjects(NULL),
        m_pDupliGroupObject(NULL),
        m_actionManager(NULL),
@@ -1290,9 +2874,102 @@ Index: source/gameengine/Ketsji/KX_GameObject.cpp
 +	  m_physicsActor(false)
 +
  #ifdef WITH_PYTHON
-     , m_attr_dict(NULL)
+-    , m_attr_dict(NULL)
++    , m_attr_dict(NULL),
++	m_collisionCallbacks(NULL)
  #endif
-@@ -1702,6 +1705,8 @@
+ {
+ 	m_ignore_activity_culling = false;
+@@ -180,12 +184,18 @@
+ 	{
+ 		m_pInstanceObjects->Release();
+ 	}
++
+ #ifdef WITH_PYTHON
+ 	if (m_attr_dict) {
+ 		PyDict_Clear(m_attr_dict); /* in case of circular refs or other weird cases */
+ 		/* Py_CLEAR: Py_DECREF's and NULL's */
+ 		Py_CLEAR(m_attr_dict);
+ 	}
++	// Unregister collision callbacks
++	if (m_collisionCallbacks){
++		UnregisterCollisionCallbacks();
++		Py_CLEAR(m_collisionCallbacks);
++	}
+ #endif // WITH_PYTHON
+ }
+ 
+@@ -1336,6 +1346,69 @@
+ }
+ 
+ 
++void KX_GameObject::UnregisterCollisionCallbacks()
++{
++	// Unregister from callbacks
++	KX_Scene* scene = GetScene();
++	PHY_IPhysicsEnvironment* pe = scene->GetPhysicsEnvironment();
++	PHY_IPhysicsController* spc = static_cast<PHY_IPhysicsController*> (GetPhysicsController()->GetUserData());
++	// If we are the last to unregister on this physics controller 
++	if (pe->removeCollisionCallback(spc)){
++		// If we are a sensor object
++		KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(spc->getNewClientInfo());
++		if (client_info->isSensor())
++			// Remove sensor body from physics world
++			pe->removeSensor(spc);
++	}
++}
++
++void KX_GameObject::RegisterCollisionCallbacks()
++{	
++	// Register from callbacks
++	KX_Scene* scene = GetScene();
++	PHY_IPhysicsEnvironment* pe = scene->GetPhysicsEnvironment();
++	PHY_IPhysicsController* spc = static_cast<PHY_IPhysicsController*> (GetPhysicsController()->GetUserData());
++	// If we are the first to register on this physics controller 
++	if (pe->requestCollisionCallback(spc)){
++		// If we are a sensor object
++		KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(spc->getNewClientInfo());
++		if (client_info->isSensor())
++			// Add sensor body to physics world
++			pe->addSensor(spc);
++	}
++}
++void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider)
++{	
++	#ifdef WITH_PYTHON
++	Py_ssize_t len;
++	PyObject* collision_callbacks = m_collisionCallbacks;
++
++	if (collision_callbacks && (len=PyList_GET_SIZE(collision_callbacks)))
++	{
++		PyObject* args = Py_BuildValue("(O)", collider->GetProxy()); // save python creating each call
++		PyObject *func;
++		PyObject *ret;
++
++		// Iterate the list and run the callbacks
++		for (Py_ssize_t pos=0; pos < len; pos++)
++		{
++			func = PyList_GET_ITEM(collision_callbacks, pos);
++			ret = PyObject_Call(func, args, NULL);
++
++			if (ret == NULL) {
++				PyErr_Print();
++				PyErr_Clear();
++			}
++			else {
++				Py_DECREF(ret);
++			}
++		}
++
++		Py_DECREF(args);
++	}
++	#endif
++}
++
+ /* Suspend/ resume: for the dynamic behavior, there is a simple
+  * method. For the residual motion, there is not. I wonder what the
+  * correct solution is for Sumo. Remove from the motion-update tree?
+@@ -1702,6 +1775,8 @@
  PyAttributeDef KX_GameObject::Attributes[] = {
  	KX_PYATTRIBUTE_RO_FUNCTION("name",		KX_GameObject, pyattr_get_name),
  	KX_PYATTRIBUTE_RO_FUNCTION("parent",	KX_GameObject, pyattr_get_parent),
@@ -1301,7 +2978,15 @@ Index: source/gameengine/Ketsji/KX_GameObject.cpp
  	KX_PYATTRIBUTE_RO_FUNCTION("groupMembers",	KX_GameObject, pyattr_get_group_members),
  	KX_PYATTRIBUTE_RO_FUNCTION("groupObject",	KX_GameObject, pyattr_get_group_object),
  	KX_PYATTRIBUTE_RO_FUNCTION("scene",		KX_GameObject, pyattr_get_scene),
-@@ -1998,6 +2003,18 @@
+@@ -1716,6 +1791,7 @@
+ 	KX_PYATTRIBUTE_RW_FUNCTION("orientation",KX_GameObject,pyattr_get_worldOrientation,pyattr_set_localOrientation),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("scaling",	KX_GameObject, pyattr_get_worldScaling,	pyattr_set_localScaling),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("timeOffset",KX_GameObject, pyattr_get_timeOffset,pyattr_set_timeOffset),
++	KX_PYATTRIBUTE_RW_FUNCTION("collisionCallbacks",		KX_GameObject, pyattr_get_collisionCallbacks,	pyattr_set_collisionCallbacks),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("state",		KX_GameObject, pyattr_get_state,	pyattr_set_state),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("meshes",	KX_GameObject, pyattr_get_meshes),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("localOrientation",KX_GameObject,pyattr_get_localOrientation,pyattr_set_localOrientation),
+@@ -1998,6 +2074,18 @@
  	Py_RETURN_NONE;
  }
  
@@ -1320,7 +3005,46 @@ Index: source/gameengine/Ketsji/KX_GameObject.cpp
  PyObject *KX_GameObject::pyattr_get_group_members(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
  {
  	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-@@ -3462,7 +3479,9 @@
+@@ -2008,6 +2096,38 @@
+ 	Py_RETURN_NONE;
+ }
+ 
++PyObject* KX_GameObject::pyattr_get_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	// Return the existing callbacks
++	if (self->m_collisionCallbacks == NULL)
++	{
++		self->m_collisionCallbacks = PyList_New(0);
++		// Subscribe to collision update from KX_TouchManager
++		self->RegisterCollisionCallbacks();
++	}
++	Py_INCREF(self->m_collisionCallbacks);
++	return self->m_collisionCallbacks;
++}
++
++int KX_GameObject::pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	
++	if (!PyList_CheckExact(value))
++	{
++		PyErr_SetString(PyExc_ValueError, "Expected a list");
++		return PY_SET_ATTR_FAIL;
++	}
++
++	Py_XDECREF(self->m_collisionCallbacks);
++	Py_INCREF(value);
++
++	self->m_collisionCallbacks = value;
++	
++	return PY_SET_ATTR_SUCCESS;
++}
++
+ PyObject* KX_GameObject::pyattr_get_scene(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+ {
+ 	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
+@@ -3462,7 +3582,9 @@
  	}
  	
  	if (PyUnicode_Check(value)) {
@@ -1344,7 +3068,25 @@ Index: source/gameengine/Ketsji/KX_GameObject.h
  
  	/**
  	 * Helper function for modules that can't include KX_ClientObjectInfo.h
-@@ -990,6 +992,8 @@
+@@ -152,6 +154,7 @@
+ 	// * when assigning a value, first see if it can be a CValue, if it can remove the "m_attr_dict" and set the CValue
+ 	// 
+ 	PyObject*							m_attr_dict; 
++	PyObject*							m_collisionCallbacks; 
+ #endif
+ 
+ 	virtual void	/* This function should be virtual - derived classed override it */
+@@ -872,6 +875,9 @@
+ 	 * \section Logic bubbling methods.
+ 	 */
+ 
++	void RegisterCollisionCallbacks();
++	void UnregisterCollisionCallbacks();
++	void RunCollisionCallbacks(KX_GameObject *collider);
+ 	/**
+ 	 * Stop making progress
+ 	 */
+@@ -990,6 +996,8 @@
  	/* attributes */
  	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
  	static PyObject*	pyattr_get_parent(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -1353,6 +3095,15 @@ Index: source/gameengine/Ketsji/KX_GameObject.h
  
  	static PyObject*	pyattr_get_group_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
  	static PyObject*	pyattr_get_group_members(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+@@ -1040,6 +1048,8 @@
+ 	static PyObject*	pyattr_get_attrDict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static PyObject*	pyattr_get_obcolor(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
++	static PyObject*	pyattr_get_collisionCallbacks(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static int			pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+ 	
+ 	/* Experimental! */
+ 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 Index: source/gameengine/Ketsji/KX_KetsjiEngine.cpp
 ===================================================================
 --- source/gameengine/Ketsji/KX_KetsjiEngine.cpp	(revision 59220)
@@ -2121,6 +3872,517 @@ Index: source/gameengine/Ketsji/KX_KetsjiEngine.h
  
  	/**
  	 * This method is invoked when the scene lists have changed.
+Index: source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.cpp	(revision 0)
++++ source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.cpp	(working copy)
+@@ -0,0 +1,216 @@
++#include "KX_KetsjiLogicBrickLoop.h"
++#include "KX_KetsjiEngine.h"
++#include "KX_KetsjiLogicLoop.h"
++#include "PHY_IPhysicsEnvironment.h"
++#include "KX_PyConstraintBinding.h"
++#include "KX_TimeCategoryLogger.h"
++#include "KX_PythonInit.h"
++#include "NG_NetworkScene.h"
++#include "NG_NetworkDeviceInterface.h"
++#include "KX_ISceneConverter.h"
++#include "SCA_IInputDevice.h"
++
++KX_KetsjiLogicBrickLoop::KX_KetsjiLogicBrickLoop(KX_KetsjiEngine* engine): KX_KetsjiLogicLoop(engine)
++{
++};
++
++
++void KX_KetsjiLogicBrickLoop::GiveHandle()
++{
++	while (!m_engine->GetExitCode())
++	{
++		// Update keyboard and mouse events
++		m_engine->UpdateEvents();
++		NextFrame();
++	}
++};
++
++void KX_KetsjiLogicBrickLoop::NextFrame()
++{
++	KX_TimeCategoryLogger* logger = m_engine->GetLogger();
++
++	double timestep = 1.0 / m_engine->GetTicRate();
++	double framestep = timestep;
++	
++	// Start time logging for "services"
++	StartProfile(tc_services);
++
++	// Increment engine time by fixed timestep
++	if (m_engine->GetUseFixedTime()) {
++		m_engine->SetClockTime(m_engine->GetClockTime() + timestep);
++	}
++	// Or use real deltatime
++	else 
++	{
++		m_engine->SetClockTime(GetTime());
++	}
++
++	// Get deltatime duration
++	double deltatime = m_engine->GetClockTime() - m_engine->GetFrameTime();
++	
++	// We got here too quickly, which means there is nothing todo, just return and don't render.
++	// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
++	if (deltatime < 0.f)
++		return;
++
++	// Compute the number of logic frames to do each update (fixed tic bricks)
++	int frames = int(deltatime * m_engine->GetTicRate() + 1e-6);
++	
++	int maxPhysicsFrames = m_engine->GetMaxPhysicsFrame();
++	// First, enforce a limit on the number of frames according to physics
++	if (frames > maxPhysicsFrames)
++	{
++		m_engine->SetFrameTime(m_engine->GetFrameTime() + (frames - maxPhysicsFrames) * timestep);
++		frames = maxPhysicsFrames;
++	}
++
++	// Assert we want to render
++	bool doRender = frames > 0;
++
++	int maxLogicFrames = m_engine->GetMaxLogicFrame();
++
++	// Now enforce limit on frames according to logic maximum
++	if (frames > maxLogicFrames)
++	{
++		framestep = (frames * timestep) / maxLogicFrames;
++		frames = maxLogicFrames;
++	}
++
++	// While we have frames to update with
++	double frametime;
++
++	while (frames)
++	{
++		frametime = m_engine->GetFrameTime() + framestep;
++		m_engine->SetFrameTime(frametime);
++
++		KX_SceneList* scenes = m_engine->CurrentScenes();
++
++		int scene_count = scenes->size();
++
++		for (int i=0; i < scene_count; i++)
++		// for each scene, call the proceed functions
++		{
++			KX_Scene* scene = scenes->at(i);
++	
++			/* Suspension holds the physics and logic processing for an
++			 * entire scene. Objects can be suspended individually, and
++			 * the settings for that precede the logic and physics
++			 * update. */
++			StartProfile(tc_logic);
++
++			m_engine->GetSceneConverter()->resetNoneDynamicObjectToIpo();//this is for none dynamic objects with ipo
++
++			scene->UpdateObjectActivity();
++	
++			if (!scene->IsSuspended())
++			{
++				// if the scene was suspended recalcutlate the delta tu "curtime"
++				m_engine->SetSuspendedTime(scene->getSuspendedTime());
++
++				if (scene->getSuspendedTime()!=0.0)
++					scene->setSuspendedDelta(scene->getSuspendedDelta() + m_engine->GetClockTime()-scene->getSuspendedTime());
++
++				m_engine->SetSuspendedDelta(scene->getSuspendedDelta());
++
++				StartProfile(tc_network);
++				SG_SetActiveStage(SG_STAGE_NETWORK);
++				ReceiveMessages(frametime);
++				
++				StartProfile(tc_physics);
++				SG_SetActiveStage(SG_STAGE_PHYSICS1);
++
++				// set Python hooks for each scene
++				SetCurrentScene(scene);
++	
++				// Update scenegraph after physics step. This maps physics calculations
++				// into node positions.
++				scene->GetPhysicsEnvironment()->endFrame();
++				
++				UpdateLogicBricks(frametime);
++
++				if (!m_engine->GetRestrictAnimationFPS())
++				{
++					StartProfile(tc_animations);
++					SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
++					UpdateAnimations(frametime);
++				}
++
++				StartProfile(tc_physics);
++				SG_SetActiveStage(SG_STAGE_PHYSICS2);
++				scene->GetPhysicsEnvironment()->beginFrame();
++		
++				// Perform physics calculations on the scene. This can involve 
++				// many iterations of the physics solver.
++				scene->GetPhysicsEnvironment()->proceedDeltaTime(frametime, timestep, framestep);//m_deltatime realDeltaTime);
++
++				StartProfile(tc_scenegraph);
++				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
++				scene->UpdateParents(frametime);
++			
++				if (m_engine->GetAnimationRecord())
++				{
++					int next_frame = m_engine->GetAnimationFrame() + 1;
++					// Set as next frame
++					m_engine->SetAnimationFrame(next_frame);
++					// Record this frame
++					m_engine->GetSceneConverter()->WritePhysicsObjectToAnimationIpo(next_frame);
++				}
++
++				scene->setSuspendedTime(0.0);
++			} // suspended
++			else
++				if (scene->getSuspendedTime()==0.0)
++					scene->setSuspendedTime(m_engine->GetClockTime());
++			
++			StartProfile(tc_services);
++		}
++
++		StartProfile(tc_outside);
++		
++		// update system devices
++		UpdateKeyboard();
++		UpdateMouse();
++		UpdateMessages();
++
++		// scene management
++		UpdateScenes();
++		
++		frames--;
++	}
++
++	if (m_engine->GetRestrictAnimationFPS())
++	{
++		double clocktime = GetTime();
++
++		StartProfile(tc_animations, clocktime);
++		SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
++
++		double anim_timestep = 1.0 / KX_GetActiveScene()->GetAnimationFPS();
++
++		if (clocktime - m_engine->GetPreviousAnimTime() > anim_timestep)
++		{
++			m_engine->SetPreviousAnimTime(clocktime);
++
++			KX_SceneList* scenes = m_engine->CurrentScenes();
++			int scene_count = scenes->size();
++			for (int i=0; i < scene_count; i++)
++			// for each scene, call the proceed functions
++			{
++				KX_Scene* scene = scenes->at(i);
++				// update the animations for the "current scene"
++				SetCurrentScene(scene);
++				UpdateAnimations(clocktime);
++			}
++		}
++	}
++	
++	StartProfile(tc_outside);
++
++	// If we want to render
++	if (doRender)
++	{
++		StartProfile(tc_rasterizer);
++		UpdateRender();
++	}
++};
+\ No newline at end of file
+Index: source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.h
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.h	(revision 0)
++++ source/gameengine/Ketsji/KX_KetsjiLogicBrickLoop.h	(working copy)
+@@ -0,0 +1,15 @@
++#ifndef __KX_KETSJILOGICBRICKLOOP_H__
++#define __KX_KETSJILOGICBRICKLOOP_H__
++
++#include "KX_KetsjiLogicLoop.h"
++#include "KX_KetsjiEngine.h"
++
++class KX_KetsjiLogicBrickLoop : public KX_KetsjiLogicLoop
++{
++public:
++	KX_KetsjiLogicBrickLoop(KX_KetsjiEngine *engine);
++	void GiveHandle();
++	void NextFrame();
++};
++
++#endif
+\ No newline at end of file
+Index: source/gameengine/Ketsji/KX_KetsjiLogicLoop.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiLogicLoop.cpp	(revision 0)
++++ source/gameengine/Ketsji/KX_KetsjiLogicLoop.cpp	(working copy)
+@@ -0,0 +1,191 @@
++/*
++ * ***** BEGIN GPL LICENSE BLOCK *****
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
++ * All rights reserved.
++ *
++ * The Original Code is: all of this file.
++ *
++ * Contributor(s): none yet.
++ *
++ * ***** END GPL LICENSE BLOCK *****
++ *
++ */
++
++/** \file gameengine/Ketsji/KX_KetsjiLogicLoop.cpp
++ *  \ingroup ketsji
++ */
++
++#ifdef _MSC_VER
++#  pragma warning (disable:4786)
++#endif
++
++#include <iostream>
++#include <stdio.h>
++
++#include "KX_KetsjiLogicLoop.h"
++#include "PHY_IPhysicsEnvironment.h"
++#include "KX_PyConstraintBinding.h"
++#include "KX_KetsjiEngine.h"
++#include "KX_TimeCategoryLogger.h"
++#include "KX_Scene.h"
++#include "SCA_IInputDevice.h"
++#include "NG_NetworkScene.h"
++#include "KX_ISceneConverter.h"
++#include "KX_PythonInit.h"
++#include "NG_NetworkDeviceInterface.h"
++
++KX_KetsjiLogicLoop::KX_KetsjiLogicLoop(KX_KetsjiEngine* engine):
++m_engine(engine)
++{};
++
++// Start profiling this category
++void KX_KetsjiLogicLoop::StartProfile(int profile_id, double currenttime, bool stop_others)
++{
++	if (currenttime == NULL)
++		currenttime = GetTime();
++
++	m_engine->GetLogger()->StartLog(profile_id, currenttime, stop_others);
++}
++
++// Stop profiling this category
++void KX_KetsjiLogicLoop::StopProfile(int profile_id, double currenttime)
++{
++	if (currenttime == NULL)
++		currenttime = GetTime();
++
++	m_engine->GetLogger()->EndLog(profile_id, currenttime);
++}
++
++// Returns the current engine time
++double KX_KetsjiLogicLoop::GetTime() 
++{
++	return m_engine->GetRealTime(); 
++};
++
++// Asks engine to render screen
++void KX_KetsjiLogicLoop::UpdateRender()
++{
++	m_engine->Render();
++}
++
++// Update the blender events
++void KX_KetsjiLogicLoop::UpdateBlender()
++{
++	m_engine->UpdateEvents();
++}
++
++// Update the logic brick sytems
++void KX_KetsjiLogicLoop::UpdateLogicBricks(double current_time)
++{
++	KX_Scene *scene = KX_GetActiveScene();
++
++	// Process sensors, and controllers
++	StartProfile(tc_logic);
++	SG_SetActiveStage(SG_STAGE_CONTROLLER);
++	scene->LogicBeginFrame(current_time);
++	
++	// Scenegraph needs to be updated again, because Logic Controllers 
++	// can affect the local matrices.
++	StartProfile(tc_scenegraph);
++	SG_SetActiveStage(SG_STAGE_CONTROLLER_UPDATE);
++
++	UpdateScenegraph(current_time);
++	
++	// Process actuators
++	// Do some cleanup work for this logic frame
++	StartProfile(tc_logic);
++	SG_SetActiveStage(SG_STAGE_ACTUATOR);
++
++	scene->LogicUpdateFrame(current_time, true);
++	scene->LogicEndFrame();
++	
++	// Actuators can affect the scenegraph
++	StartProfile(tc_scenegraph);
++	SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
++	UpdateScenegraph(current_time);
++}
++
++// Asks engine to update the message device
++void KX_KetsjiLogicLoop::UpdateMessages()
++{
++if (m_engine->GetNetworkDevice())
++	m_engine->GetNetworkDevice()->NextFrame();
++}
++
++// Asks engine to update mouse events from blender
++void KX_KetsjiLogicLoop::UpdateMouse()
++{
++	if (m_engine->GetMouseDevice())
++		m_engine->GetMouseDevice()->NextFrame();
++}
++
++// Ask engine to update keyboard events from blender
++void KX_KetsjiLogicLoop::UpdateKeyboard()
++{
++
++	if (m_engine->GetKeyboardDevice())
++		m_engine->GetKeyboardDevice()->NextFrame();
++}
++
++// Sets the scene context for context-dependant operations
++void KX_KetsjiLogicLoop::SetCurrentScene(KX_Scene *scene)
++{
++#ifdef WITH_PYTHON
++	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
++#endif
++	KX_SetActiveScene(scene);
++}
++
++KX_Scene *KX_KetsjiLogicLoop::GetCurrentScene()
++{
++	return KX_GetActiveScene();
++}
++
++// Updates scenegraph in context of current scene
++void KX_KetsjiLogicLoop::UpdateScenegraph(double currenttime)
++{
++	KX_GetActiveScene()->UpdateParents(currenttime);
++}
++
++// Updates scenes that were added/destroyed/replaced
++void KX_KetsjiLogicLoop::UpdateScenes()
++{
++	m_engine->ProcessScheduledScenes();
++}
++
++// Receives messages from the "network"
++void KX_KetsjiLogicLoop::ReceiveMessages(double currenttime)
++{
++	KX_GetActiveScene()->GetNetworkScene()->proceed(currenttime);
++}
++
++// Updates animations in context of current scene
++void KX_KetsjiLogicLoop::UpdateAnimations(double currenttime)
++{
++	KX_GetActiveScene()->UpdateAnimations(currenttime);
++}
++
++// Asks engine to update physics in context of current scene
++void KX_KetsjiLogicLoop::UpdatePhysics(double current_time, double deltatime, double interval)
++{
++	if (interval == NULL)
++		interval = deltatime;
++
++	KX_GetActiveScene()->GetPhysicsEnvironment()->proceedDeltaTime(current_time, deltatime, interval);
++
++};
+\ No newline at end of file
+Index: source/gameengine/Ketsji/KX_KetsjiLogicLoop.h
+===================================================================
+--- source/gameengine/Ketsji/KX_KetsjiLogicLoop.h	(revision 0)
++++ source/gameengine/Ketsji/KX_KetsjiLogicLoop.h	(working copy)
+@@ -0,0 +1,65 @@
++/*
++ * ***** BEGIN GPL LICENSE BLOCK *****
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
++ * All rights reserved.
++ *
++ * The Original Code is: all of this file.
++ *
++ * Contributor(s): none yet.
++ *
++ * ***** END GPL LICENSE BLOCK *****
++ *
++ */
++
++/** \file KX_KetsjiLogicLoop.h
++ *  \ingroup ketsji
++ */
++
++#ifndef __KX_KETSJILOGICLOOP_H__
++#define __KX_KETSJILOGICLOOP_H__
++
++#include "KX_Python.h"
++#include "KX_WorldInfo.h"
++#include "KX_KetsjiEngine.h"
++
++class KX_KetsjiLogicLoop
++{
++public:
++	KX_KetsjiLogicLoop(KX_KetsjiEngine *engine);
++	//virtual ~KX_KetsjiLogicLoop()=0;
++	KX_KetsjiEngine *m_engine;
++
++	virtual void GiveHandle() = 0;
++	void UpdateKeyboard();
++	void UpdateMouse();
++	void UpdateMessages();
++	void UpdateBlender();
++	void UpdateRender();
++	void UpdateScenes();
++	void StartProfile(int profile_id, double currenttime=NULL, bool stop_others=true);
++	void StopProfile(int profile_id, double currenttime=NULL);
++	void SetCurrentScene(KX_Scene *scene);
++	void ReceiveMessages(double currenttime);
++	void UpdateLogicBricks(double current_time);
++	void UpdateScenegraph(double currenttime);
++	void UpdateAnimations(double currenttime);
++	void UpdatePhysics(double current_time, double deltatime, double interval=NULL);
++	KX_Scene *GetCurrentScene();
++	double GetTime();
++};
++#endif  /* __KX_KETSJILOGICLOOP_H__ */
+\ No newline at end of file
 Index: source/gameengine/Ketsji/KX_PythonInit.cpp
 ===================================================================
 --- source/gameengine/Ketsji/KX_PythonInit.cpp	(revision 59220)
@@ -2293,6 +4555,296 @@ Index: source/gameengine/Ketsji/KX_PythonInitTypes.cpp
  		PyType_Ready_Attr(dict, KX_IpoActuator, init_getset);
  		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
  		PyType_Ready_Attr(dict, KX_LightObject, init_getset);
+Index: source/gameengine/Ketsji/KX_PythonLogicLoop.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_PythonLogicLoop.cpp	(revision 0)
++++ source/gameengine/Ketsji/KX_PythonLogicLoop.cpp	(working copy)
+@@ -0,0 +1,237 @@
++#include "KX_KetsjiEngine.h"
++#include "KX_KetsjiLogicLoop.h"
++#include "PHY_IPhysicsEnvironment.h"
++#include "KX_PyConstraintBinding.h"
++#include "KX_Scene.h"
++#include "KX_PythonLogicLoop.h"
++#include "KX_ISceneConverter.h"
++#include "SCA_IInputDevice.h"
++#include "PyObjectPlus.h"
++
++PyTypeObject KX_PythonLogicLoop::Type = {
++	PyVarObject_HEAD_INIT(NULL, 0)
++	"KX_PythonLogicLoop",
++	sizeof(PyObjectPlus_Proxy),
++	0,
++	py_base_dealloc,
++	0,
++	0,
++	0,
++	0,
++	py_base_repr,
++	0,0,0,0,0,0,0,0,0,
++	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
++	0,0,0,0,0,0,0,
++	Methods,
++	0,
++	0,
++	&PyObjectPlus::Type,
++	0,0,0,0,0,0,
++	py_base_new
++};
++
++KX_PythonLogicLoop::KX_PythonLogicLoop(KX_KetsjiEngine* engine): KX_KetsjiLogicLoop(engine), PyObjectPlus()
++{
++}
++
++#ifdef WITH_PYTHON
++
++// Define the method accessors
++PyMethodDef KX_PythonLogicLoop::Methods[] = 
++{
++	{"main", (PyCFunction)	KX_PythonLogicLoop::sPyMain, METH_NOARGS},
++	{"start_profile", (PyCFunction)	KX_PythonLogicLoop::sPyStartProfile, METH_VARARGS},
++	{"stop_profile", (PyCFunction)	KX_PythonLogicLoop::sPyStopProfile, METH_VARARGS},
++	{"update_render", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateRender, METH_NOARGS},
++	{"update_blender", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateBlender, METH_NOARGS},
++	{"update_messages", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateMessages, METH_NOARGS},
++	{"update_keyboard", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateKeyboard, METH_NOARGS},
++	{"update_mouse", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateMouse, METH_NOARGS},
++	{"update_logic_bricks", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateLogicBricks, METH_O},
++	{"update_scenes", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateMouse, METH_NOARGS},
++	{"update_physics", (PyCFunction)	KX_PythonLogicLoop::sPyUpdatePhysics, METH_VARARGS},
++	{"receive_messages", (PyCFunction)	KX_PythonLogicLoop::sPyReceiveMessages, METH_O},
++	{"update_scenegraph", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateScenegraph, METH_O},
++	{"update_animations", (PyCFunction)	KX_PythonLogicLoop::sPyUpdateAnimations, METH_O},
++	{"set_current_scene", (PyCFunction)	KX_PythonLogicLoop::sPySetCurrentScene, METH_O},
++	{"check_quit", (PyCFunction)	KX_PythonLogicLoop::sPyCheckQuit, METH_NOARGS},
++	{"get_time", (PyCFunction)	KX_PythonLogicLoop::sPyGetTime, METH_NOARGS},
++	{NULL, NULL} //Sentinel
++};
++
++// Define the attribute accessors
++PyAttributeDef KX_PythonLogicLoop::Attributes[] = {
++	{NULL} //Sentinel
++};
++
++// Default gameloop main method
++PyObject *KX_PythonLogicLoop::PyMain()
++{
++	// By default this is not implemented
++	PyErr_SetString(PyExc_NotImplementedError, "");
++	Py_RETURN_NONE;
++}
++
++// Start profiling a category, shortcut to KX_KetsjiEngine profiler
++PyObject *KX_PythonLogicLoop::PyStartProfile(PyObject *args)
++{
++	int profile_id;
++	bool stop_others = true;
++	double current_time = NULL;
++
++	if (PyArg_ParseTuple(args, "i|db:start_profile", &profile_id, &current_time, &stop_others))
++	{
++		this->StartProfile(profile_id, current_time, stop_others);
++		Py_RETURN_NONE;
++	}
++	return NULL;
++}
++
++// Stop profiling a category
++PyObject *KX_PythonLogicLoop::PyStopProfile(PyObject *args)
++{
++	int profile_id;
++	double current_time = NULL;
++
++	if (PyArg_ParseTuple(args, "i|d:stop_profile", &profile_id, &current_time))
++	{
++		this->StopProfile(profile_id, current_time);
++		Py_RETURN_NONE;
++	}
++	return NULL;
++}
++
++// Set the current scene that is used for the Python API and collisions
++PyObject *KX_PythonLogicLoop::PySetCurrentScene(PyObject *scene)
++{
++	PyObject *name = PyObject_GetAttrString(scene, "name");
++	STR_String scenename = (STR_String)_PyUnicode_AsString(name);
++	Py_DECREF(name);
++
++	KX_Scene *gamescene = m_engine->FindScene(scenename);
++
++	if (!gamescene->IsSuspended())
++		SetCurrentScene(gamescene);
++
++	Py_RETURN_NONE;
++}
++
++// Updates scenes that were added, destroyed or replaced
++PyObject *KX_PythonLogicLoop::PyUpdateScenes()
++{
++	UpdateScenes();
++	Py_RETURN_NONE;
++}
++
++// Updates logic brick systems
++PyObject *KX_PythonLogicLoop::PyUpdateLogicBricks(PyObject *currenttime)
++{
++	UpdateLogicBricks(PyFloat_AsDouble(currenttime));
++	Py_RETURN_NONE;
++}
++
++// Updates scenegraph
++PyObject *KX_PythonLogicLoop::PyUpdateScenegraph(PyObject *currenttime)
++{
++	UpdateScenegraph(PyFloat_AsDouble(currenttime));
++	Py_RETURN_NONE;
++}
++
++// Updates animations
++PyObject *KX_PythonLogicLoop::PyUpdateAnimations(PyObject *currenttime)
++{
++	UpdateAnimations(PyFloat_AsDouble(currenttime));
++	Py_RETURN_NONE;
++}
++
++// Receives messages from loopback
++PyObject *KX_PythonLogicLoop::PyReceiveMessages(PyObject *currenttime)
++{
++	ReceiveMessages(PyFloat_AsDouble(currenttime));
++	Py_RETURN_NONE;
++}
++
++// Updates keyboard after frame
++PyObject *KX_PythonLogicLoop::PyUpdateKeyboard()
++{
++	UpdateKeyboard();
++	Py_RETURN_NONE;
++}
++
++// Updates messages after frame
++PyObject *KX_PythonLogicLoop::PyUpdateMessages()
++{
++	UpdateMessages();
++	Py_RETURN_NONE;
++}
++
++// Updates mouse after frame
++PyObject *KX_PythonLogicLoop::PyUpdateMouse()
++{
++	UpdateMouse();
++	Py_RETURN_NONE;
++}
++
++// Updates keyboard and mouse events
++PyObject *KX_PythonLogicLoop::PyUpdateBlender()
++{
++	UpdateBlender();
++	Py_RETURN_NONE;
++}
++
++// Updates render
++PyObject *KX_PythonLogicLoop::PyUpdateRender()
++{
++	UpdateRender();
++	Py_RETURN_NONE;
++}
++
++// Returns the elapsed time
++PyObject *KX_PythonLogicLoop::PyGetTime()
++{
++	double time = GetTime();
++	PyObject *pytime = PyFloat_FromDouble(time);
++	return pytime;
++}
++
++// Returns quit status
++PyObject *KX_PythonLogicLoop::PyCheckQuit()
++{
++	bool exitstatus = m_engine->GetExitCode();
++ 	return PyBool_FromLong(exitstatus);
++}
++
++// Updates physics
++PyObject *KX_PythonLogicLoop::PyUpdatePhysics(PyObject *args)
++{
++	double current_time, deltatime;
++
++	if (PyArg_ParseTuple(args, "dd:update_physics",  &current_time, &deltatime))
++	{
++		this->UpdatePhysics(current_time, deltatime);
++		Py_RETURN_NONE;
++	}
++	return NULL;
++}
++
++// Set the python class
++void KX_PythonLogicLoop::setPythonClass(PyTypeObject* cls)
++{
++    PyObject* args = Py_BuildValue("(O)", GetProxy());
++    py_base_new(cls, args, NULL);
++    Py_DECREF(args);
++}		
++
++// Runs the "gameloop", typically a while polling the quit status
++void KX_PythonLogicLoop::GiveHandle()
++{
++	PyObject *self = GetProxy();	
++	PyObject *result = PyObject_CallMethod(self, (char*)"main", NULL);
++
++	if (result==NULL)
++	{
++		PyErr_Print();
++	}	
++}
++#endif
++
+Index: source/gameengine/Ketsji/KX_PythonLogicLoop.h
+===================================================================
+--- source/gameengine/Ketsji/KX_PythonLogicLoop.h	(revision 0)
++++ source/gameengine/Ketsji/KX_PythonLogicLoop.h	(working copy)
+@@ -0,0 +1,42 @@
++#ifndef __KX_PYTHONLOGICLOOP_H__
++#define __KX_PYTHONLOGICLOOP_H__
++
++#include "KX_KetsjiLogicLoop.h"
++#include "KX_KetsjiEngine.h"
++#include "PyObjectPlus.h"
++
++class KX_PythonLogicLoop : public KX_KetsjiLogicLoop, PyObjectPlus
++{
++	Py_Header
++
++public:
++	KX_PythonLogicLoop(KX_KetsjiEngine *engine);
++
++#ifdef WITH_PYTHON
++	//Define a Python function with the name body of "Main"
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, Main);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateBlender);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateMessages);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateKeyboard);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateMouse);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, GetTime);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, CheckQuit);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateRender);
++	KX_PYMETHOD_NOARGS(KX_PythonLogicLoop, UpdateScenes);
++	KX_PYMETHOD_O(KX_PythonLogicLoop, UpdateLogicBricks);
++	KX_PYMETHOD_O(KX_PythonLogicLoop, UpdateScenegraph);
++	KX_PYMETHOD_O(KX_PythonLogicLoop, UpdateAnimations);
++	KX_PYMETHOD_O(KX_PythonLogicLoop, SetCurrentScene);
++	KX_PYMETHOD_O(KX_PythonLogicLoop, ReceiveMessages);
++	KX_PYMETHOD_VARARGS(KX_PythonLogicLoop, UpdatePhysics);
++	KX_PYMETHOD_VARARGS(KX_PythonLogicLoop, StartProfile);
++	KX_PYMETHOD_VARARGS(KX_PythonLogicLoop, StopProfile);
++
++	void GiveHandle();
++	void setPythonClass(PyTypeObject* cls);
++
++#endif
++
++};
++
++#endif
+\ No newline at end of file
 Index: source/gameengine/Ketsji/KX_SCA_AddObjectActuator.cpp
 ===================================================================
 --- source/gameengine/Ketsji/KX_SCA_AddObjectActuator.cpp	(revision 59220)
@@ -2642,3 +5194,133 @@ Index: source/gameengine/Ketsji/KX_Scene.h
  	                              int lifespan=0);
  	KX_GameObject* AddNodeReplicaObject(SG_IObject* node,
  	                                    CValue* gameobj);
+Index: source/gameengine/Ketsji/KX_TouchEventManager.cpp
+===================================================================
+--- source/gameengine/Ketsji/KX_TouchEventManager.cpp	(revision 59220)
++++ source/gameengine/Ketsji/KX_TouchEventManager.cpp	(working copy)
+@@ -81,28 +81,42 @@
+ 							void *object2,
+ 							const PHY_CollData *coll_data)
+ {
+-	PHY_IPhysicsController* ctrl = static_cast<PHY_IPhysicsController*>(object1);
+-	KX_ClientObjectInfo *info = (ctrl) ? static_cast<KX_ClientObjectInfo*>(ctrl->getNewClientInfo()) : NULL;
++	PHY_IPhysicsController* ctrl1 = static_cast<PHY_IPhysicsController*>(object1);
++	PHY_IPhysicsController* ctrl2 = static_cast<PHY_IPhysicsController*>(object2);
++
++	KX_ClientObjectInfo *info1 = (ctrl1) ? static_cast<KX_ClientObjectInfo*>(ctrl1->getNewClientInfo()) : NULL;
++	KX_ClientObjectInfo *info2 = (ctrl1) ? static_cast<KX_ClientObjectInfo*>(ctrl2->getNewClientInfo()) : NULL;
++
+ 	// This call back should only be called for controllers of Near and Radar sensor
+-	if (!info)
++	if (!info1)
+ 		return true;
++	
++	// Get KX_GameObjects for callbacks
++	KX_GameObject* gobj1 = info1->m_gameobject;
++	KX_GameObject* gobj2 = (info2) ? info1->m_gameobject : NULL;
++	
++	bool has_py_callbacks;
+ 
+-	switch (info->m_type)
++	// Consider callbacks for broadphase inclusion if it's a sensor object type
++	if (gobj1 && gobj2)
++		has_py_callbacks = gobj1->m_collisionCallbacks || gobj2->m_collisionCallbacks;
++
++	switch (info1->m_type)
+ 	{
+ 	case KX_ClientObjectInfo::SENSOR:
+-		if (info->m_sensors.size() == 1)
++		if (info1->m_sensors.size() == 1)
+ 		{
+ 			// only one sensor for this type of object
+-			KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(*info->m_sensors.begin());
+-			return touchsensor->BroadPhaseFilterCollision(object1,object2);
++			KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(*info1->m_sensors.begin());
++			return touchsensor->BroadPhaseFilterCollision(object1, object2);
+ 		}
+ 		break;
+ 	case KX_ClientObjectInfo::OBSENSOR:
+ 	case KX_ClientObjectInfo::OBACTORSENSOR:
+ 		// this object may have multiple collision sensors, 
+ 		// check is any of them is interested in this object
+-		for (std::list<SCA_ISensor*>::iterator it = info->m_sensors.begin();
+-			it != info->m_sensors.end();
++		for (std::list<SCA_ISensor*>::iterator it = info1->m_sensors.begin();
++			it != info1->m_sensors.end();
+ 			++it)
+ 		{
+ 			if ((*it)->GetSensorType() == SCA_ISensor::ST_TOUCH) 
+@@ -112,8 +126,9 @@
+ 					return true;
+ 			}
+ 		}
+-		return false;
+ 
++		return has_py_callbacks;
++
+ 	// quiet the compiler
+ 	case KX_ClientObjectInfo::STATIC:
+ 	case KX_ClientObjectInfo::ACTOR:
+@@ -155,32 +170,44 @@
+ 
+ void KX_TouchEventManager::NextFrame()
+ {
+-	if (!m_sensors.Empty())
+-	{
++	
+ 		SG_DList::iterator<KX_TouchSensor> it(m_sensors);
+ 		for (it.begin();!it.end();++it)
+ 			(*it)->SynchronizeTransform();
+ 		
+ 		for (std::set<NewCollision>::iterator cit = m_newCollisions.begin(); cit != m_newCollisions.end(); ++cit)
+-		{
++		{			
++			// Controllers
+ 			PHY_IPhysicsController* ctrl1 = (*cit).first;
+-//			PHY_IPhysicsController* ctrl2 = (*cit).second;
+-//			KX_GameObject* gameOb1 = ctrl1->getClientInfo();
+-//			KX_GameObject* gameOb1 = ctrl1->getClientInfo();
++			PHY_IPhysicsController* ctrl2 = (*cit).second;
+ 
+-			KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(ctrl1->getNewClientInfo());
++			// Sensor iterator
+ 			list<SCA_ISensor*>::iterator sit;
++
++			// First client info
++			KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(ctrl1->getNewClientInfo());
++			// First gameobject
++			KX_GameObject *kxObj1 = KX_GameObject::GetClientObject(client_info);
++			// Invoke sensor response for each object
+ 			if (client_info) {
+ 				for ( sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
+-					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision((*cit).first, (*cit).second, NULL);
++					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision(ctrl1, ctrl2, NULL);
+ 				}
+-			}
+-			client_info = static_cast<KX_ClientObjectInfo *>((*cit).second->getNewClientInfo());
++ 			}
++
++			// Second client info
++			client_info = static_cast<KX_ClientObjectInfo *>(ctrl2->getNewClientInfo());
++			// Second gameobject
++			KX_GameObject *kxObj2 = KX_GameObject::GetClientObject(client_info);	
+ 			if (client_info) {
+ 				for ( sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
+-					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision((*cit).second, (*cit).first, NULL);
+-				}
+-			}
++					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision(ctrl2, ctrl1, NULL);
++ 				}
++ 			}
++			// Run python callbacks
++			kxObj1->RunCollisionCallbacks(kxObj2);
++			kxObj2->RunCollisionCallbacks(kxObj1);
++
+ 		}
+ 			
+ 		m_newCollisions.clear();
+@@ -188,4 +215,3 @@
+ 		for (it.begin();!it.end();++it)
+ 			(*it)->Activate(m_logicmgr);
+ 	}
+-}

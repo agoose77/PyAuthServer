@@ -36,8 +36,7 @@ class TeamDeathMatch(BaseGameInfo):
             in_range = player_pawn and (replicable.position - player_pawn.position).length_squared <= self.relevant_radius_squared
             
             in_camera = (player_camera and player_camera.sees_actor(replicable))
-           # print(replicable, in_camera)
-            
+        
             if (in_range or in_camera):
                 return True
             
@@ -83,7 +82,8 @@ class TeamDeathMatch(BaseGameInfo):
     def start_match(self):
         for controller in WorldInfo.subclass_of(ExampleController):
             self.create_new_player(controller)
-        
+        for i in range(20):
+            Pawn()
         self.info.match_started = True
     
     def post_initialise(self, connection):
@@ -108,7 +108,7 @@ class TeamDeathMatch(BaseGameInfo):
         elif self.can_start_countdown() and not self.info.match_started:
             self.start_countdown()
             
-class Server(ServerLoop):
+class Server(ServerLoop, InstanceNotifier):            
     
     def create_network(self):
         network = super().create_network()

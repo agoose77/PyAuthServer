@@ -215,6 +215,7 @@ class Controller(Replicable):
             self.possess(self.pawn)
         elif name == "camera":
             self.set_camera(self.camera)
+            #self.camera.active = True
         else:
             super().on_notify(name)       
          
