@@ -36,7 +36,10 @@ class Socket(GameObject):
 class CameraObject(EngineObject, types.KX_Camera):
     pass
 
-class Armature(EngineObject, types.BL_ArmatureObject):
+class ArmatureObject(EngineObject, types.BL_ArmatureObject):
+    pass
+
+class NavmeshObject(EngineObject, types.KX_NavmeshObject):
     pass
 
 class Euler8:

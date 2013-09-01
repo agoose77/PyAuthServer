@@ -47,6 +47,9 @@ class TeamDeathMatch(BaseGameInfo):
     
     def is_relevant(self, player_controller, replicable):
         
+        if replicable.always_relevant:
+            return True
+        
         # Check by distance, then frustum checks
         if isinstance(replicable, Actor) and (replicable.visible or replicable.always_relevant):
             player_pawn = player_controller.pawn
@@ -62,10 +65,6 @@ class TeamDeathMatch(BaseGameInfo):
             return False
         
         if isinstance(replicable, WeaponAttachment):
-            return True
-        
-        # We always allow ReplicableInfo classes
-        if isinstance(replicable, ReplicableInfo):
             return True
             
         # We never allow PlayerController classes

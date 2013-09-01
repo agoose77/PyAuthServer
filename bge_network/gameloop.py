@@ -40,6 +40,7 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
         self.update_physics(self.get_time(), delta_time)
         
     def run(self):
+        
         while not self.check_quit():
             start_time = current_time = self.get_time()
             delta_time = current_time - self.last_time
@@ -65,6 +66,7 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
                                         
                     Replicable.update_graph()
                     
+                    self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
                     for replicable in WorldInfo.replicables:
                         replicable.update(delta_time)
 
@@ -104,10 +106,15 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
         try:
             self.run()                
         except Exception as err:
-            self.network.stop()
             raise
+        finally:           
+            self.network.stop()
         
-        self.network.stop()
+"""
+@todo: add level loading support
+@todo load static actors
+@todo: create AI controller
+@todo: create Animation struct"""
             
 class ServerLoop(GameLoop):
     

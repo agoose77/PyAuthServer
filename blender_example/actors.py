@@ -1,6 +1,7 @@
-from bge_network import PlayerController, ReplicableInfo, Replicable, Attribute, Roles, Pawn, simulated, WorldInfo, Netmodes, Weapon, WeaponAttachment, CameraMode
+from bge_network import PlayerController, ReplicableInfo, Replicable, Attribute, Roles, Pawn, simulated, WorldInfo, Netmodes, Weapon, WeaponAttachment, CameraMode, MovementState
 from mathutils import Vector, Euler
 from math import radians, cos, sin, degrees
+from bge import logic
 
 class GameReplicationInfo(ReplicableInfo):
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
@@ -16,7 +17,7 @@ class GameReplicationInfo(ReplicableInfo):
     
 class LegendController(PlayerController):
     
-    input_fields = "forward", "backwards", "left", "right", "shoot"
+    input_fields = "forward", "backwards", "left", "right", "shoot", "run"
     
     def update_mouse(self, mouse_diff_x, mouse_diff_y, delta_time):
         turn_speed = 20
@@ -66,19 +67,39 @@ class LegendController(PlayerController):
         y_plane = inputs.forward.active - inputs.backwards.active
         x_plane = inputs.right.active - inputs.left.active
         
-        forward_speed = 4.0
+        movement_mode = MovementState.run if inputs.run.active else MovementState.walk
         
-        forward = forward_speed * y_plane
-        side = forward_speed * x_plane
+        if movement_mode == MovementState.walk:
+            forward_speed = self.pawn.walk_speed
+        elif movement_mode == MovementState.run:
+            forward_speed = self.pawn.run_speed
         
-        velocity = Vector((side, forward, 0.0))
+        velocity = Vector((x_plane, y_plane, 0.0))
         velocity.length = forward_speed
         
         self.pawn.velocity.xy = velocity.xy
 
 class RobertNeville(Pawn):
     entity_name = "Suzanne_Physics"      
+    
+    def on_initialised(self):
+        super().on_initialised()
         
+        self.last_movement_state = None       
+        self.walk_speed = 1
+        self.run_speed = 2
+    
+    def handle_animation(self, movement_state):
+        # Play new state animation
+        if not self.playing_animation(movement_state):
+            
+            if movement_state == MovementState.walk:        
+                self.play_animation("Frankie_Walk", 0, 19, movement_state, mode=logic.KX_ACTION_MODE_LOOP)
+                print(self.skeleton)
+            # Stop old animations
+            if self.last_movement_state is not None and 0 and self.last_movement_state != movement_state:
+                self.stop_animation(self.last_movement_state)
+    
 class M4A1Weapon(Weapon):
     
     def on_initialised(self):

@@ -8,3 +8,6 @@ class ShotType(metaclass=Enum):
     
 class CameraMode(metaclass=Enum):
     values = "first_person", "third_person"
+
+class MovementState(metaclass=Enum):
+    values = "run", "walk", "static"

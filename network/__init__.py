@@ -9,3 +9,4 @@ from .descriptors import *
 from .rpc import *
 from .data_struct import *
 from .game_info import *
+from .packet import *

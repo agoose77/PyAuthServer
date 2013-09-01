@@ -20,8 +20,6 @@ class Replicable(metaclass=ReplicableRegister):
                             )
                       )
     
-    owner = None
-    
     def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
@@ -62,7 +60,8 @@ class Replicable(metaclass=ReplicableRegister):
             return existing
     
     def on_initialised(self):
-        pass
+        self.owner = None
+        self.always_relevant = False
     
     def request_registration(self, instance_id, verbose=False):
         '''Handles registration of instances
@@ -242,4 +241,8 @@ class Controller(Replicable):
         self.pawn.unpossessed()    
     
 class ReplicableInfo(Replicable):
-    pass        
+    
+    def on_initialised(self):
+        super().on_initialised()
+        
+        self.always_relevant = True  

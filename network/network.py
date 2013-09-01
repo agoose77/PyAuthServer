@@ -8,7 +8,7 @@ from .factorydict import FactoryDict
 from .handler_interfaces import static_description, register_handler, get_handler, register_description
 from .modifiers import reliable, is_reliable
 from .registers import InstanceRegister, InstanceNotifier, TypeRegister
-from .serialiser import UInt8, String, handler_from_int
+from .packet import Packet, PacketCollection
 
 from collections import deque
 from functools import wraps
@@ -30,154 +30,9 @@ class run_only_on:
                 return
             return func(*args, **kwargs)
         return wrapper
-            
-class PacketCollection:
-    __slots__ = "members",
-    
-    def __init__(self, members=None):
-        if members is None:
-            members = []
-            
-        # If members support member interface
-        if hasattr(members, "members"):
-            self.members = members.members
-        
-        # Otherwise recreate members
-        else:
-            self.members = [m for p in members for m in p.members]
-    
-    @property
-    def reliable_members(self):
-        '''The "reliable" members of this packet collection'''
-        return (m for m in self.members if m.reliable)
-    
-    @property
-    def unreliable_members(self):
-        '''The "unreliable" members of this packet collection'''
-        return (m for m in self.members if not m.reliable)
-    
-    def to_reliable(self):
-        '''Returns a PacketCollection instance comprised of only reliable members'''
-        return type(self)(self.reliable_members)
-    
-    def to_unreliable(self):
-        '''Returns a PacketCollection instance comprised of only unreliable members'''
-        return type(self)(self.unreliable_members)
-    
-    def on_ack(self):
-        '''Callback for acknowledgement of packet receipt'''
-        for member in self.members:
-            member.on_ack()
-    
-    def on_not_ack(self):
-        '''Callback for assumption of packet loss'''
-        for member in self.reliable_members:
-            member.on_not_ack()
-    
-    def to_bytes(self):
-        return b''.join(m.to_bytes() for m in self.members)
-    
-    def from_bytes(self, bytes_):
-        members = self.members = []
-        append = members.append
-        while bytes_:
-            packet = Packet()
-            bytes_ = packet.take_from(bytes_)
-            append(packet)
-        
-        return self
-    
-    def __bytes__(self):
-        return self.to_bytes()
-    
-    def __bool__(self):
-        return bool(self.members)
-    
-    def __str__(self):
-        return '\n'.join(str(m) for m in self.members)
-    
-    def __add__(self, other):
-        return type(self)(self.members + other.members)
-    
-    __radd__ = __add__
-    
-class Packet:
-    __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
-    
-    protocol_handler = UInt8
-    size_handler = UInt8
-    
-    def __init__(self, protocol=None, payload=None, *, reliable=False, on_success=None, on_failure=None):
-        # Force reliability for callbacks
-        if on_success or on_failure:
-            reliable = True
-                
-        self.on_success = on_success
-        self.on_failure = on_failure        
-        self.protocol = protocol
-        self.payload = payload
-        self.reliable = reliable
-    
-    @property
-    def members(self):
-        '''Returns self as a member of a list'''
-        return [self]
-                
-    def on_ack(self):
-        '''Called when packet is acknowledged'''
-        if callable(self.on_success) and self.reliable:
-            self.on_success(self)
-            
-    def on_not_ack(self):
-        '''Called when packet is dropped'''
-        if callable(self.on_failure):
-            self.on_failure(self)
-            
-    def to_bytes(self):
-        '''Converts packet into bytes'''        
-        data = self.protocol_handler.pack(self.protocol) + self.payload
-        return self.size_handler.pack(len(data)) + data
-    
-    def from_bytes(self, bytes_):
-        '''Returns packet instance after population
-        Takes data from bytes, returns Packet()'''
-        self.take_from(bytes_)
-        return self
-    
-    def take_from(self, bytes_):
-        '''Populates packet instance with data
-        Returns new slice of bytes string'''
-        length_handler = self.size_handler
-        protocol_handler = self.protocol_handler
-        
-        length = length_handler.unpack_from(bytes_)
-        shift = length_handler.size()
-
-        self.protocol = protocol_handler.unpack_from(bytes_[shift:])
-        proto_shift = protocol_handler.size()
-        
-        self.payload = bytes_[shift + proto_shift:shift + length]
-        self.reliable = False
-        
-        return bytes_[shift + length:]
-       
-    def __add__(self, other):
-        if not isinstance(other, self.__class__):
-            raise TypeError("Cannot add packet to {}".format(type(other)))
-        return PacketCollection(members=self.members + other.members)
-    
-    def __str__(self):
-        '''Printable version of a packet'''
-        to_console = ["[Packet]"]
-        for key in self.__slots__:
-            to_console.append("{}: {}".format(key, getattr(self, key)))
-            
-        return '\n'.join(to_console)
-    
-    def __bytes__(self):
-        return self.to_bytes()
-    
-    __radd__ = __add__        
+     
+maximum_replicables = 255
+replicable_id_packer = get_handler(StaticValue(int, max_value=maximum_replicables))
 
 class Channel:
     
@@ -193,11 +48,12 @@ class Channel:
         self.sorted_attributes = self.attribute_storage.get_ordered_members()
         # Create a serialiser instance
         self.serialiser = ArgumentSerialiser(self.sorted_attributes)
+        self.rpc_id_packer = get_handler(StaticValue(int))
         
     def get_rpc_calls(self):   
         '''Returns the requested RPC calls in a packaged format
         Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
-        int_pack = UInt8.pack    
+        int_pack = self.rpc_id_packer
         get_reliable = is_reliable
         
         storage_data = self.replicable.rpc_storage.data
@@ -210,7 +66,7 @@ class Channel:
     def invoke_rpc_call(self, rpc_call):
         '''Invokes an rpc call from packed format
         @param rpc_call: rpc data (see get_rpc_calls)'''
-        rpc_id = UInt8.unpack_from(rpc_call)
+        rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
         
         if not self.replicable.registered:
             return
@@ -334,6 +190,9 @@ class Connection(InstanceNotifier):
         
         self.replicable = None
         
+        self.string_packer = get_handler(StaticValue(str))
+        self.protocol_packer = get_handler(StaticValue(int))
+        
         Replicable.subscribe(self)
     
     def notify_unregistration(self, replicable):
@@ -368,10 +227,9 @@ class Connection(InstanceNotifier):
     def get_method_replication(self):
 
         check_is_owner = self.is_owner
-        packer = UInt8.pack
         get_channel = self.channels.__getitem__
         make_packet = Packet.__call__
-        
+        packer = replicable_id_packer
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
                 
@@ -403,7 +261,7 @@ class ClientConnection(Connection):
         
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:
-            instance_id = UInt8.unpack_from(packet.payload)
+            instance_id = replicable_id_packer.unpack_from(packet.payload)
             
             if Replicable.graph_has_instance(instance_id):
                 channel = self.channels[instance_id]
@@ -414,7 +272,7 @@ class ClientConnection(Connection):
         
         # If an RPC call
         elif packet.protocol == Protocols.method_invoke:
-            instance_id = UInt8.unpack_from(packet.payload)
+            instance_id = replicable_id_packer.unpack_from(packet.payload)
             
             if Replicable.graph_has_instance(instance_id):
                 channel = self.channels[instance_id]
@@ -424,8 +282,8 @@ class ClientConnection(Connection):
         
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:
-            instance_id = UInt8.unpack_from(packet.payload)
-            type_name = String.unpack_from(packet.payload[1:])
+            instance_id = replicable_id_packer.unpack_from(packet.payload)
+            type_name = self.string_packer.unpack_from(packet.payload[1:])
             
             # Create replicable of same type           
             replicable_cls = Replicable.from_type_name(type_name)
@@ -439,7 +297,7 @@ class ClientConnection(Connection):
         
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:
-            instance_id = UInt8.unpack_from(packet.payload)
+            instance_id = replicable_id_packer.unpack_from(packet.payload)
             
             # If the replicable exists
             try:
@@ -502,7 +360,7 @@ class ServerConnection(Connection):
         super().notify_unregistration(replicable)
         
         instance_id = replicable.instance_id
-        packed_id = UInt8.pack(instance_id)
+        packed_id = replicable_id_packer.pack(instance_id)
         
         # Send delete packet 
         self.cached_packets.add(Packet(protocol=Protocols.replication_del, 
@@ -512,7 +370,7 @@ class ServerConnection(Connection):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.game_info.is_relevant
-        int_packer = UInt8.pack
+        id_packer = replicable_id_packer.pack
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
         make_packet = Packet.__call__
@@ -533,7 +391,7 @@ class ServerConnection(Connection):
             
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = int_packer(instance_id)
+            packed_id = id_packer(instance_id)
             
             # Get attribute channel
             channel = get_channel(instance_id)
@@ -550,7 +408,7 @@ class ServerConnection(Connection):
                 # If we've never replicated to this channel
                 if channel.is_initial:
                     # Pack the class name
-                    packed_class = String.pack(replicable.__class__.type_name)
+                    packed_class = self.string_packer.pack(replicable.__class__.type_name)
                     
                     # Send the protocol, class name and owner status to client
                     yield make_packet(protocol=replication_init, 
@@ -579,8 +437,8 @@ class ServerConnection(Connection):
         is_owner = self.is_owner
         channels = self.channels
         
-        unpacker = UInt8.unpack_from
-        id_size = UInt8.size()
+        unpacker = replicable_id_packer.unpack_from
+        id_size = unpacker.size()
         
         method_invoke = Protocols.method_invoke
         
@@ -615,7 +473,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
-        self.sequence_handler = handler_from_int(self.sequence_max_size)
+        self.sequence_handler = get_handler(StaticValue(int, max_value=self.sequence_max_size))
         
         # Number of packets to ack per packet
         self.ack_window = 32
@@ -624,8 +482,12 @@ class ConnectionInterface(metaclass=InstanceRegister):
         self.ack_bitfield = Bitfield(self.ack_window)
         self.ack_packer = get_handler(StaticValue(Bitfield))
         
+        # Additional data
+        self.netmode_packer = get_handler(StaticValue(int))
+        self.error_packer = get_handler(StaticValue(str))
+        
         # Protocol unpacker
-        self.protocol_handler = UInt8
+        self.protocol_handler = get_handler(StaticValue(int))
         
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -845,7 +707,7 @@ class ServerInterface(ConnectionInterface):
         super().__init__(addr)
         
         self._auth_error = None
-    
+        
     def get_handshake(self):
         '''Will only exist if invoked'''
         connection_failed = self.connection is None
@@ -854,8 +716,8 @@ class ServerInterface(ConnectionInterface):
             
             if self._auth_error:
                 # Send the error code
-                err_name = String.pack(type(self.auth_error).type_name)
-                err_body = String.pack(self._auth_error.args[0])
+                err_name = self.error_packer.pack(type(self.auth_error).type_name)
+                err_body = self.error_packer.pack(self._auth_error.args[0])
                 
                 # Yield a reliable packet
                 return Packet(protocol=Protocols.auth_failure, 
@@ -865,12 +727,12 @@ class ServerInterface(ConnectionInterface):
         else:
             # Send acknowledgement
             return Packet(protocol=Protocols.auth_success, 
-                          payload=UInt8.pack(WorldInfo.netmode), 
+                          payload=self.netmode_packer.pack(WorldInfo.netmode), 
                           on_success=self.connected)
             
     def receive_handshake(self, packet):
         # Unpack data
-        netmode = UInt8.unpack_from(packet.payload)
+        netmode = self.netmode_packer.unpack_from(packet.payload)
        
         # Store replicable
         try:
@@ -893,21 +755,21 @@ class ClientInterface(ConnectionInterface):
         super().__init__(addr)
         
     def get_handshake(self):
-        return Packet(protocol=Protocols.request_auth, payload=UInt8.pack(WorldInfo.netmode), reliable=True)
+        return Packet(protocol=Protocols.request_auth, payload=self.netmode_packer.pack(WorldInfo.netmode), reliable=True)
     
     def receive_handshake(self, packet):
         protocol = packet.protocol
 
         if protocol == Protocols.auth_failure:
-            err_type = String.unpack_from(packet.payload)
-            err_body = String.unpack_from(packet.payload[String.size(packet.payload):])
+            err_type = self.error_packer.unpack_from(packet.payload)
+            err_body = self.error_packer.unpack_from(packet.payload[self.error_packer.size(packet.payload):])
             err = NetworkError.from_type_name(err_type)
             
             if err is not None:
                 raise err(err_body)
         
         # Get remote network mode
-        netmode = UInt8.unpack_from(packet.payload)
+        netmode = self.netmode_packer.unpack_from(packet.payload)
         # Must be success
         self.connection = ClientConnection(netmode)
         self.connected()
@@ -1135,11 +997,11 @@ class ReplicableProxyHandler:
     @classmethod
     def pack(cls, replicable):
         # Send the instance ID
-        return UInt8.pack(replicable.instance_id)
+        return replicable_id_packer.pack(replicable.instance_id)
     
     @classmethod
     def unpack(cls, bytes_):
-        instance_id = UInt8.unpack_from(bytes_)
+        instance_id = replicable_id_packer.unpack_from(bytes_)
         
         # Return only a replicable that was created by the network
         try:
@@ -1151,45 +1013,50 @@ class ReplicableProxyHandler:
         # We can't be sure that this is the correct instance, use proxy to delay checks (hoping it will have now been replicated)
         except (LookupError, AssertionError):
             return ReplicableProxy(instance_id)
-        
-    unpack_from = unpack    
-    size = UInt8.size
+    
+    @classmethod
+    def size(cls, bytes_=None):
+        return replicable_id_packer.size(bytes_)
+    
+    unpack_from = unpack  
 
 class TypeHandler:
     
     def __init__(self, static_value):
         self.base_type = static_value.data['pointer_type']
-    
+        self.string_packer = get_handler(StaticValue(str))
+        
     def pack(self, cls):
-        return String.pack(cls.type_name)
+        return self.string_packer.pack(cls.type_name)
     
     def unpack(self, bytes_):
-        name = String.unpack_from(bytes_)
+        name = self.string_packer.unpack_from(bytes_)
         cls = self.base_type.from_type_name(name)
         return cls
     
+    def size(self, bytes_=None):
+        return self.string_packer.size(bytes_)
+    
     unpack_from = unpack
-    size = String.size        
 
 def type_description(cls):
     return hash(cls.type_name)
 
 class RolesHandler:
-    int_pack = UInt8.pack
-    int_unpack = UInt8.unpack_from
+    packer = get_handler(StaticValue(int))
     
     @classmethod
     def pack(cls, roles):
         with roles.switched():
-            return cls.int_pack(roles.local) + cls.int_pack(roles.remote)
+            return cls.packer.pack(roles.local) + cls.packer.pack(roles.remote)
     
     @classmethod
     def unpack(cls, bytes_):
-        return Roles(cls.int_unpack(bytes_), cls.int_unpack(bytes_[1:]))
+        return Roles(cls.packer.unpack(bytes_), cls.packer.unpack(bytes_[1:]))
         
     @classmethod
     def size(cls, bytes_=None):
-        return 2
+        return 2 * cls.packer.size()
     
     unpack_from = unpack
         

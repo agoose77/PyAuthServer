@@ -1,9 +1,9 @@
-from .bge_data import RigidBodyState, GameObject, CameraObject
-from .enums import PhysicsType, ShotType, CameraMode
+from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
+from .enums import PhysicsType, ShotType, CameraMode, MovementState
 from .inputs import InputManager
 
 from aud import Factory, device as AudioDevice
-from bge import logic, events, render
+from bge import logic, events, render, types
 from collections import namedtuple, OrderedDict
 from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
@@ -17,7 +17,7 @@ SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "
 class PlayerReplicationInfo(ReplicableInfo):
     
     name = Attribute("")
-
+    
 class PlayerController(Controller):
     
     input_fields = []
@@ -285,10 +285,20 @@ class Actor(Replicable):
     actor_class = GameObject
     
     verbose_execution = True
-    
-    def take_damage(self, damage, instigator, hit_position, momentum):
-        print("Take damage")
-        self.health = max(self.health - damage, 0)
+            
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+        
+        remote_role = self.roles.remote
+        
+        if is_complaint and (is_owner):
+            yield "health"
+        
+        # If simulated, send rigid body state
+        if (remote_role == Roles.simulated_proxy) or (remote_role == Roles.dumb_proxy) or (self.roles.remote == Roles.autonomous_proxy and not is_owner):
+            
+            if self.update_simulated_physics or is_initial:
+                yield "rigid_body_state"
     
     def on_initialised(self):
         super().on_initialised()
@@ -308,20 +318,10 @@ class Actor(Replicable):
             
         else:
             super().on_notify(name)
-            
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
-        
-        remote_role = self.roles.remote
-        
-        if is_complaint and (is_owner):
-            yield "health"
-        
-        # If simulated, send rigid body state
-        if (remote_role == Roles.simulated_proxy) or (remote_role == Roles.dumb_proxy) or (self.roles.remote == Roles.autonomous_proxy and not is_owner):
-            
-            if self.update_simulated_physics or is_initial:
-                yield "rigid_body_state"
+    
+    def take_damage(self, damage, instigator, hit_position, momentum):
+        print("Take damage")
+        self.health = max(self.health - damage, 0)
     
     @simulated
     def parent_to(self, obj):
@@ -331,20 +331,34 @@ class Actor(Replicable):
         self.object.setParent(obj)
     
     @simulated
+    def play_animation(self, name, start, end, layer=0, priority=0, blend=0, mode=logic.KX_ACTION_MODE_PLAY, weight=0.0, speed=1.0, blend_mode=logic.KX_ACTION_BLEND_BLEND):
+        self.skeleton.playAction(name, start, end, layer, priority, blend, mode, weight, speed=speed, blend_mode=blend_mode)
+    
+    @simulated
+    def playing_animation(self, layer=0):
+        return self.skeleton.isPlayingAction(layer)
+    
+    @simulated
+    def stop_animation(self, layer=0):
+        self.skeleton.stopAction(layer)
+    
+    @simulated
     def remove_parent(self):
         self.object.removeParent()
+    
+    @simulated
+    def restore_physics(self):
+        self.object.restoreDynamics()
     
     @simulated
     def suspend_physics(self):
         self.object.suspendDynamics()
     
-    @simulated
-    def restore_physics(self):
-        self.object.restoreDynamics()
-        
     @property
-    def sockets(self):
-        return {s['socket']: s for s in self.object.childrenRecursive if "socket" in s}
+    def skeleton(self):
+        for c in self.object.childrenRecursive:
+            if isinstance(c, types.BL_ArmatureObject):
+                return c
     
     @property
     def visible(self):
@@ -353,6 +367,10 @@ class Actor(Replicable):
     @property
     def physics(self):
         return self.object.physicsType
+        
+    @property
+    def sockets(self):
+        return {s['socket']: s for s in self.object.childrenRecursive if "socket" in s}
     
     @property
     def has_dynamics(self):
@@ -545,7 +563,7 @@ class Camera(Actor):
         
         
         self.look_mode = CameraMode.third_person
-        self.third_person_offset = 6.0
+        self.third_person_offset = 2.0
     
     def render_temporary(self, render_func):
         cam = self.object
@@ -580,7 +598,25 @@ class Pawn(Actor):
     weapon_attachment_class = Attribute(type_of=TypeRegister, 
                                         notify=True, 
                                         pointer_type=WeaponAttachment)
-                
+    
+    @property
+    def movement_state(self):
+        movement_speed = self.velocity.xy.length
+
+        if movement_speed < self.animation_tolerance:
+            state = MovementState.static
+            
+        elif abs(self.walk_speed - movement_speed) < self.animation_tolerance:
+            state = MovementState.walk
+        
+        elif abs(self.run_speed - movement_speed) < self.animation_tolerance:
+            state = MovementState.run
+        
+        else:
+            state = MovementState.static
+        
+        return state
+    
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
         
@@ -591,18 +627,15 @@ class Pawn(Actor):
         if is_complaint:
             yield "weapon_attachment_class"
     
-    def on_unregistered(self):
-        super().on_unregistered()
-
-        if self.weapon_attachment:
-            self.weapon_attachment.request_unregistration()
-    
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
         self.weapon_attachment.parent_to(self.sockets['weapon'])
         
         self.weapon_attachment.position = Vector()
         self.weapon_attachment.rotation = Euler()
+    
+    def handle_animation(self, movement_mode):
+        pass
         
     def on_initialised(self):
         super().on_initialised()
@@ -612,6 +645,11 @@ class Pawn(Actor):
         # Non owner attributes
         self.last_flash_count = 0
         self.outstanding_flash = 0
+
+        self.walk_speed = 4.0
+        self.run_speed = 7.0
+        
+        self.animation_tolerance = 0.5
         
     def on_notify(self, name):
         
@@ -625,6 +663,12 @@ class Pawn(Actor):
         else:
             super().on_notify(name)
     
+    def on_unregistered(self):
+        super().on_unregistered()
+
+        if self.weapon_attachment:
+            self.weapon_attachment.request_unregistration()
+    
     @simulated
     def update(self, delta_time):
         if self.outstanding_flash:
@@ -632,7 +676,9 @@ class Pawn(Actor):
         
         if self.weapon_attachment:
             self.weapon_attachment.rotation = Euler((self.view_pitch, 0, 0))
-    
+
+        self.handle_animation(self.movement_state)
+            
     @simulated
     def update_flashcout(self):
         self.outstanding_flash += self.flash_count - self.last_flash_count
@@ -642,3 +688,17 @@ class Pawn(Actor):
     def use_flashcout(self):
         self.weapon_attachment.play_firing_effects()
         self.outstanding_flash -= 1
+        
+class Navmesh(Actor):
+    roles = Roles(Roles.authority, Roles.none)
+    
+    actor_class = NavmeshObject
+    
+    def get_wall_intersection(self, from_point, to_point):
+        return  self.object.raycast(from_point, to_point)
+   
+    def draw(self):
+        self.object.draw()
+        
+    def find_path(self, from_point, to_point):
+        return self.object.findPath(from_point, to_point)
