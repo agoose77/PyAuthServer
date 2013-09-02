@@ -1,6 +1,7 @@
-from math import ceil 
+from math import ceil
 
-from .serialiser import (handler_from_byte_length, handler_from_bit_length, bits2bytes)
+from .serialiser import (handler_from_byte_length, handler_from_bit_length,
+                         bits2bytes)
 from .handler_interfaces import register_handler, get_handler
 from .descriptors import StaticValue
 

@@ -9,10 +9,13 @@ from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
 from math import pi
 from mathutils import Euler, Vector, Matrix
-from network import Replicable, Attribute, Roles, Controller, ReplicableInfo, WorldInfo, simulated, Netmodes, StaticValue, run_only_on, TypeRegister
+from network import (Replicable, Attribute, Roles, Controller, 
+                     ReplicableInfo, WorldInfo, simulated, Netmodes,
+                     StaticValue, run_only_on, TypeRegister)
 from os import path
 
-SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular", "delta_time", "inputs", "mouse_x", "mouse_y"))
+SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
+                                "delta_time", "inputs", "mouse_x", "mouse_y"))
 
 
 class PlayerReplicationInfo(ReplicableInfo):
@@ -45,7 +48,8 @@ class PlayerController(Controller):
 
         return mouse_diff_x, mouse_diff_y
 
-    def acknowledge_good_move(self, move_id: StaticValue(int)) -> Netmodes.client:
+    def acknowledge_good_move(self, move_id: StaticValue(int)
+                              ) -> Netmodes.client:
         try:
             self.previous_moves.pop(move_id)
 
@@ -58,7 +62,8 @@ class PlayerController(Controller):
         for key in additional_keys:
             self.previous_moves.pop(key)
 
-    def correct_bad_move(self, move_id: StaticValue(int), correction: StaticValue(RigidBodyState)) -> Netmodes.client:
+    def correct_bad_move(self, move_id: StaticValue(int), 
+             correction: StaticValue(RigidBodyState)) -> Netmodes.client:
         self.acknowledge_good_move(move_id)
 
         self.pawn.position = correction.position
@@ -74,10 +79,10 @@ class PlayerController(Controller):
 
             for move_id, move in self.previous_moves.items():
                 # Restore inputs
-                lookup_dict.update(zip(sorted(self.inputs.keybindings), 
+                lookup_dict.update(zip(sorted(self.inputs.keybindings),
                                        move.inputs))
                 # Execute move
-                self.execute_move(self.inputs, move.delta_time, move.mouse_x, 
+                self.execute_move(self.inputs, move.delta_time, move.mouse_x,
                                   move.mouse_y)
                 self.save_move(move_id, move.delta_time, move.inputs,
                                move.mouse_x, move.mouse_y)
@@ -173,7 +178,8 @@ class PlayerController(Controller):
 
         self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
         self.server_validate(self.current_move_id, self.inputs, mouse_diff_x,
-                             mouse_diff_y, delta_time, self.pawn.position, self.pawn.rotation)
+                             mouse_diff_y, delta_time, self.pawn.position,
+                             self.pawn.rotation)
 
         self.save_move(self.current_move_id, delta_time,
                        self.inputs.to_tuple(), mouse_diff_x,
@@ -203,7 +209,7 @@ class PlayerController(Controller):
         print("Created input manager")
 
     def server_validate(self, move_id:StaticValue(int),
-                            inputs: StaticValue(InputManager, 
+                            inputs: StaticValue(InputManager,
                                         class_data={"fields": "input_fields"}),
                             mouse_diff_x: StaticValue(float),
                             mouse_diff_y: StaticValue(float),

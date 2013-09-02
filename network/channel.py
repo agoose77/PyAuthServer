@@ -23,13 +23,13 @@ class Channel:
     def get_rpc_calls(self):
         '''Returns the requested RPC calls in a packaged format
         Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
-        int_pack = self.rpc_id_packer
+        id_packer = self.rpc_id_packer.pack
         get_reliable = is_reliable
 
         storage_data = self.replicable.rpc_storage.data
 
         for (method, data) in storage_data:
-            yield int_pack(method.rpc_id) + data, get_reliable(method)
+            yield id_packer(method.rpc_id) + data, get_reliable(method)
 
         storage_data.clear()
 
@@ -48,7 +48,7 @@ class Channel:
             print("Error invoking RPC: No RPC function with id {}".format(
                                                                       rpc_id))
         else:
-            method.execute(rpc_call[1:])
+            method.execute(rpc_call[self.rpc_id_packer.size():])
 
     @property
     def has_rpc_calls(self):

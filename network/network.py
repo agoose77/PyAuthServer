@@ -90,8 +90,7 @@ class Connection(InstanceNotifier):
 
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
-        make_packet = Packet()
-        packer = replicable_id_packer
+        packer = replicable_id_packer.pack
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
 
@@ -111,7 +110,7 @@ class Connection(InstanceNotifier):
             if channel.has_rpc_calls and check_is_owner(replicable):
                 for rpc_call, reliable in channel.get_rpc_calls():
                     rpc_data = packed_id + rpc_call
-                    yield make_packet(protocol=method_invoke,
+                    yield Packet(protocol=method_invoke,
                                       payload=rpc_data,
                                       reliable=reliable)
 
@@ -232,7 +231,7 @@ class ServerConnection(Connection):
         instance_id = replicable.instance_id
         packed_id = replicable_id_packer.pack(instance_id)
 
-        # Send delete packet 
+        # Send delete packet
         self.cached_packets.add(Packet(protocol=Protocols.replication_del,
                                     payload=packed_id, reliable=True))
 
@@ -268,11 +267,11 @@ class ServerConnection(Connection):
             # Send RPC calls if we are the owner
             if channel.has_rpc_calls and is_owner:
                 for rpc_call, reliable in channel.get_rpc_calls():
-                    yield make_packet(protocol=method_invoke,
+                    yield Packet(protocol=method_invoke,
                                       payload=packed_id + rpc_call,
                                       reliable=reliable)
 
-            # Only send attributes if relevant 
+            # Only send attributes if relevant
             # player controller and replicable
             if is_owner or is_relevant(self.replicable, replicable):
                 # If we've never replicated to this channel
@@ -313,7 +312,7 @@ class ServerConnection(Connection):
         channels = self.channels
 
         unpacker = replicable_id_packer.unpack_from
-        id_size = unpacker.size()
+        id_size = replicable_id_packer.size()
 
         method_invoke = Protocols.method_invoke
 

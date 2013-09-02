@@ -1,14 +1,8 @@
 from bge import logic, types
 from functools import wraps
 from mathutils import Vector, Euler, Quaternion, Matrix
-from network import Float8, Float4, UInt8, String, register_handler, register_description, WorldInfo, Struct, Attribute
-
-
-def get_armature(obj, recurse=False):
-    children = obj.children if not recurse else obj.childrenRecursive
-    for ob in children:
-        if isinstance(ob, types.BL_ArmatureObject):
-            return ob
+from network import (Float8, Float4, UInt8, String, register_handler,
+                     register_description, WorldInfo, Struct, Attribute)
 
 
 class RigidBodyState(Struct):
@@ -47,7 +41,7 @@ class ArmatureObject(EngineObject, types.BL_ArmatureObject):
     pass
 
 
-class NavmeshObject(EngineObject, types.KX_NavmeshObject):
+class NavmeshObject(EngineObject, types.KX_NavMeshObject):
     pass
 
 

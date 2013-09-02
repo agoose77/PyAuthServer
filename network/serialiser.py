@@ -1,10 +1,10 @@
-from struct import Struct
+from struct import Struct as PyStruct
 from math import ceil
 
 from .handler_interfaces import register_handler
 
 
-class IStruct(Struct):
+class IStruct(PyStruct):
     def size(self, bytes_=None):
         return super().size
 

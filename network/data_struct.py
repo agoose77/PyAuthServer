@@ -5,7 +5,6 @@ from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
 
 from copy import deepcopy
-from Lib.site-packages.spyder.formtools.model import self
 
 
 class Struct:
@@ -31,7 +30,7 @@ class Struct:
                                    self._container.data).values()))
 
     def to_bytes(self):
-        return self._serialiser.pack({a.name: v for a, v in 
+        return self._serialiser.pack({a.name: v for a, v in \
                                       self._container.data.items()})
 
     def on_notify(self, name):

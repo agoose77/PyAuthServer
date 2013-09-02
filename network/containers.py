@@ -164,4 +164,3 @@ class AttributeStorageInterface(StorageInterface):
         super().__init__(getter, setter)
 
         self.set_complaint = complaint
-

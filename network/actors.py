@@ -17,12 +17,13 @@ class Replicable(metaclass=ReplicableRegister):
 
     roles = Attribute(
                       Roles(
-                            Roles.authority, 
+                            Roles.authority,
                             Roles.none
                             )
                       )
 
-    def __init__(self, instance_id=None, register=False, static=True, **kwargs):
+    def __init__(self, instance_id=None, 
+                 register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
 
