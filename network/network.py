@@ -3,7 +3,7 @@ from .argument_serialiser import ArgumentSerialiser
 from .bitfield import Bitfield
 from .descriptors import StaticValue
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
-from .errors import NetworkError, ReplicableAccessError
+from .errors import NetworkError, ReplicableAccessError, TimeoutError
 from .handler_interfaces import (register_handler,
                                  get_handler, register_description)
 from .modifiers import reliable
@@ -108,7 +108,7 @@ class Connection(InstanceNotifier):
 
             # Send RPC calls if we are the owner
             if channel.has_rpc_calls and check_is_owner(replicable):
-                for rpc_call, reliable in channel.get_rpc_calls():
+                for rpc_call, reliable in channel.take_rpc_calls():
                     rpc_data = packed_id + rpc_call
                     yield Packet(protocol=method_invoke,
                                       payload=rpc_data,
@@ -266,7 +266,7 @@ class ServerConnection(Connection):
 
             # Send RPC calls if we are the owner
             if channel.has_rpc_calls and is_owner:
-                for rpc_call, reliable in channel.get_rpc_calls():
+                for rpc_call, reliable in channel.take_rpc_calls():
                     yield Packet(protocol=method_invoke,
                                       payload=packed_id + rpc_call,
                                       reliable=reliable)
@@ -343,8 +343,10 @@ class ServerConnection(Connection):
 
 class ConnectionInterface(metaclass=InstanceRegister):
 
-    def __init__(self, addr):
-        super().__init__(instance_id=self.convert_address(addr), register=True)
+    def __init__(self, addr, on_error=None, on_timeout=None, on_connected=None):
+        self.on_error = on_error
+        self.on_timeout = on_timeout
+        self.on_connected = on_connected
 
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
@@ -375,7 +377,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # Time out for connection before it is deleted
         self.time_out = 2
-        self.last_received = monotonic() 
+        self.last_received = monotonic()
 
         # Simple connected status
         self.status = ConnectionStatus.disconnected
@@ -387,6 +389,9 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # Maintenance info
         self._addr = self.convert_address(addr)
+
+        if self._addr is not None:
+            super().__init__(instance_id=self._addr, register=True)
 
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -412,7 +417,13 @@ class ConnectionInterface(metaclass=InstanceRegister):
     def convert_address(self, addr):
         '''Unifies alias address names
         @param addr: address to clean'''
-        return gethostbyname(addr[0]), addr[1]
+        try:
+            return gethostbyname(addr[0]), addr[1]
+        except Exception as err:
+            if callable(self.on_error):
+                self.on_error(err)
+            else:
+                raise
 
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
@@ -443,12 +454,21 @@ class ConnectionInterface(metaclass=InstanceRegister):
     def connected(self, *args, **kwargs):
         self.status = ConnectionStatus.connected
 
+        if callable(self.on_connected):
+            self.on_connected()
+
     def send(self, network_tick):
 
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
-            print("Connection to {} timed out".format(self._addr))
+
+            err = TimeoutError("Connection to {} timed out".format(self._addr))
+
+            if callable(self.on_timeout):
+                self.on_timeout(err)
+            else:
+                raise err
 
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
@@ -640,9 +660,6 @@ class ServerInterface(ConnectionInterface):
 
 class ClientInterface(ConnectionInterface):
 
-    def __init__(self, addr):
-        super().__init__(addr)
-
     def get_handshake(self):
         return Packet(protocol=Protocols.request_auth,
                       payload=self.netmode_packer.pack(WorldInfo.netmode),
@@ -657,8 +674,10 @@ class ClientInterface(ConnectionInterface):
             err_body = self.error_packer.unpack_from(err_data)
             err = NetworkError.from_type_name(err_type)
 
-            if err is not None:
-                raise err(err_body)
+            if callable(self.on_error):
+                self.on_error(err)
+            else:
+                raise err
 
         # Get remote network mode
         netmode = self.netmode_packer.unpack_from(packet.payload)
@@ -768,8 +787,8 @@ class Network(socket):
         # Delete dead connections
         ConnectionInterface.update_graph()
 
-    def connect_to(self, conn):
-        return ConnectionInterface(conn)
+    def connect_to(self, conn, *args, **kwargs):
+        return ConnectionInterface(conn, *args, **kwargs)
 
 
 class ReplicableProxy:

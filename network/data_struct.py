@@ -1,4 +1,3 @@
-from .serialiser import UInt8
 from .handler_interfaces import register_handler, get_handler
 from .descriptors import StaticValue
 from .containers import AttributeStorageContainer

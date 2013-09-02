@@ -32,13 +32,15 @@ class PlayerController(Controller):
 
     @property
     def mouse_delta(self):
+        '''Returns the mouse movement since the last tick''' 
         mouse = logic.mouse
-        m_pos = mouse.position
-        s_center = mouse.screen_center
+        # The first tick the mouse won't be centred
+        mouse_position = mouse.position
+        screen_center = mouse.screen_center
 
         if self.mouse_setup:
-            mouse_diff_x = s_center[0] - m_pos[0]
-            mouse_diff_y = s_center[1] - m_pos[1]
+            mouse_diff_x = screen_center[0] - mouse_position[0]
+            mouse_diff_y = screen_center[1] - mouse_position[1]
 
         else:
             mouse_diff_x = mouse_diff_y = 0.0
@@ -137,7 +139,8 @@ class PlayerController(Controller):
 
         # Read binding information
         class_name = self.__class__.type_name
-        bindings = {k: eval(v) for k, v in parser[class_name].items()
+
+        bindings = {k: int(v) for k, v in parser[class_name].items()
                 if not k.upper() in all_events and k in self.input_fields}
 
         # Ensure we have all bindings

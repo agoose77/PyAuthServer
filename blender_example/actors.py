@@ -99,17 +99,16 @@ class RobertNeville(Pawn):
         super().on_initialised()
 
         self.last_movement_state = None
-        self.walk_speed = 1
-        self.run_speed = 2
+        self.walk_speed = 3
+        self.run_speed = 6
 
     def handle_animation(self, movement_state):
         # Play new state animation
         if not self.playing_animation(movement_state):
 
             if movement_state == MovementState.walk:
-                self.play_animation("Frankie_Walk", 0, 19, movement_state,
-                                    mode=logic.KX_ACTION_MODE_LOOP)
-                print(self.skeleton)
+                pass#self.play_animation("Frankie_Walk", 0, 19, movement_state,
+                     #               mode=logic.KX_ACTION_MODE_LOOP)
 
             # Stop old animations
             if self.last_movement_state is not None and 0 and \

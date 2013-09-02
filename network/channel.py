@@ -20,7 +20,7 @@ class Channel:
         self.serialiser = ArgumentSerialiser(self.sorted_attributes)
         self.rpc_id_packer = get_handler(StaticValue(int))
 
-    def get_rpc_calls(self):
+    def take_rpc_calls(self):
         '''Returns the requested RPC calls in a packaged format
         Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
         id_packer = self.rpc_id_packer.pack
@@ -34,8 +34,8 @@ class Channel:
         storage_data.clear()
 
     def invoke_rpc_call(self, rpc_call):
-        '''Invokes an rpc call from packed format
-        @param rpc_call: rpc data (see get_rpc_calls)'''
+        '''Invokes an rpc call from packaged format
+        @param rpc_call: rpc data (see take_rpc_calls)'''
         rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
 
         if not self.replicable.registered:
@@ -52,6 +52,7 @@ class Channel:
 
     @property
     def has_rpc_calls(self):
+        '''Returns True if replicable has outgoing RPC calls'''
         return bool(self.replicable.rpc_storage.data)
 
 
@@ -125,7 +126,6 @@ class ServerChannel(Channel):
 
             # Get current value
             attribute = get_attribute(name)
-
             value = attribute_data[attribute]
 
             # Check if the last hash is the same

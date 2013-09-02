@@ -138,6 +138,9 @@ class TeamDeathMatch(BaseGameInfo):
 
 class Server(ServerLoop, InstanceNotifier):
 
+    def create_ui(self):
+        return None
+
     def create_network(self):
         network = super().create_network()
 

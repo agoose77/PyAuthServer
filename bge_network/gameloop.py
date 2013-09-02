@@ -24,6 +24,8 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
         self.physics_system = PhysicsSystem(self.physics_callback,
                                             self.apply_physics)
 
+        self.ui_system = self.create_ui()
+
         Camera.subscribe(self)
 
         WorldInfo.physics = self.physics_system
@@ -79,6 +81,9 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
 
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
                     self.physics_system.update(scene, delta_time)
+
+                    if self.ui_system is not None:
+                        self.ui_system.update(delta_time)
 
                 else:
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
