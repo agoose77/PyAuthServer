@@ -1,5 +1,6 @@
 from collections import defaultdict
-        
+
+
 class FactoryDict(defaultdict):
     '''Dictionary with factory for missing keys
     Provides key to factory function provided to initialiser'''
