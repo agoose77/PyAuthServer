@@ -14,12 +14,14 @@ class System(bgui.System):
 
         super().__init__(theme_path)
 
+        self.scene = bge.logic.getCurrentScene()
+
         self._subscribers = []
         self._keymap = {getattr(bge.events, val): getattr(bgui, val)
                         for val in dir(bge.events) if (val.endswith('KEY') or \
                                val.startswith('PAD')) and hasattr(bgui, val)}
 
-        bge.logic.getCurrentScene().post_draw.append(self.render)
+        self.scene.post_draw.append(self.render)
 
     def update(self, delta_time):
         # Handle the mouse
@@ -64,7 +66,8 @@ class System(bgui.System):
 
             if panel.visible:
                 panel.update(delta_time)
-                visible_panel = True
+                if panel.uses_mouse:
+                    visible_panel = True
 
         bge.logic.mouse.visible = visible_panel
 
@@ -72,7 +75,9 @@ class System(bgui.System):
 class Panel(bgui.Frame):
 
     def __init__(self, system, name):
-        super().__init__(parent=system, name=name, size=[1, 1])
+        super().__init__(parent=system, name=name, size=[1, 1], options=CENTERED)
+
+        self.uses_mouse = False
 
     def update(self, delta_time):
         pass
@@ -84,19 +89,21 @@ class ConnectPanel(Panel):
         super().__init__(system, "Connect")
 
         self.connecter = None
+        self.aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
 
         self.center_column = bgui.Frame(parent=self, name="center",
                                         size=[0.8, 0.8], options=CENTERED,
                                         sub_theme="ContentBox")
+
         self.connect_label = bgui.Label(parent=self.center_column,
-                                        name="label", pos=[0.0, 0.90],
+                                        name="label", pos=[0.0, 0.20],
                                         text="Connection Wizard",
                                         options=CENTERX, sub_theme="Title")
 
-        # Ip input
+        # IP input
         self.connection_row = bgui.Frame(parent=self.center_column,
                                          name="connection_frame",
-                                         size=[0.8, 0.1], pos=[0.0, 0.7],
+                                         size=[0.8, 0.1], pos=[0.0, 0.5],
                                          sub_theme="ContentRow",
                                          options=CENTERX)
 
@@ -134,7 +141,7 @@ class ConnectPanel(Panel):
         # Data input
         self.data_row = bgui.Frame(parent=self.center_column,
                                    name="data_frame", size=[0.8, 0.1],
-                                   pos=[0.0, 0.5], sub_theme="ContentRow",
+                                   pos=[0.0, 0.3], sub_theme="ContentRow",
                                    options=CENTERX)
 
         self.connect_group = bgui.Frame(parent=self.data_row,
@@ -157,7 +164,15 @@ class ConnectPanel(Panel):
                                           text="",
                                           pos=[0.0, 0.0],
                                           options=CENTERED)
+
+        self.logo = bgui.Image(parent=self.center_column, name="logo",
+                               img="legend.jpg", size=[0.3, 0.3],
+                               pos=[0.5,0.65], aspect=self.aspect,
+                               options=CENTERX)
+
         self.connect_button.on_click = self.on_connect
+
+        self.uses_mouse = True
 
     def on_connect(self, button):
         if not callable(self.connecter):
@@ -172,9 +187,28 @@ class ConnectPanel(Panel):
         self.connect_button.frozen = self.port_field.invalid
 
 
+class SamanthaPanel(Panel):
+
+    def __init__(self, system):
+        super().__init__(system, "Samantha_Overlay")
+
+        aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
+        scene = system.scene
+
+        camera = scene.objects['Samantha_Camera']
+
+        self.video_source = bge.texture.ImageRender(scene, camera)
+        self.video_source.background = 255, 255, 255, 255
+
+        self.video = bgui.ImageRender(parent=self, name="Samantha_Video",
+                                    pos=[0, 0], size=[0.2, 0.2],
+                                    aspect=aspect, source=self.video_source)
+
+
 class BGESystem(System):
 
     def __init__(self):
         super().__init__()
 
         self.connect_panel = ConnectPanel(self)
+        #self.samantha_panel = SamanthaPanel(self)

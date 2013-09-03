@@ -190,10 +190,10 @@ class PlayerController(Controller):
 
         self.increment_move()
 
-    def possess(self, actor):
-        WorldInfo.physics.add_exemption(actor)
+    def possess(self, replicable):
+        WorldInfo.physics.add_exemption(replicable)
 
-        super().possess(actor)
+        super().possess(replicable)
 
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
                   mouse_diff_y):
@@ -354,6 +354,10 @@ class Actor(Replicable):
     def take_damage(self, damage, instigator, hit_position, momentum):
         print("Take damage")
         self.health = max(self.health - damage, 0)
+
+    @simulated
+    def on_collision(self, actor, new_collision):
+        print(actor, new_collision)
 
     @simulated
     def parent_to(self, obj):
@@ -533,8 +537,8 @@ class Weapon(Replicable):
         if not hit_object:
             return
 
-        for actor in WorldInfo.subclass_of(Actor):
-            if actor.object == hit_object:
+        for replicable in WorldInfo.subclass_of(Actor):
+            if replicable.object == hit_object:
                 break
         else:
             return
@@ -556,7 +560,7 @@ class Weapon(Replicable):
 
         momentum = self.momentum * hit_vector.normalized() * falloff
 
-        actor.take_damage(damage, self.owner, hit_position, momentum)
+        replicable.take_damage(damage, self.owner, hit_position, momentum)
 
     @property
     def sound_folder(self):
@@ -630,12 +634,12 @@ class Camera(Actor):
         render_func()
         scene.active_camera = old_camera
 
-    def sees_actor(self, actor):
-        if actor.camera_radius < 0.5:
-            return self.object.pointInsideFrustum(actor.world_position)
+    def sees_actor(self, replicable):
+        if replicable.camera_radius < 0.5:
+            return self.object.pointInsideFrustum(replicable.world_position)
 
-        return self.object.sphereInsideFrustum(actor.world_position,
-                           actor.camera_radius) != self.object.OUTSIDE
+        return self.object.sphereInsideFrustum(replicable.world_position,
+                           replicable.camera_radius) != self.object.OUTSIDE
 
     def trace(self, x_coord, y_coord, distance=0):
         return self.object.getScreenRay(x_coord, y_coord, distance)

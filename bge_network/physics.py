@@ -1,18 +1,58 @@
 from .actors import Actor
 from .enums import PhysicsType
 
-from bge import logic
+from bge import logic, types
 from collections import defaultdict
 from functools import partial
-from network import WorldInfo, Netmodes
+from network import WorldInfo, Netmodes, FactoryDict, InstanceNotifier
 from time import monotonic
+
+
+class CollisionStatus:
+    """Handles collision for Actors"""
+    def __init__(self, actor):
+
+        if hasattr(types.KX_GameObject, "collisionCallbacks"):
+            actor.object.collisionCallbacks.append(self.is_colliding)
+
+        self._new_colliders = set()
+        self._old_colliders = set()
+        self._registered = set()
+        self._actor = actor
+        self.receive_collisions = True
+
+    @property
+    def colliding(self):
+        return bool(self._registered)
+
+    def is_colliding(self, other):
+        if not self.receive_collisions:
+            return
+
+        # If we haven't already stored the collision
+        self._new_colliders.add(other)
+
+        if (not other in self._registered):
+            self._registered.add(other)
+            self._actor.on_collision(other, True)
+
+    def not_colliding(self):
+        # If we have a stored collision
+        difference = self._old_colliders.difference(self._new_colliders)
+
+        self._old_colliders = self._new_colliders
+        self._new_colliders = set()
+
+        for obj in difference:
+            self._registered.remove(obj)
+            self._actor.on_collision(obj, False)
 
 
 class SimulationEntry:
 
-    def __init__(self, actor, callback=None):
+    def replicablet__(self, actor, callback=None):
         self.callback = callback
-        self.actor = actor
+        self.replicable = actor
 
         self._duration = None
         self._func = None
@@ -32,7 +72,7 @@ class SimulationEntry:
             self._func(length)
 
 
-class PhysicsSystem:
+class PhysicsSystem(InstanceNotifier):
 
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -49,9 +89,15 @@ class PhysicsSystem:
 
     def __init__(self, update_func, apply_func):
         self._exempt_actors = []
+        self._listeners = {}
         self._update_func = update_func
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
+
+        Actor.subscribe(self)
+
+    def notify_unregistration(self, replicable):
+        self.remove_listener(replicable)
 
     def add_exemption(self, actor):
         print("{} is exempt from default physics".format(actor))
@@ -67,6 +113,10 @@ class PhysicsSystem:
         for this_actor in WorldInfo.subclass_of(Actor):
             if this_actor == actor:
                 continue
+            # Callbacks freeze
+            if actor in self._listeners:
+                self._listeners[actor].receive_collisions = False
+
             this_actor.suspend_physics()
 
         self._update_func(delta_time)
@@ -74,6 +124,10 @@ class PhysicsSystem:
         for this_actor in WorldInfo.subclass_of(Actor):
             if this_actor == actor:
                 continue
+
+            if actor in self._listeners:
+                self._listeners[actor].receive_collisions = True
+
             this_actor.restore_physics()
 
         self._apply_func()
@@ -87,6 +141,10 @@ class PhysicsSystem:
         for actor in self._exempt_actors:
             try:
                 actor.suspend_physics()
+
+                if actor in self._listeners:
+                    self._listeners[actor].receive_collisions = False
+
             except RuntimeError:
                 print(actor, "was not removed from the exempt actors list")
 
@@ -94,29 +152,56 @@ class PhysicsSystem:
 
         # Restore scheduled objects
         for actor in self._exempt_actors:
+
+            if actor in self._listeners:
+                self._listeners[actor].receive_collisions = True
+
             actor.restore_physics()
 
         self._apply_func()
-        self.restore_objects()
+
+    def needs_listener(self, replicable):
+        return replicable.physics in self._active_physics and not \
+                            replicable in self._listeners
+
+    def create_listener(self, replicable):
+        self._listeners[replicable] = CollisionStatus(replicable)
+
+    def remove_listener(self, replicable):
+        self._listeners.pop(replicable, None)
 
 
 class ServerPhysics(PhysicsSystem):
 
-    def restore_objects(self):
+    def update(self, scene, delta_time):
+        super().update(scene, delta_time)
 
-        for actor in WorldInfo.subclass_of(Actor):
-            state = actor.rigid_body_state
+        for replicable in WorldInfo.subclass_of(Actor):
+            state = replicable.rigid_body_state
 
             # Can probably do this once then use muteable property
-            state.position = actor.position.copy()
-            state.velocity = actor.velocity.copy()
-            state.rotation = actor.rotation.copy()
-            state.angular = actor.angular.copy()
+            state.position = replicable.position.copy()
+            state.velocity = replicable.velocity.copy()
+            state.rotation = replicable.rotation.copy()
+            state.angular = replicable.angular.copy()
+
+            # If we need to make a callback instance
+            if self.needs_listener(replicable):
+                self.create_listener(replicable)
 
 
 class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
+
+    def update(self, scene, delta_time):
+        super().update(scene, delta_time)
+
+        for replicable in WorldInfo.subclass_of(Actor):
+
+            # If we need to make a callback instance
+            if self.needs_listener(replicable):
+                self.create_listener(replicable)
 
     def actor_replicated(self, actor, actor_physics):
         difference = actor_physics.position - actor.position
