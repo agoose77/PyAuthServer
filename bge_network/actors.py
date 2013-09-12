@@ -9,13 +9,80 @@ from configparser import ConfigParser, ExtendedInterpolation
 from inspect import getmembers
 from math import pi
 from mathutils import Euler, Vector, Matrix
-from network import (Replicable, Attribute, Roles, Controller, 
-                     ReplicableInfo, WorldInfo, simulated, Netmodes,
-                     StaticValue, run_only_on, TypeRegister)
+from network import (Replicable, Attribute, Roles, WorldInfo, 
+                     simulated, Netmodes, StaticValue, run_only_on, TypeRegister)
 from os import path
 
 SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
                                 "delta_time", "inputs", "mouse_x", "mouse_y"))
+
+
+class Controller(Replicable):
+
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
+    camera = Attribute(type_of=Replicable, complain=True, notify=True)
+    weapon = Attribute(type_of=Replicable, complain=True, notify=True)
+    info = Attribute(type_of=Replicable)
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "pawn"
+            yield "camera"
+            yield "weapon"
+            yield "info"
+
+    def on_initialise(self):
+        self.camera_setup = False
+
+    def on_notify(self, name):
+        if name == "pawn":
+            self.possess(self.pawn)
+
+        elif name == "camera":
+            self.set_camera(self.camera)
+            self.camera.active = True
+
+        elif name == "weapon":
+            self.set_weapon(self.weapon)
+
+        else:
+            super().on_notify(name)
+
+    def player_update(self, elapsed):
+        pass
+
+    def possess(self, replicable):
+        self.pawn = replicable
+        self.pawn.possessed_by(self)
+
+    def receive_broadcast(self, sender: StaticValue(Replicable),
+                  message_string:StaticValue(str)) -> Netmodes.client:
+        print("BROADCAST: {}".format(message_string))
+
+    def remove_camera(self):
+        self.camera.unpossessed()
+
+    def set_camera(self, camera):
+        self.camera = camera
+        self.camera.possessed_by(self)
+
+    def set_weapon(self, weapon):
+        self.weapon = weapon
+        self.weapon.possessed_by(self)
+
+    def unpossess(self):
+        self.pawn.unpossessed()
+
+
+class ReplicableInfo(Replicable):
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.always_relevant = True
 
 
 class PlayerReplicationInfo(ReplicableInfo):
@@ -32,7 +99,7 @@ class PlayerController(Controller):
 
     @property
     def mouse_delta(self):
-        '''Returns the mouse movement since the last tick''' 
+        '''Returns the mouse movement since the last tick'''
         mouse = logic.mouse
         # The first tick the mouse won't be centred
         mouse_position = mouse.position
@@ -64,7 +131,7 @@ class PlayerController(Controller):
         for key in additional_keys:
             self.previous_moves.pop(key)
 
-    def correct_bad_move(self, move_id: StaticValue(int), 
+    def correct_bad_move(self, move_id: StaticValue(int),
              correction: StaticValue(RigidBodyState)) -> Netmodes.client:
         self.acknowledge_good_move(move_id)
 
@@ -220,7 +287,7 @@ class PlayerController(Controller):
                             position: StaticValue(Vector),
                             rotation: StaticValue(Euler)
                         ) -> Netmodes.server:
-
+        print("QWDS")
         self.current_move_id = move_id
 
         self.execute_move(inputs, mouse_diff_x, mouse_diff_y, delta_time)

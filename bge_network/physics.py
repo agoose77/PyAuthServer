@@ -13,26 +13,27 @@ class CollisionStatus:
     def __init__(self, actor):
 
         if hasattr(types.KX_GameObject, "collisionCallbacks"):
-            actor.object.collisionCallbacks.append(self.is_colliding)
+            self.register_callback(actor)
 
         self._new_colliders = set()
         self._old_colliders = set()
         self._registered = set()
         self._actor = actor
+
         self.receive_collisions = True
 
     @property
     def colliding(self):
         return bool(self._registered)
 
-    def is_colliding(self, other):
+    def is_colliding(self, other, data):
         if not self.receive_collisions:
             return
 
         # If we haven't already stored the collision
         self._new_colliders.add(other)
 
-        if (not other in self._registered):
+        if not other in self._registered:
             self._registered.add(other)
             self._actor.on_collision(other, True)
 
@@ -43,9 +44,15 @@ class CollisionStatus:
         self._old_colliders = self._new_colliders
         self._new_colliders = set()
 
+        if not difference:
+            return
+
         for obj in difference:
             self._registered.remove(obj)
             self._actor.on_collision(obj, False)
+
+    def register_callback(self, actor):
+        actor.object.collisionCallbacks.append(self.is_colliding)
 
 
 class SimulationEntry:

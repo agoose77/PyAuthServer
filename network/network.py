@@ -1,9 +1,9 @@
-from .actors import BaseWorldInfo, Controller, Replicable
+from .actors import BaseWorldInfo, Replicable, WorldInfo
 from .argument_serialiser import ArgumentSerialiser
 from .bitfield import Bitfield
 from .descriptors import StaticValue
 from .enums import Netmodes, Roles, Protocols, ConnectionStatus
-from .errors import NetworkError, ReplicableAccessError, TimeoutError
+from .errors import NetworkError, TimeoutError
 from .handler_interfaces import (register_handler,
                                  get_handler, register_description)
 from .modifiers import reliable
@@ -34,10 +34,6 @@ class run_only_on:
             return func(*args, **kwargs)
         return wrapper
 
-maximum_replicables = 255
-replicable_id_packer = get_handler(StaticValue(int,
-                                   max_value=maximum_replicables))
-
 
 class Connection(InstanceNotifier):
 
@@ -52,7 +48,8 @@ class Connection(InstanceNotifier):
         self.replicable = None
 
         self.string_packer = get_handler(StaticValue(str))
-        self.protocol_packer = get_handler(StaticValue(int))
+        self.int_packer = get_handler(StaticValue(int))
+        self.replicable_packer = get_handler(StaticValue(Replicable))
 
         Replicable.subscribe(self)  # @UndefinedVariable
 
@@ -90,7 +87,7 @@ class Connection(InstanceNotifier):
 
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
-        packer = replicable_id_packer.pack
+        packer = self.replicable_packer.pack_id
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
 
@@ -110,6 +107,7 @@ class Connection(InstanceNotifier):
             if channel.has_rpc_calls and check_is_owner(replicable):
                 for rpc_call, reliable in channel.take_rpc_calls():
                     rpc_data = packed_id + rpc_call
+
                     yield Packet(protocol=method_invoke,
                                       payload=rpc_data,
                                       reliable=reliable)
@@ -124,9 +122,10 @@ class ClientConnection(Connection):
         Accepts replication packets and responds to protocol
         @param packet: replication packet'''
 
+        instance_id = self.replicable_packer.unpack_id(packet.payload)
+
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:
-            instance_id = replicable_id_packer.unpack_from(packet.payload)
 
             if Replicable.graph_has_instance(instance_id):
                 channel = self.channels[instance_id]
@@ -136,9 +135,8 @@ class ClientConnection(Connection):
                 print("Unable to replicate to replicable with id {}"
                       .format(instance_id))
 
-        # If it is an RPC call 
+        # If it is an RPC call
         elif packet.protocol == Protocols.method_invoke:
-            instance_id = replicable_id_packer.unpack_from(packet.payload)
 
             if Replicable.graph_has_instance(instance_id):
                 channel = self.channels[instance_id]
@@ -148,23 +146,30 @@ class ClientConnection(Connection):
 
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:
-            instance_id = replicable_id_packer.unpack_from(packet.payload)
-            type_name = self.string_packer.unpack_from(packet.payload[1:])
+
+            id_size = self.replicable_packer.size()
+
+            type_name = self.string_packer.unpack_from(
+                       packet.payload[id_size:])
+
+            type_size = self.string_packer.size(
+                        packet.payload[id_size:])
+
+            is_connection_host = bool(self.int_packer.unpack_from(
+                       packet.payload[id_size + type_size:]))
 
             # Create replicable of same type
             replicable_cls = Replicable.from_type_name(type_name)
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
-
             # If replicable is Controller
-            if isinstance(replicable, Controller):
+            if is_connection_host:
 
                 # Register as own replicable
                 self.replicable = weak_proxy(replicable)
 
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:
-            instance_id = replicable_id_packer.unpack_from(packet.payload)
 
             # If the replicable exists
             try:
@@ -229,7 +234,7 @@ class ServerConnection(Connection):
         super().notify_unregistration(replicable)
 
         instance_id = replicable.instance_id
-        packed_id = replicable_id_packer.pack(instance_id)
+        packed_id = self.replicable_packer.pack_id(instance_id)
 
         # Send delete packet
         self.cached_packets.add(Packet(protocol=Protocols.replication_del,
@@ -239,7 +244,7 @@ class ServerConnection(Connection):
         '''Yields replication packets for relevant replicable
         @param replicable: replicable to replicate'''
         is_relevant = WorldInfo.game_info.is_relevant
-        id_packer = replicable_id_packer.pack
+        id_packer = self.replicable_packer.pack_id
         check_is_owner = self.is_owner
         get_channel = self.channels.__getitem__
 
@@ -279,11 +284,12 @@ class ServerConnection(Connection):
                     # Pack the class name
                     packed_class = self.string_packer.pack(
                                        replicable.__class__.type_name)
-
+                    packed_is_host = self.int_packer.pack(
+                                      replicable == self.replicable)
                     # Send the protocol, class name and owner status to client
                     yield Packet(protocol=replication_init,
-                                      payload=packed_id + packed_class,
-                                      reliable=True)
+                                      payload=packed_id + packed_class +\
+                                      packed_is_host, reliable=True)
 
                 # Send changed attributes
                 attributes = channel.get_attributes(is_owner)
@@ -311,8 +317,8 @@ class ServerConnection(Connection):
         is_owner = self.is_owner
         channels = self.channels
 
-        unpacker = replicable_id_packer.unpack_from
-        id_size = replicable_id_packer.size()
+        unpacker = self.replicable_packer.unpack_id
+        id_size = self.replicable_packer.size()
 
         method_invoke = Protocols.method_invoke
 
@@ -343,7 +349,8 @@ class ServerConnection(Connection):
 
 class ConnectionInterface(metaclass=InstanceRegister):
 
-    def __init__(self, addr, on_error=None, on_timeout=None, on_connected=None):
+    def __init__(self, addr, on_error=None,
+                 on_timeout=None, on_connected=None):
         self.on_error = on_error
         self.on_timeout = on_timeout
         self.on_connected = on_connected
@@ -632,7 +639,7 @@ class ServerInterface(ConnectionInterface):
 
         else:
             # Send acknowledgement
-            return Packet(protocol=Protocols.auth_success, 
+            return Packet(protocol=Protocols.auth_success,
                           payload=self.netmode_packer.pack(WorldInfo.netmode),
                           on_success=self.connected)
 
@@ -704,7 +711,7 @@ class Network(socket):
 
     @property
     def can_send(self):
-        '''Determines if the socket can send 
+        '''Determines if the socket can send
         Result according to time elapsed >= send interval'''
         return (monotonic() - self._last_sent) >= self._interval
 
@@ -791,158 +798,6 @@ class Network(socket):
         return ConnectionInterface(conn, *args, **kwargs)
 
 
-class ReplicableProxy:
-    """Lazy loading proxy to Replicable references
-    Used to send references over the network"""
-    __slots__ = ["reference", "instance_id", "__weakref__"]
-
-    def __init__(self, instance_id):
-        object.__setattr__(self, "instance_id", instance_id)
-
-    @property
-    def _obj(self):
-        '''Returns the reference when valid, or None when invalid'''
-        try:
-            return object.__getattribute__(self, "reference")
-
-        except AttributeError:
-            instance_id = object.__getattribute__(self, "instance_id")
-
-            # Get the instance by instance id
-            try:
-                replicable_instance = WorldInfo.get_replicable(instance_id)
-            except LookupError:
-                return
-
-            # Don't return proxy to local authorities
-            if replicable_instance._local_authority:
-                return
-
-            child = weak_proxy(replicable_instance)
-            object.__setattr__(self, "reference", child)
-
-            return child
-
-    def __getattribute__(self, name):
-        target = object.__getattribute__(self, "_obj")
-        try:
-            return getattr(target, name)
-        except AttributeError:
-            if target is None:
-                raise ReplicableAccessError()
-            raise
-
-    def __delattr__(self, name):
-        delattr(object.__getattribute__(self, "_obj"), name)
-
-    def __setattr__(self, name, value):
-        setattr(object.__getattribute__(self, "_obj"), name, value)
-
-    def __nonzero__(self):
-        return bool(object.__getattribute__(self, "_obj"))
-
-    def __str__(self):
-        return str(object.__getattribute__(self, "_obj"))
-
-    def __repr__(self):
-        return repr(object.__getattribute__(self, "_obj"))
-
-    def __bool__(self):
-        return bool(object.__getattribute__(self, "_obj"))
-
-    _special_names = [
-        '__abs__', '__add__', '__and__', '__call__', '__cmp__',
-        '__coerce__', '__contains__', '__delitem__', '__delslice__',
-        '__div__', '__divmod__', '__eq__', '__float__', '__floordiv__',
-        '__ge__', '__getitem__', '__getslice__', '__gt__', '__hash__',
-        '__hex__', '__iadd__', '__iand__', '__idiv__', '__idivmod__',
-        '__ifloordiv__', '__ilshift__', '__imod__',  '__imul__',
-        '__int__', '__invert__', '__ior__', '__ipow__', '__irshift__',
-        '__isub__', '__iter__', '__itruediv__', '__ixor__', '__le__',
-        '__len__', '__long__', '__lshift__', '__lt__', '__mod__',
-        '__mul__', '__ne__', '__neg__', '__oct__', '__or__', '__pos__',
-        '__pow__', '__radd__', '__rand__', '__rdiv__', '__rdivmod__',
-        '__reduce__', '__reduce_ex__', '__repr__', '__reversed__',
-        '__rfloorfiv__', '__rlshift__', '__rmod__', '__rmul__',
-        '__ror__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__',
-        '__rtruediv__', '__rxor__', '__setitem__', '__setslice__',
-        '__sub__', '__truediv__', '__xor__', 'next',
-    ]
-
-    @classmethod
-    def _create_class_proxy(cls, theclass):
-        """creates a proxy for the given class"""
-
-        def make_method(name):
-            def method(self, *args, **kw):
-                method = getattr(object.__getattribute__(self, "_obj"), name)
-                return method(*args, **kw)
-            return method
-
-        namespace = {}
-        for name in cls._special_names:
-            if hasattr(theclass, name):
-                namespace[name] = make_method(name)
-        return type("{}({})".format(cls.__name__, theclass.__name__),
-                                                    (cls,), namespace)
-
-    def __new__(cls, obj, *args, **kwargs):
-            """
-            creates a proxy instance referencing `obj`.
-            (obj, *args, **kwargs) are passed to this class' __init__,
-            so deriving classes can define an __init__ method of their own.
-            note: _class_proxy_cache is unique per deriving class
-            (each deriving class must hold its own cache)
-            """
-            try:
-                cache = cls.__dict__["_class_proxy_cache"]
-            except KeyError:
-                cls._class_proxy_cache = cache = {}
-
-            try:
-                theclass = cache[obj.__class__]
-            except KeyError:
-                theclass = cache[obj.__class__] = cls._create_class_proxy(
-                                                              obj.__class__)
-            ins = object.__new__(theclass)
-            theclass.__init__(ins, obj, *args, **kwargs)
-            return ins
-
-
-class ReplicableProxyHandler:
-    """Handler for packing replicable proxy
-    Packs replicable references and unpacks to proxy OR reference"""
-
-    @classmethod
-    def pack(cls, replicable):
-        # Send the instance ID
-        return replicable_id_packer.pack(replicable.instance_id)
-
-    @classmethod
-    def unpack(cls, bytes_):
-        instance_id = replicable_id_packer.unpack_from(bytes_)
-
-        # Return only a replicable that was created by the network
-        try:
-            replicable = WorldInfo.get_replicable(instance_id)
-            # Check that it was made locally and has a remote role
-            # replicable.roles.remote != Roles.none
-            assert replicable._local_authority
-            return weak_proxy(replicable)
-
-        # We can't be sure that this is the correct instance
-        # Use proxy to delay checks
-        # Also, in past revisions: hoping it will have now been replicated
-        except (LookupError, AssertionError):
-            return ReplicableProxy(instance_id)
-
-    @classmethod
-    def size(cls, bytes_=None):
-        return replicable_id_packer.size(bytes_)
-
-    unpack_from = unpack
-
-
 class TypeHandler:
 
     def __init__(self, static_value):
@@ -986,9 +841,6 @@ class RolesHandler:
     unpack_from = unpack
 
 
-register_handler(Replicable, ReplicableProxyHandler)
 register_handler(TypeRegister, TypeHandler, True)
 register_handler(Roles, RolesHandler)
 register_description(TypeRegister, type_description)
-
-WorldInfo = BaseWorldInfo(255, register=True)

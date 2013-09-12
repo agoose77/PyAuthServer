@@ -22,7 +22,7 @@ class Replicable(metaclass=ReplicableRegister):
                             )
                       )
 
-    def __init__(self, instance_id=None, 
+    def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
@@ -195,69 +195,4 @@ class BaseWorldInfo(Replicable):
     has_replicable = simulated(Replicable.graph_has_instance)
 
 
-class Controller(Replicable):
-
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
-    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
-    camera = Attribute(type_of=Replicable, complain=True, notify=True)
-    weapon = Attribute(type_of=Replicable, complain=True, notify=True)
-    info = Attribute(type_of=Replicable)
-
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
-
-        if is_complaint:
-            yield "pawn"
-            yield "camera"
-            yield "weapon"
-            yield "info"
-
-    def on_initialise(self):
-        self.camera_setup = False
-
-    def on_notify(self, name):
-        if name == "pawn":
-            self.possess(self.pawn)
-
-        elif name == "camera":
-            self.set_camera(self.camera)
-            self.camera.active = True
-
-        elif name == "weapon":
-            self.set_weapon(self.weapon)
-
-        else:
-            super().on_notify(name)
-
-    def player_update(self, elapsed):
-        pass
-
-    def possess(self, replicable):
-        self.pawn = replicable
-        self.pawn.possessed_by(self)
-
-    def receive_broadcast(self, sender:StaticValue(Replicable),
-                  message_string:StaticValue(str)) -> Netmodes.client:
-        print("BROADCAST: {}".format(message_string))
-
-    def remove_camera(self):
-        self.camera.unpossessed()
-
-    def set_camera(self, camera):
-        self.camera = camera
-        self.camera.possessed_by(self)
-
-    def set_weapon(self, weapon):
-        self.weapon = weapon
-        self.weapon.possessed_by(self)
-
-    def unpossess(self):
-        self.pawn.unpossessed()
-
-
-class ReplicableInfo(Replicable):
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.always_relevant = True
+WorldInfo = BaseWorldInfo(255, register=True)

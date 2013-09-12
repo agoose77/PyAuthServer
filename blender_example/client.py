@@ -18,7 +18,8 @@ class Client(ClientLoop):
     def new_connection(self, addr, port):
         cb = self.ui_system.connect_panel.on_error
         conn = self.network.connect_to((addr, port), on_error=cb,
-                                       on_connected=self.on_connected, on_timeout=cb)
+                                       on_connected=self.on_connected,
+                                       on_timeout=cb)
 
     def create_network(self):
         network = super().create_network()

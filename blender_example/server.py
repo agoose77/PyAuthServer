@@ -22,6 +22,17 @@ class TeamDeathMatch(BaseGameInfo):
 
     relevant_radius_squared = 9 ** 2
 
+    def allows_broadcast(self, sender, message):
+        return len(message) <= 255
+
+    def broadcast(self, sender, message):
+        if not self.allows_broadcast(sender, message):
+            return
+
+        for replicable in WorldInfo.subclass_of(PlayerController):
+
+            replicable.receive_broadcast(sender, message)
+
     def can_start_countdown(self):
         player_count = self.get_player_count()
         return player_count >= self.minimum_players_for_countdown

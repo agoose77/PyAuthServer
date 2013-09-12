@@ -15,3 +15,4 @@ from .packet import *
 from .registers import *
 from .rpc import *
 from .serialiser import *
+from .proxy import *

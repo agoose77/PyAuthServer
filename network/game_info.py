@@ -1,4 +1,4 @@
-from .actors import Replicable, Controller
+from .actors import Replicable
 from .descriptors import StaticValue, Attribute
 from .enums import Roles, Netmodes
 from .network import WorldInfo
@@ -8,17 +8,6 @@ class BaseGameInfo(Replicable):
     roles = Attribute(
                       Roles(Roles.authority, Roles.none)
                       )
-
-    def broadcast(self, sender, message):
-        if not self.allows_broadcast(sender, message):
-            return
-
-        for replicable in WorldInfo.subclass_of(Controller):
-
-            replicable.receive_broadcast(sender, message)
-
-    def allows_broadcast(self, sender, message):
-        return len(message) <= 255
 
     def pre_initialise(self, addr, netmode):
         return NotImplemented
@@ -31,4 +20,3 @@ class BaseGameInfo(Replicable):
 
     def is_relevant(self, conn, replicable):
         return NotImplemented
-    

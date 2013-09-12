@@ -107,8 +107,11 @@ class RobertNeville(Pawn):
         if not self.playing_animation(movement_state):
 
             if movement_state == MovementState.walk:
-                pass#self.play_animation("Frankie_Walk", 0, 19, movement_state,
-                     #               mode=logic.KX_ACTION_MODE_LOOP)
+                pass
+                '''
+                self.play_animation("Frankie_Walk", 0, 19, movement_state,
+                mode=logic.KX_ACTION_MODE_LOOP)
+                '''
 
             # Stop old animations
             if self.last_movement_state is not None and 0 and \
