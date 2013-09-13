@@ -79,7 +79,7 @@ class RPCInterface:
                                              self._function_signature))
         self._binder = self._function_signature.bind
 
-        from .network import WorldInfo
+        from .actors import WorldInfo
         self._system_netmode = WorldInfo.netmode
 
     def register(self, interface, rpc_id):

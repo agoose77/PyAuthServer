@@ -1,14 +1,14 @@
 from actors import *
 from bge_network import (WorldInfo, Netmodes, PlayerController, ReplicableInfo,
                          Actor, Pawn, Camera, AuthError, ServerLoop,
-                         PlayerReplicationInfo, BaseGameInfo, ConnectionStatus,
+                         PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, InstanceNotifier, BlacklistError)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
 
 
-class TeamDeathMatch(BaseGameInfo):
+class TeamDeathMatch(ReplicationRules):
 
     countdown_running = False
     countdown_start = 0
@@ -155,6 +155,6 @@ class Server(ServerLoop, InstanceNotifier):
     def create_network(self):
         network = super().create_network()
 
-        WorldInfo.game_info = TeamDeathMatch(register=True)
+        WorldInfo.rules = TeamDeathMatch(register=True)
 
         return network

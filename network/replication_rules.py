@@ -1,10 +1,10 @@
 from .actors import Replicable
-from .descriptors import StaticValue, Attribute
+from .descriptors import Attribute
 from .enums import Roles, Netmodes
-from .network import WorldInfo
+from .actors import WorldInfo
 
 
-class BaseGameInfo(Replicable):
+class ReplicationRules(Replicable):
     roles = Attribute(
                       Roles(Roles.authority, Roles.none)
                       )

@@ -10,7 +10,7 @@ from inspect import getmembers
 from math import pi
 from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo, 
-                     simulated, Netmodes, StaticValue, run_only_on, TypeRegister)
+                     simulated, Netmodes, StaticValue, run_on, TypeRegister)
 from os import path
 
 SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
@@ -193,7 +193,7 @@ class PlayerController(Controller):
         if self.current_move_id == 255:
             self.current_move_id = 0
 
-    @run_only_on(Netmodes.client)
+    @run_on(Netmodes.client)
     def load_keybindings(self):
         all_events = {x[0]: str(x[1]) for x in getmembers(events)
                       if isinstance(x[1], int)}
@@ -271,7 +271,7 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @run_only_on(Netmodes.client)
+    @run_on(Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
 
@@ -594,7 +594,7 @@ class Weapon(Replicable):
 
         self.last_fired_time = WorldInfo.elapsed
 
-    @run_only_on(Netmodes.server)
+    @run_on(Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)

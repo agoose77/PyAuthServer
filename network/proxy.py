@@ -1,8 +1,5 @@
-from .network import WorldInfo
+from .actors import WorldInfo
 from .errors import ReplicableAccessError
-from .handler_interfaces import get_handler, register_handler
-from .descriptors import StaticValue
-from .actors import Replicable
 
 from weakref import proxy as weak_proxy
 
@@ -123,57 +120,3 @@ class ReplicableProxy:
             ins = object.__new__(theclass)
             theclass.__init__(ins, obj, *args, **kwargs)
             return ins
-
-
-class ReplicableProxyBaseHandler:
-    """Handler for packing replicable proxy
-    Packs replicable references and unpacks to proxy OR reference"""
-
-    def __init__(self):
-        self._maximum_replicables = 255
-        self._packer = get_handler(StaticValue(int,
-                                   max_value=self._maximum_replicables))
-
-    @property
-    def maximum_replicables(self):
-        return self._maximum_replicables
-
-    @maximum_replicables.setter
-    def maximum_replicables(self, value):
-        self._maximum_replicables = value
-        self._packer = get_handler(StaticValue(int, max_value=value))
-
-    def pack(self, replicable):
-        # Send the instance ID
-        return self.pack_id(replicable.instance_id)
-
-    def pack_id(self, id_):
-        return self._packer.pack(id_)
-
-    def unpack_id(self, bytes_):
-        return self._packer.unpack_from(bytes_)
-
-    def unpack(self, bytes_):
-        instance_id = self.unpack_id(bytes_)
-
-        # Return only a replicable that was created by the network
-        try:
-            replicable = WorldInfo.get_replicable(instance_id)
-            # Check that it was made locally and has a remote role
-            # replicable.roles.remote != Roles.none
-            assert replicable._local_authority
-            return weak_proxy(replicable)
-
-        # We can't be sure that this is the correct instance
-        # Use proxy to delay checks
-        # Also, in past revisions: hoping it will have now been replicated
-        except (LookupError, AssertionError):
-            return ReplicableProxy(instance_id)
-
-    def size(self, bytes_=None):
-        return self._packer.size(bytes_)
-
-    unpack_from = unpack
-
-ReplicableProxyHandler = ReplicableProxyBaseHandler()
-register_handler(Replicable, ReplicableProxyHandler)

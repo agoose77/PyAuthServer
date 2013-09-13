@@ -159,7 +159,7 @@ class Replicable(metaclass=ReplicableRegister):
 class BaseWorldInfo(Replicable):
     '''Holds info about game state'''
     netmode = Netmodes.server
-    game_info = None
+    rules = None
 
     roles = Attribute(
                       Roles(
