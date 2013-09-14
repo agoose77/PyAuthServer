@@ -16,3 +16,11 @@ class CameraMode(metaclass=Enum):
 
 class MovementState(metaclass=Enum):
     values = ("run", "walk", "static")
+
+
+class AIState(metaclass=Enum):
+    values = ("idle", "alert", "engage")
+
+
+class Axis(metaclass=Enum):
+    values = ("x", "y", "z")

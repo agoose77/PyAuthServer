@@ -12,7 +12,7 @@ from weakref import proxy as weak_proxy
 class TypeHandler:
 
     def __init__(self, static_value):
-        self.base_type = static_value.data['pointer_type']
+        self.base_type = Replicable
         self.string_packer = get_handler(StaticValue(str))
 
     def pack(self, cls):

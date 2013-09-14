@@ -1,6 +1,6 @@
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
-from .factorydict import FactoryDict
+from .factory_dict import FactoryDict
 from .modifiers import is_simulated
 
 from collections import OrderedDict, defaultdict

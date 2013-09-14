@@ -1,8 +1,8 @@
 from actors import *
-from bge_network import (WorldInfo, Netmodes, PlayerController, ReplicableInfo,
-                         Actor, Pawn, Camera, AuthError, ServerLoop,
+from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
+                         Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
-                         ConnectionInterface, InstanceNotifier, BlacklistError)
+                         ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
@@ -13,6 +13,14 @@ class TeamDeathMatch(ReplicationRules):
     countdown_running = False
     countdown_start = 0
     minimum_players_for_countdown = 0
+
+    ai_count = 1
+
+    ai_controller_class = AIController
+    ai_camera_class = Camera
+    ai_pawn_class = RobertNeville
+    ai_replication_info_class = PlayerReplicationInfo
+    ai_weapon_class = M4A1Weapon
 
     player_camera_class = Camera
     player_controller_class = LegendController
@@ -37,6 +45,17 @@ class TeamDeathMatch(ReplicationRules):
         player_count = self.get_player_count()
         return player_count >= self.minimum_players_for_countdown
 
+    def create_new_ai(self, controller, callback_data=None):
+        pawn = self.ai_pawn_class()
+        camera = self.ai_camera_class()
+        weapon = self.ai_weapon_class()
+
+        controller.possess(pawn)
+        controller.set_camera(camera)
+        controller.setup_weapon(weapon)
+
+        pawn.position = Vector((1, 4, 0))
+
     def create_new_player(self, controller, callback_data=None):
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
@@ -47,6 +66,10 @@ class TeamDeathMatch(ReplicationRules):
         controller.setup_weapon(weapon)
 
         pawn.position = Vector()
+
+    def create_ai_controllers(self):
+        for i in range(self.ai_count):
+            self.ai_controller_class()
 
     def end_countdown(self, aborted=True):
         self.reset_countdown()
@@ -62,6 +85,9 @@ class TeamDeathMatch(ReplicationRules):
                                              more_than)
 
     def is_relevant(self, player_controller, replicable):
+        # We never allow PlayerController classes
+        if isinstance(replicable, Controller):
+            return False
 
         if replicable.always_relevant:
             return True
@@ -87,10 +113,6 @@ class TeamDeathMatch(ReplicationRules):
         if isinstance(replicable, WeaponAttachment):
             return True
 
-        # We never allow PlayerController classes
-        if isinstance(replicable, PlayerController):
-            return False
-
     def killed(self, killer, killed, killed_pawn):
         pass
 
@@ -99,6 +121,8 @@ class TeamDeathMatch(ReplicationRules):
 
         self.info = GameReplicationInfo(register=True)
         self.black_list = []
+
+        self.create_ai_controllers()
 
     def post_initialise(self, connection):
         controller = self.player_controller_class()
@@ -131,6 +155,8 @@ class TeamDeathMatch(ReplicationRules):
     def start_match(self):
         for controller in WorldInfo.subclass_of(PlayerController):
             self.create_new_player(controller)
+        for controller in WorldInfo.subclass_of(AIController):
+            self.create_new_ai(controller)
 
         self.info.match_started = True
 

@@ -178,7 +178,8 @@ class ConnectPanel(Panel):
         if not callable(self.connecter):
             return
 
-        self.connecter(self.addr_field.text, int(self.port_field.text))
+        self.connecter(self.addr_field.text, int(self.port_field.text),
+                       self.on_error)
 
     def on_error(self, error):
         self.connect_message.text = str(error)

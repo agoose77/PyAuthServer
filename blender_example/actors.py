@@ -3,7 +3,7 @@ from bge_network import (PlayerController, ReplicableInfo, Replicable,
                          Netmodes, Weapon, WeaponAttachment, CameraMode,
                          MovementState)
 from mathutils import Vector, Euler
-from math import radians, cos, sin, degrees
+from math import radians, cos, sin, degrees, pi
 from bge import logic
 
 
@@ -24,22 +24,21 @@ class LegendController(PlayerController):
 
     input_fields = "forward", "backwards", "left", "right", "shoot", "run"
 
-    def update_mouse(self, mouse_diff_x, mouse_diff_y, delta_time):
-        turn_speed = 20
+    near_zero = 0.001
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.mouse_sensitivity = 20
+
+    def mouse_turn(self, mouse_diff_x, delta_time):
+        self.pawn.angular = Vector((0, 0, mouse_diff_x * \
+                        self.mouse_sensitivity * self.pawn.turn_speed))
+
+    def mouse_pitch(self, mouse_diff_y, delta_time):
         look_speed = 1
         look_limit = radians(45)
-
-        epsilon = 0.001
-        nearly_zero = 0.00001
-
-        if abs(mouse_diff_x) < epsilon:
-            mouse_diff_x = nearly_zero
-        if abs(mouse_diff_y) < epsilon:
-            mouse_diff_x = nearly_zero
-
-        look_mode = self.camera.look_mode
-
-        self.pawn.angular = Vector((0, 0, mouse_diff_x * turn_speed))
+        look_mode = self.camera_mode
 
         rotation_delta = mouse_diff_y * look_speed
 
@@ -52,27 +51,38 @@ class LegendController(PlayerController):
 
         elif look_mode == CameraMode.third_person:
             self.pawn.view_pitch = 0.0
-            self.camera.position.rotate(Euler((rotation_delta, 0, 0)))
+            self.camera.local_position.rotate(Euler((rotation_delta, 0, 0)))
 
-            minimum_y = -self.camera.third_person_offset
-            maximum_y = cos(look_limit) * -self.camera.third_person_offset
+            minimum_y = -self.camera_offset
+            maximum_y = cos(look_limit) * -self.camera_offset
 
             minimum_z = 0
-            maximum_z = sin(look_limit) * self.camera.third_person_offset
+            maximum_z = sin(look_limit) * self.camera_offset
 
-            self.camera.position.y = min(maximum_y, max(minimum_y,
-                                                    self.camera.position.y))
-            self.camera.position.z = min(maximum_z, max(minimum_z,
-                                                    self.camera.position.z))
+            self.camera.local_position.y = min(maximum_y, max(minimum_y,
+                                                self.camera.local_position.y))
+            self.camera.local_position.z = min(maximum_z, max(minimum_z,
+                                                self.camera.local_position.z))
 
-            self.camera.position.length = self.camera.third_person_offset
+            self.camera.local_position.length = self.camera_offset
 
             rotation = Vector((0, -1, 0)).rotation_difference(
-                              self.camera.position).inverted().to_euler()
+                              self.camera.local_position).inverted().to_euler()
             rotation[0] *= -1
             rotation.rotate(Euler((radians(90), 0, 0)))
 
-            self.camera.rotation = rotation
+            self.camera.local_rotation = rotation
+
+    def update_mouse(self, mouse_diff_x, mouse_diff_y, delta_time):
+
+        if abs(mouse_diff_x) < self.near_zero:
+            mouse_diff_x = self.near_zero / 1000
+        if abs(mouse_diff_y) < self.near_zero:
+            mouse_diff_y = self.near_zero / 1000
+
+        self.mouse_turn(mouse_diff_x, delta_time)
+
+        self.mouse_pitch(mouse_diff_y, delta_time)
 
     def update_inputs(self, inputs, delta_time):
         y_plane = inputs.forward.active - inputs.backwards.active

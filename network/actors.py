@@ -22,6 +22,8 @@ class Replicable(metaclass=ReplicableRegister):
                             )
                       )
 
+    always_relevant = False
+
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
         # If this is a locally authoritative
@@ -86,7 +88,7 @@ class Replicable(metaclass=ReplicableRegister):
             # If the instance is not local, then we have a conflict
             error_message = "Authority over instance id {}\
              is unresolveable".format(instance_id)
-            assert (instance._local_authority, error_message)
+            assert instance._local_authority, error_message
 
             # Possess the instance id
             super().request_registration(instance_id)

@@ -6,7 +6,7 @@ from .modifiers import reliable, is_reliable
 from .serialiser import UInt8, String, smallest_int_handler
 from .argument_serialiser import ArgumentSerialiser
 from .handler_interfaces import static_description, register_handler
-from .factorydict import FactoryDict
+from .factory_dict import FactoryDict
 
 from bitarray import bitarray, bits2bytes
 from socket import socket, AF_INET, SOCK_DGRAM, error as socket_error, gethostbyname
