@@ -2,7 +2,8 @@ from actors import *
 from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
                          Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
-                         ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon)
+                         ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon,
+                         event, ReplicableInstantiatedEvent, UpdateEvent)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
@@ -116,7 +117,8 @@ class TeamDeathMatch(ReplicationRules):
     def killed(self, killer, killed, killed_pawn):
         pass
 
-    def on_initialised(self):
+    @event(ReplicableInstantiatedEvent)
+    def on_initialised(self, **da):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
@@ -160,6 +162,7 @@ class TeamDeathMatch(ReplicationRules):
 
         self.info.match_started = True
 
+    @event(UpdateEvent, True)
     def update(self, delta_time):
 
         if self.countdown_running:

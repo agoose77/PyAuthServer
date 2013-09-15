@@ -1,10 +1,11 @@
 from .actors import Actor
 from .enums import PhysicsType
+from .events import CollisionEvent, PhysicsReplicatedEvent, PhysicsTickEvent, PhysicsSingleUpdate, PhysicsSetSimulated, PhysicsUnsetSimulated
 
 from bge import logic, types
 from collections import defaultdict
 from functools import partial
-from network import WorldInfo, Netmodes, FactoryDict, InstanceNotifier
+from network import WorldInfo, Netmodes, FactoryDict, EventListener, ReplicableUnregisteredEvent, event
 from time import monotonic
 
 
@@ -35,9 +36,12 @@ class CollisionStatus:
 
         if not other in self._registered:
             self._registered.add(other)
-            self._actor.on_collision(other, True)
+            CollisionEvent.invoke(other, True, target=self._actor)
 
     def not_colliding(self):
+        if not self.receive_collisions:
+            return
+
         # If we have a stored collision
         difference = self._old_colliders.difference(self._new_colliders)
 
@@ -49,37 +53,14 @@ class CollisionStatus:
 
         for obj in difference:
             self._registered.remove(obj)
-            self._actor.on_collision(obj, False)
+
+            CollisionEvent.invoke(obj, False, target=self._actor)
 
     def register_callback(self, actor):
         actor.object.collisionCallbacks.append(self.is_colliding)
 
 
-class SimulationEntry:
-
-    def replicablet__(self, actor, callback=None):
-        self.callback = callback
-        self.replicable = actor
-
-        self._duration = None
-        self._func = None
-
-    def set_func(self, func):
-        self._func = func
-
-    @property
-    def duration(self):
-        return self._duration
-
-    @duration.setter
-    def duration(self, length):
-        self._duration = length
-
-        if length:
-            self._func(length)
-
-
-class PhysicsSystem(InstanceNotifier):
+class PhysicsSystem(EventListener):
 
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -95,24 +76,28 @@ class PhysicsSystem(InstanceNotifier):
             return super().__new__(cls)
 
     def __init__(self, update_func, apply_func):
+        super().__init__()
         self._exempt_actors = []
         self._listeners = {}
         self._update_func = update_func
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
-        Actor.subscribe(self)
-
+    @event(ReplicableUnregisteredEvent, True)
     def notify_unregistration(self, replicable):
         self.remove_listener(replicable)
 
-    def add_exemption(self, actor):
-        print("{} is exempt from default physics".format(actor))
-        self._exempt_actors.append(actor)
+    @event(PhysicsUnsetSimulated, True)
+    def add_exemption(self, target):
+        print("{} is exempt from default physics".format(target))
+        self._exempt_actors.append(target)
 
-    def remove_exemption(self, actor):
-        self._exempt_actors.remove(actor)
+    @event(PhysicsSetSimulated, True)
+    def remove_exemption(self, target):
+        if target in self._exempt_actors:
+            self._exempt_actors.remove(target)
 
+    @event(PhysicsSingleUpdate, True)
     def update_for(self, actor, delta_time):
         if not actor.physics in self._active_physics:
             return
@@ -167,6 +152,9 @@ class PhysicsSystem(InstanceNotifier):
 
         self._apply_func()
 
+        for key, listener in self._listeners.items():
+            listener.not_colliding()
+
     def needs_listener(self, replicable):
         return replicable.physics in self._active_physics and not \
                             replicable in self._listeners
@@ -180,6 +168,7 @@ class PhysicsSystem(InstanceNotifier):
 
 class ServerPhysics(PhysicsSystem):
 
+    @event(PhysicsTickEvent, True)
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
@@ -201,6 +190,7 @@ class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
 
+    @event(PhysicsTickEvent, True)
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
@@ -210,19 +200,20 @@ class ClientPhysics(PhysicsSystem):
             if self.needs_listener(replicable):
                 self.create_listener(replicable)
 
-    def actor_replicated(self, actor, actor_physics):
-        difference = actor_physics.position - actor.position
+    @event(PhysicsReplicatedEvent, True)
+    def actor_replicated(self, target, target_physics):
+        difference = target_physics.position - target.position
 
         small_correction = difference.length_squared < \
                             self.small_correction_squared
 
         if small_correction:
-            actor.position += difference * 0.2
-            actor.velocity = actor_physics.velocity + difference * 0.8
+            target.position += difference * 0.2
+            target.velocity = target_physics.velocity + difference * 0.8
 
         else:
-            actor.position = actor_physics.position.copy()
-            actor.velocity = actor_physics.velocity.copy()
+            target.position = target_physics.position.copy()
+            target.velocity = target_physics.velocity.copy()
 
-        actor.rotation = actor_physics.rotation.copy()
-        actor.angular = actor_physics.angular.copy()
+        target.rotation = target_physics.rotation.copy()
+        target.angular = target_physics.angular.copy()

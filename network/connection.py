@@ -2,20 +2,20 @@ from .packet import Packet
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
 from .actors import Replicable, WorldInfo
-from .registers import InstanceNotifier
+from .registers import EventListener
+from .events import ReplicableUnregisteredEvent, ReplicableRegisteredEvent
 from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
+from .modifiers import event
 
 from weakref import proxy as weak_proxy
 
 
-class Connection(InstanceNotifier):
+class Connection(EventListener):
 
     channel_class = None
 
     def __init__(self, netmode):
-        super().__init__()
-
         self.netmode = netmode
         self.channels = {}
 
@@ -25,17 +25,19 @@ class Connection(InstanceNotifier):
         self.int_packer = get_handler(StaticValue(int))
         self.replicable_packer = get_handler(StaticValue(Replicable))
 
-        Replicable.subscribe(self)  # @UndefinedVariable
+        super().__init__()
 
-    def notify_unregistration(self, replicable):
-        self.channels.pop(replicable.instance_id)
+    @event(ReplicableUnregisteredEvent, True)
+    def notify_unregistration(self, context):
+        self.channels.pop(context.instance_id)
 
-    def notify_registration(self, replicable):
-        '''Create channel for replicable with network id
-        @param instance_id: network id of replicable'''
-        proxy = weak_proxy(replicable)
+    @event(ReplicableRegisteredEvent, True)
+    def notify_registration(self, context):
+        '''Create channel for context with network id
+        @param instance_id: network id of context'''
+        proxy = weak_proxy(context)
         channel = self.channel_class(self, proxy)
-        self.channels[replicable.instance_id] = channel
+        self.channels[context.instance_id] = channel
 
     def on_delete(self):
         pass
@@ -43,16 +45,11 @@ class Connection(InstanceNotifier):
     def is_owner(self, replicable):
         '''Determines if a connection owns this replicable
         Searches for Replicable with same network id as our Controller'''
-        last = None
-
-        # Walk the parent tree until no parent
-        while replicable:
-            owner = getattr(replicable, "owner", None)
-            last, replicable = replicable, owner
-
         # Determine if parent is our controller
+        parent = replicable.uppermost
         try:
-            return last.instance_id == self.replicable.instance_id
+            return parent.instance_id == \
+                self.replicable.instance_id
 
         except AttributeError:
             return False
@@ -136,6 +133,7 @@ class ClientConnection(Connection):
             replicable_cls = Replicable.from_type_name(type_name)
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
+
             # If replicable is Controller
             if is_connection_host:
 
@@ -202,6 +200,7 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
+    @event(ReplicableUnregisteredEvent, True)
     def notify_unregistration(self, replicable):
         '''Called when replicable dies
         @param replicable: replicable that died'''

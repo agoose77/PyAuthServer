@@ -8,6 +8,7 @@ from .containers import *
 from .data_struct import *
 from .descriptors import *
 from .enums import *
+from .events import *
 from .factory_dict import *
 from .replication_rules import *
 from .handler_interfaces import *

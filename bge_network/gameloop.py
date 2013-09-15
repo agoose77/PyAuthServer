@@ -1,13 +1,15 @@
 from .actors import Camera
+from .events import PlayerInputEvent, PhysicsTickEvent, UpdateEvent
 from .physics import PhysicsSystem
 
 from bge import logic, events, types
-from network import Netmodes, WorldInfo, Network, Replicable, InstanceNotifier
+from network import Netmodes, WorldInfo, Network, Replicable, EventListener, ReplicableRegisteredEvent, event
 
 
-class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
+class GameLoop(types.KX_PythonLogicLoop, EventListener):
 
     def __init__(self):
+        super().__init__()
 
         self.tick_rate = logic.getLogicTicRate()
         self.use_tick_rate = logic.getUseFrameRate()
@@ -26,16 +28,15 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
 
         self.ui_system = self.create_ui()
 
-        Camera.subscribe(self)
-
         WorldInfo.physics = self.physics_system
 
         print("Network initialised")
 
-    def notify_registration(self, replicable):
+    @event(ReplicableRegisteredEvent, True)
+    def notify_registration(self, context):
 
-        if isinstance(replicable, Camera):
-            replicable.render_temporary(self.update_render)
+        if isinstance(context, Camera):
+            context.render_temporary(self.update_render)
 
     def apply_physics(self):
         self.update_scenegraph(self.get_time())
@@ -71,16 +72,17 @@ class GameLoop(types.KX_PythonLogicLoop, InstanceNotifier):
                     Replicable.update_graph()
 
                     self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
-                    for replicable in WorldInfo.replicables:
-                        replicable.update(delta_time)
 
-                        if hasattr(replicable, "inputs"):
-                            replicable.player_update(delta_time)
+                    if WorldInfo.netmode != Netmodes.server:
+                        PlayerInputEvent.invoke(delta_time)
+
+                    UpdateEvent.invoke(delta_time)
 
                     Replicable.update_graph()
 
                     self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-                    self.physics_system.update(scene, delta_time)
+
+                    PhysicsTickEvent.invoke(scene, delta_time)
 
                     if self.ui_system is not None:
                         self.ui_system.update(delta_time)

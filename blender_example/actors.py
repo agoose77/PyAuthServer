@@ -1,7 +1,7 @@
 from bge_network import (PlayerController, ReplicableInfo, Replicable,
                          Attribute, Roles, Pawn, simulated, WorldInfo,
                          Netmodes, Weapon, WeaponAttachment, CameraMode,
-                         MovementState)
+                         MovementState, ReplicableInstantiatedEvent, event)
 from mathutils import Vector, Euler
 from math import radians, cos, sin, degrees, pi
 from bge import logic
@@ -26,6 +26,7 @@ class LegendController(PlayerController):
 
     near_zero = 0.001
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -105,6 +106,7 @@ class LegendController(PlayerController):
 class RobertNeville(Pawn):
     entity_name = "Suzanne_Physics"
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -131,6 +133,7 @@ class RobertNeville(Pawn):
 
 class M4A1Weapon(Weapon):
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 

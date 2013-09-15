@@ -19,6 +19,18 @@ def is_simulated(func):
     return func.__annotations__.get("simulated", False)
 
 
+def event(event_cls=None, global_listener=False):
+    def wrapper(func):
+        func.__annotations__['event'] = event_cls
+        func.__annotations__['isolated'] = not global_listener
+        return func
+    return wrapper
+
+
+def is_event(func):
+    return "event" in func.__annotations__
+
+
 class run_on:
     '''Runs method in netmode specific scope only'''
 

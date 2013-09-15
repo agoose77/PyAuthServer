@@ -1,8 +1,9 @@
 from .containers import AttributeStorageContainer, RPCStorageContainer
 from .descriptors import Attribute, StaticValue
 from .enums import Roles, Netmodes
-from .modifiers import simulated
+from .modifiers import simulated, event
 from .registers import ReplicableRegister
+from .events import ReplicableRegisteredEvent, ReplicableUnregisteredEvent, ReplicableInstantiatedEvent
 
 from collections import defaultdict
 
@@ -24,6 +25,11 @@ class Replicable(metaclass=ReplicableRegister):
 
     always_relevant = False
 
+    _instantiated_event = ReplicableInstantiatedEvent
+    _registered_event = ReplicableRegisteredEvent
+    _unregistered_event = ReplicableUnregisteredEvent
+
+
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
         # If this is a locally authoritative
@@ -42,6 +48,20 @@ class Replicable(metaclass=ReplicableRegister):
         # Instantiate parent (this is when the creation callback may be called)
         super().__init__(instance_id=instance_id, register=register,
                          allow_random_key=True, **kwargs)
+
+    @property
+    def uppermost(self):
+        '''Determines if a connection owns this replicable
+        Searches for Replicable with same network id as our Controller'''
+        last = None
+        replicable = self
+
+        # Walk the parent tree until no parent
+        while replicable:
+            owner = getattr(replicable, "owner", None)
+            last, replicable = replicable, owner
+
+        return last
 
     @classmethod
     def create_or_return(cls, base_cls, instance_id, register=True):
@@ -68,6 +88,7 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         self.owner = None
         self.always_relevant = False
@@ -116,17 +137,16 @@ class Replicable(metaclass=ReplicableRegister):
         May be due to death of replicable'''
         pass
 
+    @event(ReplicableRegisteredEvent)
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
-        super().on_registered()
-
         self.__class__._by_types[type(self)].append(self)
 
+    @event(ReplicableUnregisteredEvent)
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
-        super().on_unregistered()
         self.__class__._by_types[type(self)].remove(self)
 
     def on_notify(self, name):

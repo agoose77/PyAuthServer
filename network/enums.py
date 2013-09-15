@@ -5,8 +5,9 @@ class Enum(type):
     '''Metaclass for Enums in Python'''
     def __new__(cls, name, parents, attrs):
         # Set all name to index mappings
+        bits = attrs.get('bits')
         for index, value in enumerate(attrs["values"]):
-            attrs[value] = index
+            attrs[value] = index if not bits else (2 ** index)
 
         # Return new class
         return super().__new__(cls, name, parents, attrs)

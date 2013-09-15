@@ -3,6 +3,7 @@ from network import *
 from .bge_data import *
 from .enums import *
 from .actors import *
+from .events import *
 from .draw_tools import *
 from .errors import *
 from .physics import *

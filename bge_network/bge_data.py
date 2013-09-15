@@ -1,5 +1,5 @@
 from bge import logic, types
-from functools import wraps
+from functools import wraps, partial
 from mathutils import Vector, Euler, Quaternion, Matrix
 from network import (Float8, Float4, UInt8, String, register_handler,
                      register_description, WorldInfo, Struct, Attribute)

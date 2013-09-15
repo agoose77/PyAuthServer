@@ -1,4 +1,5 @@
 from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
+from .events import CollisionEvent, PlayerInputEvent, UpdateEvent, PhysicsReplicatedEvent, PhysicsSingleUpdate, PhysicsSetSimulated, PhysicsUnsetSimulated
 from .enums import PhysicsType, ShotType, CameraMode, MovementState, AIState, Axis
 from .inputs import InputManager
 from .utilities import falloff_fraction, clamp
@@ -15,9 +16,10 @@ from functools import partial
 from math import pi, radians
 from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo,
-                     simulated, Netmodes, StaticValue, run_on, TypeRegister)
+                     simulated, Netmodes, StaticValue, run_on, TypeRegister,
+                     event, ReplicableInstantiatedEvent,
+                     ReplicableRegisteredEvent, ReplicableUnregisteredEvent)
 from os import path
-from docutils.nodes import math
 
 SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
                                 "delta_time", "inputs", "mouse_x", "mouse_y"))
@@ -40,6 +42,7 @@ class Controller(Replicable):
             yield "weapon"
             yield "info"
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         self.camera_setup = False
         self.camera_mode = CameraMode.third_person
@@ -73,6 +76,7 @@ class Controller(Replicable):
     def hear_sound(self, path, location):
         pass
 
+    @event(ReplicableUnregisteredEvent)
     def on_unregistered(self):
         super().on_unregistered()
 
@@ -84,10 +88,11 @@ class Controller(Replicable):
             self.unpossess()
 
     def possess(self, replicable):
-        WorldInfo.physics.add_exemption(replicable)
 
         self.pawn = replicable
         self.pawn.possessed_by(self)
+
+        CollisionEvent.set_parent(self, self.pawn)
 
     def set_camera(self, camera):
         self.camera = camera
@@ -132,6 +137,7 @@ class Controller(Replicable):
 
 class ReplicableInfo(Replicable):
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -145,16 +151,25 @@ class PlayerReplicationInfo(ReplicableInfo):
 
 class AIController(Controller):
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
-
         self.hear_range = 15
         self.effective_hear = 10
 
         self.target_dir = None
         self.target = None
 
+        self.navmesh = None
+
         self.setup_states(self.state_manager)
+
+    @event(CollisionEvent)
+    def on_collision(self, actor, new_collision):
+        if new_collision and isinstance(actor, NavmeshObject):
+            navmesh = next(i for i in WorldInfo.subclass_of(Navmesh) if i.object == actor)
+            self.navmesh = navmesh
+            print(navmesh)
 
     def leave_alert_to_idle(self, state):
         return self.alert_timer == 0
@@ -175,15 +190,14 @@ class AIController(Controller):
 
         state_machine.add_branch(AIState.alert, AIState.idle,
                                  self.leave_alert_to_idle)
-        state_machine.add_branch(AIState.idle, AIState.alert,
-                                 self.enter_engage_from_alert)
-        state_machine.add_branch(AIState.alert, AIState.engage,
-                                 self.enter_engage_from_alert)
+        #state_machine.add_branch(AIState.idle, AIState.alert,
+                              #   self.enter_engage_from_alert)
+       # state_machine.add_branch(AIState.alert, AIState.engage,
+                       #          self.enter_engage_from_alert)
         state_machine.add_branch(AIState.engage, AIState.alert,
                                  self.leave_engage_state_to_alert)
 
         self.alert_timer = Timer(target_value=0.0, count_down=True)
-
         state_machine.current_state = AIState.idle
 
     def on_alerted(self, direction):
@@ -193,7 +207,7 @@ class AIController(Controller):
         if self.state_manager.current_state.identifier == AIState.idle:
             self.state_manager.current_state = AIState.alert
 
-    def on_damaged(self, damage, instigator, hit_position, momentum):
+    def take_damage(self, damage, instigator, hit_position, momentum):
         # Set alert
         self.on_alerted(-momentum)
 
@@ -205,14 +219,6 @@ class AIController(Controller):
 
         if probability > 0.5:
             self.on_alerted(source - self.pawn.position)
-
-    def follow_target(self, direction, delta_time):
-        torso_target = direction.copy()
-        torso_target.z = 0.0
-
-        self.pawn.align_to(torso_target, self.pawn.turn_speed * delta_time * 10)
-        self.camera.align_to(-direction, self.pawn.turn_speed * delta_time * 10,
-                             axis=Axis.z)
 
     def get_visible(self, ignore_self=True):
         if not self.camera:
@@ -231,15 +237,21 @@ class AIController(Controller):
 
     def handle_engaging(self, state, delta_time):
         target_vector = self.target.position - self.camera.position
-        self.follow_target(target_vector,
-                           delta_time)
+
+        if self.pawn.navmesh:
+            path = self.pawn.navmesh.find_path(self.pawn.position,
+                                               self.target.posiiton)
+            self.pawn.follow_path(path)
+        else:
+            self.pawn.move_to(self.target.position)
 
         self.start_server_fire()
 
     def handle_alerted(self, state, delta_time):
-        self.follow_target(self.target_dir, delta_time)
         self.alert_timer.update(delta_time)
 
+    @event(UpdateEvent, True)
+    @simulated
     def update(self, delta_time):
         self.state_manager.current_state.run(delta_time)
 
@@ -318,7 +330,7 @@ class PlayerController(Controller):
         self.update_inputs(inputs, delta_time)
         self.update_mouse(mouse_diff_x, mouse_diff_y, delta_time)
 
-        WorldInfo.physics.update_for(self.pawn, delta_time)
+        PhysicsSingleUpdate.invoke(delta_time, target=self.pawn)
 
     def get_corrected_state(self, position, rotation):
 
@@ -351,7 +363,6 @@ class PlayerController(Controller):
         if self.current_move_id == 255:
             self.current_move_id = 0
 
-    @run_on(Netmodes.client)
     def load_keybindings(self):
         all_events = {x[0]: str(x[1]) for x in getmembers(events)
                       if isinstance(x[1], int)}
@@ -374,9 +385,9 @@ class PlayerController(Controller):
         print("Loaded {} keybindings".format(len(bindings)))
         return bindings
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
-
         self.setup_input()
 
         self.current_move_id = 0
@@ -385,6 +396,8 @@ class PlayerController(Controller):
         self.mouse_setup = False
         self.camera_setup = False
 
+    @simulated
+    @event(PlayerInputEvent, True)
     def player_update(self, delta_time):
         if not (self.pawn and self.camera):
             return
@@ -404,6 +417,11 @@ class PlayerController(Controller):
                        mouse_diff_y)
 
         self.increment_move()
+
+    def possess(self, replicable):
+        super().possess(replicable)
+
+        PhysicsUnsetSimulated.invoke(target=replicable)
 
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
                   mouse_diff_y):
@@ -463,7 +481,7 @@ class PlayerController(Controller):
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
 
     def unpossess(self):
-        WorldInfo.physics.remove_exemption(self.pawn)
+        PhysicsSetSimulated.invoke(target=self.pawn)
 
         super().unpossess()
 
@@ -506,6 +524,7 @@ class Actor(Replicable):
             if self.update_simulated_physics or is_initial:
                 yield "rigid_body_state"
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -514,13 +533,14 @@ class Actor(Replicable):
         self.always_relevant = False
         self.camera_radius = 1
 
+    @event(ReplicableUnregisteredEvent)
     def on_unregistered(self):
         super().on_unregistered()
         self.object.endObject()
 
     def on_notify(self, name):
         if name == "rigid_body_state":
-            WorldInfo.physics.actor_replicated(self, self.rigid_body_state)
+            PhysicsReplicatedEvent.invoke(self.rigid_body_state, target=self)
         else:
             super().on_notify(name)
 
@@ -531,10 +551,6 @@ class Actor(Replicable):
     @simulated
     def align_to(self, vector, time, axis=Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
-
-    @simulated
-    def on_collision(self, actor, new_collision):
-        print(actor, new_collision)
 
     @simulated
     def parent_to(self, obj):
@@ -669,6 +685,7 @@ class Weapon(Replicable):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
     ammo = Attribute(7)
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -745,6 +762,7 @@ class EmptyWeapon(Weapon):
 
     ammo = Attribute(0)
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -755,6 +773,7 @@ class WeaponAttachment(Actor):
 
     roles = Attribute(Roles(Roles.authority, Roles.none))
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
@@ -776,9 +795,9 @@ class Camera(Actor):
     entity_name = "Camera"
     actor_class = CameraObject
 
+    @event(ReplicableRegisteredEvent)
     def on_registered(self):
-        super().on_registered
-
+        super().on_registered()
         self._visible = True
 
     @property
@@ -855,6 +874,8 @@ class Camera(Actor):
         return self.object.sphereInsideFrustum(replicable.position,
                            replicable.camera_radius) != self.object.OUTSIDE
 
+    @simulated
+    @event(UpdateEvent, True)
     def update(self, delta_time):
         if not self.visible:
             return
@@ -883,9 +904,6 @@ class Pawn(Actor):
 
     def take_damage(self, damage, instigator, hit_position, momentum):
         super().take_damage(damage, instigator, hit_position, momentum)
-
-        if self.owner:
-            self.owner.on_damaged(damage, instigator, hit_position, momentum)
 
     @property
     def movement_state(self):
@@ -926,10 +944,12 @@ class Pawn(Actor):
     def handle_animation(self, movement_mode):
         pass
 
+    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         super().on_initialised()
 
         self.weapon_attachment = None
+        self.navmesh_object = None
 
         # Non owner attributes
         self.last_flash_count = 0
@@ -940,6 +960,22 @@ class Pawn(Actor):
         self.turn_speed = 1.0
 
         self.animation_tolerance = 0.5
+
+        self.state_machine = FiniteStateMachine()
+        self.targets = []
+        self.target_distance = 0.3
+
+        self.setup_states(self.state_machine)
+
+    @simulated
+    def setup_states(self, state_machine):
+        state_machine.add_state("tracking", self.tracking_target)
+        state_machine.add_state("empty", lambda *x: None)
+        state_machine.add_branch("empty", "tracking",
+                                 lambda *x: bool(self.targets))
+        state_machine.add_branch("tracking", "empty",
+                                 lambda *x: not bool(self.targets))
+        state_machine.current_state = "empty"
 
     def on_notify(self, name):
 
@@ -953,13 +989,37 @@ class Pawn(Actor):
         else:
             super().on_notify(name)
 
+    @event(ReplicableUnregisteredEvent)
     def on_unregistered(self):
         super().on_unregistered()
 
         if self.weapon_attachment:
             self.weapon_attachment.request_unregistration()
 
+    def tracking_target(self, state, delta_time):
+        displacement = self.position - self.targets[0]
+
+        if displacement.length < self.target_distance:
+            self.targets.remove(0)
+
+            if not self.targets:
+                return
+
+            displacement = self.position - self.targets[0]
+
+        sideways = Vector((0, 0, 1)).cross(displacement)
+
+        self.align_to(sideways, self.turn_speed, axis=Axis.x)
+        self.velocity = Vector((0, 1, 0)) * self.walk_speed
+
+    def move_to(self, target):
+        self.targets.append(target)
+
+    def follow_path(self, path):
+        self.targets = path
+
     @simulated
+    @event(UpdateEvent, True)
     def update(self, delta_time):
         if self.outstanding_flash:
             self.use_flashcount()
@@ -967,6 +1027,7 @@ class Pawn(Actor):
         if self.weapon_attachment:
             self.weapon_attachment.local_rotation = Euler((self.view_pitch, 0, 0))
 
+        self.state_machine.current_state.run(delta_time)
         self.handle_animation(self.movement_state)
 
     @simulated
