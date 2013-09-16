@@ -83,13 +83,15 @@ class PhysicsSystem(EventListener):
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
+        self.listen_for_events(self)
+
     @event(ReplicableUnregisteredEvent, True)
     def notify_unregistration(self, replicable):
         self.remove_listener(replicable)
 
     @event(PhysicsUnsetSimulated, True)
     def add_exemption(self, target):
-        print("{} is exempt from default physics".format(target))
+        print(target, "exempt")
         self._exempt_actors.append(target)
 
     @event(PhysicsSetSimulated, True)

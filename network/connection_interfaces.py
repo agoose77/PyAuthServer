@@ -282,9 +282,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
 class ServerInterface(ConnectionInterface):
 
-    def __init__(self, addr):
-        super().__init__(addr)
-
+    def on_initialised(self):
         self._auth_error = None
 
     def get_handshake(self):
@@ -330,7 +328,7 @@ class ServerInterface(ConnectionInterface):
             # Replicable is boolean false until registered
             # User can force register though!
             if returned_replicable is not None:
-                self.connection.replicable = weak_proxy(returned_replicable)
+                self.connection.replicable = returned_replicable
 
 
 class ClientInterface(ConnectionInterface):

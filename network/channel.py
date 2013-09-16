@@ -2,6 +2,7 @@ from .handler_interfaces import static_description, get_handler
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
 from .modifiers import is_reliable
+from .events import ReplicationNotifyEvent
 
 
 class Channel:
@@ -79,9 +80,9 @@ class ClientChannel(Channel):
 
         # Notify after all values are set
         if notifications:
-            notifier = replicable.on_notify
             for attribute_name in notifications:
-                notifier(attribute_name)
+                ReplicationNotifyEvent.invoke(attribute_name,
+                                              target=replicable)
 
 
 class ServerChannel(Channel):

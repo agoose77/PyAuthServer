@@ -1,9 +1,11 @@
 from .actors import Camera
-from .events import PlayerInputEvent, PhysicsTickEvent, UpdateEvent
+from .events import PlayerInputEvent, PhysicsTickEvent
 from .physics import PhysicsSystem
 
 from bge import logic, events, types
-from network import Netmodes, WorldInfo, Network, Replicable, EventListener, ReplicableRegisteredEvent, event
+from network import( Netmodes, WorldInfo, Network, Replicable,
+                     EventListener, ReplicableRegisteredEvent,
+                     event, UpdateEvent)
 
 
 class GameLoop(types.KX_PythonLogicLoop, EventListener):
@@ -27,16 +29,17 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
                                             self.apply_physics)
 
         self.ui_system = self.create_ui()
+        self.listen_for_events()
 
         WorldInfo.physics = self.physics_system
 
         print("Network initialised")
 
     @event(ReplicableRegisteredEvent, True)
-    def notify_registration(self, context):
+    def notify_registration(self, target):
 
-        if isinstance(context, Camera):
-            context.render_temporary(self.update_render)
+        if isinstance(target, Camera):
+            target.render_temporary(self.update_render)
 
     def apply_physics(self):
         self.update_scenegraph(self.get_time())

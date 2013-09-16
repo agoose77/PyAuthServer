@@ -3,7 +3,7 @@ from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, Repl
                          Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon,
-                         event, ReplicableInstantiatedEvent, UpdateEvent)
+                         event, UpdateEvent, ActorDamagedEvent)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
@@ -50,7 +50,7 @@ class TeamDeathMatch(ReplicationRules):
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
         weapon = self.ai_weapon_class()
-
+        pawn.object['i'] = "ai"
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
@@ -62,6 +62,7 @@ class TeamDeathMatch(ReplicationRules):
         camera = self.player_camera_class()
         weapon = self.player_weapon_class()
 
+        pawn.object['i'] = "lcl"
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
@@ -117,7 +118,6 @@ class TeamDeathMatch(ReplicationRules):
     def killed(self, killer, killed, killed_pawn):
         pass
 
-    @event(ReplicableInstantiatedEvent)
     def on_initialised(self, **da):
         super().on_initialised()
 
@@ -161,6 +161,11 @@ class TeamDeathMatch(ReplicationRules):
             self.create_new_ai(controller)
 
         self.info.match_started = True
+
+    @event(ActorDamagedEvent, True)
+    def on_damaged(self, target, damage, instigator, hit_position, momentum):
+        if target.health == 0:
+            print("{} died!".format(target))
 
     @event(UpdateEvent, True)
     def update(self, delta_time):

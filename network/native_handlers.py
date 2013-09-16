@@ -89,7 +89,7 @@ class ReplicableProxyBaseHandler:
             # Check that it was made locally and has a remote role
             # replicable.roles.remote != Roles.none
             assert replicable._local_authority
-            return weak_proxy(replicable)
+            return replicable
 
         # We can't be sure that this is the correct instance
         # Use proxy to delay checks

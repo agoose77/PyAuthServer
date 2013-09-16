@@ -18,26 +18,24 @@ class Connection(EventListener):
     def __init__(self, netmode):
         self.netmode = netmode
         self.channels = {}
-
         self.replicable = None
 
         self.string_packer = get_handler(StaticValue(str))
         self.int_packer = get_handler(StaticValue(int))
         self.replicable_packer = get_handler(StaticValue(Replicable))
 
-        super().__init__()
+        self.listen_for_events(self)
 
     @event(ReplicableUnregisteredEvent, True)
-    def notify_unregistration(self, context):
-        self.channels.pop(context.instance_id)
+    def notify_unregistration(self, target):
+        self.channels.pop(target)
 
     @event(ReplicableRegisteredEvent, True)
-    def notify_registration(self, context):
+    def notify_registration(self, target):
         '''Create channel for context with network id
         @param instance_id: network id of context'''
-        proxy = weak_proxy(context)
-        channel = self.channel_class(self, proxy)
-        self.channels[context.instance_id] = channel
+        channel = self.channel_class(self, target)
+        self.channels[target.instance_id] = channel
 
     def on_delete(self):
         pass
@@ -138,7 +136,7 @@ class ClientConnection(Connection):
             if is_connection_host:
 
                 # Register as own replicable
-                self.replicable = weak_proxy(replicable)
+                self.replicable = replicable
 
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:

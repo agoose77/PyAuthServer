@@ -5,9 +5,13 @@ class ReplicableRegisteredEvent(CachedEvent):
     pass
 
 
+class ReplicationNotifyEvent(Event):
+    pass
+
+
 class ReplicableUnregisteredEvent(Event):
     pass
 
 
-class ReplicableInstantiatedEvent(Event):
+class UpdateEvent(Event):
     pass

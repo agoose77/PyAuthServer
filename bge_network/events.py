@@ -21,14 +21,13 @@ class PhysicsUnsetSimulated(Event):
     pass
 
 
-class PlayerInputEvent(Event):
+class ActorDamagedEvent(Event):
     pass
 
 
-class UpdateEvent(Event):
+class PlayerInputEvent(Event):
     pass
 
 
 class PhysicsTickEvent(Event):
     pass
-

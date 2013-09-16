@@ -3,7 +3,7 @@ from .descriptors import Attribute, StaticValue
 from .enums import Roles, Netmodes
 from .modifiers import simulated, event
 from .registers import ReplicableRegister
-from .events import ReplicableRegisteredEvent, ReplicableUnregisteredEvent, ReplicableInstantiatedEvent
+from .events import ReplicableRegisteredEvent, ReplicableUnregisteredEvent, UpdateEvent
 
 from collections import defaultdict
 
@@ -25,7 +25,6 @@ class Replicable(metaclass=ReplicableRegister):
 
     always_relevant = False
 
-    _instantiated_event = ReplicableInstantiatedEvent
     _registered_event = ReplicableRegisteredEvent
     _unregistered_event = ReplicableUnregisteredEvent
 
@@ -88,7 +87,6 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
-    @event(ReplicableInstantiatedEvent)
     def on_initialised(self):
         self.owner = None
         self.always_relevant = False
@@ -164,9 +162,6 @@ class Replicable(metaclass=ReplicableRegister):
         if is_complaint or is_initial:
             yield "roles"
 
-    def update(self, elapsed):
-        pass
-
     def __description__(self):
         '''Returns a hash-like description for this replicable
         Used to check if the value of a replicated reference has changed'''
@@ -206,6 +201,7 @@ class BaseWorldInfo(Replicable):
         return (a for a in self.replicables if isinstance(a, actor_type))
 
     @simulated
+    @event(UpdateEvent, True)
     def update(self, delta):
         self.elapsed += delta
 

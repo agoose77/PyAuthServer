@@ -1,7 +1,14 @@
-from .actors import WorldInfo
+from .actors import WorldInfo, Replicable
 from .errors import ReplicableAccessError
 
 from weakref import proxy as weak_proxy
+
+def test_proxying():
+    r = Replicable()
+    Replicable.update_graph()
+    p = ReplicableProxy(r.instance_id)
+    assert r, "Replicable couldn't register"
+    assert hash(p) == hash(r), "Invalid hashing method"
 
 
 class ReplicableProxy:
@@ -27,13 +34,12 @@ class ReplicableProxy:
             except LookupError:
                 return
 
-            # Don't return proxy to local authorities
-            if replicable_instance._local_authority:
-                return
+#             # Don't return proxy to local authorities
+#             if replicable_instance._local_authority:
+#                 return
 
             child = weak_proxy(replicable_instance)
             object.__setattr__(self, "reference", child)
-
             return child
 
     def __getattribute__(self, name):
