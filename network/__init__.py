@@ -16,7 +16,6 @@ from .modifiers import *
 from .native_handlers import *
 from .network import *
 from .packet import *
-from .proxy import *
 from .registers import *
 from .rpc import *
 from .serialiser import *

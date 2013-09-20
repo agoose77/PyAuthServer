@@ -15,3 +15,11 @@ class ReplicableUnregisteredEvent(Event):
 
 class UpdateEvent(Event):
     pass
+
+
+class ConnectionErrorEvent(Event):
+    pass
+
+
+class ConnectionSuccessEvent(Event):
+    pass

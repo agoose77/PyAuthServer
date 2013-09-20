@@ -3,7 +3,8 @@ from .bitfield import Bitfield
 from .connection import ClientConnection, ServerConnection
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
-from .errors import NetworkError
+from .errors import NetworkError, TimeoutError
+from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
 from .registers import InstanceRegister
@@ -17,11 +18,7 @@ from weakref import proxy as weak_proxy
 
 class ConnectionInterface(metaclass=InstanceRegister):
 
-    def __init__(self, addr, on_error=None,
-                 on_timeout=None, on_connected=None):
-        self.on_error = on_error
-        self.on_timeout = on_timeout
-        self.on_connected = on_connected
+    def __init__(self, addr):
 
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
@@ -94,11 +91,9 @@ class ConnectionInterface(metaclass=InstanceRegister):
         @param addr: address to clean'''
         try:
             return gethostbyname(addr[0]), addr[1]
+
         except Exception as err:
-            if callable(self.on_error):
-                self.on_error(err)
-            else:
-                raise
+            ConnectionErrorEvent.invoke(err, target=self)
 
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
@@ -128,9 +123,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
     def connected(self, *args, **kwargs):
         self.status = ConnectionStatus.connected
-
-        if callable(self.on_connected):
-            self.on_connected()
+        ConnectionSuccessEvent.invoke(target=self)
 
     def send(self, network_tick):
 
@@ -139,11 +132,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
             self.status = ConnectionStatus.timeout
 
             err = TimeoutError("Connection to {} timed out".format(self._addr))
-
-            if callable(self.on_timeout):
-                self.on_timeout(err)
-            else:
-                raise err
+            ConnectionErrorEvent.invoke(err, target=self)
 
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
@@ -347,10 +336,7 @@ class ClientInterface(ConnectionInterface):
             err_body = self.error_packer.unpack_from(err_data)
             err = NetworkError.from_type_name(err_type)
 
-            if callable(self.on_error):
-                self.on_error(err)
-            else:
-                raise err
+            ConnectionErrorEvent.invoke(err, target=self)
 
         # Get remote network mode
         netmode = self.netmode_packer.unpack_from(packet.payload)

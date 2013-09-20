@@ -1,6 +1,8 @@
 import bge
 import bgui
 
+from network import ConnectionErrorEvent, ConnectionSuccessEvent, EventListener
+
 
 CENTERY = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERX
@@ -83,7 +85,7 @@ class Panel(bgui.Frame):
         pass
 
 
-class ConnectPanel(Panel):
+class ConnectPanel(Panel, EventListener):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
@@ -170,18 +172,22 @@ class ConnectPanel(Panel):
                                pos=[0.5,0.65], aspect=self.aspect,
                                options=CENTERX)
 
-        self.connect_button.on_click = self.on_connect
-
+        self.connect_button.on_click = self.do_connect
+        self.listen_for_events()
         self.uses_mouse = True
 
-    def on_connect(self, button):
+    def do_connect(self, button):
         if not callable(self.connecter):
             return
 
-        self.connecter(self.addr_field.text, int(self.port_field.text),
-                       self.on_error)
+        self.connecter(self.addr_field.text, int(self.port_field.text))
 
-    def on_error(self, error):
+    @ConnectionSuccessEvent.listener(True)
+    def on_connect(self, target):
+        self.visible = False
+
+    @ConnectionErrorEvent.listener(True, True)
+    def on_error(self, error, target, event):
         self.connect_message.text = str(error)
 
     def update(self, delta_time):

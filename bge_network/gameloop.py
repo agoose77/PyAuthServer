@@ -5,7 +5,7 @@ from .physics import PhysicsSystem
 from bge import logic, events, types
 from network import( Netmodes, WorldInfo, Network, Replicable,
                      EventListener, ReplicableRegisteredEvent,
-                     event, UpdateEvent)
+                     UpdateEvent)
 
 
 class GameLoop(types.KX_PythonLogicLoop, EventListener):
@@ -35,7 +35,7 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
 
         print("Network initialised")
 
-    @event(ReplicableRegisteredEvent, True)
+    @ReplicableRegisteredEvent.listener(True)
     def notify_registration(self, target):
 
         if isinstance(target, Camera):

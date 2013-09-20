@@ -57,17 +57,11 @@ class EventListener:
             if not (callable(val) and is_event(val)):
                 continue
 
-            target = val.__annotations__['event']
-            if target is None:
-                for event_type in Event._types:
-                    event_type.subscribe(id, val, bound_type=False,
-                                 isolated=val.__annotations__.get("isolated"))
-            else:
-                target.subscribe(id, val, bound_type=True,
-                                 isolated=val.__annotations__.get("isolated"))
+            Event.subscribe(id, val)
 
 
 class Event(metaclass=TypeRegister):
+
     @classmethod
     def register_subtype(cls):
         cls.subscribers = {}
@@ -83,12 +77,20 @@ class Event(metaclass=TypeRegister):
         cls.to_unchild = []
 
     @classmethod
-    def unsubscribe(cls, identifier):
-        cls.to_unsubscribe.append(identifier)
-        cls.to_unisolate.append(identifier)
+    def register_type(cls):
+        cls.register_subtype()
 
-        if identifier in cls.children:
-            cls.to_unchild.append(identifier)
+        cls.highest_event = cls
+
+    @classmethod
+    def unsubscribe(cls, identifier, callback):
+        settings = callback.__annotations__
+        event_cls = settings['event']
+        event_cls.to_unsubscribe.append(identifier)
+        event_cls.to_unisolate.append(identifier)
+
+        if identifier in event_cls.children:
+            event_cls.to_unchild.append(identifier)
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
@@ -99,13 +101,18 @@ class Event(metaclass=TypeRegister):
         cls.to_unchild.append((identifier, parent_identifier))
 
     @classmethod
-    def subscribe(cls, identifier, callback,
-                  bound_type=False, isolated=True, parent=None):
-        data_dict = cls.to_isolate if (isolated or parent is not None) \
-                                    else cls.to_subscribe
-        data_dict[identifier] = callback, bound_type
-        if parent is not None:
-            cls.set_parent(identifier, parent)
+    def on_subscribed(cls):
+        pass
+
+    @staticmethod
+    def subscribe(identifier, callback):
+        settings = callback.__annotations__
+        event_cls = settings['event']
+
+        data_dict = (event_cls.to_isolate if settings['context_dependant']
+                     else event_cls.to_subscribe)
+        data_dict[identifier] = callback, settings['accepts_event']
+        event_cls.on_subscribed()
 
     @classmethod
     def update_graph(cls):
@@ -115,7 +122,7 @@ class Event(metaclass=TypeRegister):
             cl.children.update(cl.to_child)
 
     @classmethod
-    def update_targetted(cls, *args, target, **kwargs):
+    def update_targetted(cls, *args, target=None, **kwargs):
         cls.update_graph()
 
         targets = [target]
@@ -135,16 +142,15 @@ class Event(metaclass=TypeRegister):
                 cls.children[key].pop(child, None)
 
             if target_ is not None:
-                for target_child, data in cls.isolated_subscribers.items():
+                for target_child, (callback, supply_event) in\
+                            cls.isolated_subscribers.items():
                     if target_child != target_:
                         continue
 
-                    callback, bound_type = data
-
-                    if bound_type:
-                        callback(*args, **kwargs)
+                    if supply_event:
+                        callback(*args, event=cls, **kwargs)
                     else:
-                        callback(cls, *args, **kwargs)
+                        callback(*args, **kwargs)
                     break
 
             if target_ in cls.children:
@@ -154,34 +160,37 @@ class Event(metaclass=TypeRegister):
     def invoke(cls, *args, target=None, **kwargs):
         cls.update_targetted(*args, target=target, **kwargs)
 
-        for subscriber, (callback, bound_type) in cls.subscribers.items():
+        for subscriber, (callback, supply_event) in cls.subscribers.items():
+
             if target is None:
-                if bound_type:
+                if supply_event:
+                    callback(*args, event=cls, **kwargs)
+                else:
                     callback(*args, **kwargs)
-                else:
-                    callback(cls, *args, **kwargs)
             else:
-                if bound_type:
-                    callback(target, *args, **kwargs)
+                if supply_event:
+                    callback(*args, target=target, event=cls, **kwargs)
                 else:
-                    callback(target, cls, *args, **kwargs)
+                    callback(*args, target=target, **kwargs)
 
+        if cls.highest_event == cls:
+            return
 
-class CachedEvent(Event):
-    cache = defaultdict(list)
+        try:
+            parent = cls.__mro__[1]
+        except IndexError:
+            return
+
+        parent.invoke(*args, target=target, **kwargs)
 
     @classmethod
-    def invoke(cls, *args, target=None, **kwargs):
-        kwargs['target'] = target
-        cls.cache[cls].append((args, kwargs))
-        return super().invoke(*args, **kwargs)
-
-    @classmethod
-    def subscribe(cls, identifier, callback, *args, **kwargs):
-        super().subscribe(identifier, callback, *args, **kwargs)
-
-        for previous_args, previous_kwargs in cls.cache[cls]:
-            super().invoke(*previous_args, **previous_kwargs)
+    def listener(cls, global_listener=False, accepts_event=False):
+        def wrapper(func):
+            func.__annotations__['event'] = cls
+            func.__annotations__['context_dependant'] = not global_listener
+            func.__annotations__['accepts_event'] = accepts_event
+            return func
+        return wrapper
 
 
 class InstanceRegisteredEvent(Event):
@@ -194,6 +203,20 @@ class InstanceUnregisteredEvent(Event):
 
 class InstanceInstantiatedEvent(Event):
     pass
+
+
+class CachedEvent(Event):
+    cache = defaultdict(list)
+
+    @classmethod
+    def invoke(cls, *args, **kwargs):
+        cls.cache[cls].append((args, kwargs))
+        return super().invoke(*args, **kwargs)
+
+    @classmethod
+    def on_subscribed(cls):
+        for previous_args, previous_kwargs in cls.cache[cls]:
+            super().invoke(*previous_args, **previous_kwargs)
 
 
 class InstanceNotifier:
@@ -445,5 +468,4 @@ class ReplicableRegister(InstanceRegister):
                         Function does not have permission roles")
 
         return func_wrapper
-
 

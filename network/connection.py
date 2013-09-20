@@ -6,9 +6,6 @@ from .registers import EventListener
 from .events import ReplicableUnregisteredEvent, ReplicableRegisteredEvent
 from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
-from .modifiers import event
-
-from weakref import proxy as weak_proxy
 
 
 class Connection(EventListener):
@@ -24,13 +21,13 @@ class Connection(EventListener):
         self.int_packer = get_handler(StaticValue(int))
         self.replicable_packer = get_handler(StaticValue(Replicable))
 
-        self.listen_for_events(self)
+        self.listen_for_events()
 
-    @event(ReplicableUnregisteredEvent, True)
+    @ReplicableUnregisteredEvent.listener(True)
     def notify_unregistration(self, target):
         self.channels.pop(target)
 
-    @event(ReplicableRegisteredEvent, True)
+    @ReplicableRegisteredEvent.listener(True)
     def notify_registration(self, target):
         '''Create channel for context with network id
         @param instance_id: network id of context'''
@@ -132,7 +129,7 @@ class ClientConnection(Connection):
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
 
-            # If replicable is Controller
+            # If replicable is parent (top owner)
             if is_connection_host:
 
                 # Register as own replicable
@@ -185,6 +182,7 @@ class ServerConnection(Connection):
 
     def __init__(self, netmode):
         super().__init__(netmode)
+
         self.cached_packets = set()
 
     def on_delete(self):
@@ -198,7 +196,7 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
-    @event(ReplicableUnregisteredEvent, True)
+    @ReplicableUnregisteredEvent.listener(True)
     def notify_unregistration(self, replicable):
         '''Called when replicable dies
         @param replicable: replicable that died'''

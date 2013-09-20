@@ -1109,32 +1109,34 @@ class ReplicableProxy:
             ins = object.__new__(theclass)
             theclass.__init__(ins, obj, *args, **kwargs)
             return ins
-    
-class ReplicableProxyHandler:
+
+
+class ReplicableHandler:
     """Handler for packing replicable proxy
     Packs replicable references and unpacks to proxy OR reference"""
-    
+
     @classmethod
     def pack(cls, replicable):
         # Send the instance ID
         return UInt8.pack(replicable.instance_id)
-    
+
     @classmethod
     def unpack(cls, bytes_):
         instance_id = UInt8.unpack_from(bytes_)
-        
+
         # Return only a replicable that was created by the network
         try:
             replicable = WorldInfo.get_actor(instance_id)
             # Check that it was made locally and has a remote role
             assert replicable._local_authority #and replicable.roles.remote != Roles.none
-            return weak_proxy(replicable)
-        
+            return replicable
+
         # We can't be sure that this is the correct instance, use proxy to delay checks (hoping it will have now been replicated)
         except (LookupError, AssertionError):
-            return ReplicableProxy(instance_id)
-        
-    unpack_from = unpack    
+            print("err")
+            return None
+
+    unpack_from = unpack
     size = UInt8.size
 
 class RolesHandler:
@@ -1156,7 +1158,7 @@ class RolesHandler:
     
     unpack_from = unpack
         
-register_handler(Replicable, ReplicableProxyHandler)
+register_handler(Replicable, ReplicableHandler)
 register_handler(Roles, RolesHandler)
 
 WorldInfo = BaseWorldInfo(255, register=True)

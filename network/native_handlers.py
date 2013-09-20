@@ -3,10 +3,7 @@ from .descriptors import StaticValue
 from .enums import Roles
 from .handler_interfaces import (register_handler, get_handler,
                                  register_description)
-from .proxy import ReplicableProxy
 from .registers import TypeRegister
-
-from weakref import proxy as weak_proxy
 
 
 class TypeHandler:
@@ -52,7 +49,7 @@ class RolesHandler:
     unpack_from = unpack
 
 
-class ReplicableProxyBaseHandler:
+class ReplicableBaseHandler:
     """Handler for packing replicable proxy
     Packs replicable references and unpacks to proxy OR reference"""
 
@@ -86,26 +83,20 @@ class ReplicableProxyBaseHandler:
         # Return only a replicable that was created by the network
         try:
             replicable = WorldInfo.get_replicable(instance_id)
-            # Check that it was made locally and has a remote role
-            # replicable.roles.remote != Roles.none
-            assert replicable._local_authority
             return replicable
 
-        # We can't be sure that this is the correct instance
-        # Use proxy to delay checks
-        # Also, in past revisions: hoping it will have now been replicated
-        except (LookupError, AssertionError):
-            return ReplicableProxy(instance_id)
+        except (LookupError):
+            return
 
     def size(self, bytes_=None):
         return self._packer.size(bytes_)
 
     unpack_from = unpack
 
-ReplicableProxyHandler = ReplicableProxyBaseHandler()
+ReplicableHandler = ReplicableBaseHandler()
 
 register_handler(TypeRegister, TypeHandler, True)
 register_handler(Roles, RolesHandler)
-register_handler(Replicable, ReplicableProxyHandler)
+register_handler(Replicable, ReplicableHandler)
 
 register_description(TypeRegister, type_description)

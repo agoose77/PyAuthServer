@@ -3,7 +3,7 @@ from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, Repl
                          Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon,
-                         event, UpdateEvent, ActorDamagedEvent)
+                         UpdateEvent, ActorDamagedEvent)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
@@ -67,7 +67,7 @@ class TeamDeathMatch(ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector()
+        pawn.position = Vector((4, 4, 1))
 
     def create_ai_controllers(self):
         for i in range(self.ai_count):
@@ -162,12 +162,12 @@ class TeamDeathMatch(ReplicationRules):
 
         self.info.match_started = True
 
-    @event(ActorDamagedEvent, True)
-    def on_damaged(self, target, damage, instigator, hit_position, momentum):
-        if target.health == 0:
+    @ActorDamagedEvent.listener(True)
+    def on_damaged(self, damage, instigator, hit_position, momentum, target):
+        if not target.health:
             print("{} died!".format(target))
 
-    @event(UpdateEvent, True)
+    @UpdateEvent.listener(True)
     def update(self, delta_time):
 
         if self.countdown_running:

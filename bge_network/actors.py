@@ -1,7 +1,7 @@
 from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
 from .events import (CollisionEvent, PlayerInputEvent,
                     PhysicsReplicatedEvent, PhysicsSingleUpdate,
-                    PhysicsSetSimulated, PhysicsUnsetSimulated, 
+                    PhysicsSetSimulated, PhysicsUnsetSimulated,
                     ActorDamagedEvent)
 from .enums import PhysicsType, ShotType, CameraMode, MovementState, AIState, Axis
 from .inputs import InputManager
@@ -20,7 +20,7 @@ from math import pi, radians
 from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo,
                      simulated, Netmodes, StaticValue, run_on, TypeRegister,
-                     event, ReplicableRegisteredEvent, ReplicableUnregisteredEvent,
+                     ReplicableRegisteredEvent, ReplicableUnregisteredEvent,
                      ReplicationNotifyEvent, UpdateEvent)
 from os import path
 
@@ -53,7 +53,7 @@ class Controller(Replicable):
 
         self.state_manager = FiniteStateMachine()
 
-    @event(ReplicationNotifyEvent)
+    @ReplicationNotifyEvent.listener()
     def on_notify(self, name):
         if name == "pawn":
             self.possess(self.pawn)
@@ -68,7 +68,8 @@ class Controller(Replicable):
         else:
             super().on_notify(name)
 
-    def on_damaged(self, damage, instigator, hit_position, momentum):
+    @ActorDamagedEvent.listener()
+    def on_damsaged(self, damage, instigator, hit_position, momentum):
         pass
 
     def remove_camera(self):
@@ -80,7 +81,7 @@ class Controller(Replicable):
     def hear_sound(self, path, location):
         pass
 
-    @event(ReplicableUnregisteredEvent)
+    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         super().on_unregistered()
 
@@ -97,6 +98,7 @@ class Controller(Replicable):
         self.pawn.possessed_by(self)
 
         CollisionEvent.set_parent(self, self.pawn)
+        ActorDamagedEvent.set_parent(self, self.pawn)
 
     def set_camera(self, camera):
         self.camera = camera
@@ -166,12 +168,11 @@ class AIController(Controller):
 
         self.setup_states(self.state_manager)
 
-    @event(CollisionEvent)
+    @CollisionEvent.listener()
     def on_collision(self, actor, new_collision):
         if new_collision and isinstance(actor, NavmeshObject):
-            navmesh = next(i for i in WorldInfo.subclass_of(Navmesh) if i.object == actor)
-            self.navmesh = navmesh
-        print("COl", actor)
+            self.navmesh = next(i for i in WorldInfo.subclass_of(Navmesh)\
+                                if i.object == actor)
 
     def leave_alert_to_idle(self, state):
         return self.alert_timer == 0
@@ -210,10 +211,10 @@ class AIController(Controller):
         if self.state_manager.current_state.identifier == AIState.idle:
             self.state_manager.current_state = AIState.alert
 
-    @event(ActorDamagedEvent)
+    @ActorDamagedEvent.listener()
     def take_damage(self, damage, instigator, hit_position, momentum):
         # Set alert
-        self.on_alerted(-momentum)
+        self.on_alerted(momentum)
 
     def hear_sound(self, path, source):
         probability = falloff_fraction(self.pawn.position,
@@ -256,8 +257,8 @@ class AIController(Controller):
     def handle_alerted(self, state, delta_time):
         self.alert_timer.update(delta_time)
 
-    @event(UpdateEvent, True)
     @simulated
+    @UpdateEvent.listener(True)
     def update(self, delta_time):
         self.state_manager.current_state.run(delta_time)
 
@@ -318,7 +319,7 @@ class PlayerController(Controller):
 
         lookup_dict = {}
 
-        print("Correcting ... ")
+        print("{}: Correcting prediction for move {}".format(self, move_id))
 
         with self.inputs.using_interface(lookup_dict):
 
@@ -402,7 +403,7 @@ class PlayerController(Controller):
         self.camera_setup = False
 
     @simulated
-    @event(PlayerInputEvent, True)
+    @PlayerInputEvent.listener(True)
     def player_update(self, delta_time):
         if not (self.pawn and self.camera):
             return
@@ -537,19 +538,19 @@ class Actor(Replicable):
         self.always_relevant = False
         self.camera_radius = 1
 
-    @event(ReplicableUnregisteredEvent)
+    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         super().on_unregistered()
         self.object.endObject()
 
-    @event(ReplicationNotifyEvent)
+    @ReplicationNotifyEvent.listener()
     def on_notify(self, name):
         if name == "rigid_body_state":
             PhysicsReplicatedEvent.invoke(self.rigid_body_state, target=self)
         else:
             super().on_notify(name)
 
-    @event(ActorDamagedEvent)
+    @ActorDamagedEvent.listener()
     def take_damage(self, damage, instigator, hit_position, momentum):
         print("Take damage", self, self.health)
         self.health = max(self.health - damage, 0)
@@ -878,7 +879,7 @@ class Camera(Actor):
                            replicable.camera_radius) != self.object.OUTSIDE
 
     @simulated
-    @event(UpdateEvent, True)
+    @UpdateEvent.listener(True)
     def update(self, delta_time):
         if not self.visible:
             return
@@ -979,7 +980,7 @@ class Pawn(Actor):
                                  lambda *x: not bool(self.targets))
         state_machine.current_state = "empty"
 
-    @event(ReplicationNotifyEvent)
+    @ReplicationNotifyEvent.listener()
     def on_notify(self, name):
 
         # play weapon effects
@@ -992,7 +993,7 @@ class Pawn(Actor):
         else:
             super().on_notify(name)
 
-    @event(ReplicableUnregisteredEvent)
+    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         super().on_unregistered()
 
@@ -1022,7 +1023,7 @@ class Pawn(Actor):
         self.targets = path
 
     @simulated
-    @event(UpdateEvent, True)
+    @UpdateEvent.listener(True)
     def update(self, delta_time):
         if self.outstanding_flash:
             self.use_flashcount()

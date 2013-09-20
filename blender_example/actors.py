@@ -1,7 +1,7 @@
 from bge_network import (PlayerController, ReplicableInfo, Replicable,
                          Attribute, Roles, Pawn, simulated, WorldInfo,
                          Netmodes, Weapon, WeaponAttachment, CameraMode,
-                         MovementState, event)
+                         MovementState)
 from mathutils import Vector, Euler
 from math import radians, cos, sin, degrees, pi
 from bge import logic

@@ -1,9 +1,10 @@
 from .containers import AttributeStorageContainer, RPCStorageContainer
 from .descriptors import Attribute, StaticValue
 from .enums import Roles, Netmodes
-from .modifiers import simulated, event
+from .modifiers import simulated
 from .registers import ReplicableRegister
-from .events import ReplicableRegisteredEvent, ReplicableUnregisteredEvent, UpdateEvent
+from .events import (ReplicableRegisteredEvent, ReplicableUnregisteredEvent,
+                     UpdateEvent, ReplicationNotifyEvent)
 
 from collections import defaultdict
 
@@ -27,7 +28,6 @@ class Replicable(metaclass=ReplicableRegister):
 
     _registered_event = ReplicableRegisteredEvent
     _unregistered_event = ReplicableUnregisteredEvent
-
 
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
@@ -135,18 +135,19 @@ class Replicable(metaclass=ReplicableRegister):
         May be due to death of replicable'''
         pass
 
-    @event(ReplicableRegisteredEvent)
+    @ReplicableRegisteredEvent.listener()
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
         self.__class__._by_types[type(self)].append(self)
 
-    @event(ReplicableUnregisteredEvent)
+    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
         self.__class__._by_types[type(self)].remove(self)
 
+    @ReplicationNotifyEvent.listener()
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
@@ -201,7 +202,7 @@ class BaseWorldInfo(Replicable):
         return (a for a in self.replicables if isinstance(a, actor_type))
 
     @simulated
-    @event(UpdateEvent, True)
+    @UpdateEvent.listener(True)
     def update(self, delta):
         self.elapsed += delta
 
