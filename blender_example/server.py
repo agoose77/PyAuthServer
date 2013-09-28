@@ -3,10 +3,11 @@ from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, Repl
                          Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon,
-                         UpdateEvent, ActorDamagedEvent)
+                         UpdateEvent, ActorDamagedEvent, ActorKilledEvent)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
+from docutils.nodes import target
 
 
 class TeamDeathMatch(ReplicationRules):
@@ -17,8 +18,8 @@ class TeamDeathMatch(ReplicationRules):
 
     ai_count = 1
 
-    ai_controller_class = AIController
     ai_camera_class = Camera
+    ai_controller_class = AIController
     ai_pawn_class = RobertNeville
     ai_replication_info_class = PlayerReplicationInfo
     ai_weapon_class = M4A1Weapon
@@ -46,23 +47,23 @@ class TeamDeathMatch(ReplicationRules):
         player_count = self.get_player_count()
         return player_count >= self.minimum_players_for_countdown
 
-    def create_new_ai(self, controller, callback_data=None):
+    def create_new_ai(self, controller):
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
         weapon = self.ai_weapon_class()
-        pawn.object['i'] = "ai"
+
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
+        s = 3
+        a = (controller.instance_id - self.ai_count/2) * s
+        pawn.position = Vector((a, a, 0))
 
-        pawn.position = Vector((1, 4, 0))
-
-    def create_new_player(self, controller, callback_data=None):
+    def create_new_player(self, controller):
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
         weapon = self.player_weapon_class()
 
-        pawn.object['i'] = "lcl"
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
@@ -115,8 +116,19 @@ class TeamDeathMatch(ReplicationRules):
         if isinstance(replicable, WeaponAttachment):
             return True
 
-    def killed(self, killer, killed, killed_pawn):
-        pass
+    @ActorKilledEvent.listener(True)
+    def killed(self, attacker, target):
+        print("{} was killed by {}'s {}".format(target.owner, attacker,
+                                                attacker.pawn))
+        target.owner.unpossess()
+        target.request_unregistration()
+        target.owner.weapon.unpossessed()
+        target.owner.weapon.request_unregistration()
+
+        if isinstance(target.owner, self.player_controller_class):
+            self.create_new_player(target.owner)
+        else:
+            self.create_new_ai(target.owner)
 
     def on_initialised(self, **da):
         super().on_initialised()
@@ -137,14 +149,14 @@ class TeamDeathMatch(ReplicationRules):
 
         return controller
 
-    def pre_initialise(self, addr, netmode):
+    def pre_initialise(self, address_tuple, netmode):
 
         if netmode == Netmodes.server:
             raise AuthError("Peer was not a client")
 
-        ip, port = addr
+        ip_address, port = address_tuple
 
-        if ip in self.black_list:
+        if ip_address in self.black_list:
             raise BlacklistError()
 
     def reset_countdown(self):
@@ -157,6 +169,7 @@ class TeamDeathMatch(ReplicationRules):
     def start_match(self):
         for controller in WorldInfo.subclass_of(PlayerController):
             self.create_new_player(controller)
+
         for controller in WorldInfo.subclass_of(AIController):
             self.create_new_ai(controller)
 
@@ -164,8 +177,11 @@ class TeamDeathMatch(ReplicationRules):
 
     @ActorDamagedEvent.listener(True)
     def on_damaged(self, damage, instigator, hit_position, momentum, target):
+        if not isinstance(target, Pawn):
+            return
+
         if not target.health:
-            print("{} died!".format(target))
+            ActorKilledEvent.invoke(instigator, target=target)
 
     @UpdateEvent.listener(True)
     def update(self, delta_time):

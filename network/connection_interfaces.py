@@ -7,13 +7,12 @@ from .errors import NetworkError, TimeoutError
 from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
-from .registers import InstanceRegister
+from .registers import InstanceUnregisteredEvent
 
 from collections import deque
 from operator import eq as equals_operator
 from socket import gethostbyname
 from time import monotonic
-from weakref import proxy as weak_proxy
 
 
 class ConnectionInterface(metaclass=InstanceRegister):
@@ -80,8 +79,8 @@ class ConnectionInterface(metaclass=InstanceRegister):
         else:
             return super().__new__(cls)
 
+    @InstanceUnregisteredEvent.listener()
     def on_unregistered(self):
-        super().on_unregistered()
 
         if self.connection:
             self.connection.on_delete()

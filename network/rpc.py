@@ -1,9 +1,8 @@
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
-from .factory_dict import FactoryDict
 from .modifiers import is_simulated
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from copy import deepcopy
 from inspect import signature
 
@@ -28,6 +27,12 @@ class RPC:
         except KeyError:
             pass
 
+    def create_rpc_interface(self, instance):
+        bound_function = self._func.__get__(instance)
+        self.update_class_arguments(bound_function, instance)
+        self._by_instance[instance] = RPCInterface(bound_function)
+        return self._by_instance[instance]
+
     def update_class_arguments(self, func, instance):
         annotations = func.__annotations__
 
@@ -49,14 +54,6 @@ class RPC:
 
                 static_value.data[key] = value
 
-    def create_rpc_interface(self, instance):
-        bound_func = self._func.__get__(instance)
-
-        self.update_class_arguments(bound_func, instance)
-
-        self._by_instance[instance] = RPCInterface(bound_func)
-        return self._by_instance[instance]
-
 
 class RPCInterface:
     """Mediates RPC calls to/from peers"""
@@ -75,21 +72,12 @@ class RPCInterface:
         self.target = self._function_signature.return_annotation
 
         # Interface between data and bytes
-        self._serialiser = ArgumentSerialiser(self.ordered_arguments(
-                                             self._function_signature))
         self._binder = self._function_signature.bind
+        self._serialiser = ArgumentSerialiser(self.order_arguments(
+                                             self._function_signature))
 
         from .actors import WorldInfo
         self._system_netmode = WorldInfo.netmode
-
-    def register(self, interface, rpc_id):
-        self.rpc_id = rpc_id
-        self._interface = interface
-
-    def ordered_arguments(self, sig):
-        return OrderedDict((value.name, value.annotation)
-                           for value in sig.parameters.values()
-                           if isinstance(value.annotation, StaticValue))
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
@@ -97,9 +85,9 @@ class RPCInterface:
             return self._function.__call__(*args, **kwargs)
 
         arguments = self._binder(*args, **kwargs).arguments
-        data = self._serialiser.pack(arguments)
+        packed_arguments = self._serialiser.pack(arguments)
 
-        self._interface.setter(data)
+        self._interface.setter(packed_arguments)
 
     def execute(self, bytes_):
         # Unpack RPC
@@ -116,3 +104,12 @@ class RPCInterface:
         except Exception as err:
             print("Error invoking {}: {}".format(self.name, err))
             raise
+
+    def order_arguments(self, sig):
+        return OrderedDict((value.name, value.annotation)
+                           for value in sig.parameters.values()
+                           if isinstance(value.annotation, StaticValue))
+
+    def register(self, interface, rpc_id):
+        self.rpc_id = rpc_id
+        self._interface = interface

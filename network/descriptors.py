@@ -32,19 +32,6 @@ class Attribute(StaticValue):
         self._data = {}
         self._value = value
 
-    @property
-    def copied_value(self):
-        return deepcopy(self._value)
-
-    def set_name(self, name):
-        self.name = name
-
-    def register(self, instance, storage_interface):
-        '''Registers attribute for instance
-        Stores name of attribute through search'''
-        self._data[instance] = storage_interface
-        storage_interface.value = self.copied_value
-
     def __get__(self, instance, base):
         # Try and get value, or register to instance
         try:
@@ -70,15 +57,25 @@ class Attribute(StaticValue):
             storage_interface.set_complaint(static_description(value))
 
         # Force type check
-        if not isinstance(value, self.type):
-            raise TypeError("Cannot set {} value to {} value".format(self.type,
-                                                                 type(value)))
+        if value is not None and not isinstance(value, self.type):
+            raise TypeError("Cannot set {.__name__} value to " \
+                            "{.__name__} value".format(self.type, type(value)))
 
         # Store value
         storage_interface.value = value
 
     def __str__(self):
-        return "[Attribute] name: {}, type: {}".format(self.name,
-                                                       self.type.__name__)
+        return "[Attribute] name: {}, type: {.__name__}".format(self.name,
+                                                       self.type)
+
+    @property
+    def value(self):
+        return deepcopy(self._value)
+
+    def register(self, instance, storage_interface):
+        '''Registers attribute for instance
+        Stores name of attribute through search'''
+        self._data[instance] = storage_interface
+        storage_interface.value = self.value
 
     __repr__ = __str__

@@ -5,7 +5,8 @@ from .events import CollisionEvent, PhysicsReplicatedEvent, PhysicsTickEvent, Ph
 from bge import logic, types
 from collections import defaultdict
 from functools import partial
-from network import WorldInfo, Netmodes, FactoryDict, EventListener, ReplicableUnregisteredEvent
+from network import (WorldInfo, Netmodes, EventListener,
+                     ReplicableUnregisteredEvent)
 from time import monotonic
 
 
@@ -87,12 +88,15 @@ class PhysicsSystem(EventListener):
         self.listen_for_events()
 
     @ReplicableUnregisteredEvent.listener(True)
-    def notify_unregistration(self, replicable):
-        self.remove_listener(replicable)
+    def notify_unregistration(self, target):
+        self.remove_listener(target)
+        if target in self._exempt_actors:
+            self.remove_exemption(target)
 
     @PhysicsUnsetSimulated.listener(True)
     def add_exemption(self, target):
-        self._exempt_actors.append(target)
+        if not target in self._exempt_actors:
+            self._exempt_actors.append(target)
 
     @PhysicsSetSimulated.listener(True)
     def remove_exemption(self, target):
@@ -135,14 +139,10 @@ class PhysicsSystem(EventListener):
 
         # Restore scheduled objects
         for actor in self._exempt_actors:
-            try:
-                actor.suspend_physics()
+            actor.suspend_physics()
 
-                if actor in self._listeners:
-                    self._listeners[actor].receive_collisions = False
-
-            except RuntimeError:
-                print(actor, "was not removed from the exempt actors list")
+            if actor in self._listeners:
+                self._listeners[actor].receive_collisions = False
 
         self._update_func(delta_time)
 
@@ -199,7 +199,7 @@ class ClientPhysics(PhysicsSystem):
         super().update(scene, delta_time)
 
         for replicable in WorldInfo.subclass_of(Actor):
-
+            
             # If we need to make a callback instance
             if self.needs_listener(replicable):
                 self.create_listener(replicable)

@@ -45,9 +45,9 @@ class TypeRegister(type):
 
 class EventListener:
 
-    def listen_for_events(self, id=None):
-        if id is None:
-            id = self
+    def listen_for_events(self, identifier=None):
+        if identifier is None:
+            identifier = self
 
         for name, val in getmembers(self):
 
@@ -57,7 +57,21 @@ class EventListener:
             if not (callable(val) and is_event(val)):
                 continue
 
-            Event.subscribe(id, val)
+            Event.subscribe(identifier, val)
+
+    def remove_from_events(self, identifier=None):
+        if identifier is None:
+            identifier = self
+
+        for name, val in getmembers(self):
+
+            if not hasattr(val, "__annotations__"):
+                continue
+
+            if not (callable(val) and is_event(val)):
+                continue
+
+            Event.unsubscribe(identifier, val)
 
 
 class Event(metaclass=TypeRegister):
@@ -90,7 +104,12 @@ class Event(metaclass=TypeRegister):
         event_cls.to_unisolate.append(identifier)
 
         if identifier in event_cls.children:
-            event_cls.to_unchild.append(identifier)
+            for child in event_cls.children[identifier]:
+                event_cls.remove_parent(child, identifier)
+
+        for parent, children in event_cls.children.items():
+            if identifier in children:
+                event_cls.remove_parent(identifier, parent)
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
@@ -101,8 +120,12 @@ class Event(metaclass=TypeRegister):
         cls.to_unchild.append((identifier, parent_identifier))
 
     @classmethod
-    def on_subscribed(cls):
+    def on_subscribed(cls, subscriber):
         pass
+
+    @classmethod
+    def get_total_subscribers(cls):
+        return len(cls.subscribers) + len(cls.isolated_subscribers)
 
     @staticmethod
     def subscribe(identifier, callback):
@@ -112,34 +135,50 @@ class Event(metaclass=TypeRegister):
         data_dict = (event_cls.to_isolate if settings['context_dependant']
                      else event_cls.to_subscribe)
         data_dict[identifier] = callback, settings['accepts_event']
-        event_cls.on_subscribed()
 
     @classmethod
     def update_graph(cls):
         for cl in cls._types:
+
             cl.subscribers.update(cl.to_subscribe)
             cl.isolated_subscribers.update(cl.to_isolate)
             cl.children.update(cl.to_child)
 
+            to_s = list(cl.to_subscribe.values())
+            to_i = list(cl.to_isolate.values())
+
+            cl.to_child.clear()
+            cl.to_isolate.clear()
+            cl.to_subscribe.clear()
+
+            for identifier in to_s:
+                cl.on_subscribed(identifier)
+
+            for key in cl.to_unsubscribe:
+                cl.subscribers.pop(key, None)
+            cl.to_unsubscribe.clear()
+
+            for key in cl.to_unisolate:
+                cl.isolated_subscribers.pop(key, None)
+            cl.to_unisolate.clear()
+
+            for (child, parent) in cl.to_unchild:
+                cl.children[parent].remove(child)
+                if not cl.children[parent]:
+                    cl.children.pop(parent)
+            cl.to_unchild.clear()
+
     @classmethod
     def update_targetted(cls, *args, target=None, **kwargs):
-        cls.update_graph()
-
         targets = [target]
+
         while targets:
             try:
                 target_ = targets.pop(0)
             except IndexError:
                 return
 
-            for key in cls.to_unsubscribe:
-                cls.subscribers.pop(key)
-
-            for key in cls.to_unisolate:
-                cls.isolated_subscribers.pop(key)
-
-            for key, child in cls.to_unchild:
-                cls.children[key].pop(child, None)
+            cls.update_graph()
 
             if target_ is not None:
                 for target_child, (callback, supply_event) in\
@@ -209,14 +248,55 @@ class CachedEvent(Event):
     cache = defaultdict(list)
 
     @classmethod
-    def invoke(cls, *args, **kwargs):
-        cls.cache[cls].append((args, kwargs))
-        return super().invoke(*args, **kwargs)
+    def invoke(cls, *args, explicit=None, **kwargs):
+        cls.update_targetted(*args, **kwargs)
+
+        if explicit is None:
+            cls.cache[cls].append((args, kwargs.copy()))
+            target = kwargs.pop("target", None)
+
+            for subscriber, (callback, supply_event) in cls.subscribers.items():
+
+                if target is None:
+                    if supply_event:
+                        callback(*args, event=cls, **kwargs)
+                    else:
+                        callback(*args, **kwargs)
+                else:
+                    if supply_event:
+                        callback(*args, target=target, event=cls, **kwargs)
+                    else:
+                        callback(*args, target=target, **kwargs)
+
+        else:
+            target = kwargs.pop("target", None)
+
+            callback, supply_event = explicit
+            if target is None:
+                if supply_event:
+                    callback(*args, event=cls, **kwargs)
+                else:
+                    callback(*args, **kwargs)
+            else:
+                if supply_event:
+                    callback(*args, target=target, event=cls, **kwargs)
+                else:
+                    callback(*args, target=target, **kwargs)
+
+        if cls.highest_event == cls:
+            return
+
+        try:
+            parent = cls.__mro__[1]
+        except IndexError:
+            return
+
+        parent.invoke(*args, target=target, **kwargs)
 
     @classmethod
-    def on_subscribed(cls):
+    def on_subscribed(cls, subscriber_info):
         for previous_args, previous_kwargs in cls.cache[cls]:
-            super().invoke(*previous_args, **previous_kwargs)
+            cls.invoke(*previous_args, explicit=subscriber_info, **previous_kwargs)
 
 
 class InstanceNotifier:
@@ -269,6 +349,7 @@ class InstanceMixins(EventListener):
     def __str__(self):
         return "(RegisteredInstance {}: {})".format(self.__class__.__name__,
                                                     self.instance_id)
+    __repr__ = __str__
 
 
 class InstanceRegister(TypeRegister):
@@ -285,7 +366,7 @@ class InstanceRegister(TypeRegister):
 
             if not hasattr(cls, '_registered_event'):
                 cls._registered_event = InstanceRegisteredEvent
-                cls._unregistered_event = InstanceRegisteredEvent
+                cls._unregistered_event = InstanceUnregisteredEvent
 
         return cls
 
@@ -316,16 +397,11 @@ class InstanceRegister(TypeRegister):
                 raise LookupError
 
     def remove_from_entire_graph(cls, instance_id):
-        if instance_id in cls._instances:
-            instance = cls._instances.pop(instance_id)
+        if not instance_id in cls._instances:
+            return
+        instance = cls._instances[instance_id]
 
-            try:
-                cls._unregistered_event.invoke(target=instance)
-            except Exception as err:
-                raise err
-
-            cls.notify_of_unregistration(instance)
-            return instance
+        cls._unregister_from_graph(instance)
 
         for i in cls._to_register:
             if i.instance_id != instance_id:
@@ -374,11 +450,18 @@ class InstanceRegister(TypeRegister):
         try:
             cls._unregistered_event.invoke(target=instance)
 
-        except Exception as err:
-            raise err
+        except Exception:
+            raise
+
+        finally:
+            instance.remove_from_events()
+            Event.update_graph()
 
     def __iter__(cls):
         return iter(cls._instances.values())
+    
+    def __len__(cls):
+        return len(cls._instances)
 
 
 class ReplicableRegister(InstanceRegister):

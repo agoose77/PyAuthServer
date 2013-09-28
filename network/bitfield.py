@@ -25,7 +25,7 @@ class Bitfield:
         return iter(self[:])
 
     def __bool__(self):
-        return self._size > 0
+        return self._value > 0
 
     def __getitem__(self, index):
         if isinstance(index, slice):

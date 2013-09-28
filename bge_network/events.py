@@ -25,6 +25,10 @@ class ActorDamagedEvent(Event):
     pass
 
 
+class ActorKilledEvent(Event):
+    pass
+
+
 class PlayerInputEvent(Event):
     pass
 

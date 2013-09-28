@@ -40,7 +40,8 @@ class RolesHandler:
 
     @classmethod
     def unpack(cls, bytes_):
-        return Roles(cls.packer.unpack(bytes_), cls.packer.unpack(bytes_[1:]))
+        return Roles(cls.packer.unpack(bytes_),
+                     cls.packer.unpack(bytes_[cls.packer.size():]))
 
     @classmethod
     def size(cls, bytes_=None):
@@ -54,7 +55,7 @@ class ReplicableBaseHandler:
     Packs replicable references and unpacks to proxy OR reference"""
 
     def __init__(self):
-        self._maximum_replicables = 255
+        self._maximum_replicables = 400
         self._packer = get_handler(StaticValue(int,
                                    max_value=self._maximum_replicables))
 

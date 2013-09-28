@@ -18,37 +18,33 @@ class ArgumentSerialiser:
         self.total_bools = len(self.bools)
         self.total_contents = self.total_normal + bool(self.total_bools)
 
-        # Bitfields used for packing 
+        # Bitfields used for packing
         # Boolean packing necessitates storing previous values
-        self.content_bits = Bitfield(size=self.total_contents)
+        self.content_bits = Bitfield(size=self.total_contents + 1)
         self.bool_bits = Bitfield(size=self.total_bools)
+        self.none_bits = Bitfield(size=self.total_contents)
 
         self.bitfield_packer = get_handler(StaticValue(Bitfield))
-
-    def get_size(self, bytes_):
-        self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
-        bytes_ = bytes_[self.content_bits.footprint:]
-
-        size = self.bitfield_packer.size()
-
-        for included, (key, handler) in zip(self.content_bits, self.handlers):
-            if not included:
-                continue
-
-            size += handler.size(bytes_)
-            bytes_ = bytes_[handler.size(bytes_):]
-
-        return size
 
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
         self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
         bytes_ = bytes_[self.bitfield_packer.size(bytes_):]
 
-        contents = list(self.content_bits)
+        content_values = list(self.content_bits)
 
-        for included, (key, handler) in zip(contents, self.handlers):
+        # If there are none type values
+        if content_values[-1]:
+            self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
+
+        for included, is_none, (key, handler) in zip(content_values,
+                                             self.none_bits, self.handlers):
+
             if not included:
+                continue
+
+            if is_none:
+                yield (key, None)
                 continue
 
             # If the value can be merged with an existing value
@@ -67,8 +63,7 @@ class ArgumentSerialiser:
 
             bytes_ = bytes_[handler.size(bytes_):]
 
-        # If we have boolean values and they're included
-        if self.bool_bits and contents[-1]:
+        if self.total_bools and content_values[-2]:
             self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
             for value, (key, static_value) in zip(self.bool_bits, self.bools):
                 yield (key, value)
@@ -78,8 +73,12 @@ class ArgumentSerialiser:
         contents = self.content_bits
         contents.clear()
 
-        # Create output list
-        output = []
+        # Reset none data
+        none_values = self.none_bits
+        none_values.clear()
+
+        # Create data_values list
+        data_values = []
 
         # Iterate over non booleans
         for index, (key, handler) in enumerate(self.handlers):
@@ -88,8 +87,13 @@ class ArgumentSerialiser:
                 continue
 
             contents[index] = True
+            value = data.pop(key)
 
-            output.append(handler.pack(data.pop(key)))
+            if value is None:
+                none_values[index] = True
+
+            else:
+                data_values.append(handler.pack(value))
 
         # If we have boolean values remaining
         if data:
@@ -104,8 +108,13 @@ class ArgumentSerialiser:
 
                 bools[index] = data[key]
 
+            contents[-2] = True
+
+            data_values.append(self.bitfield_packer.pack(bools))
+
+        # If we have values set to None
+        if none_values:
             contents[-1] = True
+            data_values.append(self.bitfield_packer.pack(none_values))
 
-            output.append(self.bitfield_packer.pack(bools))
-
-        return self.bitfield_packer.pack(contents) + b''.join(output)
+        return self.bitfield_packer.pack(contents) + b''.join(data_values)

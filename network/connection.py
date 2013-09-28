@@ -25,7 +25,7 @@ class Connection(EventListener):
 
     @ReplicableUnregisteredEvent.listener(True)
     def notify_unregistration(self, target):
-        self.channels.pop(target)
+        self.channels.pop(target.instance_id)
 
     @ReplicableRegisteredEvent.listener(True)
     def notify_registration(self, target):
@@ -35,7 +35,7 @@ class Connection(EventListener):
         self.channels[target.instance_id] = channel
 
     def on_delete(self):
-        pass
+        self.replicable.request_unregistration()
 
     def is_owner(self, replicable):
         '''Determines if a connection owns this replicable
@@ -95,7 +95,8 @@ class ClientConnection(Connection):
 
             if Replicable.graph_has_instance(instance_id):
                 channel = self.channels[instance_id]
-                channel.set_attributes(packet.payload[1:])
+                channel.set_attributes(packet.payload[
+                                      self.replicable_packer.size():])
 
             else:
                 print("Unable to replicate to replicable with id {}"
@@ -108,7 +109,8 @@ class ClientConnection(Connection):
                 channel = self.channels[instance_id]
 
                 if self.is_owner(channel.replicable):
-                    channel.invoke_rpc_call(packet.payload[1:])
+                    channel.invoke_rpc_call(packet.payload[
+                                           self.replicable_packer.size():])
 
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:
@@ -197,12 +199,12 @@ class ServerConnection(Connection):
             self.replicable.request_unregistration()
 
     @ReplicableUnregisteredEvent.listener(True)
-    def notify_unregistration(self, replicable):
+    def notify_unregistration(self, target):
         '''Called when replicable dies
         @param replicable: replicable that died'''
-        super().notify_unregistration(replicable)
+        super().notify_unregistration(target)
 
-        instance_id = replicable.instance_id
+        instance_id = target.instance_id
         packed_id = self.replicable_packer.pack_id(instance_id)
 
         # Send delete packet

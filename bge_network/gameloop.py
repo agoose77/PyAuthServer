@@ -1,7 +1,7 @@
 from .actors import Camera
 from .events import PlayerInputEvent, PhysicsTickEvent
 from .physics import PhysicsSystem
-
+from collections import Counter
 from bge import logic, events, types
 from network import( Netmodes, WorldInfo, Network, Replicable,
                      EventListener, ReplicableRegisteredEvent,
@@ -98,6 +98,10 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
                     self.update_scenegraph(current_time)
 
                 if scene == self.network_scene:
+                    d = scene.objects['Empty']
+                    d['Updates'] = UpdateEvent.get_total_subscribers()
+                    d['Instances'] = len(Replicable)
+
                     self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
                     self.network.send()
 

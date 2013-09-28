@@ -57,7 +57,7 @@ class String:
 
     @classmethod
     def unpack(cls, bytes_):
-        return bytes_[1:].decode()
+        return bytes_[cls.packer.size():].decode()
 
     @classmethod
     def unpack_from(cls, bytes_):
