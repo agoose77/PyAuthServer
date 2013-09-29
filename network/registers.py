@@ -144,14 +144,14 @@ class Event(metaclass=TypeRegister):
             cl.isolated_subscribers.update(cl.to_isolate)
             cl.children.update(cl.to_child)
 
-            to_s = list(cl.to_subscribe.values())
-            to_i = list(cl.to_isolate.values())
+            local_to_subscribe = list(cl.to_subscribe.values())
+            local_to_isolate = list(cl.to_isolate.values())
 
             cl.to_child.clear()
             cl.to_isolate.clear()
             cl.to_subscribe.clear()
 
-            for identifier in to_s:
+            for identifier in local_to_subscribe:
                 cl.on_subscribed(identifier)
 
             for key in cl.to_unsubscribe:
@@ -187,9 +187,9 @@ class Event(metaclass=TypeRegister):
                         continue
 
                     if supply_event:
-                        callback(*args, event=cls, **kwargs)
-                    else:
-                        callback(*args, **kwargs)
+                        kwargs['event'] = cls
+
+                    callback(*args, **kwargs)
                     break
 
             if target_ in cls.children:
@@ -201,16 +201,13 @@ class Event(metaclass=TypeRegister):
 
         for subscriber, (callback, supply_event) in cls.subscribers.items():
 
-            if target is None:
-                if supply_event:
-                    callback(*args, event=cls, **kwargs)
-                else:
-                    callback(*args, **kwargs)
-            else:
-                if supply_event:
-                    callback(*args, target=target, event=cls, **kwargs)
-                else:
-                    callback(*args, target=target, **kwargs)
+            if supply_event:
+                kwargs['event'] = cls
+
+            if target is not None:
+                kwargs['target'] = target
+
+            callback(*args, **kwargs)
 
         if cls.highest_event == cls:
             return
@@ -253,35 +250,31 @@ class CachedEvent(Event):
 
         if explicit is None:
             cls.cache[cls].append((args, kwargs.copy()))
+
             target = kwargs.pop("target", None)
 
             for subscriber, (callback, supply_event) in cls.subscribers.items():
 
-                if target is None:
-                    if supply_event:
-                        callback(*args, event=cls, **kwargs)
-                    else:
-                        callback(*args, **kwargs)
-                else:
-                    if supply_event:
-                        callback(*args, target=target, event=cls, **kwargs)
-                    else:
-                        callback(*args, target=target, **kwargs)
+                if supply_event:
+                    kwargs['event'] = cls
+
+                if target is not None:
+                    kwargs['target'] = target
+
+                callback(*args, **kwargs)
 
         else:
             target = kwargs.pop("target", None)
 
             callback, supply_event = explicit
-            if target is None:
-                if supply_event:
-                    callback(*args, event=cls, **kwargs)
-                else:
-                    callback(*args, **kwargs)
-            else:
-                if supply_event:
-                    callback(*args, target=target, event=cls, **kwargs)
-                else:
-                    callback(*args, target=target, **kwargs)
+
+            if supply_event:
+                kwargs['event'] = cls
+
+            if target is not None:
+                kwargs['target'] = target
+
+            callback(*args, **kwargs)
 
         if cls.highest_event == cls:
             return
@@ -291,7 +284,8 @@ class CachedEvent(Event):
         except IndexError:
             return
 
-        parent.invoke(*args, target=target, **kwargs)
+        kwargs['target'] = target
+        parent.invoke(*args, **kwargs)
 
     @classmethod
     def on_subscribed(cls, subscriber_info):
