@@ -1,10 +1,11 @@
 from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
+from .configuration import load_configuration
+from .enums import (PhysicsType, ShotType, CameraMode, AIState,
+                    Axis)
 from .events import (CollisionEvent, PlayerInputEvent,
                     PhysicsReplicatedEvent, PhysicsSingleUpdate,
                     PhysicsSetSimulated, PhysicsUnsetSimulated,
                     ActorDamagedEvent)
-from .enums import (PhysicsType, ShotType, CameraMode, AIState,
-                    Axis)
 from .inputs import InputManager
 from .utilities import falloff_fraction
 from .finite_state_machine import FiniteStateMachine
@@ -13,10 +14,8 @@ from .draw_tools import (draw_arrow, draw_circle,
                          draw_box, draw_square_pyramid)
 
 from aud import Factory, device as AudioDevice
-from bge import logic, events, types
+from bge import logic, types
 from collections import namedtuple, OrderedDict
-from configparser import ConfigParser, ExtendedInterpolation
-from inspect import getmembers
 
 from math import pi, radians
 from mathutils import Euler, Vector, Matrix
@@ -93,8 +92,7 @@ class Controller(Replicable):
         self.camera = camera
         self.camera.possessed_by(self)
 
-        camera_socket = self.pawn.sockets['camera']
-        camera.parent_to(camera_socket)
+        camera.set_parent(self.pawn, "camera")
 
         self.setup_camera_perspective(camera)
 
@@ -148,21 +146,6 @@ class PlayerReplicationInfo(ReplicableInfo):
 
 class AIController(Controller):
 
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.hear_range = 15
-        self.effective_hear = 10
-
-        self.target_dir = None
-        self.target = None
-
-        self.setup_states(self.state_manager)
-        self.camera_mode = CameraMode.first_person
-
-    def leave_alert_to_idle(self, state):
-        return self.alert_timer == 0
-
     def enter_engage_from_alert(self, state):
         self.target = found_target = self.get_visible()
 
@@ -170,49 +153,6 @@ class AIController(Controller):
             self.target_dir = found_target.position - self.pawn.position
 
             return True
-
-    def leave_engage_state_to_alert(self, state):
-        return not self.target.registered or self.target.health == 0.0
-
-    def setup_states(self, state_machine):
-        state_machine.add_state(AIState.idle, self.handle_idle)
-        state_machine.add_state(AIState.alert, self.handle_alerted)
-        state_machine.add_state(AIState.engage, self.handle_engaging)
-
-        state_machine.add_branch(AIState.alert, AIState.idle,
-                                 self.leave_alert_to_idle)
-        state_machine.add_branch(AIState.idle, AIState.alert,
-                                 self.enter_engage_from_alert)
-        state_machine.add_branch(AIState.alert, AIState.engage,
-                                 self.enter_engage_from_alert)
-        state_machine.add_branch(AIState.engage, AIState.alert,
-                                 self.leave_engage_state_to_alert)
-
-        self.alert_timer = Timer(target_value=0.0, count_down=True)
-
-    def on_alerted(self, direction):
-        self.target_dir = direction
-        self.alert_timer.value = 10
-
-        if self.state_manager.current_state.identifier == AIState.idle:
-            self.state_manager.current_state = AIState.alert
-
-    @ActorDamagedEvent.listener()
-    def take_damage(self, damage, instigator, hit_position, momentum):
-        # Set alert
-        self.on_alerted(momentum)
-
-    def hear_sound(self, path, source):
-        if not (self.pawn and self.camera):
-            return
-
-        probability = falloff_fraction(self.pawn.position,
-                            self.hear_range,
-                            source,
-                            self.effective_hear)
-
-        if probability > 0.5:
-            self.on_alerted(source - self.pawn.position)
 
     def get_visible(self, ignore_self=True):
         if not self.camera:
@@ -228,8 +168,8 @@ class AIController(Controller):
             if sees(actor):
                 return actor
 
-    def handle_idle(self, state, delta_time):
-        pass
+    def handle_alerted(self, state, delta_time):
+        self.alert_timer.update(delta_time)
 
     def handle_engaging(self, state, delta_time):
         target_vector = (self.target.position - self.camera.position)\
@@ -248,8 +188,67 @@ class AIController(Controller):
                              axis=Axis.x, time=turn_speed)
         self.start_server_fire()
 
-    def handle_alerted(self, state, delta_time):
-        self.alert_timer.update(delta_time)
+    def handle_idle(self, state, delta_time):
+        pass
+        self.start_server_fire()
+
+    def hear_sound(self, path, source):
+        if not (self.pawn and self.camera):
+            return
+
+        probability = falloff_fraction(self.pawn.position,
+                            self.hear_range,
+                            source,
+                            self.effective_hear)
+
+        if probability > 0.5:
+            self.on_alerted(source - self.pawn.position)
+
+    def leave_alert_to_idle(self, state):
+        return self.alert_timer == 0
+
+    def leave_engage_to_alert(self, state):
+        return not self.target.registered or self.target.health == 0.0
+
+    def on_alerted(self, direction):
+        self.target_dir = direction
+        self.alert_timer.value = 10
+
+        if self.state_manager.current_state.identifier == AIState.idle:
+            self.state_manager.current_state = AIState.alert
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.hear_range = 15
+        self.effective_hear = 10
+
+        self.target_dir = None
+        self.target = None
+
+        self.setup_states(self.state_manager)
+        self.camera_mode = CameraMode.first_person
+
+    def setup_states(self, state_machine):
+        state_machine.add_state(AIState.idle, self.handle_idle)
+        state_machine.add_state(AIState.alert, self.handle_alerted)
+        state_machine.add_state(AIState.engage, self.handle_engaging)
+
+        state_machine.add_branch(AIState.alert, AIState.idle,
+                                 self.leave_alert_to_idle)
+        state_machine.add_branch(AIState.idle, AIState.alert,
+                                 self.enter_engage_from_alert)
+        state_machine.add_branch(AIState.alert, AIState.engage,
+                                 self.enter_engage_from_alert)
+        state_machine.add_branch(AIState.engage, AIState.alert,
+                                 self.leave_engage_to_alert)
+
+        self.alert_timer = Timer(target_value=0.0, count_down=True)
+
+    @ActorDamagedEvent.listener()
+    def take_damage(self, damage, instigator, hit_position, momentum):
+        # Set alert
+        self.on_alerted(momentum)
 
     @simulated
     @UpdateEvent.listener(True)
@@ -269,28 +268,6 @@ class PlayerController(Controller):
 
     move_error_limit = 0.5 ** 2
     config_filepath = "inputs.conf"
-
-    @ReplicationNotifyEvent.listener()
-    def on_notify(self, name):
-        if name == "pawn":
-            if self.pawn:
-                self.possess(self.pawn)
-            else:
-                self.unpossess()
-
-        elif name == "camera":
-            self.set_camera(self.camera)
-            self.camera.active = True
-
-        elif name == "weapon":
-            self.set_weapon(self.weapon)
-
-        else:
-            super().on_notify(name)
-
-    def receive_broadcast(self, sender: StaticValue(Replicable),
-                  message_string:StaticValue(str)) -> Netmodes.client:
-        print("BROADCAST: {}".format(message_string))
 
     @property
     def mouse_delta(self):
@@ -392,24 +369,9 @@ class PlayerController(Controller):
             self.current_move_id = 0
 
     def load_keybindings(self):
-        all_events = {x[0]: str(x[1]) for x in getmembers(events)
-                      if isinstance(x[1], int)}
-        filepath = logic.expandPath("//" + self.config_filepath)
-
-        # Load into parser
-        parser = ConfigParser(defaults=all_events,
-                              interpolation=ExtendedInterpolation())
-        parser.read(filepath)
-
-        # Read binding information
-        class_name = self.__class__.type_name
-
-        bindings = {k: int(v) for k, v in parser[class_name].items()
-                if not k.upper() in all_events and k in self.input_fields}
-
-        # Ensure we have all bindings
-        assert set(self.input_fields).issubset(bindings)
-
+        bindings = load_configuration(self.config_filepath,
+                                      self.__class__.__name__,
+                                      self.input_fields)
         print("Loaded {} keybindings".format(len(bindings)))
         return bindings
 
@@ -423,6 +385,25 @@ class PlayerController(Controller):
 
         self.mouse_setup = False
         self.camera_setup = False
+
+    @simulated
+    @ReplicationNotifyEvent.listener()
+    def on_notify(self, name):
+        if name == "pawn":
+            if self.pawn:
+                self.possess(self.pawn)
+            else:
+                self.unpossess()
+
+        elif name == "camera":
+            self.set_camera(self.camera)
+            self.camera.active = True
+
+        elif name == "weapon":
+            self.set_weapon(self.weapon)
+
+        else:
+            super().on_notify(name)
 
     @simulated
     @PlayerInputEvent.listener(True)
@@ -450,6 +431,10 @@ class PlayerController(Controller):
     def possess(self, replicable):
         super().possess(replicable)
         PhysicsUnsetSimulated.invoke(target=replicable)
+
+    def receive_broadcast(self, sender: StaticValue(Replicable),
+                  message_string:StaticValue(str)) -> Netmodes.client:
+        print("BROADCAST: {}".format(message_string))
 
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
                   mouse_diff_y):
@@ -529,7 +514,7 @@ class Actor(Replicable):
     health = Attribute(100.0, notify=True)
 
     entity_name = ""
-    actor_class = GameObject
+    entity_class = GameObject
 
     verbose_execution = True
 
@@ -551,16 +536,31 @@ class Actor(Replicable):
     def on_initialised(self):
         super().on_initialised()
 
-        self.object = self.actor_class(self.entity_name)
+        self.object = self.entity_class(self.entity_name)
+        self.camera_radius = 1
+
         self.update_simulated_physics = True
         self.always_relevant = False
-        self.camera_radius = 1
+
+        self.children = set()
+        self.parent = None
+
+        self.child_entities = set()
 
     @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         super().on_unregistered()
 
-        self.unregister_children()
+        # Unregister any actor children
+        for child in self.children:
+            child.request_unregistration()
+
+        # Unregister from parent
+        if self.parent:
+            self.parent.remove_child(self)
+
+        self.children.clear()
+        self.child_entities.clear()
         self.object.endObject()
 
     @ReplicationNotifyEvent.listener()
@@ -575,23 +575,34 @@ class Actor(Replicable):
         self.health = int(max(self.health - damage, 0))
 
     @simulated
-    def unregister_children(self):
-        child_map = {a.object: a for a in WorldInfo.subclass_of(Actor)}
-        for obj in self.object.childrenRecursive:
-            if not obj in child_map:
-                continue
-            child_map[obj].request_unregistration()
-
-    @simulated
     def align_to(self, vector, time=1, axis=Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
 
     @simulated
-    def parent_to(self, obj):
-        if isinstance(obj, Actor):
-            obj = object.object
-            obj.actor_children.append(self)
-        self.object.setParent(obj)
+    def add_child(self, actor):
+        self.children.add(actor)
+        self.child_entities.add(actor.object)
+
+    @simulated
+    def remove_child(self, actor):
+        self.children.remove(actor)
+        self.child_entities.remove(actor.object)
+
+    @simulated
+    def set_parent(self, actor, socket_name=None):
+        if socket_name is None:
+            parent_obj = actor.object
+        else:
+            parent_obj = actor.sockets[socket_name]
+
+        self.object.setParent(parent_obj)
+        self.parent = actor
+        actor.add_child(self)
+
+    @simulated
+    def remove_parent(self):
+        self.parent.remove_child(self)
+        self.object.setParent(None)
 
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
@@ -611,10 +622,6 @@ class Actor(Replicable):
         self.skeleton.stopAction(layer)
 
     @simulated
-    def remove_parent(self):
-        self.object.removeParent()
-
-    @simulated
     def restore_physics(self):
         self.object.restoreDynamics()
 
@@ -630,7 +637,8 @@ class Actor(Replicable):
 
     @property
     def visible(self):
-        return any(o.visible for o in self.object.childrenRecursive)
+        return any(o.visible and o.meshes
+                   for o in self.object.childrenRecursive)
 
     @property
     def physics(self):
@@ -719,27 +727,18 @@ class Weapon(Replicable):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
     ammo = Attribute(70)
 
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.sound_path = ""
-        self.shoot_interval = 0.5
-        self.last_fired_time = 0.0
-        self.max_ammo = 50
-        self.range = 20
-        self.shot_type = ShotType.instant
-
-        self.momentum = 1
-        self.maximum_range = 20
-        self.effective_range = 10
-        self.base_damage = 40
-
-        self.attachment_class = WeaponAttachment
-
     @property
     def can_fire(self):
         return bool(self.ammo) and \
             (WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
+
+    @property
+    def sound_folder(self):
+        return path.join(self.sound_path, self.__class__.__name__)
+
+    @property
+    def shoot_sound(self):
+        return path.join(self.sound_folder, "shoot.wav")
 
     def consume_ammo(self):
         self.ammo -= 1
@@ -781,13 +780,22 @@ class Weapon(Replicable):
         ActorDamagedEvent.invoke(damage, self.owner, hit_position,
                                  momentum, target=replicable)
 
-    @property
-    def sound_folder(self):
-        return path.join(self.sound_path, self.__class__.__name__)
+    def on_initialised(self):
+        super().on_initialised()
 
-    @property
-    def shoot_sound(self):
-        return path.join(self.sound_folder, "shoot.wav")
+        self.sound_path = ""
+        self.shoot_interval = 0.5
+        self.last_fired_time = 0.0
+        self.max_ammo = 50
+        self.range = 20
+        self.shot_type = ShotType.instant
+
+        self.momentum = 1
+        self.maximum_range = 20
+        self.effective_range = 10
+        self.base_damage = 40
+
+        self.attachment_class = WeaponAttachment
 
 
 class EmptyWeapon(Weapon):
@@ -816,26 +824,14 @@ class WeaponAttachment(Actor):
 class EmptyAttatchment(WeaponAttachment):
     entity_name = "Empty.002"
 
-    def play_fire_effects(self):
-        pass
-
 
 class Camera(Actor):
 
+    entity_class = CameraObject
     entity_name = "Camera"
-    actor_class = CameraObject
 
     def on_initialised(self):
         super().on_initialised()
-        self._visible = False
-
-    @property
-    def visible(self):
-        return self._visible
-
-    @visible.setter
-    def visible(self, value):
-        self._visible = value
 
     @property
     def active(self):
@@ -907,7 +903,8 @@ class Camera(Actor):
     @simulated
     @UpdateEvent.listener(True)
     def update(self, delta_time):
-        self.draw()
+        if self.visible:
+            self.draw()
 
     def trace(self, x_coord, y_coord, distance=0):
         return self.object.getScreenRay(x_coord, y_coord, distance)
@@ -940,7 +937,7 @@ class Pawn(Actor):
 
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
-        self.weapon_attachment.parent_to(self.sockets['weapon'])
+        self.weapon_attachment.set_parent(self, "weapon")
 
         self.weapon_attachment.local_position = Vector()
         self.weapon_attachment.local_rotation = Euler()
@@ -1071,14 +1068,14 @@ class Pawn(Actor):
 class Navmesh(Actor):
     roles = Roles(Roles.authority, Roles.none)
 
-    actor_class = NavmeshObject
+    entity_class = NavmeshObject
     entity_name = "Navmesh"
-
-    def get_wall_intersection(self, from_point, to_point):
-        return  self.object.raycast(from_point, to_point)
 
     def draw(self):
         self.object.draw()
 
     def find_path(self, from_point, to_point):
         return self.object.findPath(from_point, to_point)
+
+    def get_wall_intersection(self, from_point, to_point):
+        return  self.object.raycast(from_point, to_point)

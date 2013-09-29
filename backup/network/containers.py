@@ -112,7 +112,7 @@ class AttributeStorageContainer(AbstractStorageContainer):
         return isinstance(member, Attribute)
     
     def get_initial_data(self, attribute):
-        return attribute.copied_value
+        return attribute.value
     
     def new_storage_interface(self, name, member):
         getter, setter = self.get_storage_accessors(member)
@@ -121,7 +121,7 @@ class AttributeStorageContainer(AbstractStorageContainer):
         interface = AttributeStorageInterface(getter, setter, complain_setter)
         
         member.register(self._instance, interface)
-        member.set_name(name)
+        member.name = name
         
         return member
 

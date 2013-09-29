@@ -7,7 +7,7 @@ from .errors import NetworkError, TimeoutError
 from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
-from .registers import InstanceUnregisteredEvent
+from .registers import InstanceUnregisteredEvent, InstanceRegister
 
 from collections import deque
 from operator import eq as equals_operator

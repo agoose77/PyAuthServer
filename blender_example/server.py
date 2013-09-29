@@ -55,9 +55,9 @@ class TeamDeathMatch(ReplicationRules):
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
-        s = 3
-        a = (controller.instance_id - self.ai_count/2) * s
-        pawn.position = Vector((a, a, 0))
+
+        position_shift = (controller.instance_id - self.ai_count / 2) * 5
+        pawn.position = Vector((position_shift, position_shift, 1))
 
     def create_new_player(self, controller):
         pawn = self.player_pawn_class()
