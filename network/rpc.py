@@ -1,6 +1,6 @@
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
-from .modifiers import is_simulated
+from .conditions import is_simulated
 
 from collections import OrderedDict
 from copy import deepcopy

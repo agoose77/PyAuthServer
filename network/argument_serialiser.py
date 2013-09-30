@@ -33,17 +33,18 @@ class ArgumentSerialiser:
 
         content_values = list(self.content_bits)
 
-        # If there are none type values
+        # If there are None values
         if content_values[-1]:
-            self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
+            self.bitfield_packer.unpack_merge(self.none_bits, bytes_)
 
-        for included, is_none, (key, handler) in zip(content_values,
-                                             self.none_bits, self.handlers):
+        for included, value_none, (key, handler) in zip(content_values,
+                                                     self.none_bits,
+                                                     self.handlers):
 
             if not included:
                 continue
 
-            if is_none:
+            if value_none:
                 yield (key, None)
                 continue
 
@@ -63,19 +64,19 @@ class ArgumentSerialiser:
 
             bytes_ = bytes_[handler.size(bytes_):]
 
+        # If there are Boolean values
         if self.total_bools and content_values[-2]:
             self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
             for value, (key, static_value) in zip(self.bool_bits, self.bools):
                 yield (key, value)
 
     def pack(self, data, current_values={}):
-        # Reset content mask
         contents = self.content_bits
-        contents.clear()
-
-        # Reset none data
         none_values = self.none_bits
+
+        # Reset none data and contents mask
         none_values.clear()
+        contents.clear()
 
         # Create data_values list
         data_values = []

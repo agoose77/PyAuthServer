@@ -11,16 +11,13 @@ def simulated(func):
     return func
 
 
-def is_reliable(func):
-    return func.__annotations__.get("reliable", False)
-
-
-def is_simulated(func):
-    return func.__annotations__.get("simulated", False)
-
-
-def is_event(func):
-    return "event" in func.__annotations__
+def event_listener(event_type, global_listener, accepts_event):
+    def wrapper(func):
+        func.__annotations__['event'] = event_type
+        func.__annotations__['context_dependant'] = not global_listener
+        func.__annotations__['accepts_event'] = accepts_event
+        return func
+    return wrapper
 
 
 class run_on:

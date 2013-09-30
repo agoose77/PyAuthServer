@@ -1,7 +1,7 @@
 from .handler_interfaces import static_description, get_handler
 from .argument_serialiser import ArgumentSerialiser
+from .conditions import is_reliable
 from .descriptors import StaticValue
-from .modifiers import is_reliable
 from .events import ReplicationNotifyEvent
 
 

@@ -1,4 +1,4 @@
-from bge_network import ClientLoop, Camera, InstanceNotifier
+from bge_network import ClientLoop, Camera
 
 from actors import *
 from ui import BGESystem

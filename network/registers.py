@@ -1,300 +1,16 @@
 from .enums import Roles, Netmodes
-from .modifiers import is_simulated, is_event
+from .events import (EventListener, Event,
+                     InstanceRegisteredEvent,
+                     InstanceUnregisteredEvent)
+from .conditions import is_simulated
 from .rpc import RPC
+from .type_register import TypeRegister
 
 from functools import wraps
 from itertools import chain
 from types import FunctionType
 from traceback import print_exc
 from inspect import getmembers
-from collections import defaultdict
-
-
-class TypeRegister(type):
-    '''Registers all subclasses of parent class
-    Stores class name: class mapping on parent._types'''
-
-    def __new__(meta, name, parents, attrs):
-        cls = super().__new__(meta, name, parents, attrs)
-
-        if not hasattr(cls, "_types"):
-            cls._types = []
-
-            if hasattr(cls, "register_type"):
-                cls.register_type()
-
-        else:
-            cls._types.append(cls)
-
-            if hasattr(cls, "register_subtype"):
-                cls.register_subtype()
-
-        return cls
-
-    @property
-    def type_name(self):
-        return self.__name__
-
-    def from_type_name(self, type_name):
-        for cls in self._types:
-            if cls.__name__ == type_name:
-                return cls
-
-        raise LookupError("No class with name {}".format(type_name))
-
-
-class EventListener:
-
-    def listen_for_events(self, identifier=None):
-        if identifier is None:
-            identifier = self
-
-        for name, val in getmembers(self):
-
-            if not hasattr(val, "__annotations__"):
-                continue
-
-            if not (callable(val) and is_event(val)):
-                continue
-
-            Event.subscribe(identifier, val)
-
-    def remove_from_events(self, identifier=None):
-        if identifier is None:
-            identifier = self
-
-        for name, val in getmembers(self):
-
-            if not hasattr(val, "__annotations__"):
-                continue
-
-            if not (callable(val) and is_event(val)):
-                continue
-
-            Event.unsubscribe(identifier, val)
-
-
-class Event(metaclass=TypeRegister):
-
-    @classmethod
-    def register_subtype(cls):
-        cls.subscribers = {}
-        cls.isolated_subscribers = {}
-        cls.children = {}
-
-        cls.to_subscribe = {}
-        cls.to_isolate = {}
-        cls.to_child = defaultdict(list)
-
-        cls.to_unsubscribe = []
-        cls.to_unisolate = []
-        cls.to_unchild = []
-
-    @classmethod
-    def register_type(cls):
-        cls.register_subtype()
-
-        cls.highest_event = cls
-
-    @classmethod
-    def unsubscribe(cls, identifier, callback):
-        settings = callback.__annotations__
-        event_cls = settings['event']
-        event_cls.to_unsubscribe.append(identifier)
-        event_cls.to_unisolate.append(identifier)
-
-        if identifier in event_cls.children:
-            for child in event_cls.children[identifier]:
-                event_cls.remove_parent(child, identifier)
-
-        for parent, children in event_cls.children.items():
-            if identifier in children:
-                event_cls.remove_parent(identifier, parent)
-
-    @classmethod
-    def set_parent(cls, identifier, parent_identifier):
-        cls.to_child[parent_identifier].append(identifier)
-
-    @classmethod
-    def remove_parent(cls, identifier, parent_identifier):
-        cls.to_unchild.append((identifier, parent_identifier))
-
-    @classmethod
-    def on_subscribed(cls, subscriber):
-        pass
-
-    @classmethod
-    def get_total_subscribers(cls):
-        return len(cls.subscribers) + len(cls.isolated_subscribers)
-
-    @staticmethod
-    def subscribe(identifier, callback):
-        settings = callback.__annotations__
-        event_cls = settings['event']
-
-        data_dict = (event_cls.to_isolate if settings['context_dependant']
-                     else event_cls.to_subscribe)
-        data_dict[identifier] = callback, settings['accepts_event']
-
-    @classmethod
-    def update_graph(cls):
-        for cl in cls._types:
-
-            cl.subscribers.update(cl.to_subscribe)
-            cl.isolated_subscribers.update(cl.to_isolate)
-            cl.children.update(cl.to_child)
-
-            local_to_subscribe = list(cl.to_subscribe.values())
-            local_to_isolate = list(cl.to_isolate.values())
-
-            cl.to_child.clear()
-            cl.to_isolate.clear()
-            cl.to_subscribe.clear()
-
-            for identifier in local_to_subscribe:
-                cl.on_subscribed(identifier)
-
-            for key in cl.to_unsubscribe:
-                cl.subscribers.pop(key, None)
-            cl.to_unsubscribe.clear()
-
-            for key in cl.to_unisolate:
-                cl.isolated_subscribers.pop(key, None)
-            cl.to_unisolate.clear()
-
-            for (child, parent) in cl.to_unchild:
-                cl.children[parent].remove(child)
-                if not cl.children[parent]:
-                    cl.children.pop(parent)
-            cl.to_unchild.clear()
-
-    @classmethod
-    def update_targetted(cls, *args, target=None, **kwargs):
-        targets = [target]
-
-        while targets:
-            try:
-                target_ = targets.pop(0)
-            except IndexError:
-                return
-
-            cls.update_graph()
-
-            if target_ is not None:
-                for target_child, (callback, supply_event) in\
-                            cls.isolated_subscribers.items():
-                    if target_child != target_:
-                        continue
-
-                    if supply_event:
-                        kwargs['event'] = cls
-
-                    callback(*args, **kwargs)
-                    break
-
-            if target_ in cls.children:
-                targets.extend(cls.children[target_])
-
-    @classmethod
-    def invoke(cls, *args, target=None, **kwargs):
-        cls.update_targetted(*args, target=target, **kwargs)
-
-        for subscriber, (callback, supply_event) in cls.subscribers.items():
-
-            if supply_event:
-                kwargs['event'] = cls
-
-            if target is not None:
-                kwargs['target'] = target
-
-            callback(*args, **kwargs)
-
-        if cls.highest_event == cls:
-            return
-
-        try:
-            parent = cls.__mro__[1]
-        except IndexError:
-            return
-
-        parent.invoke(*args, target=target, **kwargs)
-
-    @classmethod
-    def listener(cls, global_listener=False, accepts_event=False):
-        def wrapper(func):
-            func.__annotations__['event'] = cls
-            func.__annotations__['context_dependant'] = not global_listener
-            func.__annotations__['accepts_event'] = accepts_event
-            return func
-        return wrapper
-
-
-class InstanceRegisteredEvent(Event):
-    pass
-
-
-class InstanceUnregisteredEvent(Event):
-    pass
-
-
-class InstanceInstantiatedEvent(Event):
-    pass
-
-
-class CachedEvent(Event):
-    cache = defaultdict(list)
-
-    @classmethod
-    def invoke(cls, *args, explicit=None, **kwargs):
-        cls.update_targetted(*args, **kwargs)
-
-        if explicit is None:
-            cls.cache[cls].append((args, kwargs.copy()))
-
-            target = kwargs.pop("target", None)
-
-            for subscriber, (callback, supply_event) in cls.subscribers.items():
-
-                if supply_event:
-                    kwargs['event'] = cls
-
-                if target is not None:
-                    kwargs['target'] = target
-
-                callback(*args, **kwargs)
-
-        else:
-            target = kwargs.pop("target", None)
-
-            callback, supply_event = explicit
-
-            if supply_event:
-                kwargs['event'] = cls
-
-            if target is not None:
-                kwargs['target'] = target
-
-            callback(*args, **kwargs)
-
-        if cls.highest_event == cls:
-            return
-
-        try:
-            parent = cls.__mro__[1]
-        except IndexError:
-            return
-
-        kwargs['target'] = target
-        parent.invoke(*args, **kwargs)
-
-    @classmethod
-    def on_subscribed(cls, subscriber_info):
-        for previous_args, previous_kwargs in cls.cache[cls]:
-            cls.invoke(*previous_args, explicit=subscriber_info, **previous_kwargs)
-
-
-class InstanceNotifier:
-    pass
 
 
 class InstanceMixins(EventListener):
@@ -365,8 +81,10 @@ class InstanceRegister(TypeRegister):
         return cls
 
     def get_entire_graph_ids(cls, instigator=None):
-        instance_ids = (k for k, v in cls._instances.items() if v != instigator)
-        register_ids = (i.instance_id for i in cls._to_register if i != instigator)
+        instance_ids = (k for k, v in cls._instances.items()
+                        if v != instigator)
+        register_ids = (i.instance_id for i in cls._to_register
+                        if i != instigator)
         return chain(instance_ids, register_ids)
 
     def get_graph_instances(cls, only_real=True):
@@ -386,7 +104,8 @@ class InstanceRegister(TypeRegister):
                 raise LookupError
 
             try:
-                return next(i for i in cls._to_register if i.instance_id==instance_id)
+                return next(i for i in cls._to_register
+                            if i.instance_id == instance_id)
             except StopIteration:
                 raise LookupError
 
@@ -453,7 +172,7 @@ class InstanceRegister(TypeRegister):
 
     def __iter__(cls):
         return iter(cls._instances.values())
-    
+
     def __len__(cls):
         return len(cls._instances)
 
@@ -470,10 +189,13 @@ class ReplicableRegister(InstanceRegister):
                     continue
 
                 # Wrap them with permission
-                if isinstance(value, (FunctionType, classmethod, staticmethod)):
+                if isinstance(value, (FunctionType, classmethod,
+                                      staticmethod)):
                     # Recreate RPC from its function
                     if isinstance(value, RPC):
-                        print("Found pre-wrapped RPC call: {}, re-wrapping... (any data defined in __init__ will be lost)".format(name))
+                        print("Found pre-wrapped RPC call: {}, "\
+                              "re-wrapping...(any data defined in "\
+                              "__init__ will be lost)".format(name))
                         value = value._func
 
                     value = meta.permission_wrapper(value)
@@ -545,4 +267,3 @@ class ReplicableRegister(InstanceRegister):
                         Function does not have permission roles")
 
         return func_wrapper
-

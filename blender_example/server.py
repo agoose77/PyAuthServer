@@ -2,7 +2,7 @@ from actors import *
 from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
                          Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
-                         ConnectionInterface, InstanceNotifier, BlacklistError, EmptyWeapon,
+                         ConnectionInterface, BlacklistError, EmptyWeapon,
                          UpdateEvent, ActorDamagedEvent, ActorKilledEvent)
 from functools import partial
 from operator import gt as more_than
@@ -197,7 +197,7 @@ class TeamDeathMatch(ReplicationRules):
             self.start_countdown()
 
 
-class Server(ServerLoop, InstanceNotifier):
+class Server(ServerLoop):
 
     def create_ui(self):
         return None
