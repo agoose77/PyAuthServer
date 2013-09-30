@@ -12,11 +12,13 @@ from .descriptors import *
 from .enums import *
 from .events import *
 from .factory_dict import *
+from .instance_register import *
+from .replicable_register import *
 from .handler_interfaces import *
 from .native_handlers import *
+from .type_register import *
 from .network import *
 from .packet import *
-from .registers import *
 from .replication_rules import *
 from .rpc import *
 from .serialiser import *

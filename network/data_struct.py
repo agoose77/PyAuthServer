@@ -2,8 +2,7 @@ from .handler_interfaces import register_handler, get_handler
 from .descriptors import StaticValue
 from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
-from .registers import EventListener
-from .events import ReplicationNotifyEvent
+from .events import ReplicationNotifyEvent, EventListener
 
 from copy import deepcopy
 

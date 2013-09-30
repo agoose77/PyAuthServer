@@ -4,10 +4,11 @@ from .connection import ClientConnection, ServerConnection
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, TimeoutError
-from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
+from .events import (ConnectionSuccessEvent, ConnectionErrorEvent,
+                     InstanceUnregisteredEvent)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
-from .registers import InstanceUnregisteredEvent, InstanceRegister
+from .instance_register import InstanceRegister
 
 from collections import deque
 from operator import eq as equals_operator

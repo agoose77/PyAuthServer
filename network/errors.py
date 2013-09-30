@@ -1,4 +1,4 @@
-from .registers import TypeRegister
+from .type_register import TypeRegister
 
 
 class NetworkError(Exception, metaclass=TypeRegister):

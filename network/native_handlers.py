@@ -3,7 +3,7 @@ from .descriptors import StaticValue
 from .enums import Roles
 from .handler_interfaces import (register_handler, get_handler,
                                  register_description)
-from .registers import TypeRegister
+from .type_register import TypeRegister
 
 
 class TypeHandler:

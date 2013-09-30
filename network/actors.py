@@ -2,7 +2,7 @@ from .containers import AttributeStorageContainer, RPCStorageContainer
 from .descriptors import Attribute, StaticValue
 from .enums import Roles, Netmodes
 from .decorators import simulated
-from .registers import ReplicableRegister
+from .replicable_register import ReplicableRegister
 from .events import (ReplicableRegisteredEvent, ReplicableUnregisteredEvent,
                      UpdateEvent, ReplicationNotifyEvent)
 

@@ -1,16 +1,9 @@
-from .enums import Roles, Netmodes
 from .events import (EventListener, Event,
                      InstanceRegisteredEvent,
                      InstanceUnregisteredEvent)
-from .conditions import is_simulated
-from .rpc import RPC
 from .type_register import TypeRegister
 
-from functools import wraps
 from itertools import chain
-from types import FunctionType
-from traceback import print_exc
-from inspect import getmembers
 
 
 class InstanceMixins(EventListener):
@@ -66,7 +59,7 @@ class InstanceRegister(TypeRegister):
 
     def __new__(meta, name, parents, attrs):
 
-        parents += (InstanceMixins,) 
+        parents += (InstanceMixins,)
         cls = super().__new__(meta, name, parents, attrs)
 
         if not hasattr(cls, "_instances"):
@@ -175,95 +168,3 @@ class InstanceRegister(TypeRegister):
 
     def __len__(cls):
         return len(cls._instances)
-
-
-class ReplicableRegister(InstanceRegister):
-
-    def __new__(meta, cls_name, bases, attrs):
-        # If this isn't the base class
-        if bases:
-            # Get all the member methods
-            for name, value in attrs.items():
-                # Check it's not in parents (will have been checked)
-                if meta.found_in_parents(name, bases):
-                    continue
-
-                # Wrap them with permission
-                if isinstance(value, (FunctionType, classmethod,
-                                      staticmethod)):
-                    # Recreate RPC from its function
-                    if isinstance(value, RPC):
-                        print("Found pre-wrapped RPC call: {}, "\
-                              "re-wrapping...(any data defined in "\
-                              "__init__ will be lost)".format(name))
-                        value = value._func
-
-                    value = meta.permission_wrapper(value)
-
-                    # Automatically wrap RPC
-                    if meta.is_rpc(value) and not isinstance(value, RPC):
-                        value = RPC(value)
-
-                    attrs[name] = value
-
-        return super().__new__(meta, cls_name, bases, attrs)
-
-    def is_rpc(func):
-        try:
-            annotations = func.__annotations__
-        except AttributeError:
-            if not hasattr(func, "__func__"):
-                return False
-            annotations = func.__func__.__annotations__
-
-        try:
-            return_type = annotations['return']
-        except KeyError:
-            return False
-
-        return return_type in Netmodes
-
-    def found_in_parents(name, parents):
-        for parent in parents:
-            if name in dir(parent):
-                return True
-
-    def permission_wrapper(func):
-        simulated_proxy = Roles.simulated_proxy
-        func_is_simulated = is_simulated(func)
-
-        @wraps(func)
-        def func_wrapper(*args, **kwargs):
-
-            try:
-                assumed_instance = args[0]
-
-            # Static method needs no permission
-            except IndexError:
-                return func(*args, **kwargs)
-
-            else:
-                # Check that the assumed instance/class has context_subscribers role method
-                if hasattr(assumed_instance, "roles"):
-                    arg_roles = assumed_instance.roles
-                    # Check that the roles are of an instance
-                    try:
-                        local_role = arg_roles.local
-                    except AttributeError:
-                        return
-
-                    # Permission checks
-                    if (local_role > simulated_proxy or(func_is_simulated and
-                                            local_role >= simulated_proxy)):
-                        return func(*args, **kwargs)
-
-                    elif getattr(assumed_instance, "verbose_execution", False):
-                        print("Error executing '{}': \
-                               Function does not have permission:\n{}".format(
-                                              func.__qualname__, arg_roles))
-
-                elif getattr(assumed_instance, "verbose_execution", False):
-                    print("Error executing {}: \
-                        Function does not have permission roles")
-
-        return func_wrapper

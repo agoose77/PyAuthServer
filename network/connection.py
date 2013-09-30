@@ -2,8 +2,7 @@ from .packet import Packet
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
 from .actors import Replicable, WorldInfo
-from .registers import EventListener
-from .events import ReplicableUnregisteredEvent, ReplicableRegisteredEvent
+from .events import ReplicableUnregisteredEvent, ReplicableRegisteredEvent, EventListener
 from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
 
