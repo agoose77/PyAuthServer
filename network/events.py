@@ -83,7 +83,7 @@ class Event(metaclass=TypeRegister):
         cls.to_unchild.append((identifier, parent_identifier))
 
     @classmethod
-    def on_subscribed(cls, subscriber, data):
+    def on_subscribed(cls, is_contextual, subscriber, data):
         pass
 
     @classmethod
@@ -113,11 +113,16 @@ class Event(metaclass=TypeRegister):
 
             local_to_subscribe = {} if not cl.to_subscribe else\
                                 cl.to_subscribe.copy()
+            local_to_isolate = {} if not cl.to_isolate else\
+                                cl.to_isolate.copy()
             cl.to_isolate.clear()
             cl.to_subscribe.clear()
 
             for identifier, data in local_to_subscribe.items():
-                cl.on_subscribed(identifier, data)
+                cl.on_subscribed(False, identifier, data)
+
+            for identifier, data in local_to_isolate.items():
+                cl.on_subscribed(True, identifier, data)
 
             for key in cl.to_unsubscribe:
                 cl.subscribers.pop(key, None)
@@ -249,7 +254,11 @@ class CachedEvent(Event):
         parent.invoke(*args, target=target, **kwargs)
 
     @classmethod
-    def on_subscribed(cls, subscriber, data):
+    def on_subscribed(cls, is_contextual, subscriber, data):
+        # Only inform global listeners (wouldn't work anyway)
+        if is_contextual:
+            return
+
         subscriber_info = {subscriber: data}
         for previous_args, target, previous_kwargs in cls.cache:
             cls.invoke(*previous_args, target=target,
