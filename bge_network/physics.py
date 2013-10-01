@@ -1,6 +1,8 @@
 from .actors import Actor
 from .enums import PhysicsType
-from .events import CollisionEvent, PhysicsReplicatedEvent, PhysicsTickEvent, PhysicsSingleUpdate, PhysicsSetSimulated, PhysicsUnsetSimulated
+from .events import (CollisionEvent, PhysicsReplicatedEvent,
+                     PhysicsTickEvent, PhysicsSingleUpdate,
+                     PhysicsSetSimulated, PhysicsUnsetSimulated)
 
 from bge import logic, types
 from collections import defaultdict
@@ -87,23 +89,23 @@ class PhysicsSystem(EventListener):
 
         self.listen_for_events()
 
-    @ReplicableUnregisteredEvent.listener(True)
+    @ReplicableUnregisteredEvent.global_listener
     def notify_unregistration(self, target):
         self.remove_listener(target)
         if target in self._exempt_actors:
             self.remove_exemption(target)
 
-    @PhysicsUnsetSimulated.listener(True)
+    @PhysicsUnsetSimulated.global_listener
     def add_exemption(self, target):
         if not target in self._exempt_actors:
             self._exempt_actors.append(target)
 
-    @PhysicsSetSimulated.listener(True)
+    @PhysicsSetSimulated.global_listener
     def remove_exemption(self, target):
         if target in self._exempt_actors:
             self._exempt_actors.remove(target)
 
-    @PhysicsSingleUpdate.listener(True)
+    @PhysicsSingleUpdate.global_listener
     def update_for(self, delta_time, target):
         if not target.physics in self._active_physics:
             return
@@ -172,7 +174,7 @@ class PhysicsSystem(EventListener):
 
 class ServerPhysics(PhysicsSystem):
 
-    @PhysicsTickEvent.listener(True)
+    @PhysicsTickEvent.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
@@ -194,17 +196,16 @@ class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
 
-    @PhysicsTickEvent.listener(True)
+    @PhysicsTickEvent.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
         for replicable in WorldInfo.subclass_of(Actor):
-            
             # If we need to make a callback instance
             if self.needs_listener(replicable):
                 self.create_listener(replicable)
 
-    @PhysicsReplicatedEvent.listener(True)
+    @PhysicsReplicatedEvent.global_listener
     def actor_replicated(self, target_physics, target):
         difference = target_physics.position - target.position
 

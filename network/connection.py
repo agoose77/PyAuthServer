@@ -22,11 +22,11 @@ class Connection(EventListener):
 
         self.listen_for_events()
 
-    @ReplicableUnregisteredEvent.listener(True)
+    @ReplicableUnregisteredEvent.global_listener
     def notify_unregistration(self, target):
         self.channels.pop(target.instance_id)
 
-    @ReplicableRegisteredEvent.listener(True)
+    @ReplicableRegisteredEvent.global_listener
     def notify_registration(self, target):
         '''Create channel for context with network id
         @param instance_id: network id of context'''
@@ -197,7 +197,7 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
-    @ReplicableUnregisteredEvent.listener(True)
+    @ReplicableUnregisteredEvent.global_listener
     def notify_unregistration(self, target):
         '''Called when replicable dies
         @param replicable: replicable that died'''

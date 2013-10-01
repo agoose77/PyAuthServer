@@ -182,11 +182,11 @@ class ConnectPanel(Panel, EventListener):
 
         self.connecter(self.addr_field.text, int(self.port_field.text))
 
-    @ConnectionSuccessEvent.listener(True)
+    @ConnectionSuccessEvent.global_listener
     def on_connect(self, target):
         self.visible = False
 
-    @ConnectionErrorEvent.listener(True, True)
+    @ConnectionErrorEvent.global_listener
     def on_error(self, error, target, event):
         self.connect_message.text = str(error)
 

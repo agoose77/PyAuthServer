@@ -3,7 +3,7 @@ from .conditions import is_event
 from .decorators import event_listener
 
 from collections import defaultdict
-from inspect import getmembers
+from inspect import getmembers, signature
 
 
 class EventListener:
@@ -43,20 +43,20 @@ class Event(metaclass=TypeRegister):
     def register_subtype(cls):
         cls.subscribers = {}
         cls.isolated_subscribers = {}
-        cls.children = {}
 
         cls.to_subscribe = {}
         cls.to_isolate = {}
-        cls.to_child = defaultdict(list)
 
         cls.to_unsubscribe = []
         cls.to_unisolate = []
+
+        cls.children = {}
         cls.to_unchild = []
+        cls.to_child = defaultdict(list)
 
     @classmethod
     def register_type(cls):
         cls.register_subtype()
-
         cls.highest_event = cls
 
     @classmethod
@@ -95,9 +95,14 @@ class Event(metaclass=TypeRegister):
         settings = callback.__annotations__
         event_cls = settings['event']
 
+        func_signature = signature(callback)
+
+        accepts_event = "event" in func_signature.parameters
+        accepts_target = "target" in func_signature.parameters
+
         data_dict = (event_cls.to_isolate if settings['context_dependant']
                      else event_cls.to_subscribe)
-        data_dict[identifier] = callback, settings['accepts_event']
+        data_dict[identifier] = callback, accepts_event, accepts_target
 
     @classmethod
     def update_graph(cls):
@@ -105,12 +110,9 @@ class Event(metaclass=TypeRegister):
 
             cl.subscribers.update(cl.to_subscribe)
             cl.isolated_subscribers.update(cl.to_isolate)
-            cl.children.update(cl.to_child)
 
             local_to_subscribe = {} if not cl.to_subscribe else\
                                 cl.to_subscribe.copy()
-
-            cl.to_child.clear()
             cl.to_isolate.clear()
             cl.to_subscribe.clear()
 
@@ -125,11 +127,29 @@ class Event(metaclass=TypeRegister):
                 cl.isolated_subscribers.pop(key, None)
             cl.to_unisolate.clear()
 
+            cl.children.update(cl.to_child)
+            cl.to_child.clear()
+
             for (child, parent) in cl.to_unchild:
                 cl.children[parent].remove(child)
                 if not cl.children[parent]:
                     cl.children.pop(parent)
             cl.to_unchild.clear()
+
+    @classmethod
+    def invoke_event(cls, args, target, kwargs, callback,
+                            supply_event, supply_target):
+        if supply_event:
+            if supply_target:
+                callback(*args, event=cls, target=target, **kwargs)
+            else:
+                callback(*args, event=cls, **kwargs)
+
+        elif supply_target:
+            callback(*args, target=target, **kwargs)
+
+        else:
+            callback(*args, **kwargs)
 
     @classmethod
     def invoke_targets(cls, all_targets, *args, target=None, **kwargs):
@@ -142,46 +162,28 @@ class Event(metaclass=TypeRegister):
             except IndexError:
                 return
 
-            if target is None:
+            if target_ is None:
                 continue
 
             cls.update_graph()
-
-            for target_child, (callback, supply_event) in\
-                        all_targets.items():
-                if target_child != target_:
-                    continue
-
-                if supply_event:
-                    callback(*args, event=cls, **kwargs)
-                else:
-                    #print(args, kwargs, callback.__annotations__, cls, all_targets)
-                    callback(*args, **kwargs)
-                break
+            # Bugfix? In future may need to do an == loop to check
+            # If the child is a context listener
+            if target_ in all_targets:
+                callback, supply_event, supply_target = all_targets[target_]
+                # Invoke with the same target context even if this is a child
+                cls.invoke_event(args, target, kwargs, callback,
+                                 supply_event, supply_target)
 
             if target_ in cls.children:
                 targets.extend(cls.children[target_])
 
     @classmethod
     def invoke_general(cls, all_subscribers, *args, target=None, **kwargs):
-        for (callback, supply_event) in all_subscribers.values():
+        for (callback, supply_event, supply_target) in \
+                                all_subscribers.values():
 
-            if supply_event:
-                if target is None:
-                    callback(*args, event=cls, **kwargs)
-                else:
-                    callback(*args, event=cls, target=target, **kwargs)
-
-            elif target is None:
-                try:
-                    callback(*args, **kwargs)
-                except Exception as err:
-                    from inspect import signature
-                    print(signature(callback).parameters)
-                    print(args, kwargs, target, "\n")
-
-            else:
-                callback(*args, target=target, **kwargs)
+            cls.invoke_event(args, target, kwargs, callback,
+                             supply_event, supply_target)
 
     @classmethod
     def invoke(cls, *args, target=None, **kwargs):
@@ -202,20 +204,12 @@ class Event(metaclass=TypeRegister):
         parent.invoke(*args, target=target, **kwargs)
 
     @classmethod
-    def listener(cls, global_listener=False, accepts_event=False):
-        return event_listener(cls, global_listener, accepts_event)
+    def global_listener(cls, func):
+        return event_listener(cls, True)(func)
 
-
-class InstanceRegisteredEvent(Event):
-    pass
-
-
-class InstanceUnregisteredEvent(Event):
-    pass
-
-
-class InstanceInstantiatedEvent(Event):
-    pass
+    @classmethod
+    def listener(cls, func):
+        return event_listener(cls, False)(func)
 
 
 class CachedEvent(Event):

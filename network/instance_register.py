@@ -1,6 +1,4 @@
-from .events import (EventListener, Event,
-                     InstanceRegisteredEvent,
-                     InstanceUnregisteredEvent)
+from .events import EventListener, Event
 from .type_register import TypeRegister
 
 from itertools import chain
@@ -23,6 +21,12 @@ class InstanceMixins(EventListener):
             self.__class__.update_graph()
 
     def on_initialised(self):
+        pass
+
+    def on_registered(self):
+        pass
+
+    def on_unregistered(self):
         pass
 
     def request_unregistration(self, unregister=False):
@@ -66,10 +70,6 @@ class InstanceRegister(TypeRegister):
             cls._instances = {}
             cls._to_register = set()
             cls._to_unregister = set()
-
-            if not hasattr(cls, '_registered_event'):
-                cls._registered_event = InstanceRegisteredEvent
-                cls._unregistered_event = InstanceUnregisteredEvent
 
         return cls
 
@@ -138,6 +138,7 @@ class InstanceRegister(TypeRegister):
     def _register_to_graph(cls, instance):
         if instance.registered:
             return
+
         cls._instances[instance.instance_id] = instance
         cls._to_register.remove(instance)
 
@@ -145,7 +146,7 @@ class InstanceRegister(TypeRegister):
         Event.update_graph()
 
         try:
-            cls._registered_event.invoke(target=instance)
+            instance.on_registered()
         except Exception as err:
             raise err
 
@@ -154,7 +155,7 @@ class InstanceRegister(TypeRegister):
         cls._to_unregister.remove(instance)
 
         try:
-            cls._unregistered_event.invoke(target=instance)
+            instance.on_unregistered()
 
         except Exception:
             raise

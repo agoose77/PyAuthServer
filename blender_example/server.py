@@ -116,7 +116,7 @@ class TeamDeathMatch(ReplicationRules):
         if isinstance(replicable, WeaponAttachment):
             return True
 
-    @ActorKilledEvent.listener(True)
+    @ActorKilledEvent.global_listener
     def killed(self, attacker, target):
         print("{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn))
@@ -175,7 +175,7 @@ class TeamDeathMatch(ReplicationRules):
 
         self.info.match_started = True
 
-    @ActorDamagedEvent.listener(True)
+    @ActorDamagedEvent.global_listener
     def on_damaged(self, damage, instigator, hit_position, momentum, target):
         if not isinstance(target, Pawn):
             return
@@ -183,7 +183,7 @@ class TeamDeathMatch(ReplicationRules):
         if not target.health:
             ActorKilledEvent.invoke(instigator, target=target)
 
-    @UpdateEvent.listener(True)
+    @UpdateEvent.global_listener
     def update(self, delta_time):
 
         if self.countdown_running:

@@ -5,7 +5,7 @@ from .enums import (PhysicsType, ShotType, CameraMode, AIState,
 from .events import (CollisionEvent, PlayerInputEvent,
                     PhysicsReplicatedEvent, PhysicsSingleUpdate,
                     PhysicsSetSimulated, PhysicsUnsetSimulated,
-                    ActorDamagedEvent)
+                    ActorDamagedEvent, ActorKilledEvent)
 from .inputs import InputManager
 from .utilities import falloff_fraction
 from .finite_state_machine import FiniteStateMachine
@@ -49,6 +49,13 @@ class Controller(Replicable):
             yield "weapon"
             yield "info"
 
+    def hear_sound(self, path, location):
+        pass
+
+    @ActorDamagedEvent.listener
+    def on_damaged(self, damage, instigator, hit_position, momentum):
+        pass
+
     def on_initialised(self):
         self.camera_setup = False
         self.camera_mode = CameraMode.third_person
@@ -56,24 +63,9 @@ class Controller(Replicable):
 
         self.state_manager = FiniteStateMachine()
 
-    @ActorDamagedEvent.listener()
-    def on_damaged(self, damage, instigator, hit_position, momentum):
-        pass
+        super().on_initialised()
 
-    def remove_camera(self):
-        self.camera.unpossessed()
-
-    def unpossess(self):
-        self.pawn.unpossessed()
-        self.pawn = None
-
-    def hear_sound(self, path, location):
-        pass
-
-    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
-        super().on_unregistered()
-
         if self.pawn:
             self.pawn.request_unregistration()
             self.camera.request_unregistration()
@@ -81,12 +73,18 @@ class Controller(Replicable):
             self.remove_camera()
             self.unpossess()
 
+        super().on_unregistered()
+
     def possess(self, replicable):
         self.pawn = replicable
         self.pawn.possessed_by(self)
 
         CollisionEvent.set_parent(self, self.pawn)
         ActorDamagedEvent.set_parent(self, self.pawn)
+        ActorKilledEvent.set_parent(self, self.pawn)
+
+    def remove_camera(self):
+        self.camera.unpossessed()
 
     def set_camera(self, camera):
         self.camera = camera
@@ -129,6 +127,10 @@ class Controller(Replicable):
 
             controller.hear_sound(self.weapon.shoot_sound,
                                   self.pawn.position)
+
+    def unpossess(self):
+        self.pawn.unpossessed()
+        self.pawn = None
 
 
 class ReplicableInfo(Replicable):
@@ -245,13 +247,17 @@ class AIController(Controller):
 
         self.alert_timer = Timer(target_value=0.0, count_down=True)
 
-    @ActorDamagedEvent.listener()
+    @ActorDamagedEvent.listener
     def take_damage(self, damage, instigator, hit_position, momentum):
         # Set alert
         self.on_alerted(momentum)
 
+    @ActorKilledEvent.listener
+    def on_killed(self, attacker):
+        self.state_manager.reset()
+
     @simulated
-    @UpdateEvent.listener(True)
+    @UpdateEvent.global_listener
     def update(self, delta_time):
         self.state_manager.current_state.run(delta_time)
         if self.pawn:
@@ -387,7 +393,7 @@ class PlayerController(Controller):
         self.camera_setup = False
 
     @simulated
-    @ReplicationNotifyEvent.listener()
+    @ReplicationNotifyEvent.listener
     def on_notify(self, name):
         if name == "pawn":
             if self.pawn:
@@ -406,7 +412,7 @@ class PlayerController(Controller):
             super().on_notify(name)
 
     @simulated
-    @PlayerInputEvent.listener(True)
+    @PlayerInputEvent.global_listener
     def player_update(self, delta_time):
 
         if not (self.pawn and self.camera):
@@ -547,9 +553,7 @@ class Actor(Replicable):
 
         self.child_entities = set()
 
-    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
-        super().on_unregistered()
 
         # Unregister any actor children
         for child in self.children:
@@ -563,14 +567,16 @@ class Actor(Replicable):
         self.child_entities.clear()
         self.object.endObject()
 
-    @ReplicationNotifyEvent.listener()
+        super().on_unregistered()
+
+    @ReplicationNotifyEvent.listener
     def on_notify(self, name):
         if name == "rigid_body_state":
             PhysicsReplicatedEvent.invoke(self.rigid_body_state, target=self)
         else:
             super().on_notify(name)
 
-    @ActorDamagedEvent.listener()
+    @ActorDamagedEvent.listener
     def take_damage(self, damage, instigator, hit_position, momentum):
         self.health = int(max(self.health - damage, 0))
 
@@ -830,9 +836,6 @@ class Camera(Actor):
     entity_class = CameraObject
     entity_name = "Camera"
 
-    def on_initialised(self):
-        super().on_initialised()
-
     @property
     def active(self):
         return self.object == logic.getCurrentScene().active_camera
@@ -893,15 +896,15 @@ class Camera(Actor):
         if old_camera:
             scene.active_camera = old_camera
 
-    def sees_actor(self, replicable):
-        if replicable.camera_radius < 0.5:
-            return self.object.pointInsideFrustum(replicable.position)
+    def sees_actor(self, actor):
+        if actor.camera_radius < 0.5:
+            return self.object.pointInsideFrustum(actor.position)
 
-        return self.object.sphereInsideFrustum(replicable.position,
-                           replicable.camera_radius) != self.object.OUTSIDE
+        return self.object.sphereInsideFrustum(actor.position,
+                           actor.camera_radius) != self.object.OUTSIDE
 
     @simulated
-    @UpdateEvent.listener(True)
+    @UpdateEvent.global_listener
     def update(self, delta_time):
         if self.visible:
             self.draw()
@@ -998,7 +1001,7 @@ class Pawn(Actor):
         state_machine.add_condition("walk", self.is_walking)
         state_machine.add_condition("run", self.is_running)
 
-    @ReplicationNotifyEvent.listener()
+    @ReplicationNotifyEvent.listener
     def on_notify(self, name):
 
         # play weapon effects
@@ -1011,12 +1014,11 @@ class Pawn(Actor):
         else:
             super().on_notify(name)
 
-    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
-        super().on_unregistered()
-
         if self.weapon_attachment:
             self.weapon_attachment.request_unregistration()
+
+        super().on_unregistered()
 
     def tracking_target(self, state, delta_time):
         if not self.targets:
@@ -1044,7 +1046,7 @@ class Pawn(Actor):
         self.targets = path
 
     @simulated
-    @UpdateEvent.listener(True)
+    @UpdateEvent.global_listener
     def update(self, delta_time):
         if self.outstanding_flash:
             self.use_flashcount()

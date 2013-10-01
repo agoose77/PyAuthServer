@@ -35,7 +35,7 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
 
         print("Network initialised")
 
-    @ReplicableRegisteredEvent.listener(True)
+    @ReplicableRegisteredEvent.global_listener
     def notify_registration(self, target):
 
         if isinstance(target, Camera):

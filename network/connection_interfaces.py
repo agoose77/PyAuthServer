@@ -4,8 +4,7 @@ from .connection import ClientConnection, ServerConnection
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, TimeoutError
-from .events import (ConnectionSuccessEvent, ConnectionErrorEvent,
-                     InstanceUnregisteredEvent)
+from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
 from .instance_register import InstanceRegister
@@ -80,7 +79,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
         else:
             return super().__new__(cls)
 
-    @InstanceUnregisteredEvent.listener()
     def on_unregistered(self):
 
         if self.connection:

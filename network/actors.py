@@ -26,9 +26,6 @@ class Replicable(metaclass=ReplicableRegister):
 
     always_relevant = False
 
-    _registered_event = ReplicableRegisteredEvent
-    _unregistered_event = ReplicableUnregisteredEvent
-
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
         # If this is a locally authoritative
@@ -135,19 +132,19 @@ class Replicable(metaclass=ReplicableRegister):
         May be due to death of replicable'''
         pass
 
-    @ReplicableRegisteredEvent.listener()
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
         self.__class__._by_types[type(self)].append(self)
+        ReplicableRegisteredEvent.invoke(target=self)
 
-    @ReplicableUnregisteredEvent.listener()
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
         self.__class__._by_types[type(self)].remove(self)
+        ReplicableUnregisteredEvent.invoke(target=self)
 
-    @ReplicationNotifyEvent.listener()
+    @ReplicationNotifyEvent.listener
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
@@ -202,7 +199,7 @@ class BaseWorldInfo(Replicable):
         return (a for a in self.replicables if isinstance(a, actor_type))
 
     @simulated
-    @UpdateEvent.listener(True)
+    @UpdateEvent.global_listener
     def update(self, delta):
         self.elapsed += delta
 
