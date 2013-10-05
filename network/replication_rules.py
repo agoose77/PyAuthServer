@@ -1,7 +1,7 @@
-from .actors import Replicable
+from .replicables import Replicable
 from .descriptors import Attribute
 from .enums import Roles, Netmodes
-from .actors import WorldInfo
+from .replicables import WorldInfo
 
 
 class ReplicationRules(Replicable):

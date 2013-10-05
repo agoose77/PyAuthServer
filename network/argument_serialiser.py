@@ -4,7 +4,7 @@ from .descriptors import StaticValue
 
 
 class ArgumentSerialiser:
-
+    """Serialiser class for parsing/dumping data to bytes"""
     def __init__(self, arguments):
         '''Accepts ordered dict as argument'''
         self.bools = [(key, value) for key, value in arguments.items()
@@ -48,15 +48,18 @@ class ArgumentSerialiser:
                 yield (key, None)
                 continue
 
-            # If the value can be merged with an existing value
+            # If the value can be merged with an existing data type
             if key in previous_values and hasattr(handler, "unpack_merge"):
                 value = previous_values[key]
 
+                # If we can't merge use default unpack
                 if value is None:
                     value = handler.unpack_from(bytes_)
+
                 else:
                     handler.unpack_merge(value, bytes_)
 
+            # Otherwise ask for a new value
             else:
                 value = handler.unpack_from(bytes_)
 
@@ -67,8 +70,9 @@ class ArgumentSerialiser:
         # If there are Boolean values
         if self.total_bools and content_values[-2]:
             self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
-            for value, (key, static_value) in zip(self.bool_bits, self.bools):
-                yield (key, value)
+            for bool_value, (key, static_value) in zip(self.bool_bits,
+                                                       self.bools):
+                yield (key, bool_value)
 
     def pack(self, data, current_values={}):
         contents = self.content_bits

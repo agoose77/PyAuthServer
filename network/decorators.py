@@ -24,7 +24,7 @@ class run_on:
 
     def __init__(self, netmode):
         self.netmode = netmode
-        from .actors import WorldInfo
+        from .replicables import WorldInfo
         self._system_info = WorldInfo
 
     def __call__(self, func):

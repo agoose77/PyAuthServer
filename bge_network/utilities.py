@@ -18,3 +18,8 @@ def falloff_fraction(origin, maximum, actual, effective):
                      / (maximum - effective) ** 2)
 
     return clamp(0, 1, (1 - distance_fraction))
+
+
+def progress_string(fraction, fidelity=10):
+    return "[{}]".format(''.join(('|' if (i / fidelity) < \
+                          fraction else ' ' for i in range(fidelity))))

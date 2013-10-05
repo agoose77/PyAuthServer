@@ -1,6 +1,7 @@
 from bge import events, logic
 from network import FactoryDict, Bitfield, StaticValue, get_handler, register_handler
 from functools import partial
+import bge
 
 
 class EventInterface:
@@ -27,7 +28,6 @@ class InputManager:
         else:
             self.status_lookup = status_lookup
 
-        self._event_interfaces = FactoryDict(self.new_event_interface)
         self._devices_for_keybindings = FactoryDict(self.choose_device)
 
     def using_interface(self, lookup_func):
@@ -45,8 +45,7 @@ class InputManager:
         self.restore_interface()
 
     def to_tuple(self):
-        return (self._event_interfaces[k].active for k in sorted(
-                                                             self.keybindings))
+        return tuple(self.status_lookup(k) for k in sorted(self.keybindings))
 
     def choose_device(self, name):
         binding_code = self.keybindings[name]
@@ -56,19 +55,18 @@ class InputManager:
     def default_lookup(self, name):
         binding_code = self.keybindings[name]
         device = self._devices_for_keybindings[name]
-        return device.events[binding_code]
-
-    def new_event_interface(self, name):
-        return EventInterface(name, self.status_lookup)
+        return device.events[binding_code] in (logic.KX_INPUT_ACTIVE,
+                                               logic.KX_INPUT_JUST_ACTIVATED)
 
     def __getattr__(self, name):
-        return self._event_interfaces[name]
+        if name in self.keybindings:
+            return self.status_lookup(name)
 
     def __str__(self):
         data = []
         for key in self.keybindings:
-            data.append("{}:{}".format(key, getattr(self, key).active))
-        return "Input Manager:" + ', '.join(data)
+            data.append("{}: {}".format(key, self.status_lookup(key)))
+        return "[Input Manager] " + ', '.join(data)
 
 
 class InputPacker:
@@ -78,18 +76,15 @@ class InputPacker:
         self.fields = static_value.data['fields']
 
     def pack(self, input_):
-        values = Bitfield.from_iterable([getattr(input_, name).active
+        values = Bitfield.from_iterable([getattr(input_, name)
                                          for name in self.fields])
         return self.handler.pack(values)
-
-    def to_active(self, data, name):
-        return logic.KX_INPUT_ACTIVE if data[name] else logic.KX_INPUT_NONE
 
     def unpack(self, bytes_):
         values = Bitfield(len(self.fields))
         self.handler.unpack_merge(values, bytes_)
         data = dict(zip(self.fields, values))
-        return InputManager(data, status_lookup=partial(self.to_active, data))
+        return InputManager(data, status_lookup=data.__getitem__)
 
     unpack_from = unpack
     size = handler.size

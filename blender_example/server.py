@@ -1,6 +1,6 @@
-from actors import *
+from replicables import *
 from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
-                         Actor, Pawn, Camera, AuthError, ServerLoop, AIController,
+                         Actor, Pawn, Camera, AuthError, ServerGameLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, BlacklistError, EmptyWeapon,
                          UpdateEvent, ActorDamagedEvent, ActorKilledEvent)
@@ -150,7 +150,6 @@ class TeamDeathMatch(ReplicationRules):
         return controller
 
     def pre_initialise(self, address_tuple, netmode):
-
         if netmode == Netmodes.server:
             raise AuthError("Peer was not a client")
 
@@ -197,14 +196,16 @@ class TeamDeathMatch(ReplicationRules):
             self.start_countdown()
 
 
-class Server(ServerLoop):
+class Server(ServerGameLoop):
 
-    def create_ui(self):
-        return None
+    def update_scene(self, scene, current_time, delta_time):
+        super().update_scene(scene, current_time, delta_time)
+
+        d = scene.objects['Empty']
+        d['Updates'] = UpdateEvent.get_total_subscribers()
+        d['Instances'] = len(Actor)
 
     def create_network(self):
         network = super().create_network()
-
         WorldInfo.rules = TeamDeathMatch(register=True)
-
         return network

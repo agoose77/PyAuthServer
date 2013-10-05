@@ -1,4 +1,4 @@
-from .actors import Replicable, WorldInfo
+from .replicables import Replicable, WorldInfo
 from .descriptors import StaticValue
 from .enums import Roles
 from .handler_interfaces import (register_handler, get_handler,

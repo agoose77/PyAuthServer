@@ -76,7 +76,7 @@ class RPCInterface:
         self._serialiser = ArgumentSerialiser(self.order_arguments(
                                              self._function_signature))
 
-        from .actors import WorldInfo
+        from .replicables import WorldInfo
         self._system_netmode = WorldInfo.netmode
 
     def __call__(self, *args, **kwargs):

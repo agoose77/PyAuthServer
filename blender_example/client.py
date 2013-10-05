@@ -1,21 +1,22 @@
-from bge_network import ClientLoop, Camera
+from bge_network import ClientGameLoop, Camera, WorldInfo
 
-from actors import *
+from replicables import *
 from ui import BGESystem
 
 
-class Client(ClientLoop):
+class Client(ClientGameLoop):
 
-    def create_ui(self):
-        system = BGESystem()
+    def update_loop(self):
+        self.ui_system = BGESystem()
+        self.ui_system.connect_panel.connecter = self.new_connection
 
-        system.connect_panel.connecter = self.new_connection
-        return system
+        super().update_loop()
+
+    def update_scene(self, scene, current_time, delta_time):
+        super().update_scene(scene, current_time, delta_time)
+
+        if scene == self.network_scene:
+            self.ui_system.update(delta_time)
 
     def new_connection(self, addr, port):
         conn = self.network.connect_to((addr, port))
-
-    def create_network(self):
-        network = super().create_network()
-
-        return network

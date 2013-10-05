@@ -1,4 +1,4 @@
-from .actors import Actor
+from .replicables import Actor
 from .enums import PhysicsType
 from .events import (CollisionEvent, PhysicsReplicatedEvent,
                      PhysicsTickEvent, PhysicsSingleUpdate,
@@ -111,10 +111,8 @@ class PhysicsSystem(EventListener):
             return
 
         for this_target in WorldInfo.subclass_of(Actor):
-
             if this_target == target:
                 continue
-
             # Callbacks freeze
             if target in self._listeners:
                 self._listeners[target].receive_collisions = False

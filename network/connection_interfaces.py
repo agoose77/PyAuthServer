@@ -1,4 +1,4 @@
-from .actors import WorldInfo
+from .replicables import WorldInfo
 from .bitfield import Bitfield
 from .connection import ClientConnection, ServerConnection
 from .descriptors import StaticValue
@@ -302,6 +302,8 @@ class ServerInterface(ConnectionInterface):
 
         # Store replicable
         try:
+            if self.connection is not None:
+                raise NetworkError("Connection already in mediation")
             WorldInfo.rules.pre_initialise(self.instance_id, netmode)
 
         # If a NetworkError is raised store the result

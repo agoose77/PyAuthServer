@@ -1,18 +1,68 @@
 from .connection_interfaces import ConnectionInterface
 from .enums import ConnectionStatus
 
+from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
+from .events import UpdateEvent, EventListener
 
-class Network(socket):
 
-    def __init__(self, addr, port, update_interval=1 / 20):
+class UnblockingSocket(socket):
+
+    def __init__(self, addr, port):
         '''Network socket initialiser'''
         super().__init__(AF_INET, SOCK_DGRAM)
 
         self.bind((addr, port))
         self.setblocking(False)
+
+
+class UnreliableSocket(UnblockingSocket, EventListener):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.delay = 0.100
+
+        self._buffer_out = deque()
+        self._buffer_in = deque()
+
+        self.listen_for_events()
+
+    @UpdateEvent.global_listener
+    def poll(self, dt):
+        systime = monotonic()
+        removed = []
+
+        for index, data in enumerate(self._buffer_out):
+
+            if (systime - data[0]) >= self.delay:
+                removed.append(data)
+
+        # Send delayed data
+        for data in removed:
+            self._buffer_out.remove(data)
+
+            args_, kwargs_ = data[1:]
+            out = super().sendto(*args_, **kwargs_)
+
+        else:
+            out = 0
+
+    def sendto(self, *args, **kwargs):
+        systime = monotonic()
+
+        # Store data for delay
+        self._buffer_out.append((systime, args, kwargs))
+
+        return 0
+
+
+class Network:
+
+    def __init__(self, addr, port, update_interval=1 / 20):
+        '''Network socket initialiser'''
 
         self._interval = update_interval
         self._last_sent = 0.0
@@ -20,6 +70,8 @@ class Network(socket):
 
         self.sent_bytes = 0
         self.received_bytes = 0
+
+        self.socket = UnblockingSocket(addr, port)
 
     @property
     def can_send(self):
@@ -36,20 +88,21 @@ class Network(socket):
         return (self.received_bytes / (monotonic() - self._started))
 
     def stop(self):
-        self.close()
+        self.socket.close()
 
-    def sendto(self, *args, **kwargs):
-        '''Overrides sendto method to record sent time'''
-        result = super().sendto(*args, **kwargs)
+    def send_to(self, *args, **kwargs):
+        '''Overrides send_to method to record sent time'''
+        result = self.socket.sendto(*args, **kwargs)
 
         self.sent_bytes += result
         return result
 
-    def recvfrom(self, buff_size=63553):
-        '''A partial function for recvfrom
+    def receive_from(self, buff_size=63553):
+        '''A partial function for receive_from
         Used in iter(func, sentinel)'''
         try:
-            return super().recvfrom(buff_size)
+            return self.socket.recvfrom(buff_size)
+
         except socket_error:
             return
 
@@ -59,7 +112,7 @@ class Network(socket):
         get_connection = ConnectionInterface.get_from_graph
 
         # Receives all incoming data
-        for bytes_, addr in iter(self.recvfrom, None):
+        for bytes_, addr in iter(self.receive_from, None):
             # Find existing connection for address
             try:
                 connection = get_connection(addr)
@@ -83,7 +136,7 @@ class Network(socket):
         # Get connections
         to_delete = []
 
-        send_func = self.sendto
+        send_func = self.send_to
 
         # Send all queued data
         for connection in ConnectionInterface:
