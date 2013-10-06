@@ -470,10 +470,17 @@ class PlayerController(Controller):
 
     def possess(self, replicable):
         super().possess(replicable)
+
         PhysicsUnsetSimulated.invoke(target=replicable)
+
+        self.reset_corrections(replicable)
 
     def receive_broadcast(self, message_string:StaticValue(str)) -> Netmodes.client:
         print("BROADCAST: {}".format(message_string))
+
+    def reset_corrections(self, replicable):
+        '''Forces the client to be corrected when spawned'''
+        self.last_correction = 0
 
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
                   mouse_diff_y):

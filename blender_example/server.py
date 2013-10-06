@@ -140,6 +140,10 @@ class TeamDeathMatch(ReplicationRules):
 
         self.create_ai_controllers()
 
+    def on_disconnect(self, replicable):
+        self.broadcast(replicable, "{} disconnected".format(replicable))
+        print("BYew")
+
     def post_initialise(self, connection):
         controller = self.player_controller_class()
         player_info = self.player_replication_info_class()

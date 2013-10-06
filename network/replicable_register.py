@@ -25,9 +25,6 @@ class ReplicableRegister(InstanceRegister):
                 if meta.is_wrapped(value):
                     continue
 
-                if cls_name == "LegendController":
-                    print(name)
-
                 # Recreate RPC from its function
                 if isinstance(value, RPC):
                     print("Found pre-wrapped RPC call: {}, "\

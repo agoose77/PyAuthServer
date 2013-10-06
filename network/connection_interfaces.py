@@ -272,6 +272,11 @@ class ServerInterface(ConnectionInterface):
     def on_initialised(self):
         self._auth_error = None
 
+    def on_unregistered(self):
+        WorldInfo.rules.on_disconnect(self.connection.replicable)
+
+        super().on_unregistered()
+
     def get_handshake(self):
         '''Will only exist if invoked'''
         connection_failed = self.connection is None
