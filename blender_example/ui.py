@@ -1,12 +1,21 @@
 import bge
 import bgui
+from datetime import datetime
 
-from network import ConnectionErrorEvent, ConnectionSuccessEvent, EventListener
-
+from network import (ConnectionErrorEvent, ConnectionSuccessEvent,
+                     EventListener, WorldInfo)
+from events import ConsoleMessage
 
 CENTERY = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERX
 CENTERED = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED
+
+
+class ConsoleRenderer(bgui.ListBoxRenderer):
+    def __init__(self, listbox):
+        super().__init__(listbox)
+
+        self.label.color = 0, 0, 0, 1
 
 
 class System(bgui.System):
@@ -83,6 +92,25 @@ class Panel(bgui.Frame):
 
     def update(self, delta_time):
         pass
+
+
+class ConsolePanel(Panel, EventListener):
+
+    def __init__(self, system):
+        super().__init__(system, "Console")
+
+        self.messages = []
+        self.message_box = bgui.ListBox(parent=self, name="messages",
+                                        items=self.messages, pos=[0.1, 0.05])
+        self.message_box.renderer = ConsoleRenderer(self.message_box)
+
+        self.listen_for_events()
+
+    @ConsoleMessage.global_listener
+    def receive_message(self, message):
+        timestamp = datetime.today().strftime("%H : %M : %S || ")
+        separator = ' '
+        self.messages.append(timestamp + separator + "'{}'".format(message))
 
 
 class ConnectPanel(Panel, EventListener):
@@ -169,12 +197,13 @@ class ConnectPanel(Panel, EventListener):
 
         self.logo = bgui.Image(parent=self.center_column, name="logo",
                                img="legend.jpg", size=[0.3, 0.3],
-                               pos=[0.5,0.65], aspect=self.aspect,
+                               pos=[0.5, 0.65], aspect=self.aspect,
                                options=CENTERX)
 
         self.connect_button.on_click = self.do_connect
-        self.listen_for_events()
         self.uses_mouse = True
+
+        self.listen_for_events()
 
     def do_connect(self, button):
         if not callable(self.connecter):
@@ -218,4 +247,5 @@ class BGESystem(System):
         super().__init__()
 
         self.connect_panel = ConnectPanel(self)
+        self.console_panel = ConsolePanel(self)
         #self.samantha_panel = SamanthaPanel(self)

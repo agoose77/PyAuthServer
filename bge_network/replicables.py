@@ -472,8 +472,7 @@ class PlayerController(Controller):
         super().possess(replicable)
         PhysicsUnsetSimulated.invoke(target=replicable)
 
-    def receive_broadcast(self, sender: StaticValue(Replicable),
-                  message_string:StaticValue(str)) -> Netmodes.client:
+    def receive_broadcast(self, message_string:StaticValue(str)) -> Netmodes.client:
         print("BROADCAST: {}".format(message_string))
 
     def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
@@ -810,6 +809,9 @@ class Weapon(Replicable):
         else:
             return
 
+        if replicable == self.owner.pawn:
+            return
+
         hit_vector = (hit_position - camera.position)
 
         falloff = falloff_fraction(camera.position,
@@ -943,7 +945,7 @@ class Camera(Actor):
     @simulated
     @UpdateEvent.global_listener
     def update(self, delta_time):
-        if self.visible:
+        if self.visible or True:
             self.draw()
 
     def trace(self, x_coord, y_coord, distance=0):

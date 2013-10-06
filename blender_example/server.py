@@ -7,7 +7,7 @@ from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, Repl
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
-from docutils.nodes import target
+from events import ConsoleMessage
 
 
 class TeamDeathMatch(ReplicationRules):
@@ -40,8 +40,7 @@ class TeamDeathMatch(ReplicationRules):
             return
 
         for replicable in WorldInfo.subclass_of(PlayerController):
-
-            replicable.receive_broadcast(sender, message)
+            replicable.receive_broadcast(message)
 
     def can_start_countdown(self):
         player_count = self.get_player_count()
@@ -118,8 +117,11 @@ class TeamDeathMatch(ReplicationRules):
 
     @ActorKilledEvent.global_listener
     def killed(self, attacker, target):
-        print("{} was killed by {}'s {}".format(target.owner, attacker,
-                                                attacker.pawn))
+        message = "{} was killed by {}'s {}".format(target.owner, attacker,
+                                                attacker.pawn)
+
+        self.broadcast(attacker, message)
+
         target.owner.unpossess()
         target.request_unregistration()
         target.owner.weapon.unpossessed()

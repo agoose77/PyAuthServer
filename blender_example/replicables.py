@@ -1,9 +1,11 @@
 from bge_network import (PlayerController, ReplicableInfo,
                          Attribute, Roles, Pawn,
                          Weapon, WeaponAttachment, CameraMode,
-                         MovementState)
+                         MovementState, Netmodes, StaticValue,
+                         WorldInfo)
 from mathutils import Vector, Euler
 from math import radians, cos, sin
+from events import ConsoleMessage
 
 
 class GameReplicationInfo(ReplicableInfo):
@@ -24,6 +26,9 @@ class LegendController(PlayerController):
     input_fields = "forward", "backwards", "left", "right", "shoot", "run"
 
     near_zero = 0.001
+
+    def receive_broadcast(self, message_string: StaticValue(str)) -> Netmodes.client:
+        ConsoleMessage.invoke(message_string)
 
     def on_initialised(self):
         super().on_initialised()

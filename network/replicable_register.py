@@ -16,27 +16,32 @@ class ReplicableRegister(InstanceRegister):
         if bases:
             # Get all the member methods
             for name, value in attrs.items():
-                # Check it's not in parents (will have been checked)
-                if meta.found_in_parents(name, bases):
-                    continue
 
                 # Wrap them with permission
-                if isinstance(value, (FunctionType, classmethod,
+                if not isinstance(value, (FunctionType, classmethod,
                                       staticmethod)):
-                    # Recreate RPC from its function
-                    if isinstance(value, RPC):
-                        print("Found pre-wrapped RPC call: {}, "\
-                              "re-wrapping...(any data defined in "\
-                              "__init__ will be lost)".format(name))
-                        value = value._func
+                    continue
 
-                    value = meta.permission_wrapper(value)
+                if meta.is_wrapped(value):
+                    continue
 
-                    # Automatically wrap RPC
-                    if meta.is_rpc(value) and not isinstance(value, RPC):
-                        value = RPC(value)
+                if cls_name == "LegendController":
+                    print(name)
 
-                    attrs[name] = value
+                # Recreate RPC from its function
+                if isinstance(value, RPC):
+                    print("Found pre-wrapped RPC call: {}, "\
+                          "re-wrapping...(any data defined in "\
+                          "__init__ will be lost)".format(name))
+                    value = value._func
+
+                value = meta.permission_wrapper(value)
+
+                # Automatically wrap RPC
+                if meta.is_rpc(value) and not isinstance(value, RPC):
+                    value = RPC(value)
+
+                attrs[name] = value
 
         return super().__new__(meta, cls_name, bases, attrs)
 
@@ -59,6 +64,9 @@ class ReplicableRegister(InstanceRegister):
         for parent in parents:
             if name in dir(parent):
                 return True
+
+    def is_wrapped(func):
+        return "wrapped" in func.__annotations__
 
     def permission_wrapper(func):
         simulated_proxy = Roles.simulated_proxy
@@ -97,5 +105,7 @@ class ReplicableRegister(InstanceRegister):
                 elif getattr(assumed_instance, "verbose_execution", False):
                     print("Error executing {}: \
                         Function does not have permission roles")
+
+        func_wrapper.__annotations__['wrapped'] = True
 
         return func_wrapper
