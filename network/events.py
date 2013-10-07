@@ -286,5 +286,13 @@ class ConnectionSuccessEvent(Event):
     pass
 
 
+class NetworkSendEvent(Event):
+    pass
+
+
+class NetworkReceiveEvent(Event):
+    pass
+
+
 class UpdateEvent(Event):
     pass

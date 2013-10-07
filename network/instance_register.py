@@ -107,6 +107,9 @@ class InstanceRegister(TypeRegister):
             return
         instance = cls._instances[instance_id]
 
+        if not instance in cls._to_unregister:
+            cls._to_unregister.add(instance)
+
         cls._unregister_from_graph(instance)
 
         for i in cls._to_register:

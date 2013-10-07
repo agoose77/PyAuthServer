@@ -1,11 +1,13 @@
 from .replicables import Camera
 from .events import PlayerInputEvent, PhysicsTickEvent
 from .physics import PhysicsSystem
+
 from collections import Counter
 from bge import logic, events, types
 from network import( Netmodes, WorldInfo, Network, Replicable,
                      EventListener, ReplicableRegisteredEvent,
-                     UpdateEvent)
+                     UpdateEvent, NetworkReceiveEvent, NetworkSendEvent)
+from time import monotonic
 
 
 class GameLoop(types.KX_PythonLogicLoop, EventListener):
@@ -27,6 +29,9 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
         self.network = self.create_network()
         self.physics_system = PhysicsSystem(self.physics_callback,
                                             self.apply_physics)
+
+        self._last_sent = 0.0
+        self._interval = 1 / 20
 
         self.listen_for_events()
 
@@ -51,7 +56,7 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
 
         if scene == self.network_scene:
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
-            self.network.receive()
+            NetworkReceiveEvent.invoke()
 
             Replicable.update_graph()
 
@@ -69,7 +74,13 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
             PhysicsTickEvent.invoke(scene, delta_time)
 
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
-            self.network.send()
+
+            is_full_update = (current_time - self._last_sent) >= self._interval
+
+            if is_full_update:
+                self._last_sent = current_time
+
+            NetworkSendEvent.invoke(is_full_update)
 
         else:
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)

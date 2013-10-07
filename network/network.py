@@ -5,7 +5,8 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
-from .events import UpdateEvent, EventListener
+from .events import (UpdateEvent, EventListener, NetworkSendEvent,
+                     NetworkReceiveEvent)
 
 
 class UnblockingSocket(socket):
@@ -30,54 +31,43 @@ class UnreliableSocket(UnblockingSocket, EventListener):
 
         self.listen_for_events()
 
-    @UpdateEvent.global_listener
-    def poll(self, dt):
+    @NetworkSendEvent.global_listener
+    def poll(self, delta_time):
         systime = monotonic()
-        removed = []
+        sendable = []
 
-        for index, data in enumerate(self._buffer_out):
-
+        # Check if we can send delayed data
+        for data in self._buffer_out:
             if (systime - data[0]) >= self.delay:
-                removed.append(data)
+                sendable.append(data)
 
-        # Send delayed data
-        for data in removed:
+        # Send the delayed data
+        for data in sendable:
             self._buffer_out.remove(data)
 
             args_, kwargs_ = data[1:]
-            out = super().sendto(*args_, **kwargs_)
-
-        else:
-            out = 0
+            super().sendto(*args_, **kwargs_)
 
     def sendto(self, *args, **kwargs):
-        systime = monotonic()
-
         # Store data for delay
-        self._buffer_out.append((systime, args, kwargs))
-
+        self._buffer_out.append((monotonic(), args, kwargs))
         return 0
 
 
-class Network:
+class Network(EventListener):
 
-    def __init__(self, addr, port, update_interval=1 / 20):
+    def __init__(self, addr, port):
         '''Network socket initialiser'''
+        super().__init__()
 
-        self._interval = update_interval
-        self._last_sent = 0.0
-        self._started = monotonic()
+        self._started = 0.0
 
         self.sent_bytes = 0
         self.received_bytes = 0
 
         self.socket = UnblockingSocket(addr, port)
 
-    @property
-    def can_send(self):
-        '''Determines if the socket can send
-        Result according to time elapsed >= send interval'''
-        return (monotonic() - self._last_sent) >= self._interval
+        self.listen_for_events()
 
     @property
     def send_rate(self):
@@ -106,6 +96,7 @@ class Network:
         except socket_error:
             return
 
+    @NetworkReceiveEvent.global_listener
     def receive(self):
         '''Receive all data from socket'''
         # Get connections
@@ -128,11 +119,9 @@ class Network:
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
 
-    def send(self):
+    @NetworkSendEvent.global_listener
+    def send(self, full_update):
         '''Send all connection data and update timeouts'''
-        # A switch between emergency and normal
-        network_tick = self.can_send
-
         # Get connections
         to_delete = []
 
@@ -147,14 +136,11 @@ class Network:
                 continue
 
             # Give the option to send nothing
-            data = connection.send(network_tick)
+            data = connection.send(full_update)
 
             # If returns data, send it
             if data:
                 send_func(data, connection.instance_id)
-
-        if network_tick:
-            self._last_sent = monotonic()
 
         # Delete dead connections
         ConnectionInterface.update_graph()
