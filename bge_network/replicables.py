@@ -952,7 +952,7 @@ class Camera(Actor):
     @simulated
     @UpdateEvent.global_listener
     def update(self, delta_time):
-        if self.visible or True:
+        if self.visible:
             self.draw()
 
     def trace(self, x_coord, y_coord, distance=0):

@@ -142,16 +142,13 @@ class TeamDeathMatch(ReplicationRules):
 
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
-        print("BYew")
 
     def post_initialise(self, connection):
         controller = self.player_controller_class()
         player_info = self.player_replication_info_class()
 
         controller.info = player_info
-
-        if self.info.match_started:
-            self.create_new_player(controller)
+        self.create_new_player(controller)
 
         return controller
 
@@ -172,11 +169,6 @@ class TeamDeathMatch(ReplicationRules):
         self.countdown_running = True
 
     def start_match(self):
-        for controller in WorldInfo.subclass_of(PlayerController):
-            self.create_new_player(controller)
-
-        for controller in WorldInfo.subclass_of(AIController):
-            self.create_new_ai(controller)
 
         self.info.match_started = True
 

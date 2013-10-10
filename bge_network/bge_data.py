@@ -7,10 +7,10 @@ from network import (Float8, Float4, register_handler,
 
 class RigidBodyState(Struct):
 
-    position = Attribute(Vector(), complain=True)
-    velocity = Attribute(Vector(), complain=True)
-    angular = Attribute(Vector(), complain=True)
-    rotation = Attribute(Euler(), complain=True)
+    position = Attribute(Vector())
+    velocity = Attribute(Vector())
+    angular = Attribute(Vector())
+    rotation = Attribute(Euler())
 
 
 class EngineObject:

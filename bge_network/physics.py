@@ -1,14 +1,15 @@
-from .replicables import Actor
+from .replicables import Actor, Pawn, Controller, Camera, Weapon
 from .enums import PhysicsType
 from .events import (CollisionEvent, PhysicsReplicatedEvent,
                      PhysicsTickEvent, PhysicsSingleUpdate,
-                     PhysicsSetSimulated, PhysicsUnsetSimulated)
+                     PhysicsSetSimulated, PhysicsUnsetSimulated,
+                     MapLoadedEvent)
 
 from bge import logic, types
 from collections import defaultdict
 from functools import partial
 from network import (WorldInfo, Netmodes, EventListener,
-                     ReplicableUnregisteredEvent)
+                     ReplicableUnregisteredEvent, Replicable)
 from time import monotonic
 
 
@@ -88,6 +89,63 @@ class PhysicsSystem(EventListener):
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
         self.listen_for_events()
+
+    def get_actor(self, lookup, name, type_of):
+        if not name in lookup:
+            return
+
+        if not name + "_id" in lookup:
+            return
+
+        try:
+            name_cls = Replicable.from_type_name(lookup[name])
+            if not issubclass(name_cls, type_of):
+                return
+            return name_cls(instance_id=lookup[name + "_id"])
+
+        except LookupError:
+            return
+
+    def setup_map_controller(self, pawn, obj):
+        controller = self.get_actor(obj, "controller", Controller)
+        camera = self.get_actor(obj, "camera", Camera)
+
+        if controller is None or camera is None:
+            return
+
+        controller.possess(pawn)
+        controller.set_camera(camera)
+
+        weapon = self.get_actor(obj, "weapon", Weapon)
+        if weapon is None:
+            return
+
+        controller.setup_weapon(weapon)
+
+    @MapLoadedEvent.global_listener
+    def convert_map(self, target=None):
+
+        scene = logic.getCurrentScene()
+
+        found_actors = {}
+
+        for obj in scene.objects:
+            actor = self.get_actor(obj, "replicable", Actor)
+
+            if actor is None:
+                continue
+
+            found_actors[obj] = actor
+
+            actor.position = obj.worldPosition.copy()
+            actor.rotation = obj.worldOrientation.to_euler()
+
+            if isinstance(actor, Pawn):
+                self.setup_map_controller(actor, obj)
+
+        for obj, actor in found_actors.items():
+            if obj.parent in found_actors:
+                actor.set_parent(found_actors[obj.parent])
 
     @ReplicableUnregisteredEvent.global_listener
     def notify_unregistration(self, target):

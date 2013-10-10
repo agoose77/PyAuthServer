@@ -35,3 +35,7 @@ class PlayerInputEvent(Event):
 
 class PhysicsTickEvent(Event):
     pass
+
+
+class MapLoadedEvent(Event):
+    pass
