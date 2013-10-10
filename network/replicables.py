@@ -99,8 +99,8 @@ class Replicable(metaclass=ReplicableRegister):
             self._local_authority = True
 
         # Therefore we will have authority to change things
-        if instance_id in self.__class__.get_entire_graph_ids(instigator=self):
-            instance = self.__class__.remove_from_entire_graph(instance_id)
+        if self.__class__.graph_has_instance(instance_id):
+            instance = self.__class__.get_from_graph(instance_id)
             # If the instance is not local, then we have a conflict
             error_message = "Authority over instance id {}\
              is unresolveable".format(instance_id)

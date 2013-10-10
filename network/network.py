@@ -5,7 +5,7 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
-from .events import (UpdateEvent, EventListener, NetworkSendEvent,
+from .events import (EventListener, NetworkSendEvent,
                      NetworkReceiveEvent)
 
 
