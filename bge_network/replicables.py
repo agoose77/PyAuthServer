@@ -423,14 +423,7 @@ class PlayerController(Controller):
 
         if not (self.pawn and self.camera):
             return
-
-        debug = False
-
-        if debug:
-            self.debug_update(delta_time)
-
-        else:
-            self.normal_update(delta_time)
+        self.normal_update(delta_time)
 
     def debug_update(self, delta_time):
         if self.inputs.shoot:

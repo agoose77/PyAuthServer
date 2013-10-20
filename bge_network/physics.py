@@ -94,14 +94,13 @@ class PhysicsSystem(EventListener):
         if not name in lookup:
             return
 
-        if not name + "_id" in lookup:
-            return
+        instance_id = lookup.get(name + "_id")
 
         try:
             name_cls = Replicable.from_type_name(lookup[name])
             if not issubclass(name_cls, type_of):
                 return
-            return name_cls(instance_id=lookup[name + "_id"])
+            return name_cls(instance_id=instance_id)
 
         except LookupError:
             return
@@ -121,6 +120,7 @@ class PhysicsSystem(EventListener):
             return
 
         controller.setup_weapon(weapon)
+        pawn.create_weapon_attachment(pawn.weapon_attachment_class)
 
     @MapLoadedEvent.global_listener
     def convert_map(self, target=None):
@@ -260,6 +260,11 @@ class ClientPhysics(PhysicsSystem):
             # If we need to make a callback instance
             if self.needs_listener(replicable):
                 self.create_listener(replicable)
+
+    def get_actor(self, lookup, name, type_of):
+        if not name + "_id" in lookup:
+            return
+        return super().get_actor(lookup, name, type_of)
 
     @PhysicsReplicatedEvent.global_listener
     def actor_replicated(self, target_physics, target):

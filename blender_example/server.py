@@ -50,12 +50,11 @@ class TeamDeathMatch(ReplicationRules):
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
         weapon = self.ai_weapon_class()
-
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        position_shift = (controller.instance_id - self.ai_count / 2) * 5
+        position_shift = (controller.instance_id - self.ai_count / 2) * 3
         pawn.position = Vector((position_shift, position_shift, 1))
 
     def create_new_player(self, controller):
@@ -126,10 +125,11 @@ class TeamDeathMatch(ReplicationRules):
         target.request_unregistration()
         target.owner.weapon.unpossessed()
         target.owner.weapon.request_unregistration()
-
         if isinstance(target.owner, self.player_controller_class):
+            print("spawn player")
             self.create_new_player(target.owner)
         else:
+            print("spawn ai")
             self.create_new_ai(target.owner)
 
     def on_initialised(self, **da):
@@ -182,15 +182,15 @@ class TeamDeathMatch(ReplicationRules):
 
     @UpdateEvent.global_listener
     def update(self, delta_time):
+        info = self.info
 
         if self.countdown_running:
-            self.info.time_to_start = max(0.0,
-                          self.info.time_to_start - delta_time)
+            info.time_to_start = max(0.0, info.time_to_start - delta_time)
 
-            if not self.info.time_to_start:
+            if not info.time_to_start:
                 self.end_countdown(False)
 
-        elif self.can_start_countdown() and not self.info.match_started:
+        elif self.can_start_countdown() and not info.match_started:
             self.start_countdown()
 
 
