@@ -553,7 +553,7 @@ class Actor(Replicable):
                                 )
                           )
 
-    health = Attribute(100.0, notify=True)
+    health = Attribute(100, notify=True)
 
     entity_name = ""
     entity_class = GameObject
@@ -962,7 +962,6 @@ class Pawn(Actor):
     flash_count = Attribute(0,
                    notify=True,
                         complain=False)
-    health = Attribute(100)
     weapon_attachment_class = Attribute(type_of=TypeRegister,
                                         notify=True)
 
@@ -975,7 +974,6 @@ class Pawn(Actor):
 
         if is_complaint:
             yield "weapon_attachment_class"
-            yield "health"
 
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()

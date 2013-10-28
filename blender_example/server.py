@@ -1,22 +1,23 @@
-from replicables import *
 from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
                          Actor, Pawn, Camera, AuthError, ServerGameLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, BlacklistError, EmptyWeapon,
-                         UpdateEvent, ActorDamagedEvent, ActorKilledEvent)
+                         UpdateEvent, ActorDamagedEvent, ActorKilledEvent, Timer)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
-from events import ConsoleMessage
 
+from events import ConsoleMessage
+from matchmaker import BoundMatchmaker
+from replicables import *
+from random import randint
 
 class TeamDeathMatch(ReplicationRules):
 
     countdown_running = False
     countdown_start = 0
     minimum_players_for_countdown = 0
-
-    ai_count = 1
+    player_limit = 4
 
     ai_camera_class = Camera
     ai_controller_class = AIController
@@ -32,6 +33,16 @@ class TeamDeathMatch(ReplicationRules):
 
     relevant_radius_squared = 9 ** 2
 
+    @property
+    def players(self):
+        return ConnectionInterface.by_status(
+                 ConnectionStatus.disconnected,
+                 more_than)
+
+    @property
+    def allow_countdown(self):
+        return self.players >= self.minimum_players_for_countdown
+
     def allows_broadcast(self, sender, message):
         return len(message) <= 255
 
@@ -42,10 +53,6 @@ class TeamDeathMatch(ReplicationRules):
         for replicable in WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
-    def can_start_countdown(self):
-        player_count = self.get_player_count()
-        return player_count >= self.minimum_players_for_countdown
-
     def create_new_ai(self, controller):
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
@@ -54,8 +61,7 @@ class TeamDeathMatch(ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        position_shift = (controller.instance_id - self.ai_count / 2) * 3
-        pawn.position = Vector((position_shift, position_shift, 1))
+        pawn.position = Vector((randint(-10, 10), randint(-10, 10), 1))
 
     def create_new_player(self, controller):
         pawn = self.player_pawn_class()
@@ -68,10 +74,6 @@ class TeamDeathMatch(ReplicationRules):
 
         pawn.position = Vector((4, 4, 1))
 
-    def create_ai_controllers(self):
-        for i in range(self.ai_count):
-            self.ai_controller_class()
-
     def end_countdown(self, aborted=True):
         self.reset_countdown()
         self.countdown_running = False
@@ -80,10 +82,6 @@ class TeamDeathMatch(ReplicationRules):
             return
 
         self.start_match()
-
-    def get_player_count(self):
-        return ConnectionInterface.by_status(ConnectionStatus.disconnected,
-                                             more_than)
 
     def is_relevant(self, player_controller, replicable):
         # We never allow PlayerController classes
@@ -125,20 +123,29 @@ class TeamDeathMatch(ReplicationRules):
         target.request_unregistration()
         target.owner.weapon.unpossessed()
         target.owner.weapon.request_unregistration()
+
         if isinstance(target.owner, self.player_controller_class):
-            print("spawn player")
             self.create_new_player(target.owner)
+
         else:
-            print("spawn ai")
             self.create_new_ai(target.owner)
 
     def on_initialised(self, **da):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
+        self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/"\
+                                     "networking/matchmaker")
+
+        self.matchmaker_updater = Timer(initial_value=10,
+                                        count_down=True,
+                                        on_target=self.update_matchmaker,
+                                        repeat=True)
+
         self.black_list = []
 
-        self.create_ai_controllers()
+        self.matchmaker.register_server("Demo Server", "Test Map",
+                                        self.player_limit, 0)
 
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
@@ -155,6 +162,9 @@ class TeamDeathMatch(ReplicationRules):
     def pre_initialise(self, address_tuple, netmode):
         if netmode == Netmodes.server:
             raise AuthError("Peer was not a client")
+
+        if self.players >= self.player_limit:
+            raise AuthError("Player limit reached")
 
         ip_address, port = address_tuple
 
@@ -188,10 +198,17 @@ class TeamDeathMatch(ReplicationRules):
             info.time_to_start = max(0.0, info.time_to_start - delta_time)
 
             if not info.time_to_start:
-                self.end_countdown(False)
+                self.end_countdown(aborted=False)
 
-        elif self.can_start_countdown() and not info.match_started:
+        elif self.allow_countdown and not info.match_started:
             self.start_countdown()
+
+        # Update matchmaker poll timer
+        self.matchmaker_updater.update(delta_time)
+
+    def update_matchmaker(self):
+        self.matchmaker.update_server("Test Map", self.player_limit,
+                                    self.players)
 
 
 class Server(ServerGameLoop):
