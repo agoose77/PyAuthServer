@@ -28,15 +28,15 @@ class ArgumentSerialiser:
 
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
+
         self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
         bytes_ = bytes_[self.bitfield_packer.size(bytes_):]
-
         content_values = list(self.content_bits)
 
         # If there are None values
         if content_values[-1]:
             self.bitfield_packer.unpack_merge(self.none_bits, bytes_)
-
+        
         for included, value_none, (key, handler) in zip(content_values,
                                                      self.none_bits,
                                                      self.handlers):
@@ -62,7 +62,6 @@ class ArgumentSerialiser:
             # Otherwise ask for a new value
             else:
                 value = handler.unpack_from(bytes_)
-
             yield (key, value)
 
             bytes_ = bytes_[handler.size(bytes_):]

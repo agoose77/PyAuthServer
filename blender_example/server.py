@@ -12,6 +12,7 @@ from matchmaker import BoundMatchmaker
 from replicables import *
 from random import randint
 
+
 class TeamDeathMatch(ReplicationRules):
 
     countdown_running = False
@@ -57,6 +58,7 @@ class TeamDeathMatch(ReplicationRules):
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
         weapon = self.ai_weapon_class()
+
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
@@ -74,14 +76,9 @@ class TeamDeathMatch(ReplicationRules):
 
         pawn.position = Vector((4, 4, 1))
 
-    def end_countdown(self, aborted=True):
+    def stop_countdown(self):
         self.reset_countdown()
         self.countdown_running = False
-
-        if aborted:
-            return
-
-        self.start_match()
 
     def is_relevant(self, player_controller, replicable):
         # We never allow PlayerController classes
@@ -179,7 +176,6 @@ class TeamDeathMatch(ReplicationRules):
         self.countdown_running = True
 
     def start_match(self):
-
         self.info.match_started = True
 
     @ActorDamagedEvent.global_listener
@@ -197,8 +193,10 @@ class TeamDeathMatch(ReplicationRules):
         if self.countdown_running:
             info.time_to_start = max(0.0, info.time_to_start - delta_time)
 
+            # If countdown stops, start match
             if not info.time_to_start:
-                self.end_countdown(aborted=False)
+                self.stop_countdown()
+                self.start_match()
 
         elif self.allow_countdown and not info.match_started:
             self.start_countdown()

@@ -17,7 +17,7 @@ from time import monotonic
 
 class ConnectionInterface(metaclass=InstanceRegister):
 
-    def __init__(self, addr):
+    def __init__(self, instance_id):
 
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
@@ -59,10 +59,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         self.buffer = []
 
         # Maintenance info
-        self._addr = self.convert_address(addr)
-
-        if self._addr is not None:
-            super().__init__(instance_id=self._addr, register=True)
+        super().__init__(instance_id=instance_id, register=True)
 
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -83,15 +80,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         if self.connection:
             self.connection.on_delete()
-
-    def convert_address(self, addr):
-        '''Unifies alias address names
-        @param addr: address to clean'''
-        try:
-            return gethostbyname(addr[0]), addr[1]
-
-        except Exception as err:
-            ConnectionErrorEvent.invoke(err, target=self)
 
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
@@ -129,7 +117,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
 
-            err = TimeoutError("Connection to {} timed out".format(self._addr))
+            err = TimeoutError("Connection timed out")
             ConnectionErrorEvent.invoke(err, target=self)
 
         # If not connected setup handshake

@@ -40,8 +40,8 @@ class RolesHandler:
 
     @classmethod
     def unpack(cls, bytes_):
-        return Roles(cls.packer.unpack(bytes_),
-                     cls.packer.unpack(bytes_[cls.packer.size():]))
+        return Roles(cls.packer.unpack_from(bytes_),
+                     cls.packer.unpack_from(bytes_[cls.packer.size():]))
 
     @classmethod
     def size(cls, bytes_=None):

@@ -164,7 +164,7 @@ class AIController(Controller):
 
         for actor in WorldInfo.subclass_of(Pawn):
 
-            if actor == self.pawn and ignore_self:
+            if ignore_self and actor == self.pawn:
                 continue
 
             if sees(actor):
@@ -177,8 +177,7 @@ class AIController(Controller):
         target_vector = (self.target.position - self.camera.position)\
                         .normalized()
 
-        world_x, world_y, world_z = Matrix.Identity(3).col
-
+        world_z = Vector((0, 0, 1))
         camera_vector = -world_z.copy()
         camera_vector.rotate(self.camera.rotation)
         turn_speed = 0.1
@@ -191,7 +190,6 @@ class AIController(Controller):
         self.start_server_fire()
 
     def handle_idle(self, state, delta_time):
-        pass
         self.start_server_fire()
 
     def hear_sound(self, path, source):
@@ -260,12 +258,6 @@ class AIController(Controller):
     @UpdateEvent.global_listener
     def update(self, delta_time):
         self.state_manager.current_state.run(delta_time)
-        if self.pawn:
-            scene = self.pawn.object.scene
-            d = scene.objects['Empty']
-            d['AIState'] = AIState[self.state_manager.current_state.identifier]
-            d['Connections'] = ConnectionInterface.by_status(
-                                 ConnectionStatus.disconnected, more_than)
 
 
 class PlayerController(Controller):
