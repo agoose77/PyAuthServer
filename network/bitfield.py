@@ -27,21 +27,21 @@ class Bitfield:
     def __bool__(self):
         return self._value > 0
 
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            value = self._value
-            start, stop, step = index.indices(self._size)
-            return [bool(value & (1 << index)) for index in
-                    range(*index.indices(self._size))]
+    def __getitem__(self, value):
+        if isinstance(value, slice):
+            _value = self._value
+            return [bool(_value & (1 << index)) for index in
+                    range(*value.indices(self._size))]
 
         else:
-            if index < 0:
-                index += self._size
+            # Relative indices
+            if value < 0:
+                value += self._size
 
-            if index >= self._size:
+            if value >= self._size:
                 raise IndexError("Index out of range")
 
-            return bool(self._value & (1 << index))
+            return bool(self._value & (1 << value))
 
     def __setitem__(self, index, value):
         if isinstance(index, slice):
@@ -66,7 +66,8 @@ class Bitfield:
                 raise IndexError("Index out of range")
 
             if value:
-                self._value |= 1 << index
+                self._value |= (1 << index)
+
             else:
                 self._value &= ~(1 << index)
 
@@ -96,10 +97,10 @@ class BitfieldInt:
 
         if field_size:
             field_packer = handler_from_bit_length(field_size)
-            data = field_packer.unpack_from(bytes_[1:])
+            data = field_packer.unpack_from(bytes_[cls.size_packer.size():])
         else:
             data = 0
-        # Assume 8 bits
+
         field = Bitfield(field_size, data)
         return field
 
@@ -108,7 +109,8 @@ class BitfieldInt:
         footprint = field.footprint
         if footprint:
             field_packer = handler_from_byte_length(footprint)
-            field._value = field_packer.unpack_from(bytes_[1:])
+            field._value = field_packer.unpack_from(
+                                bytes_[cls.size_packer.size():])
 
     unpack_from = unpack
 

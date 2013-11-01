@@ -4,7 +4,10 @@ from .descriptors import StaticValue
 
 
 class ArgumentSerialiser:
-    """Serialiser class for parsing/dumping data to bytes"""
+    """Serialiser class for parsing/dumping data to bytes
+    Packed structure:
+    Contents, Data, Booleans, Nones"""
+
     def __init__(self, arguments):
         '''Accepts ordered dict as argument'''
         self.bools = [(key, value) for key, value in arguments.items()
@@ -28,15 +31,16 @@ class ArgumentSerialiser:
 
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
+        bitfield_packer = self.bitfield_packer
+        bitfield_packer.unpack_merge(self.content_bits, bytes_)
 
-        self.bitfield_packer.unpack_merge(self.content_bits, bytes_)
-        bytes_ = bytes_[self.bitfield_packer.size(bytes_):]
+        bytes_ = bytes_[bitfield_packer.size(bytes_):]
         content_values = list(self.content_bits)
 
         # If there are None values
         if content_values[-1]:
-            self.bitfield_packer.unpack_merge(self.none_bits, bytes_)
-        
+            bitfield_packer.unpack_merge(self.none_bits, bytes_)
+
         for included, value_none, (key, handler) in zip(content_values,
                                                      self.none_bits,
                                                      self.handlers):
@@ -68,18 +72,18 @@ class ArgumentSerialiser:
 
         # If there are Boolean values
         if self.total_bools and content_values[-2]:
-            self.bitfield_packer.unpack_merge(self.bool_bits, bytes_)
+            bitfield_packer.unpack_merge(self.bool_bits, bytes_)
             for bool_value, (key, static_value) in zip(self.bool_bits,
                                                        self.bools):
                 yield (key, bool_value)
 
     def pack(self, data, current_values={}):
-        contents = self.content_bits
-        none_values = self.none_bits
+        content_bits = self.content_bits
+        none_bits = self.none_bits
 
-        # Reset none data and contents mask
-        none_values.clear()
-        contents.clear()
+        # Reset none data and content_bits mask
+        none_bits.clear()
+        content_bits.clear()
 
         # Create data_values list
         data_values = []
@@ -90,16 +94,16 @@ class ArgumentSerialiser:
             if not key in data:
                 continue
 
-            contents[index] = True
+            content_bits[index] = True
             value = data.pop(key)
 
             if value is None:
-                none_values[index] = True
+                none_bits[index] = True
 
             else:
                 data_values.append(handler.pack(value))
 
-        # If we have boolean values remaining
+        # Remaining data MUST be booleans
         if data:
             # Reset bool mask
             bools = self.bool_bits
@@ -112,13 +116,13 @@ class ArgumentSerialiser:
 
                 bools[index] = data[key]
 
-            contents[-2] = True
+            content_bits[-2] = True
 
             data_values.append(self.bitfield_packer.pack(bools))
 
         # If we have values set to None
-        if none_values:
-            contents[-1] = True
-            data_values.append(self.bitfield_packer.pack(none_values))
+        if none_bits:
+            content_bits[-1] = True
+            data_values.append(self.bitfield_packer.pack(none_bits))
 
-        return self.bitfield_packer.pack(contents) + b''.join(data_values)
+        return self.bitfield_packer.pack(content_bits) + b''.join(data_values)

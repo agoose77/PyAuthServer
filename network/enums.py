@@ -6,18 +6,25 @@ class Enum(type):
     def __new__(cls, name, parents, attrs):
         # Set all name to index mappings
         bits = attrs.get('bits')
-        for index, value in enumerate(attrs["values"]):
-            attrs[value] = index if not bits else (2 ** index)
+        reverse = attrs['reverse'] = {}
+        for index, key in enumerate(attrs["values"]):
+            value = index if not bits else (2 ** index)
+            attrs[key] = value
+            reverse[value] = key
 
         # Return new class
         return super().__new__(cls, name, parents, attrs)
 
-    def __getitem__(self, index):
+    def __getitem__(self, value):
         # Add ability to lookup name
-        return self.values[index]
+        return self.reverse[value]
 
     def __contains__(self, index):
-        return 0 <= index < len(self.values)
+        return 0 <= index < max(self.reverse.keys())
+
+    def __repr__(self):
+        return "[Enum: {}]\n{}\n".format(self.__name__, '\n'.join("<{}: {}>".format(n, v)
+                                 for v, n in self.reverse.items()))
 
 
 class Netmodes(metaclass=Enum):

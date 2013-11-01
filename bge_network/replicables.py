@@ -9,7 +9,7 @@ from .events import (CollisionEvent, PlayerInputEvent,
 from .inputs import InputManager
 from .utilities import falloff_fraction, progress_string
 from .finite_state_machine import FiniteStateMachine
-from .timer import Timer
+from .timer import ManualTimer
 from .draw_tools import (draw_arrow, draw_circle,
                          draw_box, draw_square_pyramid)
 
@@ -243,7 +243,7 @@ class AIController(Controller):
         state_machine.add_branch(AIState.engage, AIState.alert,
                                  self.leave_engage_to_alert)
 
-        self.alert_timer = Timer(target_value=0.0, count_down=True)
+        self.alert_timer = ManualTimer(target_value=0.0, count_down=True)
 
     @ActorDamagedEvent.listener
     def take_damage(self, damage, instigator, hit_position, momentum, target):

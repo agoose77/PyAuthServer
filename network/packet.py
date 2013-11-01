@@ -30,12 +30,12 @@ class PacketCollection:
     def to_reliable(self):
         '''Returns a PacketCollection instance,
         comprised of only reliable members'''
-        return type(self)(self.reliable_members)
+        return self.__class__(self.reliable_members)
 
     def to_unreliable(self):
         '''Returns a PacketCollection instance,
         comprised of only unreliable members'''
-        return type(self)(self.unreliable_members)
+        return self.__class__(self.unreliable_members)
 
     def on_ack(self):
         '''Callback for acknowledgement of packet receipt'''
@@ -60,9 +60,6 @@ class PacketCollection:
 
         return self
 
-    def __bytes__(self):
-        return self.to_bytes()
-
     def __bool__(self):
         return bool(self.members)
 
@@ -73,6 +70,7 @@ class PacketCollection:
         return type(self)(self.members + other.members)
 
     __radd__ = __add__
+    __bytes__ = to_bytes
 
 
 class Packet:
@@ -100,7 +98,7 @@ class Packet:
 
     def on_ack(self):
         '''Called when packet is acknowledged'''
-        if callable(self.on_success) and self.reliable:
+        if self.reliable and callable(self.on_success):
             self.on_success(self)
 
     def on_not_ack(self):
@@ -149,7 +147,5 @@ class Packet:
 
         return '\n'.join(to_console)
 
-    def __bytes__(self):
-        return self.to_bytes()
-
     __radd__ = __add__
+    __bytes__ = to_bytes

@@ -122,9 +122,6 @@ class Network(EventListener):
     @NetworkSendEvent.global_listener
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
-        # Get connections
-        to_delete = []
-
         send_func = self.send_to
 
         # Send all queued data

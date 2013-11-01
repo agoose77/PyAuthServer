@@ -8,10 +8,7 @@ from inspect import getmembers, signature
 
 class EventListener:
 
-    def listen_for_events(self, identifier=None):
-        if identifier is None:
-            identifier = self
-
+    def get_events(self):
         for name, val in getmembers(self):
 
             if not hasattr(val, "__annotations__"):
@@ -20,21 +17,27 @@ class EventListener:
             if not (callable(val) and is_event(val)):
                 continue
 
+            yield (name, val)
+
+    def listen_for_events(self, identifier=None):
+        if identifier is None:
+            identifier = self
+
+        for name, val in self.get_events():
+
             Event.subscribe(identifier, val)
+
+        Event.update_graph()
 
     def remove_from_events(self, identifier=None):
         if identifier is None:
             identifier = self
 
-        for name, val in getmembers(self):
-
-            if not hasattr(val, "__annotations__"):
-                continue
-
-            if not (callable(val) and is_event(val)):
-                continue
+        for name, val in self.get_events():
 
             Event.unsubscribe(identifier, val)
+
+        Event.update_graph()
 
 
 class Event(metaclass=TypeRegister):
@@ -62,6 +65,7 @@ class Event(metaclass=TypeRegister):
     @classmethod
     def unsubscribe(cls, identifier, callback):
         settings = callback.__annotations__
+
         event_cls = settings['event']
         event_cls.to_unsubscribe.append(identifier)
         event_cls.to_unisolate.append(identifier)
@@ -105,41 +109,53 @@ class Event(metaclass=TypeRegister):
         data_dict[identifier] = callback, accepts_event, accepts_target
 
     @classmethod
+    def update_state(cls):
+        cls.subscribers.update(cls.to_subscribe)
+        cls.isolated_subscribers.update(cls.to_isolate)
+
+        local_to_subscribe = cls.to_subscribe.copy()
+        local_to_isolate = cls.to_isolate.copy()
+
+        cls.to_isolate.clear()
+        cls.to_subscribe.clear()
+
+        # Run safe notifications
+        for identifier, data in local_to_subscribe.items():
+            cls.on_subscribed(False, identifier, data)
+
+        for identifier, data in local_to_isolate.items():
+            cls.on_subscribed(True, identifier, data)
+
+        # Run normal unsubscriptions
+        for key in cls.to_unsubscribe:
+            cls.subscribers.pop(key, None)
+        cls.to_unsubscribe.clear()
+
+        for key in cls.to_unisolate:
+            cls.isolated_subscribers.pop(key, None)
+        cls.to_unisolate.clear()
+
+        # Add new children
+        cls.children.update(cls.to_child)
+        cls.to_child.clear()
+
+        # Remove old children
+        for (child, parent) in cls.to_unchild:
+            cls.children[parent].remove(child)
+
+            if not cls.children[parent]:
+                cls.children.pop(parent)
+
+        cls.to_unchild.clear()
+
+        # Catch any missed subscribers
+        if cls.to_subscribe or cls.to_isolate:
+            cls.update_state()
+
+    @classmethod
     def update_graph(cls):
-        for cl in cls._types:
-
-            cl.subscribers.update(cl.to_subscribe)
-            cl.isolated_subscribers.update(cl.to_isolate)
-
-            local_to_subscribe = {} if not cl.to_subscribe else\
-                                cl.to_subscribe.copy()
-            local_to_isolate = {} if not cl.to_isolate else\
-                                cl.to_isolate.copy()
-            cl.to_isolate.clear()
-            cl.to_subscribe.clear()
-
-            for identifier, data in local_to_subscribe.items():
-                cl.on_subscribed(False, identifier, data)
-
-            for identifier, data in local_to_isolate.items():
-                cl.on_subscribed(True, identifier, data)
-
-            for key in cl.to_unsubscribe:
-                cl.subscribers.pop(key, None)
-            cl.to_unsubscribe.clear()
-
-            for key in cl.to_unisolate:
-                cl.isolated_subscribers.pop(key, None)
-            cl.to_unisolate.clear()
-
-            cl.children.update(cl.to_child)
-            cl.to_child.clear()
-
-            for (child, parent) in cl.to_unchild:
-                cl.children[parent].remove(child)
-                if not cl.children[parent]:
-                    cl.children.pop(parent)
-            cl.to_unchild.clear()
+        for cls in cls._types:
+            cls.update_state()
 
     @classmethod
     def invoke_event(cls, args, target, kwargs, callback,
@@ -197,6 +213,11 @@ class Event(metaclass=TypeRegister):
         cls.invoke_general(cls.subscribers, *args,
                            target=target, **kwargs)
 
+        cls.invoke_parent(*args, target=target, **kwargs)
+
+    @classmethod
+    def invoke_parent(cls, *args, target=None, **kwargs):
+
         if cls.highest_event == cls:
             return
 
@@ -242,16 +263,7 @@ class CachedEvent(Event):
             cls.invoke_general(subscriber_data, *args,
                                target=target, **kwargs)
 
-        if cls.highest_event == cls:
-            return
-
-        try:
-            parent = cls.__mro__[1]
-
-        except IndexError:
-            return
-
-        parent.invoke(*args, target=target, **kwargs)
+        cls.invoke_parent(*args, target=target, **kwargs)
 
     @classmethod
     def on_subscribed(cls, is_contextual, subscriber, data):

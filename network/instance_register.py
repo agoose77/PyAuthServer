@@ -146,7 +146,6 @@ class InstanceRegister(TypeRegister):
         cls._to_register.remove(instance)
 
         instance.listen_for_events()
-        Event.update_graph()
 
         try:
             instance.on_registered()
@@ -165,7 +164,6 @@ class InstanceRegister(TypeRegister):
 
         finally:
             instance.remove_from_events()
-            Event.update_graph()
 
     def __iter__(cls):
         return iter(cls._instances.values())

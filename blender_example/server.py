@@ -135,9 +135,9 @@ class TeamDeathMatch(ReplicationRules):
                                      "networking/matchmaker")
 
         self.matchmaker_updater = Timer(initial_value=10,
-                                        count_down=True,
-                                        on_target=self.update_matchmaker,
-                                        repeat=True)
+                                            count_down=True,
+                                            on_target=self.update_matchmaker,
+                                            repeat=True)
 
         self.black_list = []
 
@@ -201,22 +201,11 @@ class TeamDeathMatch(ReplicationRules):
         elif self.allow_countdown and not info.match_started:
             self.start_countdown()
 
-        # Update matchmaker poll timer
-        self.matchmaker_updater.update(delta_time)
-
     def update_matchmaker(self):
         self.matchmaker.update_server("Test Map", self.player_limit,
                                     self.players)
 
-
 class Server(ServerGameLoop):
-
-    def update_scene(self, scene, current_time, delta_time):
-        super().update_scene(scene, current_time, delta_time)
-
-        d = scene.objects['Empty']
-        d['Updates'] = UpdateEvent.get_total_subscribers()
-        d['Instances'] = len(Actor)
 
     def create_network(self):
         network = super().create_network()
