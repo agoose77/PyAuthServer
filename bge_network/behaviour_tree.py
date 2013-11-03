@@ -72,8 +72,13 @@ class InnerNode(LeafNode):
     def children(self):
         return self._children
 
-    def add_child(self, child):
-        self._children.append(child)
+    def add_child(self, child, index=None):
+        if index is None:
+            self._children.append(child)
+
+        else:
+            self._children.insert(index, child)
+
         child.change_signaller(self)
 
     def change_signaller(self, identifier):

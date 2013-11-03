@@ -63,7 +63,7 @@ class TeamDeathMatch(ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((randint(-10, 10), randint(-10, 10), 1))
+        pawn.position = Vector((randint(-10, 10), randint(-10, 10), 3))
 
     def create_new_player(self, controller):
         pawn = self.player_pawn_class()
@@ -74,7 +74,7 @@ class TeamDeathMatch(ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((4, 4, 1))
+        pawn.position = Vector((4, 4, 2))
 
     def stop_countdown(self):
         self.reset_countdown()
@@ -115,7 +115,7 @@ class TeamDeathMatch(ReplicationRules):
                                                 attacker.pawn)
 
         self.broadcast(attacker, message)
-
+        print(message)
         target.owner.unpossess()
         target.request_unregistration()
         target.owner.weapon.unpossessed()

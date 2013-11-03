@@ -1,5 +1,6 @@
 from bge import logic, types
 from functools import wraps
+from math import radians
 from mathutils import Vector, Euler, Quaternion, Matrix
 from network import (Float8, Float4, register_handler,
                      register_description, Struct, Attribute)
@@ -20,8 +21,15 @@ class EngineObject:
 
     def __new__(cls, obj_name, *args, **kwargs):
         scene = logic.getCurrentScene()
-        transform = Matrix.Identity(4)
-        obj = scene.addObject(obj_name, transform, 0, -1)
+        # create a location matrix
+        mat_loc = kwargs.get("position", Matrix.Translation((0, 0, 1)))
+        # create an identitiy matrix
+        mat_sca = kwargs.get("scale", Matrix.Identity(4))
+        # create a rotation matrix
+        mat_rot = kwargs.get("rotation", Matrix.Identity(4))
+        # combine transformations
+        mat_out = mat_loc * mat_rot * mat_sca
+        obj = scene.addObject(obj_name, mat_out, 0, -1)
         return super().__new__(cls, obj)
 
 

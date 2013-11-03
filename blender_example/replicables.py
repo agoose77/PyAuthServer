@@ -29,16 +29,25 @@ class EnemyController(AIController):
     def on_initialised(self):
         super().on_initialised()
 
-        self.behaviour = PrioritySelectorNode(follow_behaviour(),
+        self.behaviour = PrioritySelectorNode(attack_behaviour(),
                                               idle_behaviour())
         self.behaviour.should_restart = True
         self.behaviour.change_signaller(self)
 
     @simulated
+    def within_attack_range(self, target):
+        return ((target.position -
+                 self.pawn.position).length
+                <= self.weapon.maximum_range)
+
+    @simulated
+    @ActorKilledSignal.listener
+    def killed(self):
+        self.behaviour.reset()
+
+    @simulated
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        #self.state_manager.current_state.run(delta_time)
-        #self.behaviour.prepare
         #self.behaviour.print_tree()
         self.behaviour.update()
 

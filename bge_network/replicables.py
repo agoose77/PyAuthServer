@@ -110,12 +110,9 @@ class Controller(Replicable):
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
     def start_server_fire(self) -> Netmodes.server:
-        if not (self.weapon and self.pawn and self.camera):
-            return
 
-        if not self.weapon.can_fire or not self.camera:
+        if not self.weapon.can_fire:
             return
-
         self.weapon.fire(self.camera)
 
         for controller in WorldInfo.subclass_of(Controller):
@@ -159,9 +156,6 @@ class AIController(Controller):
             if sees(actor):
                 return actor
 
-    def handle_idle(self, state, delta_time):
-        self.start_server_fire()
-
     def hear_sound(self, path, source):
         if not (self.pawn and self.camera):
             return
@@ -185,7 +179,7 @@ class AIController(Controller):
     @ActorDamagedSignal.listener
     def take_damage(self, damage, instigator, hit_position, momentum, target):
         # Set alert
-        self.on_alerted(momentum)
+        pass
 
 
 class PlayerController(Controller):
