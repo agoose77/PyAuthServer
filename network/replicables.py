@@ -3,8 +3,8 @@ from .descriptors import Attribute, StaticValue
 from .enums import Roles, Netmodes
 from .decorators import simulated
 from .replicable_register import ReplicableRegister
-from .events import (ReplicableRegisteredEvent, ReplicableUnregisteredEvent,
-                     UpdateEvent, ReplicationNotifyEvent)
+from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
+                     UpdateSignal)
 
 from collections import defaultdict
 
@@ -136,15 +136,14 @@ class Replicable(metaclass=ReplicableRegister):
         '''Called on registration of replicable
         Registers instance to type list'''
         self.__class__._by_types[type(self)].append(self)
-        ReplicableRegisteredEvent.invoke(target=self)
+        ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
         self.__class__._by_types[type(self)].remove(self)
-        ReplicableUnregisteredEvent.invoke(target=self)
+        ReplicableUnregisteredSignal.invoke(target=self)
 
-    @ReplicationNotifyEvent.listener
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
@@ -199,7 +198,7 @@ class BaseWorldInfo(Replicable):
         return (a for a in self.replicables if isinstance(a, actor_type))
 
     @simulated
-    @UpdateEvent.global_listener
+    @UpdateSignal.global_listener
     def update(self, delta):
         self.elapsed += delta
 

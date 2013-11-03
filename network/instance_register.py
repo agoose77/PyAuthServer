@@ -1,10 +1,10 @@
-from .events import EventListener, Event
+from .signals import SignalListener, Signal
 from .type_register import TypeRegister
 
 from itertools import chain
 
 
-class InstanceMixins(EventListener):
+class InstanceMixins(SignalListener):
 
     def __init__(self, instance_id=None, register=False,
                  allow_random_key=False, **kwargs):
@@ -145,7 +145,7 @@ class InstanceRegister(TypeRegister):
         cls._instances[instance.instance_id] = instance
         cls._to_register.remove(instance)
 
-        instance.listen_for_events()
+        instance.register_signals()
 
         try:
             instance.on_registered()
@@ -163,7 +163,7 @@ class InstanceRegister(TypeRegister):
             raise
 
         finally:
-            instance.remove_from_events()
+            instance.unregister_signals()
 
     def __iter__(cls):
         return iter(cls._instances.values())

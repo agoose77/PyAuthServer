@@ -5,8 +5,8 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
-from .events import (EventListener, NetworkSendEvent,
-                     NetworkReceiveEvent)
+from .signals import (SignalListener, NetworkSendSignal,
+                     NetworkReceiveSignal)
 
 
 class UnblockingSocket(socket):
@@ -19,7 +19,7 @@ class UnblockingSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(UnblockingSocket, EventListener):
+class UnreliableSocket(UnblockingSocket, SignalListener):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,9 +29,9 @@ class UnreliableSocket(UnblockingSocket, EventListener):
         self._buffer_out = deque()
         self._buffer_in = deque()
 
-        self.listen_for_events()
+        self.register_signals()
 
-    @NetworkSendEvent.global_listener
+    @NetworkSendSignal.global_listener
     def poll(self, delta_time):
         systime = monotonic()
         sendable = []
@@ -54,7 +54,7 @@ class UnreliableSocket(UnblockingSocket, EventListener):
         return 0
 
 
-class Network(EventListener):
+class Network(SignalListener):
 
     def __init__(self, addr, port):
         '''Network socket initialiser'''
@@ -67,7 +67,7 @@ class Network(EventListener):
 
         self.socket = UnblockingSocket(addr, port)
 
-        self.listen_for_events()
+        self.register_signals()
 
     @property
     def send_rate(self):
@@ -96,7 +96,7 @@ class Network(EventListener):
         except socket_error:
             return
 
-    @NetworkReceiveEvent.global_listener
+    @NetworkReceiveSignal.global_listener
     def receive(self):
         '''Receive all data from socket'''
         # Get connections
@@ -119,7 +119,7 @@ class Network(EventListener):
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
 
-    @NetworkSendEvent.global_listener
+    @NetworkSendSignal.global_listener
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
         send_func = self.send_to

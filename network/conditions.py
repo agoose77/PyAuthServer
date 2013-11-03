@@ -6,5 +6,5 @@ def is_simulated(func):
     return func.__annotations__.get("simulated", False)
 
 
-def is_event(func):
-    return "event" in func.__annotations__
+def is_signal_listener(func):
+    return "signal" in func.__annotations__

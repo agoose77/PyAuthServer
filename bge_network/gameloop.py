@@ -1,17 +1,17 @@
 from .replicables import Camera
-from .events import PlayerInputEvent, PhysicsTickEvent, MapLoadedEvent
+from .signals import PlayerInputSignal, PhysicsTickSignal, MapLoadedSignal
 from .physics import PhysicsSystem
 
 from collections import Counter
 from bge import logic, events, types
 from network import (Netmodes, WorldInfo, Network, Replicable,
-                     EventListener, ReplicableRegisteredEvent,
-                     UpdateEvent, NetworkReceiveEvent, NetworkSendEvent,
-                     Event)
+                     SignalListener, ReplicableRegisteredSignal,
+                     UpdateSignal, NetworkReceiveSignal, NetworkSendSignal,
+                     Signal)
 from time import monotonic
 
 
-class GameLoop(types.KX_PythonLogicLoop, EventListener):
+class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def __init__(self):
         super().__init__()
@@ -36,11 +36,11 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
 
         self.loaded = False
 
-        self.listen_for_events()
+        self.register_signals()
 
         print("Network initialised")
 
-    @ReplicableRegisteredEvent.global_listener
+    @ReplicableRegisteredSignal.global_listener
     def notify_registration(self, target):
 
         if isinstance(target, Camera):
@@ -58,12 +58,12 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
         if scene == self.network_scene:
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
 
-            Event.update_graph()
+            Signal.update_graph()
 
-            NetworkReceiveEvent.invoke()
+            NetworkReceiveSignal.invoke()
 
             if not self.loaded:
-                MapLoadedEvent.invoke()
+                MapLoadedSignal.invoke()
                 self.loaded = True
 
             Replicable.update_graph()
@@ -71,15 +71,15 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
 
             if WorldInfo.netmode != Netmodes.server:
-                PlayerInputEvent.invoke(delta_time)
+                PlayerInputSignal.invoke(delta_time)
 
-            UpdateEvent.invoke(delta_time)
+            UpdateSignal.invoke(delta_time)
 
             Replicable.update_graph()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
 
-            PhysicsTickEvent.invoke(scene, delta_time)
+            PhysicsTickSignal.invoke(scene, delta_time)
 
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
 
@@ -88,7 +88,7 @@ class GameLoop(types.KX_PythonLogicLoop, EventListener):
             if is_full_update:
                 self._last_sent = current_time
 
-            NetworkSendEvent.invoke(is_full_update)
+            NetworkSendSignal.invoke(is_full_update)
 
         else:
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)

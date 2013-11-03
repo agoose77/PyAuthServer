@@ -1,15 +1,15 @@
 from .replicables import Actor, Pawn, Controller, Camera, Weapon
 from .enums import PhysicsType
-from .events import (CollisionEvent, PhysicsReplicatedEvent,
-                     PhysicsTickEvent, PhysicsSingleUpdate,
-                     PhysicsSetSimulated, PhysicsUnsetSimulated,
-                     MapLoadedEvent)
+from .signals import (CollisionSignal, PhysicsReplicatedSignal,
+                     PhysicsTickSignal, PhysicsSingleUpdateSignal,
+                     PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
+                     MapLoadedSignal)
 
 from bge import logic, types
 from collections import defaultdict
 from functools import partial
-from network import (WorldInfo, Netmodes, EventListener,
-                     ReplicableUnregisteredEvent, Replicable)
+from network import (WorldInfo, Netmodes, SignalListener,
+                     ReplicableUnregisteredSignal, Replicable)
 from time import monotonic
 
 
@@ -40,7 +40,7 @@ class CollisionStatus:
         if not other in self._registered:
             self._registered.add(other)
 
-            CollisionEvent.invoke(other, True, target=self._actor)
+            CollisionSignal.invoke(other, True, target=self._actor)
 
     def not_colliding(self):
         if not self.receive_collisions:
@@ -58,13 +58,13 @@ class CollisionStatus:
         for obj in difference:
             self._registered.remove(obj)
 
-            CollisionEvent.invoke(obj, False, target=self._actor)
+            CollisionSignal.invoke(obj, False, target=self._actor)
 
     def register_callback(self, actor):
         actor.object.collisionCallbacks.append(self.is_colliding)
 
 
-class PhysicsSystem(EventListener):
+class PhysicsSystem(SignalListener):
 
     def __new__(cls, *args, **kwargs):
         """Constructor switch depending upon netmode"""
@@ -88,7 +88,7 @@ class PhysicsSystem(EventListener):
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
-        self.listen_for_events()
+        self.register_signals()
 
     def get_actor(self, lookup, name, type_of):
         if not name in lookup:
@@ -122,7 +122,7 @@ class PhysicsSystem(EventListener):
         controller.setup_weapon(weapon)
         pawn.create_weapon_attachment(pawn.weapon_attachment_class)
 
-    @MapLoadedEvent.global_listener
+    @MapLoadedSignal.global_listener
     def convert_map(self, target=None):
 
         scene = logic.getCurrentScene()
@@ -147,23 +147,23 @@ class PhysicsSystem(EventListener):
             if obj.parent in found_actors:
                 actor.set_parent(found_actors[obj.parent])
 
-    @ReplicableUnregisteredEvent.global_listener
+    @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         self.remove_listener(target)
         if target in self._exempt_actors:
             self.remove_exemption(target)
 
-    @PhysicsUnsetSimulated.global_listener
+    @PhysicsUnsetSimulatedSignal.global_listener
     def add_exemption(self, target):
         if not target in self._exempt_actors:
             self._exempt_actors.append(target)
 
-    @PhysicsSetSimulated.global_listener
+    @PhysicsSetSimulatedSignal.global_listener
     def remove_exemption(self, target):
         if target in self._exempt_actors:
             self._exempt_actors.remove(target)
 
-    @PhysicsSingleUpdate.global_listener
+    @PhysicsSingleUpdateSignal.global_listener
     def update_for(self, delta_time, target):
         if not target.physics in self._active_physics:
             return
@@ -230,7 +230,7 @@ class PhysicsSystem(EventListener):
 
 class ServerPhysics(PhysicsSystem):
 
-    @PhysicsTickEvent.global_listener
+    @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
@@ -252,7 +252,7 @@ class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
 
-    @PhysicsTickEvent.global_listener
+    @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
 
@@ -266,7 +266,7 @@ class ClientPhysics(PhysicsSystem):
             return
         return super().get_actor(lookup, name, type_of)
 
-    @PhysicsReplicatedEvent.global_listener
+    @PhysicsReplicatedSignal.global_listener
     def actor_replicated(self, target_physics, target):
         difference = target_physics.position - target.position
 

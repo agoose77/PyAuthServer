@@ -1,3 +1,6 @@
+from network.signals import UpdateSignal
+
+
 class FiniteState:
 
     def __init__(self, func, identifier):
@@ -124,3 +127,10 @@ class FiniteStateMachine:
                 identifier or FiniteState subclass"
         self._state = state
         self._reset_state = False
+
+
+class FSM(FiniteStateMachine):
+
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        self.update_state()(delta_time)

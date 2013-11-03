@@ -2,10 +2,13 @@ from bge_network import (PlayerController, ReplicableInfo,
                          Attribute, Roles, Pawn,
                          Weapon, WeaponAttachment, CameraMode,
                          MovementState, Netmodes, StaticValue,
-                         WorldInfo)
+                         WorldInfo, AIController, simulated, UpdateSignal)
 from mathutils import Vector, Euler
 from math import radians, cos, sin
-from events import ConsoleMessage
+from signals import ConsoleMessage
+
+from behaviours import *
+from bge_network.behaviour_tree import *
 
 
 class GameReplicationInfo(ReplicableInfo):
@@ -19,6 +22,25 @@ class GameReplicationInfo(ReplicableInfo):
 
         yield "match_started"
         yield "time_to_start"
+
+
+class EnemyController(AIController):
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.behaviour = PrioritySelectorNode(follow_behaviour(),
+                                              idle_behaviour())
+        self.behaviour.should_restart = True
+        self.behaviour.change_signaller(self)
+
+    @simulated
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        #self.state_manager.current_state.run(delta_time)
+        #self.behaviour.prepare
+        #self.behaviour.print_tree()
+        self.behaviour.update()
 
 
 class LegendController(PlayerController):

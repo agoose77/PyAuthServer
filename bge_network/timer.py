@@ -1,6 +1,6 @@
 from operator import (add as add_func, sub as sub_func,
                       lt as less_func, gt as more_func)
-from network import EventListener, UpdateEvent
+from network import SignalListener, UpdateSignal
 
 
 class ManualTimer:
@@ -42,13 +42,13 @@ class ManualTimer:
                 self.stop()
 
 
-class Timer(ManualTimer, EventListener):
+class Timer(ManualTimer, SignalListener):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.listen_for_events()
+        self.register_signals()
 
-    @UpdateEvent.global_listener
+    @UpdateSignal.global_listener
     def update(self, delta_time):
         super().update(delta_time)

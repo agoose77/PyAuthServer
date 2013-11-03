@@ -11,9 +11,9 @@ def simulated(func):
     return func
 
 
-def event_listener(event_type, global_listener):
+def signal_listener(signal_type, global_listener):
     def wrapper(func):
-        func.__annotations__['event'] = event_type
+        func.__annotations__['signal'] = signal_type
         func.__annotations__['context_dependant'] = not global_listener
         return func
     return wrapper

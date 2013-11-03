@@ -1,12 +1,16 @@
 from .type_register import TypeRegister
-from .conditions import is_event
-from .decorators import event_listener
+from .conditions import is_signal_listener
+from .decorators import signal_listener
 
 from collections import defaultdict
 from inspect import getmembers, signature
 
 
-class EventListener:
+class SignalListener:
+
+    @property
+    def default_identifier(self):
+        return self
 
     def get_events(self):
         for name, val in getmembers(self):
@@ -14,33 +18,49 @@ class EventListener:
             if not hasattr(val, "__annotations__"):
                 continue
 
-            if not (callable(val) and is_event(val)):
+            if not (callable(val) and is_signal_listener(val)):
                 continue
 
             yield (name, val)
 
-    def listen_for_events(self, identifier=None):
+    def register_child(self, child_identifier, parent_identifier=None):
+        if parent_identifier is None:
+            parent_identifier = self.default_identifier
+
+        for name, event in self.get_events():
+            signal = Signal.get_event(event)
+            signal.set_parent(child_identifier, parent_identifier)
+
+    def unregister_child(self, child_identifier, parent_identifier=None):
+        if parent_identifier is None:
+            parent_identifier = self.default_identifier
+
+        for name, event in self.get_events():
+            signal = Signal.get_event(event)
+            signal.remove_parent(child_identifier, parent_identifier)
+
+    def register_signals(self, identifier=None):
         if identifier is None:
-            identifier = self
+            identifier = self.default_identifier
 
         for name, val in self.get_events():
 
-            Event.subscribe(identifier, val)
+            Signal.subscribe(identifier, val)
 
-        Event.update_graph()
+        Signal.update_graph()
 
-    def remove_from_events(self, identifier=None):
+    def unregister_signals(self, identifier=None):
         if identifier is None:
-            identifier = self
+            identifier = self.default_identifier
 
         for name, val in self.get_events():
 
-            Event.unsubscribe(identifier, val)
+            Signal.unsubscribe(identifier, val)
 
-        Event.update_graph()
+        Signal.update_graph()
 
 
-class Event(metaclass=TypeRegister):
+class Signal(metaclass=TypeRegister):
 
     @classmethod
     def register_subtype(cls):
@@ -57,26 +77,28 @@ class Event(metaclass=TypeRegister):
         cls.to_unchild = []
         cls.to_child = defaultdict(list)
 
+    @staticmethod
+    def get_event(decorated):
+        return decorated.__annotations__['signal']
+
     @classmethod
     def register_type(cls):
         cls.register_subtype()
-        cls.highest_event = cls
+        cls.highest_signal = cls
 
     @classmethod
     def unsubscribe(cls, identifier, callback):
-        settings = callback.__annotations__
+        signal_cls = cls.get_event(callback)
+        signal_cls.to_unsubscribe.append(identifier)
+        signal_cls.to_unisolate.append(identifier)
 
-        event_cls = settings['event']
-        event_cls.to_unsubscribe.append(identifier)
-        event_cls.to_unisolate.append(identifier)
+        if identifier in signal_cls.children:
+            for child in signal_cls.children[identifier]:
+                signal_cls.remove_parent(child, identifier)
 
-        if identifier in event_cls.children:
-            for child in event_cls.children[identifier]:
-                event_cls.remove_parent(child, identifier)
-
-        for parent, children in event_cls.children.items():
+        for parent, children in signal_cls.children.items():
             if identifier in children:
-                event_cls.remove_parent(identifier, parent)
+                signal_cls.remove_parent(identifier, parent)
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
@@ -94,19 +116,19 @@ class Event(metaclass=TypeRegister):
     def get_total_subscribers(cls):
         return len(cls.subscribers) + len(cls.isolated_subscribers)
 
-    @staticmethod
-    def subscribe(identifier, callback):
+    @classmethod
+    def subscribe(cls, identifier, callback):
         settings = callback.__annotations__
-        event_cls = settings['event']
+        signal_cls = cls.get_event(callback)
 
         func_signature = signature(callback)
 
-        accepts_event = "event" in func_signature.parameters
+        accepts_signal = "signal" in func_signature.parameters
         accepts_target = "target" in func_signature.parameters
 
-        data_dict = (event_cls.to_isolate if settings['context_dependant']
-                     else event_cls.to_subscribe)
-        data_dict[identifier] = callback, accepts_event, accepts_target
+        data_dict = (signal_cls.to_isolate if settings['context_dependant']
+                     else signal_cls.to_subscribe)
+        data_dict[identifier] = callback, accepts_signal, accepts_target
 
     @classmethod
     def update_state(cls):
@@ -158,13 +180,13 @@ class Event(metaclass=TypeRegister):
             cls.update_state()
 
     @classmethod
-    def invoke_event(cls, args, target, kwargs, callback,
-                            supply_event, supply_target):
-        if supply_event:
+    def invoke_signal(cls, args, target, kwargs, callback,
+                            supply_signal, supply_target):
+        if supply_signal:
             if supply_target:
-                callback(*args, event=cls, target=target, **kwargs)
+                callback(*args, signal=cls, target=target, **kwargs)
             else:
-                callback(*args, event=cls, **kwargs)
+                callback(*args, signal=cls, **kwargs)
 
         elif supply_target:
             callback(*args, target=target, **kwargs)
@@ -190,21 +212,21 @@ class Event(metaclass=TypeRegister):
             # Bugfix? In future may need to do an == loop to check
             # If the child is a context listener
             if target_ in all_targets:
-                callback, supply_event, supply_target = all_targets[target_]
+                callback, supply_signal, supply_target = all_targets[target_]
                 # Invoke with the same target context even if this is a child
-                cls.invoke_event(args, target, kwargs, callback,
-                                 supply_event, supply_target)
+                cls.invoke_signal(args, target, kwargs, callback,
+                                 supply_signal, supply_target)
 
             if target_ in cls.children:
                 targets.extend(cls.children[target_])
 
     @classmethod
     def invoke_general(cls, all_subscribers, *args, target=None, **kwargs):
-        for (callback, supply_event, supply_target) in \
+        for (callback, supply_signal, supply_target) in \
                                 all_subscribers.values():
 
-            cls.invoke_event(args, target, kwargs, callback,
-                             supply_event, supply_target)
+            cls.invoke_signal(args, target, kwargs, callback,
+                             supply_signal, supply_target)
 
     @classmethod
     def invoke(cls, *args, target=None, **kwargs):
@@ -218,7 +240,7 @@ class Event(metaclass=TypeRegister):
     @classmethod
     def invoke_parent(cls, *args, target=None, **kwargs):
 
-        if cls.highest_event == cls:
+        if cls.highest_signal == cls:
             return
 
         try:
@@ -231,19 +253,19 @@ class Event(metaclass=TypeRegister):
 
     @classmethod
     def global_listener(cls, func):
-        return event_listener(cls, True)(func)
+        return signal_listener(cls, True)(func)
 
     @classmethod
     def listener(cls, func):
-        return event_listener(cls, False)(func)
+        return signal_listener(cls, False)(func)
 
 
-class CachedEvent(Event):
+class CachedSignal(Signal):
 
     @classmethod
     def register_subtype(cls):
         # Unfortunate hack to reproduce super() behaviour
-        Event.register_subtype.__func__(cls)
+        Signal.register_subtype.__func__(cls)
         cls.cache = []
 
     @classmethod
@@ -278,33 +300,29 @@ class CachedEvent(Event):
                        **previous_kwargs)
 
 
-class ReplicableRegisteredEvent(CachedEvent):
+class ReplicableRegisteredSignal(CachedSignal):
     pass
 
 
-class ReplicationNotifyEvent(Event):
+class ReplicableUnregisteredSignal(Signal):
     pass
 
 
-class ReplicableUnregisteredEvent(Event):
+class ConnectionErrorSignal(Signal):
     pass
 
 
-class ConnectionErrorEvent(Event):
+class ConnectionSuccessSignal(Signal):
     pass
 
 
-class ConnectionSuccessEvent(Event):
+class NetworkSendSignal(Signal):
     pass
 
 
-class NetworkSendEvent(Event):
+class NetworkReceiveSignal(Signal):
     pass
 
 
-class NetworkReceiveEvent(Event):
-    pass
-
-
-class UpdateEvent(Event):
+class UpdateSignal(Signal):
     pass

@@ -5,9 +5,9 @@ from datetime import datetime
 from collections import OrderedDict
 
 from matchmaker import Matchmaker
-from network import (ConnectionErrorEvent, ConnectionSuccessEvent,
-                     EventListener, WorldInfo)
-from events import ConsoleMessage
+from network import (ConnectionErrorSignal, ConnectionSuccessSignal,
+                     SignalListener, WorldInfo)
+from signals import ConsoleMessage
 
 CENTERY = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERX
@@ -149,7 +149,7 @@ class Panel(bgui.Frame):
         pass
 
 
-class ConsolePanel(Panel, EventListener):
+class ConsolePanel(Panel, SignalListener):
 
     def __init__(self, system):
         super().__init__(system, "Console")
@@ -159,7 +159,7 @@ class ConsolePanel(Panel, EventListener):
                                         items=self.messages, pos=[0.1, 0.05])
         self.message_box.renderer = ConsoleRenderer(self.message_box)
 
-        self.listen_for_events()
+        self.register_signals()
 
     @ConsoleMessage.global_listener
     def receive_message(self, message):
@@ -168,7 +168,7 @@ class ConsolePanel(Panel, EventListener):
         self.messages.append(timestamp + separator + "'{}'".format(message))
 
 
-class LegacyConnectPanel(Panel, EventListener):
+class LegacyConnectPanel(Panel, SignalListener):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
@@ -258,7 +258,7 @@ class LegacyConnectPanel(Panel, EventListener):
         self.connect_button.on_click = self.do_connect
         self.uses_mouse = True
 
-        self.listen_for_events()
+        self.register_signals()
 
     def do_connect(self, button):
         if not callable(self.connecter):
@@ -266,19 +266,19 @@ class LegacyConnectPanel(Panel, EventListener):
 
         self.connecter(self.addr_field.text, int(self.port_field.text))
 
-    @ConnectionSuccessEvent.global_listener
+    @ConnectionSuccessSignal.global_listener
     def on_connect(self, target):
         self.visible = False
 
-    @ConnectionErrorEvent.global_listener
-    def on_error(self, error, target, event):
+    @ConnectionErrorSignal.global_listener
+    def on_error(self, error, target, signal):
         self.connect_message.text = str(error)
 
     def update(self, delta_time):
         self.connect_button.frozen = self.port_field.invalid
 
 
-class ConnectPanel(Panel, EventListener):
+class ConnectPanel(Panel, SignalListener):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
@@ -425,7 +425,7 @@ class ConnectPanel(Panel, EventListener):
         self.servers_box.on_select = self.on_select
         self.uses_mouse = True
 
-        self.listen_for_events()
+        self.register_signals()
 
     def on_select(self, list_box, entry):
         data = dict(entry)
@@ -446,12 +446,12 @@ class ConnectPanel(Panel, EventListener):
 
         self.connecter(self.addr_field.text, int(self.port_field.text))
 
-    @ConnectionSuccessEvent.global_listener
+    @ConnectionSuccessSignal.global_listener
     def on_connect(self, target):
         self.visible = False
 
-    @ConnectionErrorEvent.global_listener
-    def on_error(self, error, target, event):
+    @ConnectionErrorSignal.global_listener
+    def on_error(self, error, target, signal):
         self.connect_message.text = str(error)
 
     def update(self, delta_time):

@@ -4,9 +4,10 @@ from contextlib import contextmanager
 class Enum(type):
     '''Metaclass for Enums in Python'''
     def __new__(cls, name, parents, attrs):
-        # Set all name to index mappings
-        bits = attrs.get('bits')
+        # Get settings
+        bits = attrs.get('bits', False)
         reverse = attrs['reverse'] = {}
+        # Set the new values
         for index, key in enumerate(attrs["values"]):
             value = index if not bits else (2 ** index)
             attrs[key] = value
@@ -23,8 +24,9 @@ class Enum(type):
         return 0 <= index < max(self.reverse.keys())
 
     def __repr__(self):
-        return "[Enum: {}]\n{}\n".format(self.__name__, '\n'.join("<{}: {}>".format(n, v)
-                                 for v, n in self.reverse.items()))
+        return "[Enum: {}]\n{}\n".format(self.__name__,
+                                 '\n'.join("<{}: {}>".format(n, v)
+                                   for v, n in self.reverse.items()))
 
 
 class Netmodes(metaclass=Enum):

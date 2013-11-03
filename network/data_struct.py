@@ -2,21 +2,16 @@ from .handler_interfaces import register_handler, get_handler
 from .descriptors import StaticValue
 from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
-from .events import ReplicationNotifyEvent, EventListener
 
 from copy import deepcopy
 
 
-class Struct(EventListener):
+class Struct:
     def __init__(self):
-        super().__init__()
-
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()
         self._ordered_members = self._container.get_ordered_members()
         self._serialiser = ArgumentSerialiser(self._ordered_members)
-
-        self.listen_for_events()
 
     def __deepcopy__(self, memo):
         new_struct = self.__class__()
@@ -35,6 +30,9 @@ class Struct(EventListener):
     def to_bytes(self):
         return self._serialiser.pack({a.name: v for a, v in \
                                       self._container.data.items()})
+
+    def on_notify(self, name):
+        pass
 
     def from_bytes(self, bytes_):
         notifications = []
@@ -56,7 +54,7 @@ class Struct(EventListener):
         # Notify after all values are set
         if notifications:
             for attribute_name in notifications:
-                ReplicationNotifyEvent.invoke(attribute_name, target=self)
+                self.on_notify(attribute_name)
 
 
 class StructHandler:

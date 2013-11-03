@@ -2,12 +2,12 @@ from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, Repl
                          Actor, Pawn, Camera, AuthError, ServerGameLoop, AIController,
                          PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
                          ConnectionInterface, BlacklistError, EmptyWeapon,
-                         UpdateEvent, ActorDamagedEvent, ActorKilledEvent, Timer)
+                         UpdateSignal, ActorDamagedSignal, ActorKilledSignal, Timer)
 from functools import partial
 from operator import gt as more_than
 from weakref import proxy as weak_proxy
 
-from events import ConsoleMessage
+from signals import ConsoleMessage
 from matchmaker import BoundMatchmaker
 from replicables import *
 from random import randint
@@ -21,7 +21,7 @@ class TeamDeathMatch(ReplicationRules):
     player_limit = 4
 
     ai_camera_class = Camera
-    ai_controller_class = AIController
+    ai_controller_class = EnemyController
     ai_pawn_class = RobertNeville
     ai_replication_info_class = PlayerReplicationInfo
     ai_weapon_class = M4A1Weapon
@@ -109,7 +109,7 @@ class TeamDeathMatch(ReplicationRules):
         if isinstance(replicable, WeaponAttachment):
             return True
 
-    @ActorKilledEvent.global_listener
+    @ActorKilledSignal.global_listener
     def killed(self, attacker, target):
         message = "{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn)
@@ -178,15 +178,15 @@ class TeamDeathMatch(ReplicationRules):
     def start_match(self):
         self.info.match_started = True
 
-    @ActorDamagedEvent.global_listener
+    @ActorDamagedSignal.global_listener
     def on_damaged(self, damage, instigator, hit_position, momentum, target):
         if not isinstance(target, Pawn):
             return
 
         if not target.health:
-            ActorKilledEvent.invoke(instigator, target=target)
+            ActorKilledSignal.invoke(instigator, target=target)
 
-    @UpdateEvent.global_listener
+    @UpdateSignal.global_listener
     def update(self, delta_time):
         info = self.info
 
@@ -204,6 +204,7 @@ class TeamDeathMatch(ReplicationRules):
     def update_matchmaker(self):
         self.matchmaker.update_server("Test Map", self.player_limit,
                                     self.players)
+
 
 class Server(ServerGameLoop):
 

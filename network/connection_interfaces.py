@@ -4,7 +4,7 @@ from .connection import ClientConnection, ServerConnection
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, TimeoutError
-from .events import (ConnectionSuccessEvent, ConnectionErrorEvent)
+from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
 from .instance_register import InstanceRegister
@@ -109,7 +109,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
     def connected(self, *args, **kwargs):
         self.status = ConnectionStatus.connected
-        ConnectionSuccessEvent.invoke(target=self)
+        ConnectionSuccessSignal.invoke(target=self)
 
     def send(self, network_tick):
 
@@ -118,7 +118,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
             self.status = ConnectionStatus.timeout
 
             err = TimeoutError("Connection timed out")
-            ConnectionErrorEvent.invoke(err, target=self)
+            ConnectionErrorSignal.invoke(err, target=self)
 
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
@@ -329,7 +329,7 @@ class ClientInterface(ConnectionInterface):
             err_body = self.error_packer.unpack_from(err_data)
             err = NetworkError.from_type_name(err_type)
 
-            ConnectionErrorEvent.invoke(err, target=self)
+            ConnectionErrorSignal.invoke(err, target=self)
 
         # Get remote network mode
         netmode = self.netmode_packer.unpack_from(packet.payload)

@@ -2,12 +2,12 @@ from .packet import Packet
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
 from .replicables import Replicable, WorldInfo
-from .events import ReplicableUnregisteredEvent, ReplicableRegisteredEvent, EventListener
+from .signals import ReplicableUnregisteredSignal, ReplicableRegisteredSignal, SignalListener
 from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
 
 
-class Connection(EventListener):
+class Connection(SignalListener):
 
     channel_class = None
 
@@ -20,13 +20,13 @@ class Connection(EventListener):
         self.int_packer = get_handler(StaticValue(int))
         self.replicable_packer = get_handler(StaticValue(Replicable))
 
-        self.listen_for_events()
+        self.register_signals()
 
-    @ReplicableUnregisteredEvent.global_listener
+    @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         self.channels.pop(target.instance_id)
 
-    @ReplicableRegisteredEvent.global_listener
+    @ReplicableRegisteredSignal.global_listener
     def notify_registration(self, target):
         '''Create channel for context with network id
         @param instance_id: network id of context'''
@@ -197,7 +197,7 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
-    @ReplicableUnregisteredEvent.global_listener
+    @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         '''Called when replicable dies
         @param replicable: replicable that died'''
