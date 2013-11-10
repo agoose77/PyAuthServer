@@ -35,12 +35,12 @@ class EnemyController(AIController):
                                 )
         behaviour.should_restart = True
 
-        self.behaviour.root.add_child(behaviour)
+        self.animations.root.add_child(behaviour)
 
     @simulated
     @ActorKilledSignal.listener
     def killed(self):
-        self.behaviour.reset()
+        self.animations.reset()
 
 
 class LegendController(PlayerController):
@@ -100,7 +100,7 @@ class LegendController(PlayerController):
 
             self.camera.local_rotation = rotation
 
-    def handle_inputs(self, state, inputs, mouse_diff_x,
+    def handle_inputs(self, inputs, mouse_diff_x,
                      mouse_diff_y, delta_time):
 
         if abs(mouse_diff_x) < self.near_zero:
@@ -139,7 +139,20 @@ class RobertNeville(Pawn):
 
 class Zombie(Pawn):
 
-    entity_name = "Zombie"
+    entity_name = "ZombieCollision"
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.walk_speed = 0.5
+        self.run_speed = 6
+
+        behaviour = SelectorNode(
+                                walk_animation(),
+                                )
+        behaviour.should_restart = True
+
+        self.animations.root.add_child(behaviour)
 
 
 class M4A1Weapon(Weapon):

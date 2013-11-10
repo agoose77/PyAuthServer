@@ -10,17 +10,23 @@ class Navmesh:
     def find_path(self, source, destination):
         return [destination]
 
+def walk_animation():
+    group = SequenceNode(
+                         IsWalking(),
+                         WalkAnimation(),
+                         )
+
+    return group
+
 
 def idle_behaviour():
     group = SequenceNode(
-                                GetPawn(),
-                                FindRandomPoint(),
-                                SelectorNode(
-                                                    # HasPointTarget(),
-                                                     HasActorTarget()
-                                                     ),
-                                MoveToActor()
-                                 )
+                         GetPawn(),
+                         FindRandomPoint(),
+                         HasPointTarget(),
+                         MoveToPoint(),
+                         ConsumePoint()
+                         )
 
     return group
 
@@ -53,10 +59,10 @@ def attack_behaviour():
                                                FireWeapon(),
                                                SetTimer()
                                                ),
-                                      )
+                                      ),
+                         ConsumeActor()
                          )
     group.should_restart = True
-
     return group
 
 
@@ -154,6 +160,28 @@ class FindCeiling(SignalLeafNode):
         blackboard['ceiling'] = hit_pos
 
 
+class IsWalking(ConditionNode):
+
+    def condition(self, blackboard):
+        pawn = blackboard['pawn']
+        return (pawn.velocity.length - pawn.walk_speed) <= 0.1
+
+
+class WalkAnimation(SignalLeafNode):
+
+    def on_enter(self, blackboard):
+        pawn = blackboard['pawn']
+        pawn.play_animation("walk", 1, 49)
+
+    def evaluate(self, blackboard):
+        pawn = blackboard['pawn']
+
+        if pawn.get_animation_frame() != 49:
+            return EvaluationState.running
+        else:
+            return EvaluationState.success 
+
+
 class HasAmmo(ConditionNode):
 
     def condition(self, blackboard):
@@ -235,7 +263,7 @@ class FindRandomPoint(SignalLeafNode):
 
     def evaluate(self, blackboard):
         point = Vector(((random() - 0.5) * 100, (random() - 0.5) * 100, 1))
-        blackboard['target_point'] = point
+        blackboard['point'] = point
         return EvaluationState.success
 
 
@@ -332,14 +360,14 @@ class HasActorTarget(ConditionNode):
 class HasPointTarget(ConditionNode):
 
     def condition(self, blackboard):
-        return "target_point" in blackboard
+        return "point" in blackboard
 
 
 class ConsumePoint(SignalLeafNode):
 
     def evaluate(self, blackboard):
         try:
-            blackboard.pop("target_point")
+            blackboard.pop("point")
         except KeyError:
             return EvaluationState.failure
         return EvaluationState.success
@@ -365,6 +393,12 @@ class MoveToActor(SignalLeafNode):
         self.path = None
         self.tolerance = 5
 
+    def get_target(self, blackboard):
+        return blackboard['actor']
+
+    def get_target_position(self, target):
+        return target.position
+
     def on_exit(self, blackboard):
         blackboard['pawn'].velocity.y = 0
 
@@ -372,20 +406,21 @@ class MoveToActor(SignalLeafNode):
         self.path = None
 
     def on_enter(self, blackboard):
-        self.path = self.navmesh.find_path(blackboard['pawn'],
-                                           blackboard['actor'])
         self._pawn = blackboard['pawn']
-        self._target = blackboard['actor']
+        self._target = self.get_target(blackboard)
+
+        self.path = self.navmesh.find_path(blackboard['pawn'],
+                                           self._target)
 
     def evaluate(self, blackboard):
         path = self.path
         pawn = self._pawn
 
         if (not path or not self._pawn or
-            blackboard['actor'] != self._target):
+            self.get_target(blackboard) != self._target):
             return EvaluationState.failure
 
-        to_target = (path[0].position - pawn.position)
+        to_target = (self.get_target_position(path[0]) - pawn.position)
 
         if to_target.length < self.tolerance:
             path.pop()
@@ -396,3 +431,12 @@ class MoveToActor(SignalLeafNode):
 
         if not path:
             return EvaluationState.success
+
+
+class MoveToPoint(MoveToActor):
+
+    def get_target(self, blackboard):
+        return blackboard['point']
+
+    def get_target_position(self, target):
+        return target

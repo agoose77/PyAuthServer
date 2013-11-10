@@ -81,6 +81,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             PhysicsTickSignal.invoke(scene, delta_time)
 
+            self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
+            self.update_animations(current_time)
+
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
 
             is_full_update = (current_time - self._last_sent) >= self._interval

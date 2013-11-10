@@ -174,12 +174,12 @@ class AIController(Controller):
 
         self.camera_mode = CameraMode.first_person
 
-        self.behaviour = BehaviourTree(self)
-        self.behaviour.blackboard['controller'] = self
+        self.animations = BehaviourTree(self)
+        self.animations.blackboard['controller'] = self
 
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        self.behaviour.update(delta_time)
+        self.animations.update(delta_time)
 
 
 class PlayerController(Controller):
@@ -576,8 +576,12 @@ class Actor(Replicable):
                                  blend_mode=blend_mode)
 
     @simulated
-    def playing_animation(self, layer=0):
+    def is_playing_animation(self, layer=0):
         return self.skeleton.isPlayingAction(layer)
+
+    @simulated
+    def get_animation_frame(self, layer=0):
+        return self.skeleton.getActionFrame(layer)
 
     @simulated
     def stop_animation(self, layer=0):
@@ -921,6 +925,9 @@ class Pawn(Actor):
 
         self.animation_tolerance = 0.5
 
+        self.animations = BehaviourTree(self)
+        self.animations.blackboard['pawn'] = self
+
         self.target = None
 
     def on_notify(self, name):
@@ -965,6 +972,11 @@ class Pawn(Actor):
     def use_flashcout(self):
         self.weapon_attachment.play_firing_effects()
         self.outstanding_flash -= 1
+
+    @simulated
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        self.animations.update(delta_time)
 
 
 class Navmesh(Actor):

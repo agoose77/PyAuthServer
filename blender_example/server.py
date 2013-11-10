@@ -118,8 +118,10 @@ class TeamDeathMatch(ReplicationRules):
         print(message)
         target.owner.unpossess()
         target.request_unregistration()
-        target.owner.weapon.unpossessed()
-        target.owner.weapon.request_unregistration()
+
+        if target.owner.weapon:
+            target.owner.weapon.unpossessed()
+            target.owner.weapon.request_unregistration()
 
         if isinstance(target.owner, self.player_controller_class):
             self.create_new_player(target.owner)
