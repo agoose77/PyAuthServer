@@ -29,27 +29,18 @@ class EnemyController(AIController):
     def on_initialised(self):
         super().on_initialised()
 
-        self.behaviour = PrioritySelectorNode(attack_behaviour(),
-                                              idle_behaviour())
-        self.behaviour.should_restart = True
-        self.behaviour.change_signaller(self)
+        behaviour = SelectorNode(
+                                attack_behaviour(),
+                                idle_behaviour()
+                                )
+        behaviour.should_restart = True
 
-    @simulated
-    def within_attack_range(self, target):
-        return ((target.position -
-                 self.pawn.position).length
-                <= self.weapon.maximum_range)
+        self.behaviour.root.add_child(behaviour)
 
     @simulated
     @ActorKilledSignal.listener
     def killed(self):
         self.behaviour.reset()
-
-    @simulated
-    @UpdateSignal.global_listener
-    def update(self, delta_time):
-        #self.behaviour.print_tree()
-        self.behaviour.update()
 
 
 class LegendController(PlayerController):
@@ -58,15 +49,14 @@ class LegendController(PlayerController):
 
     near_zero = 0.001
 
-    def receive_broadcast(self, message_string: StaticValue(str)) -> Netmodes.client:
+    def receive_broadcast(self, message_string:
+                          StaticValue(str)) ->  Netmodes.client:
         ConsoleMessage.invoke(message_string)
 
     def on_initialised(self):
         super().on_initialised()
 
         self.mouse_sensitivity = 20
-
-        self.state_manager.add_state("active", self.active_state)
 
     def mouse_turn(self, mouse_diff_x, delta_time):
         self.pawn.angular = Vector((0, 0, mouse_diff_x * \
@@ -110,7 +100,7 @@ class LegendController(PlayerController):
 
             self.camera.local_rotation = rotation
 
-    def active_state(self, state, inputs, mouse_diff_x,
+    def handle_inputs(self, state, inputs, mouse_diff_x,
                      mouse_diff_y, delta_time):
 
         if abs(mouse_diff_x) < self.near_zero:
@@ -145,6 +135,11 @@ class RobertNeville(Pawn):
 
         self.walk_speed = 3
         self.run_speed = 6
+
+
+class Zombie(Pawn):
+
+    entity_name = "Zombie"
 
 
 class M4A1Weapon(Weapon):

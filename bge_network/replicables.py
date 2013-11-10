@@ -1,4 +1,5 @@
 from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
+from .behaviour_tree import BehaviourTree
 from .configuration import load_configuration
 from .enums import (PhysicsType, ShotType, CameraMode, AIState,
                     Axis)
@@ -8,7 +9,6 @@ from .signals import (CollisionSignal, PlayerInputSignal,
                     ActorDamagedSignal, ActorKilledSignal, SetMoveTarget)
 from .inputs import InputManager
 from .utilities import falloff_fraction, progress_string
-from .finite_state_machine import FiniteStateMachine
 from .timer import ManualTimer
 from .draw_tools import (draw_arrow, draw_circle,
                          draw_box, draw_square_pyramid)
@@ -25,7 +25,7 @@ from network import (Replicable, Attribute, Roles, WorldInfo,
                      ConnectionStatus)
 from os import path
 from operator import gt as more_than
-
+from functools import lru_cache
 
 SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
                                 "delta_time", "inputs", "mouse_x", "mouse_y"))
@@ -59,8 +59,6 @@ class Controller(Replicable):
         self.camera_setup = False
         self.camera_mode = CameraMode.third_person
         self.camera_offset = 2.0
-
-        self.state_manager = FiniteStateMachine()
 
         super().on_initialised()
 
@@ -176,10 +174,12 @@ class AIController(Controller):
 
         self.camera_mode = CameraMode.first_person
 
-    @ActorDamagedSignal.listener
-    def take_damage(self, damage, instigator, hit_position, momentum, target):
-        # Set alert
-        pass
+        self.behaviour = BehaviourTree(self)
+        self.behaviour.blackboard['controller'] = self
+
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        self.behaviour.update(delta_time)
 
 
 class PlayerController(Controller):
@@ -255,12 +255,7 @@ class PlayerController(Controller):
                                move.mouse_x, move.mouse_y)
 
     def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
-        current_state = self.state_manager.current_state
-
-        if current_state is None:
-            return
-
-        current_state.run(inputs, mouse_diff_x, mouse_diff_y, delta_time)
+        self.handle_inputs(inputs, mouse_diff_x, mouse_diff_y, delta_time)
         PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
 
     def get_corrected_state(self, position, rotation):
@@ -279,6 +274,9 @@ class PlayerController(Controller):
         correction.angular = self.pawn.angular
 
         return correction
+
+    def handle_inputs(self, inputs, mouse_x, mouse_y, delta_time):
+        pass
 
     def hear_sound(self, sound_path: StaticValue(str),
                    source: StaticValue(Vector)) -> Netmodes.client:
@@ -471,8 +469,6 @@ class Actor(Replicable):
     entity_name = ""
     entity_class = GameObject
 
-    verbose_execution = True
-
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
@@ -529,6 +525,12 @@ class Actor(Replicable):
         self.health = int(max(self.health - damage, 0))
 
     @simulated
+    def trace_ray(self, local_vector):
+        target = self.transform * local_vector
+
+        return self.object.rayCast(self.object, target)
+
+    @simulated
     def align_to(self, vector, time=1, axis=Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
 
@@ -546,8 +548,14 @@ class Actor(Replicable):
     def set_parent(self, actor, socket_name=None):
         if socket_name is None:
             parent_obj = actor.object
-        else:
+
+        elif socket_name in actor.sockets:
             parent_obj = actor.sockets[socket_name]
+
+        else:
+            print(actor.sockets, actor.object)
+            raise TypeError("Parent: {} does not have socket named {}".
+                            format(actor, socket_name))
 
         self.object.setParent(parent_obj)
         self.parent = actor
@@ -585,9 +593,9 @@ class Actor(Replicable):
 
     @property
     def skeleton(self):
-        for c in self.object.childrenRecursive:
-            if isinstance(c, types.BL_ArmatureObject):
-                return c
+        for child in self.object.childrenRecursive:
+            if isinstance(child, types.BL_ArmatureObject):
+                return child
 
     @property
     def visible(self):
@@ -600,8 +608,8 @@ class Actor(Replicable):
 
     @property
     def sockets(self):
-        return {s['socket']: s for s in self.object.childrenRecursive
-                if "socket" in s}
+        return {s['socket']: s for s in
+                self.object.childrenRecursive if "socket" in s}
 
     @property
     def has_dynamics(self):
@@ -897,9 +905,6 @@ class Pawn(Actor):
         self.weapon_attachment.local_position = Vector()
         self.weapon_attachment.local_rotation = Euler()
 
-    def handle_animation(self, movement_mode):
-        pass
-
     def on_initialised(self):
         super().on_initialised()
 
@@ -916,26 +921,7 @@ class Pawn(Actor):
 
         self.animation_tolerance = 0.5
 
-        self.state_machine = FiniteStateMachine()
         self.target = None
-
-    def no_target(self, a, b):
-        self.velocity = Vector()
-
-    def on_transition(self, state_machine, from_state, to_state):
-        pass
-
-    def is_walking(self, state_machine):
-        return abs(self.walk_speed - self.velocity.xy.length) < \
-            self.animation_tolerance and not self.targets
-
-    def is_running(self, state_machine):
-        return abs(self.run_speed - self.velocity.xy.length) < \
-            self.animation_tolerance and not self.targets
-
-    def is_static(self, state_machine):
-        return self.velocity.xy.length < self.animation_tolerance \
-            and not self.targets
 
     def on_notify(self, name):
 
@@ -967,9 +953,8 @@ class Pawn(Actor):
             self.use_flashcount()
 
         if self.weapon_attachment:
-            self.weapon_attachment.local_rotation = Euler((self.view_pitch,
-                                                           0, 0))
-        #self.state_machine.current_state.run(delta_time)
+            self.weapon_attachment.local_rotation = Euler((self.view_pitch, 0,
+                                                           0))
 
     @simulated
     def update_flashcount(self):

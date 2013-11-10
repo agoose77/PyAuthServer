@@ -5,7 +5,6 @@ from mathutils import Vector, Euler, Quaternion, Matrix
 from network import (Float8, Float4, register_handler,
                      register_description, Struct, Attribute)
 
-
 class RigidBodyState(Struct):
 
     position = Attribute(Vector())
@@ -31,6 +30,13 @@ class EngineObject:
         mat_out = mat_loc * mat_rot * mat_sca
         obj = scene.addObject(obj_name, mat_out, 0, -1)
         return super().__new__(cls, obj)
+
+    @property
+    def all_children(self):
+        yield from self.childrenRecursive
+        if self.groupMembers:
+            for child in self.groupMembers:
+                yield from child.childrenRecursive
 
 
 class GameObject(EngineObject, types.KX_GameObject):

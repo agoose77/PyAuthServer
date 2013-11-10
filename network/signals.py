@@ -7,11 +7,6 @@ from inspect import getmembers, signature
 
 
 class SignalListener:
-
-    @property
-    def default_identifier(self):
-        return self
-
     def get_events(self):
         for name, val in getmembers(self):
 
@@ -23,39 +18,39 @@ class SignalListener:
 
             yield (name, val)
 
-    def register_child(self, child_identifier, parent_identifier=None):
-        if parent_identifier is None:
-            parent_identifier = self.default_identifier
+    def register_greedy_child(self, child):
+        self.register_child(child)
+        self.register_child(child, child)
 
-        for name, event in self.get_events():
+    def unregister_greedy_child(self, child):
+        self.unregister_child(child)
+        self.unregister_child(child, child)
+
+    def register_child(self, child, source=None):
+        if source is None:
+            source = self
+
+        for name, event in source.get_events():
             signal = Signal.get_event(event)
-            signal.set_parent(child_identifier, parent_identifier)
+            signal.set_parent(child, self)
 
-    def unregister_child(self, child_identifier, parent_identifier=None):
-        if parent_identifier is None:
-            parent_identifier = self.default_identifier
+    def unregister_child(self, child, source=None):
+        if source is None:
+            source = self
 
-        for name, event in self.get_events():
+        for name, event in source.get_events():
             signal = Signal.get_event(event)
-            signal.remove_parent(child_identifier, parent_identifier)
+            signal.remove_parent(child, self)
 
-    def register_signals(self, identifier=None):
-        if identifier is None:
-            identifier = self.default_identifier
-
+    def register_signals(self):
         for name, val in self.get_events():
-
-            Signal.subscribe(identifier, val)
+            Signal.subscribe(self, val)
 
         Signal.update_graph()
 
-    def unregister_signals(self, identifier=None):
-        if identifier is None:
-            identifier = self.default_identifier
-
+    def unregister_signals(self):
         for name, val in self.get_events():
-
-            Signal.unsubscribe(identifier, val)
+            Signal.unsubscribe(self, val)
 
         Signal.update_graph()
 
@@ -74,8 +69,8 @@ class Signal(metaclass=TypeRegister):
         cls.to_unisolate = []
 
         cls.children = {}
-        cls.to_unchild = []
-        cls.to_child = defaultdict(list)
+        cls.to_unchild = set()
+        cls.to_child = defaultdict(set)
 
     @staticmethod
     def get_event(decorated):
@@ -102,11 +97,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
-        cls.to_child[parent_identifier].append(identifier)
+        cls.to_child[parent_identifier].add(identifier)
 
     @classmethod
     def remove_parent(cls, identifier, parent_identifier):
-        cls.to_unchild.append((identifier, parent_identifier))
+        cls.to_unchild.add((identifier, parent_identifier))
 
     @classmethod
     def on_subscribed(cls, is_contextual, subscriber, data):

@@ -1,6 +1,7 @@
 from bge_network import *
 from mathutils import Vector
 from random import random
+from functools import partial
 from time import monotonic
 
 
@@ -11,56 +12,167 @@ class Navmesh:
 
 
 def idle_behaviour():
-    group = SequenceSelectorNode(
-                                HasPawn(),
+    group = SequenceNode(
+                                GetPawn(),
                                 FindRandomPoint(),
-                                PrioritySelectorNode(
-                                                     HasPointTarget(),
+                                SelectorNode(
+                                                    # HasPointTarget(),
                                                      HasActorTarget()
                                                      ),
-                                MoveToActorOrPoint()
+                                MoveToActor()
                                  )
 
     return group
 
 
 def attack_behaviour():
-    move_or_attack = PrioritySelectorNode(
+    can_attack_or_move = SelectorNode(
                                     WithinAttackRange(),
-                                    MoveToActorOrPoint(),
+                                    MoveToActor(),
                                 )
-    move_or_attack.should_restart = True
+    can_attack_or_move.should_restart = True
 
-    group = SequenceSelectorNode(
-                HasPawn(),
-                HasCamera(),
-                HasWeapon(),
-                PrioritySelectorNode(
-                                     HasActorTarget(),
-                                     FindVisibleTarget(),
-                                     ),
-                SequenceSelectorNode(
-                                     move_or_attack,
-                                     FailedAsRunning(
-                                                    AimAtActor(),
-                                                     CanFireWeapon(),
-                                                     FireWeapon(),
-                                                     )
-                                     )
-                                 )
-
+    group = SequenceNode(
+                         GetPawn(),
+                         GetCamera(),
+                         GetWeapon(),
+                         SelectorNode(
+                                      HasActorTarget(),
+                                      FindVisibleActor(),
+                                      ),
+                         SequenceNode(
+                                      can_attack_or_move,
+                                      AimAtActor(),
+                                      SelectorNode(
+                                               HasAmmo(),
+                                               ReloadWeapon()
+                                               ),
+                                      SequenceNode(FailedAsRunning(
+                                                               CheckTimer()
+                                                               ),
+                                               FireWeapon(),
+                                               SetTimer()
+                                               ),
+                                      )
+                         )
     group.should_restart = True
+
     return group
 
 
-class StateModifier(SequenceSelectorNode, SignalDecoratorNode):
+def climb_behaviour():
+
+    root = SequenceNode(
+                        GetPawn(),
+                        FindObstacle(),
+                        )
+    return root
+
+
+def fire_behind_shelter():
+    return """SequenceNode(
+                                IsInShelter(),
+                                Stand(),
+                                )"""
+
+
+class StateModifier(SequenceNode, SignalInnerNode):
 
     def transform(self, old_state):
         return old_state
 
-    def evaluate(self):
-        state = super().evaluate()
+    def evaluate(self, blackboard):
+        state = super().evaluate(blackboard)
         return self.transform(state)
+
+
+class BlackboardModifier(SequenceNode, SignalInnerNode):
+
+    def evaluate(self, blackboard):
+        state = super().evaluate(blackboard.__class__())
+        return self.transform(state)
+
+
+class IntervalDecorator(SequenceNode, SignalInnerNode):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.last_time = 0.0
+
+    @property
+    def interval(self):
+        return 0.0
+
+    def evaluate(self, blackboard):
+        if (monotonic() - self.last_time) > self.interval:
+            self.last_time = monotonic()
+            return super().evaluate(blackboard)
+
+        return EvaluationState.failure
+
+
+class ConditionSequence(SequenceNode, SignalInnerNode):
+
+    @property
+    def condition(self):
+        return True
+
+    def evaluate(self, blackboard):
+        if self.condition:
+            return super().evaluate(blackboard)
+        return EvaluationState.failure
+
+
+class ConditionNode(SignalLeafNode):
+
+    def condition(self, blackboard):
+        return True
+
+    def evaluate(self, blackboard):
+        return (EvaluationState.success if self.condition(blackboard)
+                else EvaluationState.failure)
+
+
+class GetObstacle(ConditionNode):
+
+    def condition(self, blackboard):
+        forwards = Vector((0, 1, 0))
+        hit_obj, *_ = blackboard['pawn'].trace_ray(forwards)
+        return bool(hit_obj)
+
+
+class FindCeiling(SignalLeafNode):
+
+    def evaluate(self, blackboard):
+        climbable_height = 10
+        upwards = Vector((0, 0, climbable_height))
+        hit_obj, hit_pos, hit_normal = blackboard['pawn'].trace_ray(upwards)
+        if not hit_obj:
+            return EvaluationState.failure
+
+        blackboard['ceiling'] = hit_pos
+
+
+class HasAmmo(ConditionNode):
+
+    def condition(self, blackboard):
+        return blackboard['weapon'].ammo != 0
+
+
+class CheckTimer(ConditionNode):
+
+    def condition(self, blackboard):
+        weapon = blackboard['weapon']
+        return (WorldInfo.elapsed - weapon.last_fired_time
+                ) >= weapon.shoot_interval
+
+
+class SetTimer(SignalLeafNode):
+
+    def evaluate(self, blackboard):
+        blackboard['weapon'].last_fired_time = WorldInfo.elapsed
+        return (EvaluationState.success)
 
 
 class FailedAsRunning(StateModifier):
@@ -71,31 +183,12 @@ class FailedAsRunning(StateModifier):
         return old_state
 
 
-class LatchAsRunning(SignalDecoratorNode):
+class AimAtActor(SignalLeafNode):
 
-    def on_enter(self):
-        self.entered = monotonic()
-        self._state = EvaluationState.success
-
-    @property
-    def interval(self):
-        return 1
-
-    def evaluate(self):
-        time = monotonic()
-
-        if (time - self.entered) <= self.interval:
-            self._state = super().evaluate()
-            return EvaluationState.running
-
-        return self._state
-
-
-class AimAtActor(SignalActionNode):
-
-    def evaluate(self):
-        target = self.signaller.pawn.target
-        camera = self.signaller.camera
+    def evaluate(self, blackboard):
+        target = blackboard['actor']
+        camera = blackboard['camera']
+        pawn = blackboard['pawn']
 
         target_vector = (target.position -
                          camera.position).normalized()
@@ -108,121 +201,107 @@ class AimAtActor(SignalActionNode):
         camera.align_to(-target_vector, axis=Axis.z, time=turn_speed)
         camera.align_to(-world_z.cross(target_vector),
                              axis=Axis.x, time=turn_speed)
-        self.signaller.pawn.align_to(world_z.cross(-target_vector), axis=Axis.x, time=turn_speed)
+        pawn.align_to(world_z.cross(-target_vector), axis=Axis.x, time=turn_speed)
         return EvaluationState.success
 
 
-class SignalConditionDecorator(SequenceSelectorNode, SignalDecoratorNode):
+class WithinAttackRange(ConditionNode):
 
-    @property
-    def condition(self):
-        return True
-
-    def evaluate(self):
-        if self.condition:
-            return super().evaluate()
-        return EvaluationState.failure
+    def condition(self, blackboard):
+        return ((blackboard['actor'].position - blackboard['pawn'].position)
+                .length <= blackboard['weapon'].maximum_range)
 
 
-class WithinAttackRange(SignalConditionDecorator):
+class CanFireWeapon(ConditionNode):
 
-    @property
-    def condition(self):
-        return self.signaller.within_attack_range(self.signaller.pawn.target)
-
-
-class IntervalDecorator(SequenceSelectorNode, SignalDecoratorNode):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.last_time = 0.0
-
-    @property
-    def interval(self):
-        return 0.0
-
-    def evaluate(self):
-        if (monotonic() - self.last_time) > self.interval:
-            self.last_time = monotonic()
-            return super().evaluate()
-
-        return EvaluationState.failure
+    def condition(self, blackboard):
+        return blackboard['weapon'].can_fire
 
 
-class CanFireWeapon(SignalConditionDecorator):
+class ReloadWeapon(SignalLeafNode):
 
-    @property
-    def condition(self):
-        return self.signaller.weapon.can_fire
-
-
-class FireWeapon(SignalActionNode):
-
-    def evaluate(self):
-        self.signaller.start_server_fire()
+    def evaluate(self, blackboard):
         return EvaluationState.success
 
 
-class FindRandomPoint(SignalActionNode):
+class FireWeapon(SignalLeafNode):
 
-    def evaluate(self):
+    def evaluate(self, blackboard):
+        blackboard['controller'].start_server_fire()
+        return EvaluationState.success
+
+
+class FindRandomPoint(SignalLeafNode):
+
+    def evaluate(self, blackboard):
         point = Vector(((random() - 0.5) * 100, (random() - 0.5) * 100, 1))
-        SetMoveTarget.invoke(point, target=self.signaller.pawn)
+        blackboard['target_point'] = point
         return EvaluationState.success
 
 
-class RunOnce(SignalConditionDecorator):
+class RunOnce(ConditionSequence):
 
     def __init__(self, *children):
         super().__init__(*children)
 
         self.run = True
 
-    @property
-    def condition(self):
+    def condition(self, blackboard):
         return self.run
 
-    def on_exit(self):
+    def on_exit(self, blackboard):
         self.run = False
 
 
-class HasPawn(SignalConditionDecorator):
+class GetPawn(SignalLeafNode):
 
-    @property
-    def condition(self):
-        return bool(self.signaller.pawn)
+    def evaluate(self, blackboard):
+        if not blackboard['controller'].pawn:
+            return EvaluationState.failure
 
-
-class HasCamera(SignalConditionDecorator):
-
-    @property
-    def condition(self):
-        return bool(self.signaller.camera)
+        blackboard['pawn'] = blackboard['controller'].pawn
+        return EvaluationState.success
 
 
-class HasWeapon(SignalConditionDecorator):
+class GetWeapon(SignalLeafNode):
 
-    @property
-    def condition(self):
-        return bool(self.signaller.weapon)
+    def evaluate(self, blackboard):
+        if not blackboard['controller'].weapon:
+            return EvaluationState.failure
+
+        blackboard['weapon'] = blackboard['controller'].weapon
+        return EvaluationState.success
 
 
-class FindVisibleTarget(SignalActionNode):
+class GetCamera(SignalLeafNode):
 
-    def get_distance(self, actor):
-        return (self.signaller.pawn.position - actor.position).length
+    def evaluate(self, blackboard):
+        if not blackboard['controller'].camera:
+            return EvaluationState.failure
 
-    def on_enter(self):
+        blackboard['camera'] = blackboard['controller'].camera
+        return EvaluationState.success
+
+
+class FindVisibleActor(SignalLeafNode):
+
+    def get_distance(self, pawn, actor):
+        return (pawn.position - actor.position).length
+
+    def on_enter(self, blackboard):
         found_actors = []
-        is_visible = self.signaller.camera.sees_actor
+
+        camera = blackboard['camera']
+        pawn = blackboard['pawn']
+
+        is_visible = camera.sees_actor
 
         for actor in WorldInfo.replicables:
 
             if not isinstance(actor, Pawn):
                 continue
 
-            if actor == self.signaller.pawn or actor == self.signaller.camera:
+            if actor == pawn or actor == camera:
                 continue
 
             if not is_visible(actor):
@@ -231,41 +310,52 @@ class FindVisibleTarget(SignalActionNode):
             found_actors.append(actor)
 
         if found_actors:
-            self.actor = min(found_actors, key=self.get_distance)
+            self.actor = min(found_actors, key=partial(self.get_distance, pawn))
 
         else:
             self.actor = None
 
-    def evaluate(self):
+    def evaluate(self, blackboard):
         if self.actor is None:
             return EvaluationState.failure
 
-        SetMoveTarget.invoke(self.actor, target=self.signaller.pawn)
+        blackboard['actor'] = self.actor
         return EvaluationState.success
 
 
-class HasActorTarget(SignalConditionDecorator):
+class HasActorTarget(ConditionNode):
 
-    @property
-    def condition(self):
-        return self.signaller.pawn.target and isinstance(self.signaller.pawn.target, Actor)
-
-
-class HasPointTarget(SignalConditionDecorator):
-
-    @property
-    def condition(self):
-        return isinstance(self.signaller.pawn.target, Vector)
+    def condition(self, blackboard):
+        return "actor" in blackboard
 
 
-class UnsetActorOrPoint(SignalActionNode):
+class HasPointTarget(ConditionNode):
 
-    def evaluate(self):
-        self.signaller.pawn.target = None
+    def condition(self, blackboard):
+        return "target_point" in blackboard
+
+
+class ConsumePoint(SignalLeafNode):
+
+    def evaluate(self, blackboard):
+        try:
+            blackboard.pop("target_point")
+        except KeyError:
+            return EvaluationState.failure
         return EvaluationState.success
 
 
-class MoveToActorOrPoint(SignalActionNode):
+class ConsumeActor(SignalLeafNode):
+
+    def evaluate(self, blackboard):
+        try:
+            blackboard.pop("actor")
+        except KeyError:
+            return EvaluationState.failure
+        return EvaluationState.success
+
+
+class MoveToActor(SignalLeafNode):
 
     def __init__(self):
         super().__init__()
@@ -275,32 +365,33 @@ class MoveToActorOrPoint(SignalActionNode):
         self.path = None
         self.tolerance = 5
 
-    def on_exit(self):
-        self.signaller.pawn.velocity.y = 0
+    def on_exit(self, blackboard):
+        blackboard['pawn'].velocity.y = 0
 
         self.target = None
         self.path = None
 
-    def on_enter(self):
-        self.path = self.navmesh.find_path(self.signaller.pawn, self.signaller.pawn.target)
-        self._target = self.signaller.pawn.target
+    def on_enter(self, blackboard):
+        self.path = self.navmesh.find_path(blackboard['pawn'],
+                                           blackboard['actor'])
+        self._pawn = blackboard['pawn']
+        self._target = blackboard['actor']
 
-    def evaluate(self):
+    def evaluate(self, blackboard):
         path = self.path
-        pawn = self.signaller.pawn
+        pawn = self._pawn
 
-        if path is None or pawn.target != self._target:
+        if (not path or not self._pawn or
+            blackboard['actor'] != self._target):
             return EvaluationState.failure
 
-        target = path[0].position if hasattr(path[0], "position") else path[0]
-
-        to_target = (target - pawn.position)
+        to_target = (path[0].position - pawn.position)
 
         if to_target.length < self.tolerance:
             path.pop()
 
         else:
-            pawn.velocity.y = pawn.walk_speed 
+            pawn.velocity.y = pawn.walk_speed
             pawn.align_to(-Vector((0, 0, 1)).cross(to_target), 1, axis=Axis.x)
 
         if not path:
