@@ -154,6 +154,10 @@ class AIController(Controller):
             if sees(actor):
                 return actor
 
+    @ActorKilledSignal.listener
+    def killed(self):
+        self.behaviour.reset()
+
     def hear_sound(self, path, source):
         if not (self.pawn and self.camera):
             return
@@ -174,12 +178,12 @@ class AIController(Controller):
 
         self.camera_mode = CameraMode.first_person
 
-        self.animations = BehaviourTree(self)
-        self.animations.blackboard['controller'] = self
+        self.behaviour = BehaviourTree(self)
+        self.behaviour.blackboard['controller'] = self
 
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        self.animations.update(delta_time)
+        self.behaviour.update(delta_time)
 
 
 class PlayerController(Controller):

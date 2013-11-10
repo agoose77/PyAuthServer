@@ -22,7 +22,7 @@ class TeamDeathMatch(ReplicationRules):
 
     ai_camera_class = Camera
     ai_controller_class = EnemyController
-    ai_pawn_class = RobertNeville
+    ai_pawn_class = Zombie
     ai_replication_info_class = PlayerReplicationInfo
     ai_weapon_class = M4A1Weapon
 

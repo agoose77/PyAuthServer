@@ -162,4 +162,4 @@ class ClientGameLoop(GameLoop):
 
     def create_network(self):
         WorldInfo.netmode = Netmodes.client
-        return Network("localhost", 0)
+        return Network("", 0)

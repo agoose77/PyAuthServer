@@ -35,12 +35,7 @@ class EnemyController(AIController):
                                 )
         behaviour.should_restart = True
 
-        self.animations.root.add_child(behaviour)
-
-    @simulated
-    @ActorKilledSignal.listener
-    def killed(self):
-        self.animations.reset()
+        self.behaviour.root.add_child(behaviour)
 
 
 class LegendController(PlayerController):

@@ -10,6 +10,7 @@ class Navmesh:
     def find_path(self, source, destination):
         return [destination]
 
+
 def walk_animation():
     group = SequenceNode(
                          IsWalking(),
@@ -32,11 +33,24 @@ def idle_behaviour():
 
 
 def attack_behaviour():
-    can_attack_or_move = SelectorNode(
+    can_hit_target = SelectorNode(
                                     WithinAttackRange(),
                                     MoveToActor(),
                                 )
-    can_attack_or_move.should_restart = True
+    can_hit_target.should_restart = True
+
+    engage_target = SequenceNode(
+                                 can_hit_target,
+                                 SelectorNode(
+                                              HasAmmo(),
+                                              ReloadWeapon()
+                                              ),
+                                 AimAtActor(),
+                                 CheckTimer(),
+                                 FireWeapon(),
+                                 SetTimer()
+                                 )
+    engage_target.should_restart = True
 
     group = SequenceNode(
                          GetPawn(),
@@ -46,21 +60,8 @@ def attack_behaviour():
                                       HasActorTarget(),
                                       FindVisibleActor(),
                                       ),
-                         SequenceNode(
-                                      can_attack_or_move,
-                                      AimAtActor(),
-                                      SelectorNode(
-                                               HasAmmo(),
-                                               ReloadWeapon()
-                                               ),
-                                      SequenceNode(FailedAsRunning(
-                                                               CheckTimer()
-                                                               ),
-                                               FireWeapon(),
-                                               SetTimer()
-                                               ),
-                                      ),
-                         ConsumeActor()
+
+                         FailedAsRunning(engage_target),
                          )
     group.should_restart = True
     return group
@@ -164,7 +165,7 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        return (pawn.velocity.length - pawn.walk_speed) <= 0.1
+        return abs(pawn.velocity.length - pawn.walk_speed) <= 0.1
 
 
 class WalkAnimation(SignalLeafNode):
@@ -220,7 +221,6 @@ class AimAtActor(SignalLeafNode):
 
         target_vector = (target.position -
                          camera.position).normalized()
-
         world_z = Vector((0, 0, 1))
         camera_vector = -world_z.copy()
         camera_vector.rotate(camera.rotation)
@@ -354,7 +354,7 @@ class FindVisibleActor(SignalLeafNode):
 class HasActorTarget(ConditionNode):
 
     def condition(self, blackboard):
-        return "actor" in blackboard
+        return bool(blackboard.get("actor"))
 
 
 class HasPointTarget(ConditionNode):
