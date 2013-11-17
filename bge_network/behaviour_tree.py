@@ -77,7 +77,7 @@ class LeafNode(SignalListener):
         if self.state != EvaluationState.running:
             self.on_exit(blackboard)
 
-    def reset(self):
+    def reset(self, blackboard):
         self.state = EvaluationState.ready
         self.on_exit(blackboard)
 
@@ -132,11 +132,11 @@ class InnerNode(LeafNode):
         self._children.remove(child)
         child.change_signaller(child)
 
-    def reset(self):
-        super().reset()
+    def reset(self, blackboard):
+        super().reset(blackboard)
 
         for child in self._children:
-            child.reset()
+            child.reset(blackboard)
 
 
 class ResumableNode(InnerNode):

@@ -1,4 +1,6 @@
-from .bge_data import RigidBodyState, GameObject, CameraObject, NavmeshObject
+from .bge_data import (GameObject, CameraObject,
+                       NavmeshObject)
+from .structs import (RigidBodyState, AnimationState)
 from .behaviour_tree import BehaviourTree
 from .configuration import load_configuration
 from .enums import (PhysicsType, ShotType, CameraMode, AIState,
@@ -20,9 +22,9 @@ from collections import namedtuple, OrderedDict
 from math import pi, radians
 from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo,
-                     simulated, Netmodes, StaticValue, run_on, TypeRegister,
-                     ReplicableUnregisteredSignal, UpdateSignal, ConnectionInterface,
-                     ConnectionStatus)
+                     simulated, Netmodes, StaticValue, run_on,
+                     TypeRegister, ReplicableUnregisteredSignal,
+                     UpdateSignal, ConnectionInterface, ConnectionStatus)
 from os import path
 from operator import gt as more_than
 from functools import lru_cache
@@ -49,10 +51,6 @@ class Controller(Replicable):
             yield "info"
 
     def hear_sound(self, path, location):
-        pass
-
-    @ActorDamagedSignal.listener
-    def on_damaged(self, damage, instigator, hit_position, momentum):
         pass
 
     def on_initialised(self):
@@ -154,9 +152,10 @@ class AIController(Controller):
             if sees(actor):
                 return actor
 
-    @ActorKilledSignal.listener
-    def killed(self):
+    def unpossess(self):
         self.behaviour.reset()
+        self.behaviour.blackboard['controller'] = self
+        super().unpossess()
 
     def hear_sound(self, path, source):
         if not (self.pawn and self.camera):
@@ -174,6 +173,7 @@ class AIController(Controller):
         self.effective_hear = 10
 
         self.target_dir = None
+        self.debug = False
         self.target = None
 
         self.camera_mode = CameraMode.first_person
@@ -181,9 +181,15 @@ class AIController(Controller):
         self.behaviour = BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
+        self.animations = BehaviourTree(self)
+        self.animations.blackboard['controller'] = self
+
     @UpdateSignal.global_listener
     def update(self, delta_time):
+        if self.debug:
+            self.behaviour.debug()
         self.behaviour.update(delta_time)
+        self.animations.update(delta_time)
 
 
 class PlayerController(Controller):
@@ -571,39 +577,12 @@ class Actor(Replicable):
         self.object.setParent(None)
 
     @simulated
-    def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
-                       mode=logic.KX_ACTION_MODE_PLAY, weight=0.0, speed=1.0,
-                       blend_mode=logic.KX_ACTION_BLEND_BLEND):
-
-        self.skeleton.playAction(name, start, end, layer, priority, blend,
-                                 mode, weight, speed=speed,
-                                 blend_mode=blend_mode)
-
-    @simulated
-    def is_playing_animation(self, layer=0):
-        return self.skeleton.isPlayingAction(layer)
-
-    @simulated
-    def get_animation_frame(self, layer=0):
-        return self.skeleton.getActionFrame(layer)
-
-    @simulated
-    def stop_animation(self, layer=0):
-        self.skeleton.stopAction(layer)
-
-    @simulated
     def restore_physics(self):
         self.object.restoreDynamics()
 
     @simulated
     def suspend_physics(self):
         self.object.suspendDynamics()
-
-    @property
-    def skeleton(self):
-        for child in self.object.childrenRecursive:
-            if isinstance(child, types.BL_ArmatureObject):
-                return child
 
     @property
     def visible(self):
@@ -760,7 +739,7 @@ class Weapon(Replicable):
         self.shoot_interval = 0.5
         self.last_fired_time = 0.0
         self.max_ammo = 50
-        self.range = 20
+
         self.shot_type = ShotType.instant
 
         self.momentum = 1
@@ -768,7 +747,7 @@ class Weapon(Replicable):
         self.effective_range = 10
         self.base_damage = 40
 
-        self.attachment_class = WeaponAttachment
+        self.attachment_class = None
 
 
 class EmptyWeapon(Weapon):
@@ -890,6 +869,8 @@ class Camera(Actor):
 class Pawn(Actor):
 
     view_pitch = Attribute(0.0)
+    animation = Attribute(type_of=AnimationState,
+                          notify=True)
     flash_count = Attribute(0,
                    notify=True,
                         complain=False)
@@ -902,6 +883,7 @@ class Pawn(Actor):
         if not is_owner:
             yield "flash_count"
             yield "view_pitch"
+            yield "animation"
 
         if is_complaint:
             yield "weapon_attachment_class"
@@ -929,9 +911,6 @@ class Pawn(Actor):
 
         self.animation_tolerance = 0.5
 
-        self.animations = BehaviourTree(self)
-        self.animations.blackboard['pawn'] = self
-
         self.target = None
 
     def on_notify(self, name):
@@ -943,6 +922,9 @@ class Pawn(Actor):
         elif name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
 
+        elif name == "animation":
+            self.on_animation(self.animation)
+
         else:
             super().on_notify(name)
 
@@ -951,6 +933,53 @@ class Pawn(Actor):
             self.weapon_attachment.request_unregistration()
 
         super().on_unregistered()
+
+    @simulated
+    def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
+                       mode=logic.KX_ACTION_MODE_PLAY, weight=0.0, speed=1.0,
+                       blend_mode=logic.KX_ACTION_BLEND_BLEND):
+
+        self.skeleton.playAction(name, start, end, layer, priority, blend,
+                                 mode, weight, speed=speed,
+                                 blend_mode=blend_mode)
+
+        if self.roles.local == Roles.authority:
+            animation = AnimationState()
+            animation.start = start
+            animation.end = end
+            animation.name = name
+            animation.layer = layer
+            animation.blend = blend
+            animation.mode = mode
+            animation.speed = speed
+            animation.timestamp = WorldInfo.elapsed
+            self.animation = animation
+
+    @simulated
+    def is_playing_animation(self, layer=0):
+        return self.skeleton.isPlayingAction(layer)
+
+    @simulated
+    def get_animation_frame(self, layer=0):
+        return int(self.skeleton.getActionFrame(layer))
+
+    @simulated
+    def stop_animation(self, layer=0):
+        self.skeleton.stopAction(layer)
+
+    @property
+    def skeleton(self):
+        for child in self.object.childrenRecursive:
+            if isinstance(child, types.BL_ArmatureObject):
+                return child
+
+    @simulated
+    def on_animation(self, animation):
+        self.play_animation(animation.name, animation.start,
+                            animation.end, animation.layer,
+                            blend=animation.blend,
+                            mode=animation.mode,
+                            speed=animation.speed)
 
     @simulated
     @SetMoveTarget.listener
@@ -976,11 +1005,6 @@ class Pawn(Actor):
     def use_flashcout(self):
         self.weapon_attachment.play_firing_effects()
         self.outstanding_flash -= 1
-
-    @simulated
-    @UpdateSignal.global_listener
-    def update(self, delta_time):
-        self.animations.update(delta_time)
 
 
 class Navmesh(Actor):

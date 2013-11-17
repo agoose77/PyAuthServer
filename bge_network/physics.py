@@ -120,7 +120,8 @@ class PhysicsSystem(SignalListener):
             return
 
         controller.setup_weapon(weapon)
-        pawn.create_weapon_attachment(pawn.weapon_attachment_class)
+        if pawn.weapon_attachment_class is not None:
+            pawn.create_weapon_attachment(pawn.weapon_attachment_class)
 
     @MapLoadedSignal.global_listener
     def convert_map(self, target=None):
@@ -145,10 +146,7 @@ class PhysicsSystem(SignalListener):
         for obj, actor in found_actors.items():
             if obj.parent in found_actors:
                 actor.set_parent(found_actors[obj.parent])
-            print(obj)
             obj.endObject()
-            obj.endObject()
-            print(obj)
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):

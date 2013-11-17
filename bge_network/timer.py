@@ -19,8 +19,13 @@ class ManualTimer:
 
         self.active = True
 
+    @property
+    def success(self):
+        return self.value == self.target
+
     def reset(self):
         self.value = self.initial
+        self.active = True
 
     def stop(self):
         self.value = self.target

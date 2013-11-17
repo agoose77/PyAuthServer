@@ -28,7 +28,6 @@ class PhysicsUnsetSimulatedSignal(Signal):
 class ActorDamagedSignal(Signal):
     pass
 
-
 class ActorKilledSignal(Signal):
     pass
 

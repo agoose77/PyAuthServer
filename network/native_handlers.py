@@ -94,6 +94,7 @@ class ReplicableBaseHandler:
 
     unpack_from = unpack
 
+
 ReplicableHandler = ReplicableBaseHandler()
 
 register_handler(TypeRegister, TypeHandler, True)

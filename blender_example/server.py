@@ -24,7 +24,7 @@ class TeamDeathMatch(ReplicationRules):
     ai_controller_class = EnemyController
     ai_pawn_class = Zombie
     ai_replication_info_class = PlayerReplicationInfo
-    ai_weapon_class = M4A1Weapon
+    ai_weapon_class = ZombieWeapon
 
     player_camera_class = Camera
     player_controller_class = LegendController
@@ -116,6 +116,7 @@ class TeamDeathMatch(ReplicationRules):
 
         self.broadcast(attacker, message)
         print(message)
+
         target.owner.unpossess()
         target.request_unregistration()
 
@@ -145,6 +146,9 @@ class TeamDeathMatch(ReplicationRules):
 
         self.matchmaker.register_server("Demo Server", "Test Map",
                                         self.player_limit, 0)
+
+        for i in range(1):
+            self.create_new_ai(self.ai_controller_class())
 
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
@@ -179,14 +183,6 @@ class TeamDeathMatch(ReplicationRules):
 
     def start_match(self):
         self.info.match_started = True
-
-    @ActorDamagedSignal.global_listener
-    def on_damaged(self, damage, instigator, hit_position, momentum, target):
-        if not isinstance(target, Pawn):
-            return
-
-        if not target.health:
-            ActorKilledSignal.invoke(instigator, target=target)
 
     @UpdateSignal.global_listener
     def update(self, delta_time):

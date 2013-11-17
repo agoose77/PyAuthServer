@@ -32,7 +32,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                                             self.apply_physics)
 
         self._last_sent = 0.0
-        self._interval = 1 / 20
+        self._interval = 1 / 15
 
         self.loaded = False
 

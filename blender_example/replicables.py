@@ -8,7 +8,6 @@ from math import radians, cos, sin
 from signals import ConsoleMessage
 
 from behaviours import *
-from bge_network.behaviour_tree import *
 
 
 class GameReplicationInfo(ReplicableInfo):
@@ -30,12 +29,21 @@ class EnemyController(AIController):
         super().on_initialised()
 
         behaviour = SelectorNode(
-                                attack_behaviour(),
-                                idle_behaviour()
-                                )
+                                 dying_behaviour(),
+                                 attack_behaviour(),
+                                 idle_behaviour()
+                                 )
+
         behaviour.should_restart = True
 
+        animations = SelectorNode(
+                                walk_animation(),
+                                )
+
+        animations.should_restart = True
+
         self.behaviour.root.add_child(behaviour)
+        self.animations.root.add_child(animations)
 
 
 class LegendController(PlayerController):
@@ -139,15 +147,8 @@ class Zombie(Pawn):
     def on_initialised(self):
         super().on_initialised()
 
-        self.walk_speed = 0.5
+        self.walk_speed = 2.7
         self.run_speed = 6
-
-        behaviour = SelectorNode(
-                                walk_animation(),
-                                )
-        behaviour.should_restart = True
-
-        self.animations.root.add_child(behaviour)
 
 
 class M4A1Weapon(Weapon):
@@ -159,6 +160,23 @@ class M4A1Weapon(Weapon):
         self.max_ammo = 50
         self.attachment_class = M4A1Attachment
         self.shoot_interval = 1
+
+
+class ZombieWeapon(Weapon):
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.sound_path = "sounds"
+        self.max_ammo = 1
+
+        self.shoot_interval = 1
+        self.maximum_range = 9
+        self.effective_range = 7
+        self.base_damage = 80
+
+    def consume_ammo(self):
+        pass
 
 
 class M4A1Attachment(WeaponAttachment):

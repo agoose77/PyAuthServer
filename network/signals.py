@@ -29,9 +29,9 @@ class SignalListener:
     def register_child(self, child, source=None):
         if source is None:
             source = self
-
         for name, event in source.get_events():
             signal = Signal.get_event(event)
+
             signal.set_parent(child, self)
 
     def unregister_child(self, child, source=None):
