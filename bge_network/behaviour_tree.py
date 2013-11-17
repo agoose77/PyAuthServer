@@ -1,6 +1,7 @@
 from operator import attrgetter
 from network import Enum, Signal, SignalListener
 from itertools import islice
+from contextlib import contextmanager
 
 
 class EvaluationState(metaclass=Enum):
@@ -11,11 +12,13 @@ class BehaviourTree:
 
     def __init__(self, signaller, root=None):
         self.signaller = signaller
-        self.blackboard = {}
+        self.blackboard = self.new_blackboard()
 
         if root is None:
             root = SelectorNode()
         self.root = root
+
+        self._last_visited = set()
 
     @property
     def root(self):
@@ -26,16 +29,34 @@ class BehaviourTree:
         self._root = value
         self._root.change_signaller(self.signaller)
 
+    def new_blackboard(self):
+        return {"_visited": set()}
+
     def debug(self):
         self._root.print_tree()
 
     def update(self, delta_time):
         self.blackboard['delta_time'] = delta_time
+
         self.root.update(self.blackboard)
+        self.reset_visited(self.blackboard['_visited'])
 
     def reset(self):
         self.root.reset(self.blackboard)
-        self.blackboard.clear()
+        self.blackboard = self.new_blackboard()
+
+    def reset_visited(self, visited):
+        for node in visited:
+            if node.state != EvaluationState.running:
+                node.state = EvaluationState.ready
+
+            if node in self._last_visited:
+                self._last_visited.remove(node)
+
+        for node in self._last_visited:
+            node.reset(self.blackboard)
+
+        visited.clear()
 
 
 class LeafNode(SignalListener):
@@ -65,17 +86,23 @@ class LeafNode(SignalListener):
         pass
 
     def update(self, blackboard):
+        # Invoke entry if neccessary
         if self.state != EvaluationState.running:
             self.state = EvaluationState.running
             self.on_enter(blackboard)
 
         new_state = self.evaluate(blackboard)
 
+        # Ensure we have a valid state
         if new_state is not None:
             self.state = new_state
 
-        if self.state != EvaluationState.running:
+        # Invoke exit if neccessary
+        if not self.state in (EvaluationState.ready, EvaluationState.running):
             self.on_exit(blackboard)
+
+        # Remember visit
+        blackboard['_visited'].add(self)
 
     def reset(self, blackboard):
         self.state = EvaluationState.ready

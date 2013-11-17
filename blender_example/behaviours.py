@@ -15,14 +15,11 @@ def dying_behaviour():
     group = SequenceNode(
                          GetPawn(),
                          IsDead(),
-                         Alert("Get attacker"),
                          GetAttacker(),
                          PlayAnimation("Death", 1, 44,
                                        layer=2, blend=1),
-                         Alert("Waiting"),
                          Delay(3),
-                         Alert("End"),
-                         Event(ActorKilledSignal,
+                         Signal(ActorKilledSignal,
                                from_blackboard={"target": "pawn",
                                                 "attacker": "attacker"})
                          )
@@ -237,7 +234,6 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-   #     print(pawn, pawn.velocity)
         return abs(pawn.velocity.length - pawn.walk_speed) <= 0.2
 
 
@@ -312,7 +308,7 @@ class FailedAsRunning(StateModifier):
         return old_state
 
 
-class Event(SignalLeafNode):
+class Signal(SignalLeafNode):
 
     def __init__(self, event_cls, *args, from_blackboard={}, **kwargs):
         super().__init__()
