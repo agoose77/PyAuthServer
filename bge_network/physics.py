@@ -135,6 +135,7 @@ class PhysicsSystem(SignalListener):
             if actor is None:
                 continue
 
+            print("Loaded {}".format(actor))
             found_actors[obj] = actor
 
             actor.position = obj.worldPosition.copy()

@@ -171,8 +171,8 @@ class ZombieWeapon(Weapon):
         self.max_ammo = 1
 
         self.shoot_interval = 1
-        self.maximum_range = 9
-        self.effective_range = 7
+        self.maximum_range = 8
+        self.effective_range = 6
         self.base_damage = 80
 
     def consume_ammo(self):

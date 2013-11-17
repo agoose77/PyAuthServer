@@ -32,10 +32,6 @@ class GameObject(EngineObject, types.KX_GameObject):
     pass
 
 
-class Socket(GameObject):
-    pass
-
-
 class CameraObject(EngineObject, types.KX_Camera):
     pass
 

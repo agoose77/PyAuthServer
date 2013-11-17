@@ -24,3 +24,8 @@ class AIState(metaclass=Enum):
 
 class Axis(metaclass=Enum):
     values = ("x", "y", "z")
+
+
+class CollisionGroups(metaclass=Enum):
+    bits = True
+    values = ("geometry", "pawns")

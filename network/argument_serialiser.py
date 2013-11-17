@@ -32,14 +32,16 @@ class ArgumentSerialiser:
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
         bitfield_packer = self.bitfield_packer
-        bitfield_packer.unpack_merge(self.content_bits, bytes_)
 
+        bitfield_packer.unpack_merge(self.content_bits, bytes_)
         bytes_ = bytes_[bitfield_packer.size(bytes_):]
+
         content_values = list(self.content_bits)
 
         # If there are None values
         if content_values[-1]:
             bitfield_packer.unpack_merge(self.none_bits, bytes_)
+            bytes_ = bytes_[bitfield_packer.size(bytes_):]
 
         for included, value_none, (key, handler) in zip(content_values,
                                                      self.none_bits,
@@ -66,6 +68,7 @@ class ArgumentSerialiser:
             # Otherwise ask for a new value
             else:
                 value = handler.unpack_from(bytes_)
+
             yield (key, value)
 
             bytes_ = bytes_[handler.size(bytes_):]
@@ -89,6 +92,7 @@ class ArgumentSerialiser:
         data_values = []
 
         # Iterate over non booleans
+
         for index, (key, handler) in enumerate(self.handlers):
 
             if not key in data:
@@ -123,6 +127,6 @@ class ArgumentSerialiser:
         # If we have values set to None
         if none_bits:
             content_bits[-1] = True
-            data_values.append(self.bitfield_packer.pack(none_bits))
+            data_values.insert(0, self.bitfield_packer.pack(none_bits))
 
         return self.bitfield_packer.pack(content_bits) + b''.join(data_values)

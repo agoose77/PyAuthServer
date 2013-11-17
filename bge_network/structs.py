@@ -9,6 +9,8 @@ class RigidBodyState(Struct):
     angular = Attribute(Vector())
     rotation = Attribute(Euler())
 
+    collision_group = Attribute(type_of=float)
+
 
 class AnimationState(Struct):
 

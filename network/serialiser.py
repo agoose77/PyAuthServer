@@ -67,7 +67,7 @@ class String:
 
 # Register handlers for native types
 register_handler(str, String)
-register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 8)),
+register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 255)),
                  is_condition=True)
 register_handler(float, lambda x: (Float8 if x.data.get("max_precision")
                                    else Float4), is_condition=True)

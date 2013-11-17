@@ -5,17 +5,12 @@ from functools import partial
 from time import monotonic
 
 
-class Navmesh:
-
-    def find_path(self, source, destination):
-        return [destination]
-
-
 def dying_behaviour():
     group = SequenceNode(
                          GetPawn(),
                          IsDead(),
                          GetAttacker(),
+                         #SetCollisionFlags(mask=CollisionGroups.geometry),
                          PlayAnimation("Death", 1, 44,
                                        layer=2, blend=1),
                          Delay(3),
@@ -43,6 +38,7 @@ def idle_behaviour():
                          GetPawn(),
                          FindRandomPoint(),
                          HasPointTarget(),
+                         GetNavmesh(),
                          MoveToPoint(),
                          ConsumePoint()
                          )
@@ -53,8 +49,13 @@ def idle_behaviour():
 def attack_behaviour():
     can_hit_target = SelectorNode(
                                     WithinAttackRange(),
-                                    MoveToActor(),
-                                )
+                                    SequenceNode(
+                                        GetNavmesh(),
+                                        MoveToActor(),
+                                        Alert("Reached Target"),
+                                        ),
+                                  )
+
     can_hit_target.should_restart = True
 
     aim_and_attack = SequenceNode(
@@ -71,6 +72,7 @@ def attack_behaviour():
                                               ReloadWeapon()
                                               ),
                                  FailedAsRunning(CheckTimer()),
+                                 Alert("{pawn} Attacking {actor}"),
                                  aim_and_attack,
                                  FireWeapon(),
                                  SetTimer()
@@ -177,6 +179,24 @@ class Inverter(SequenceNode, SignalInnerNode):
         elif state == EvaluationState.failure:
             return EvaluationState.success
         return state
+
+
+class SetCollisionFlags(SignalLeafNode):
+
+    def __init__(self, mask=None, group=None):
+        super().__init__()
+
+        self._mask = mask
+        self._group = group
+
+    def evaluate(self, blackboard):
+        if self._mask is not None:
+            blackboard['pawn'].collision_mask = self._mask
+
+        if self._group is not None:
+            blackboard['pawn'].collision_group = self._group
+
+        return EvaluationState.success
 
 
 class GetObstacle(ConditionNode):
@@ -444,6 +464,18 @@ class GetCamera(SignalLeafNode):
         return EvaluationState.success
 
 
+class GetNavmesh(SignalLeafNode):
+
+    def evaluate(self, blackboard):
+        try:
+            navmesh = next(WorldInfo.subclass_of(Navmesh))
+        except StopIteration:
+            return EvaluationState.failure
+
+        blackboard['navmesh'] = navmesh
+        return EvaluationState.success
+
+
 class FindVisibleActor(SignalLeafNode):
 
     def get_distance(self, pawn, actor):
@@ -517,11 +549,7 @@ class MoveToActor(SignalLeafNode):
 
     def __init__(self):
         super().__init__()
-
-        self.navmesh = Navmesh()
-        self.target = None
-        self.path = None
-        self.tolerance = 5
+        self.tolerance = 1.0
 
     def get_target(self, blackboard):
         return blackboard['actor']
@@ -532,35 +560,40 @@ class MoveToActor(SignalLeafNode):
     def on_exit(self, blackboard):
         blackboard['pawn'].velocity.y = 0
 
-        self.target = None
-        self.path = None
-
-    def on_enter(self, blackboard):
-        self._pawn = blackboard['pawn']
-        self._target = self.get_target(blackboard)
-
-        self.path = self.navmesh.find_path(blackboard['pawn'],
-                                           self._target)
+    def draw(self, path):
+        start = path[0]
+        drawLine = __import__("bge").render.drawLine
+        step = 1 / len(path)
+        for index, point in enumerate(path):
+            drawLine(start, point, [1.0 - index * step, 0, 0])
+            start = point
 
     def evaluate(self, blackboard):
-        path = self.path
-        pawn = self._pawn
+        pawn = blackboard['pawn']
+        target = self.get_target(blackboard)
 
-        if (not path or not self._pawn or
-            self.get_target(blackboard) != self._target):
-            return EvaluationState.failure
-
-        to_target = (self.get_target_position(path[0]) - pawn.position)
-
-        if to_target.length < self.tolerance:
-            path.pop()
-
-        else:
-            pawn.velocity.y = pawn.walk_speed
-            pawn.align_to(-Vector((0, 0, 1)).cross(to_target), 1, axis=Axis.x)
+        path = blackboard['navmesh'].find_path(pawn.position,
+                                            self.get_target_position(target))
 
         if not path:
+            return EvaluationState.failure
+
+        while path:
+            to_target = (path[0] - pawn.position)
+            to_target.z = 0
+
+            if to_target.magnitude < self.tolerance:
+                path.pop(0)
+            else:
+                break
+
+        else:
             return EvaluationState.success
+
+        pawn.velocity.y = pawn.walk_speed
+        pawn.align_to(to_target.cross(Vector((0, 0, 1))), 1, axis=Axis.x)
+
+        return EvaluationState.running
 
 
 class MoveToPoint(MoveToActor):

@@ -269,7 +269,6 @@ class PlayerController(Controller):
         PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
 
     def get_corrected_state(self, position, rotation):
-
         pos_difference = self.pawn.position - position
 
         if pos_difference.length_squared < self.move_error_limit:
@@ -583,6 +582,22 @@ class Actor(Replicable):
     @simulated
     def suspend_physics(self):
         self.object.suspendDynamics()
+
+    @property
+    def collision_group(self):
+        return self.object.collisionGroup
+
+    @collision_group.setter
+    def collision_group(self, group):
+        self.object.collisionGroup = group
+
+    @property
+    def collision_mask(self):
+        return self.object.collisionMask
+
+    @collision_mask.setter
+    def collision_mask(self, mask):
+        self.object.collisionMask = mask
 
     @property
     def visible(self):
@@ -1014,7 +1029,7 @@ class Navmesh(Actor):
     entity_name = "Navmesh"
 
     def draw(self):
-        self.object.draw()
+        self.object.draw(logic.RM_TRIS)
 
     def find_path(self, from_point, to_point):
         return self.object.findPath(from_point, to_point)
