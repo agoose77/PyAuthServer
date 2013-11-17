@@ -10,7 +10,7 @@ def dying_behaviour():
                          GetPawn(),
                          IsDead(),
                          GetAttacker(),
-                         #SetCollisionFlags(mask=CollisionGroups.geometry),
+                         SetCollisionFlags(mask=CollisionGroups.geometry),
                          PlayAnimation("Death", 1, 44,
                                        layer=2, blend=1),
                          Delay(3),

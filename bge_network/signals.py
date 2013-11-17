@@ -28,6 +28,7 @@ class PhysicsUnsetSimulatedSignal(Signal):
 class ActorDamagedSignal(Signal):
     pass
 
+
 class ActorKilledSignal(Signal):
     pass
 
@@ -41,4 +42,8 @@ class PhysicsTickSignal(Signal):
 
 
 class MapLoadedSignal(Signal):
+    pass
+
+
+class GameExitSignal(Signal):
     pass

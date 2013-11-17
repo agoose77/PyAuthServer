@@ -1,13 +1,47 @@
 from json import loads
 from urllib import request, parse
+from functools import partial
+
+from threads import QueuedThread
+from bge_network import GameExitSignal, SignalListener
+
+import queue
 
 
-class Matchmaker:
+class URLThread(QueuedThread):
+
+    def handle_task(self, task, queue):
+        callback, data, url = task
+        request_obj = request.Request(url, data=data)
+        response_obj = request.urlopen(request_obj)
+        response_data = response_obj.read().decode()
+        queue.put((callback, response_data))
+
+
+def json_decoded(callback, data):
+    try:
+        data = loads(data)
+    except ValueError:
+        data = None
+
+    if callable(callback):
+        return callback(data)
+
+
+class Matchmaker(SignalListener):
 
     def __init__(self, url):
-        self.url = url
+        self.register_signals()
 
-    def json_query(self, data=None, decode_reply=True):
+        self.url = url
+        self.thread = URLThread()
+        self.thread.start()
+
+    @GameExitSignal.global_listener
+    def delete_thread(self):
+        self.thread.join()
+
+    def perform_query(self, callback=None, data=None, is_json=True):
 
         if data is not None:
             bytes_data = [(a.encode(), str(b).encode()) for (a, b) in data]
@@ -15,38 +49,41 @@ class Matchmaker:
         else:
             parsed_data = None
 
-        request_obj = request.Request(self.url, data=parsed_data)
-        response_obj = request.urlopen(request_obj)
-        response_data = response_obj.read().decode()
+        if is_json:
+            callback = partial(json_decoded, callback)
 
-        if decode_reply:
-            try:
-                return loads(response_data)
-            except ValueError:
-                if response_data:
-                    raise
-                return None
+        self.thread.in_queue.put((callback, parsed_data, self.url))
 
-    def read_servers(self):
-        return self.json_query()
+    def server_query(self):
+        return None
 
-    def register_server(self, name, map_name, max_players, players):
+    def register_query(self, name, map_name, max_players, players):
         data = [("is_server", True), ("max_players", max_players),
                 ("map", map_name), ("name", name), ("players", players)]
 
-        return self.json_query(data)
+        return data
 
-    def update_server(self, server_id, name, map_name, max_players, players):
+    def poll_query(self, server_id, name, map_name, max_players, players):
         data = [("is_server", True), ("max_players", max_players),
                 ("map", map_name), ("name", name), ("players", players),
                 ("update_id", server_id)]
+        return data
 
-        return self.json_query(data)
-
-    def unregister_server(self, server_id):
+    def unregister_query(self, server_id):
         data = [("is_server", True), ("delete_id", server_id)]
 
-        return self.json_query(data)
+        return data
+
+    def update(self):
+
+        while True:
+            try:
+                (callback, response) = self.thread.out_queue.get_nowait()
+
+            except queue.Empty:
+                break
+            if callable(callback):
+                callback(response)
 
 
 class BoundMatchmaker(Matchmaker):
@@ -56,12 +93,16 @@ class BoundMatchmaker(Matchmaker):
 
         self._id = None
 
-    def register_server(self, name, *args, **kwargs):
-        self._id = super().register_server(name, *args, **kwargs)
+    def register(self, name, *args, **kwargs):
+        data = super().register_query(name, *args, **kwargs)
+        callback = partial(self.__setattr__, "_id")
+        self.perform_query(callback, data)
         self._name = name
 
-    def update_server(self, *args, **kwargs):
-        super().update_server(self._id, self._name, *args, **kwargs)
+    def poll(self, *args, **kwargs):
+        data = super().poll_query(self._id, self._name, *args, **kwargs)
+        self.perform_query(data=data)
 
-    def unregister_server(self):
-        super().unregister_server(self._id)
+    def unregister(self):
+        data = super().unregister_query(self._id)
+        self.perform_query(data=data)

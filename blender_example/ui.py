@@ -435,8 +435,11 @@ class ConnectPanel(Panel, SignalListener):
 
     def do_refresh(self, button):
         self.matchmaker.url = self.match_field.text
-        self.servers[:] = [tuple(entry.items()) for entry in
-                           self.matchmaker.read_servers()]
+        self.matchmaker.perform_query(self.evaluate_servers,
+                                      self.matchmaker.server_query())
+
+    def evaluate_servers(self, response):
+        self.servers[:] = [tuple(entry.items()) for entry in response]
         self.connect_message.text = ("Refreshed Server List" if self.servers
                                     else "No Servers Found")
 
@@ -456,6 +459,7 @@ class ConnectPanel(Panel, SignalListener):
 
     def update(self, delta_time):
         self.connect_button.frozen = self.port_field.invalid
+        self.matchmaker.update()
 
 
 class SamanthaPanel(Panel):

@@ -144,7 +144,7 @@ class TeamDeathMatch(ReplicationRules):
 
         self.black_list = []
 
-        self.matchmaker.register_server("Demo Server", "Test Map",
+        self.matchmaker.register("Demo Server", "Test Map",
                                         self.player_limit, 0)
 
         for i in range(1):
@@ -199,8 +199,10 @@ class TeamDeathMatch(ReplicationRules):
         elif self.allow_countdown and not info.match_started:
             self.start_countdown()
 
+        self.matchmaker.update()
+
     def update_matchmaker(self):
-        self.matchmaker.update_server("Test Map", self.player_limit,
+        self.matchmaker.poll("Test Map", self.player_limit,
                                     self.players)
 
 
