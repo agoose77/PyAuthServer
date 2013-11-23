@@ -25,7 +25,8 @@ class Image(Widget):
 	_cache = {}
 
 	def __init__(self, parent, name, img, aspect=None, size=[0, 0], pos=[0, 0],
-				texco=[(0, 0), (1, 0), (1, 1), (0, 1)], interp_mode=BGUI_LINEAR, sub_theme='', options=BGUI_DEFAULT):
+				texco=[(0, 0), (1, 0), (1, 1), (0, 1)], interp_mode=BGUI_LINEAR,
+				sub_theme='', options=BGUI_DEFAULT, relative_path=True):
 		""":param parent: the widget's parent
 		:param name: the name of the widget
 		:param img: the image to use for the widget
@@ -50,7 +51,7 @@ class Image(Widget):
 		self.texco = texco
 		self._interp_mode = interp_mode
 		self.image = None
-		self.update_image(img)
+		self.update_image(img, relative_path)
 
 	@property
 	def interp_mode(self):
@@ -81,7 +82,7 @@ class Image(Widget):
 
 		Widget._cleanup(self)
 
-	def update_image(self, img):
+	def update_image(self, img, relative_path):
 		"""Changes the image texture
 
 		:param img: the path to the new image
@@ -96,7 +97,7 @@ class Image(Widget):
 
 		glBindTexture(GL_TEXTURE_2D, self.tex_id)
 
-		if Theme.path != './' and img:
+		if Theme.path != './' and img and relative_path:
 			img = Theme.path + img
 			
 		if img in Image._cache:
@@ -107,6 +108,7 @@ class Image(Widget):
 			# Load the texture data from disk
 			image = texture.ImageFFmpeg(img)
 			image.scale = False
+			print("IM", image.image)
 			if self.options & BGUI_CACHE:
 				Image._cache[img] = image
 

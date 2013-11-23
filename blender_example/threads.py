@@ -2,6 +2,7 @@ import threading
 import queue
 import time
 
+
 class ThreadPointer():
 
     def __init__(self, thread):
@@ -17,7 +18,7 @@ class QueuedThread(threading.Thread):
     """
 
     def __init__(self):
-        threading._time = time.clock
+        threading._time = time.monotonic
 
         self.in_queue = queue.Queue()
         self.out_queue = queue.Queue()
@@ -31,20 +32,17 @@ class QueuedThread(threading.Thread):
         pass
 
     def run(self):
-        is_empty = queue.Empty
         while not self._event.isSet():
 
             try:
                 item = self.in_queue.get(True, self._poll_interval)
 
-            except is_empty:
+            except queue.Empty:
                 continue
 
-            try:
-                self.handle_task(item, self.out_queue)
-            except Exception as err:
-                print(err)
+            self.handle_task(item, self.out_queue)
 
     def join(self, timeout=None):
         self._event.set()
+
         super().join(timeout)

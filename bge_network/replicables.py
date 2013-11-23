@@ -4,7 +4,7 @@ from .structs import (RigidBodyState, AnimationState)
 from .behaviour_tree import BehaviourTree
 from .configuration import load_configuration
 from .enums import (PhysicsType, ShotType, CameraMode, AIState,
-                    Axis)
+                    Axis, AnimationMode, AnimationBlend)
 from .signals import (CollisionSignal, PlayerInputSignal,
                     PhysicsReplicatedSignal, PhysicsSingleUpdateSignal,
                     PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
@@ -949,26 +949,42 @@ class Pawn(Actor):
 
         super().on_unregistered()
 
+    def replicate_animation(self, start, end, name, layer, blend, mode, speed):
+        animation = AnimationState()
+        animation.start = start
+        animation.end = end
+        animation.name = name
+        animation.layer = layer
+        animation.blend = blend
+        animation.mode = mode
+        animation.speed = speed
+        animation.timestamp = WorldInfo.elapsed
+        self.animation = animation
+
+    def unreplicate_animation(self, layer):
+        animation = AnimationState()
+        animation.layer = layer
+        animation.mode = AnimationMode.stop
+        animation.timestamp = WorldInfo.elapsed
+        self.animation = animation
+
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
-                       mode=logic.KX_ACTION_MODE_PLAY, weight=0.0, speed=1.0,
-                       blend_mode=logic.KX_ACTION_BLEND_BLEND):
+                       mode=AnimationMode.play, weight=0.0, speed=1.0,
+                       blend_mode=AnimationBlend.interpolate):
+
+        ge_mode = {AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
+                   AnimationMode.loop: logic.KX_ACTION_MODE_LOOP,
+                   AnimationMode.ping_pong: logic.KX_ACTION_MODE_PING_PONG
+                   }[mode]
+        ge_blend_mode = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
+                         AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}[blend_mode]
 
         self.skeleton.playAction(name, start, end, layer, priority, blend,
-                                 mode, weight, speed=speed,
-                                 blend_mode=blend_mode)
+                                 ge_mode, weight, speed=speed,
+                                 blend_mode=ge_blend_mode)
 
-        if self.roles.local == Roles.authority:
-            animation = AnimationState()
-            animation.start = start
-            animation.end = end
-            animation.name = name
-            animation.layer = layer
-            animation.blend = blend
-            animation.mode = mode
-            animation.speed = speed
-            animation.timestamp = WorldInfo.elapsed
-            self.animation = animation
+        self.replicate_animation(start, end, name, layer, blend, mode, speed)
 
     @simulated
     def is_playing_animation(self, layer=0):
@@ -981,6 +997,7 @@ class Pawn(Actor):
     @simulated
     def stop_animation(self, layer=0):
         self.skeleton.stopAction(layer)
+        self.unreplicate_animation(layer)
 
     @property
     def skeleton(self):
@@ -990,7 +1007,10 @@ class Pawn(Actor):
 
     @simulated
     def on_animation(self, animation):
-        self.play_animation(animation.name, animation.start,
+        if animation.mode == AnimationMode.stop:
+            self.stop_animation(animation.layer)
+        else:
+            self.play_animation(animation.name, animation.start,
                             animation.end, animation.layer,
                             blend=animation.blend,
                             mode=animation.mode,

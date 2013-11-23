@@ -3,9 +3,8 @@ from urllib import request, parse
 from functools import partial
 
 from threads import QueuedThread
+from queue import Empty as EmptyQueue
 from bge_network import GameExitSignal, SignalListener
-
-import queue
 
 
 class URLThread(QueuedThread):
@@ -21,6 +20,7 @@ class URLThread(QueuedThread):
 def json_decoded(callback, data):
     try:
         data = loads(data)
+
     except ValueError:
         data = None
 
@@ -42,10 +42,10 @@ class Matchmaker(SignalListener):
         self.thread.join()
 
     def perform_query(self, callback=None, data=None, is_json=True):
-
         if data is not None:
             bytes_data = [(a.encode(), str(b).encode()) for (a, b) in data]
             parsed_data = parse.urlencode(bytes_data).encode()
+
         else:
             parsed_data = None
 
@@ -80,8 +80,9 @@ class Matchmaker(SignalListener):
             try:
                 (callback, response) = self.thread.out_queue.get_nowait()
 
-            except queue.Empty:
+            except EmptyQueue:
                 break
+
             if callable(callback):
                 callback(response)
 
@@ -94,15 +95,17 @@ class BoundMatchmaker(Matchmaker):
         self._id = None
 
     def register(self, name, *args, **kwargs):
-        data = super().register_query(name, *args, **kwargs)
-        callback = partial(self.__setattr__, "_id")
-        self.perform_query(callback, data)
+        data = self.register_query(name, *args, **kwargs)
+        id_setter = partial(self.__setattr__, "_id")
+
+        self.perform_query(id_setter, data)
         self._name = name
 
     def poll(self, *args, **kwargs):
-        data = super().poll_query(self._id, self._name, *args, **kwargs)
-        self.perform_query(data=data)
+        self.perform_query(data=self.poll_query(self._id,
+                                                self._name,
+                                                *args,
+                                                **kwargs))
 
     def unregister(self):
-        data = super().unregister_query(self._id)
-        self.perform_query(data=data)
+        self.perform_query(data=self.unregister_query(self._id))

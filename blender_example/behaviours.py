@@ -23,13 +23,22 @@ def dying_behaviour():
 
 
 def walk_animation():
-    group = SequenceNode(
-                         GetPawn(),
-                         IsWalking(),
-                         Inverter(IsDead()),
-                         PlayAnimation("Walk2", 15, 45, blend=1),
+    play_state = SequenceNode(
+                              GetPawn(),
+                              IsWalking(),
+                              Inverter(IsDead()),
+                              PlayAnimation("Walk2", 15, 45, blend=1, mode=AnimationMode.loop),
+                              )
+    stop_state = SequenceNode(
+                              GetPawn(),
+                              Inverter(IsPlayingAnimation()),
+                              StopAnimation()
+                              )
+    group = SelectorNode(
+                         play_state,
+                         stop_state
                          )
-
+    play_state.should_restart = True
     return group
 
 
@@ -71,7 +80,10 @@ def attack_behaviour():
                                               HasAmmo(),
                                               ReloadWeapon()
                                               ),
-                                 FailedAsRunning(CheckTimer()),
+                                 ConvertState(EvaluationState.failure,
+                                              EvaluationState.running,
+                                              CheckTimer()
+                                              ),
                                  Alert("{pawn} Attacking {actor}"),
                                  aim_and_attack,
                                  FireWeapon(),
@@ -254,7 +266,7 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        return abs(pawn.velocity.length - pawn.walk_speed) <= 0.2
+        return abs(pawn.velocity.y - pawn.walk_speed) <= 0.2
 
 
 class PlayAnimation(SignalLeafNode):
@@ -269,6 +281,7 @@ class PlayAnimation(SignalLeafNode):
 
     def on_enter(self, blackboard):
         pawn = blackboard['pawn']
+        print("PLAY")
         pawn.play_animation(self._name, self._start,
                             self._end, **self._kwargs)
 
@@ -278,13 +291,41 @@ class PlayAnimation(SignalLeafNode):
         if not pawn:
             return EvaluationState.failure
 
-        frame = pawn.get_animation_frame(self._kwargs.get("layer", 0))
+        layer = self._kwargs.get("layer", 0)
 
-        if frame == self._end:
+        if not pawn.is_playing_animation(layer):
             return EvaluationState.success
-
         else:
             return EvaluationState.running
+
+
+class StopAnimation(SignalLeafNode):
+
+    def __init__(self, *children, **kwargs):
+        super().__init__(*children)
+
+        self._kwargs = kwargs
+
+    def on_enter(self, blackboard):
+        pawn = blackboard['pawn']
+        print("STOP")
+        pawn.stop_animation(**self._kwargs)
+
+    def evaluate(self, blackboard):
+        return EvaluationState.success
+
+
+class IsPlayingAnimation(ConditionNode):
+
+    def __init__(self, *children, **kwargs):
+        super().__init__(*children)
+
+        self._kwargs = kwargs
+
+    def condition(self, blackboard):
+        return blackboard['pawn'].is_playing_animation(
+                                           self._kwargs.get("layer", 0)
+                                           )
 
 
 class HasAmmo(ConditionNode):
@@ -297,6 +338,26 @@ class IsDead(ConditionNode):
 
     def condition(self, blackboard):
         return blackboard['pawn'].health <= 0
+
+
+class CounterCheck(ConditionNode):
+
+    def condition(self, bb):
+        return bb['c'] < 120
+
+
+class CounterIncrement(SignalLeafNode):
+
+    def evaluate(self, bb):
+        bb['c'] += 1
+        return EvaluationState.success
+
+
+class CounterInit(SignalLeafNode):
+
+    def evaluate(self, bb):
+        bb['c'] = 0
+        return EvaluationState.success
 
 
 class TargetIsAlive(ConditionNode):
@@ -320,12 +381,15 @@ class SetTimer(SignalLeafNode):
         return (EvaluationState.success)
 
 
-class FailedAsRunning(StateModifier):
+class ConvertState(StateModifier):
+
+    def __init__(self, st_from, st_to, *children):
+        super().__init__(*children)
+        self._map = {st_from: st_to}
 
     def transform(self, old_state):
-        if old_state == EvaluationState.failure:
-            return EvaluationState.running
-        return old_state
+        print(EvaluationState[old_state], EvaluationState[list(self._map)[0]])
+        return self._map.get(old_state, old_state)
 
 
 class Signal(SignalLeafNode):
@@ -549,6 +613,7 @@ class MoveToActor(SignalLeafNode):
 
     def __init__(self):
         super().__init__()
+
         self.tolerance = 1.0
 
     def get_target(self, blackboard):

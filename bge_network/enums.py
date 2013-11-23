@@ -29,3 +29,11 @@ class Axis(metaclass=Enum):
 class CollisionGroups(metaclass=Enum):
     bits = True
     values = ("geometry", "pawns")
+
+
+class AnimationMode(metaclass=Enum):
+    values = ("play", "loop", "ping_pong", "stop")
+
+
+class AnimationBlend(metaclass=Enum):
+    values = ("interpolate", "add")

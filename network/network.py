@@ -142,5 +142,6 @@ class Network(SignalListener):
         # Delete dead connections
         ConnectionInterface.update_graph()
 
-    def connect_to(self, conn, *args, **kwargs):
-        return ConnectionInterface(conn, *args, **kwargs)
+    @staticmethod
+    def connect_to(peer_data, *args, **kwargs):
+        return ConnectionInterface(peer_data, *args, **kwargs)

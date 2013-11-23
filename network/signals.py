@@ -18,29 +18,29 @@ class SignalListener:
 
             yield (name, val)
 
-    def register_greedy_child(self, child):
-        self.register_child(child)
-        self.register_child(child, child)
+    def register_child(self, child, event_store=None, greedy=False):
+        # Mirror own events by default
+        if event_store is None:
+            event_store = self
 
-    def unregister_greedy_child(self, child):
-        self.unregister_child(child)
-        self.unregister_child(child, child)
-
-    def register_child(self, child, source=None):
-        if source is None:
-            source = self
-        for name, event in source.get_events():
+        for name, event in event_store.get_events():
             signal = Signal.get_event(event)
-
             signal.set_parent(child, self)
 
-    def unregister_child(self, child, source=None):
-        if source is None:
-            source = self
+        if greedy:
+            self.register_child(child, child)
 
-        for name, event in source.get_events():
+    def unregister_child(self, child, event_store=None, greedy=False):
+        # Mirror own events by default
+        if event_store is None:
+            event_store = self
+
+        for name, event in event_store.get_events():
             signal = Signal.get_event(event)
             signal.remove_parent(child, self)
+
+        if greedy:
+            self.unregister_child(child, child)
 
     def register_signals(self):
         for name, val in self.get_events():

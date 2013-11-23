@@ -43,7 +43,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     @ReplicableRegisteredSignal.global_listener
     def notify_registration(self, target):
-
         if isinstance(target, Camera):
             target.render_temporary(self.update_render)
 

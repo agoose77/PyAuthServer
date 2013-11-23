@@ -1,12 +1,14 @@
 import bge
 import bgui
 
+from os import path, listdir
+
 from datetime import datetime
 from collections import OrderedDict
 
 from matchmaker import Matchmaker
-from network import (ConnectionErrorSignal, ConnectionSuccessSignal,
-                     SignalListener, WorldInfo)
+from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
+                     SignalListener, WorldInfo, ManualTimer)
 from signals import ConsoleMessage
 
 CENTERY = bgui.BGUI_DEFAULT|bgui.BGUI_CENTERY
@@ -136,6 +138,78 @@ class System(bgui.System):
                     visible_panel = True
 
         bge.logic.mouse.visible = visible_panel
+
+
+class SpriteSequence(bgui.Image):
+
+    def __init__(self, *args, length, loop=False, frame_index=0, **kwargs):
+        # Create internal image
+        super().__init__(*args, **kwargs)
+
+        self.length = length
+        self.loop = loop
+        self.frame = frame_index
+
+    @property
+    def frame(self):
+        return self._index
+
+    @frame.setter
+    def frame(self, index):
+        x_size = 1 / self.length
+
+        if not 0 < index < self.length:
+            raise IndexError("Frame not found")
+
+        self._index = index
+        self.texco = [[x_size * index, 0], [x_size * (index + 1), 0],
+                      [x_size * (index + 1), 1], [x_size * index, 1]]
+
+    def next_frame(self):
+        try:
+            self.frame += 1
+
+        except IndexError:
+            self.frame = 0 if self.loop else -1
+
+    def previous_frame(self):
+        try:
+            self.frame -= 1
+
+        except IndexError:
+            self.frame = -1 if self.loop else 0
+
+
+class ImageSequence(SpriteSequence):
+
+    def __init__(self, parent, name, source, *args, **kwargs):
+        self._source = source
+        self._images = []
+
+        self.update_images()
+
+        # Create internal image
+        super().__init__(parent, name, "", *args, **kwargs)
+
+    def update_images(self):
+        tail, head = path.split(self._source)
+        self._images = sorted(n for n in listdir(tail)
+                           if n.startswith(head)
+                           )
+
+    @property
+    def frame(self):
+        return super().frame
+
+    @frame.setter
+    def frame(self, index):
+        try:
+            source = self._images[index]
+
+        except IndexError as err:
+            raise IndexError("Could not find image with this index") from err
+
+        self.update_image(source)
 
 
 class Panel(bgui.Frame):
@@ -420,6 +494,12 @@ class ConnectPanel(Panel, SignalListener):
         self.servers_box.renderer = TableRenderer(self.servers_box,
                                               labels=self.server_headers)
 
+        #self.sprite = SpriteSequence(self.servers_box, "sprite", "C:/Users/Angus/workspace/ReplicationSystem/trunk/blender_example/themes/477.png",
+                #                     length=20, loop=True,  size=[1, 1],  pos=[0, 0],
+                 #                    relative_path=False)
+        #self.sprite_timer = ManualTimer(target_value=1 / 20,
+                                     #   repeat=True,
+                                     #   on_target=self.sprite.next_frame)
         self.connect_button.on_click = self.do_connect
         self.refresh_button.on_click = self.do_refresh
         self.servers_box.on_select = self.on_select
@@ -460,6 +540,7 @@ class ConnectPanel(Panel, SignalListener):
     def update(self, delta_time):
         self.connect_button.frozen = self.port_field.invalid
         self.matchmaker.update()
+        #self.sprite_timer.update(delta_time)
 
 
 class SamanthaPanel(Panel):

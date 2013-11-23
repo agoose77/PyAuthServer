@@ -71,9 +71,9 @@ class LeafNode(SignalListener):
         self.name = ""
 
     def change_signaller(self, parent):
-        parent.register_greedy_child(self)
+        parent.register_child(self, greedy=True)
         if self._signal_parent is not self:
-            self._signal_parent.unregister_greedy_child(self)
+            self._signal_parent.unregister_child(self, greedy=True)
         self._signal_parent = parent
 
     def evaluate(self, blackboard):
@@ -269,9 +269,10 @@ class SequenceNode(ConcurrentNode):
 class LoopNode(SequenceNode):
 
     def evaluate(self, blackboard):
-        while self.state not in (EvaluationState.failure,
-                            EvaluationState.error):
-            super().evaluate(blackboard)
+        state = super().evaluate(blackboard)
+        while state not in (EvaluationState.failure, EvaluationState.error):
+            state = super().evaluate(blackboard)
+        return state
 
 
 class SignalLeafNode(LeafNode):

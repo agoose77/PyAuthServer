@@ -147,7 +147,7 @@ class TeamDeathMatch(ReplicationRules):
         self.matchmaker.register("Demo Server", "Test Map",
                                         self.player_limit, 0)
 
-        for i in range(1):
+        for i in range(6):
             self.create_new_ai(self.ai_controller_class())
 
     def on_disconnect(self, replicable):
