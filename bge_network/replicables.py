@@ -882,7 +882,7 @@ class Pawn(Actor):
                                         notify=True,
                                         complain=True)
 
-    health = Attribute(100, notify=True, complain=True)
+    health = Attribute(100, notify=True)
     alive = Attribute(True, notify=True, complain=True)
 
     def conditions(self, is_owner, is_complaint, is_initial):
@@ -891,7 +891,6 @@ class Pawn(Actor):
         if not is_owner:
             yield "flash_count"
             yield "view_pitch"
-            yield "animation"
 
         if is_complaint:
             yield "weapon_attachment_class"
@@ -936,11 +935,6 @@ class Pawn(Actor):
         elif name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
 
-        elif name == "animation" and 0:
-            self.on_animation(self.animation)
-        elif name == "alive":
-            print("alive", self.alive)
-
         else:
             super().on_notify(name)
 
@@ -950,27 +944,8 @@ class Pawn(Actor):
 
         super().on_unregistered()
 
-    def replicate_animation(self, start, end, name, layer, blend, mode, speed):
-        animation = AnimationState()
-        animation.start = start
-        animation.end = end
-        animation.name = name
-        animation.layer = layer
-        animation.blend = blend
-        animation.mode = mode
-        animation.speed = speed
-        animation.timestamp = WorldInfo.elapsed
-        self.animation = animation
-
     def update_health(self):
         self.alive = self.health > 0
-
-    def unreplicate_animation(self, layer):
-        animation = AnimationState()
-        animation.layer = layer
-        animation.mode = AnimationMode.stop
-        animation.timestamp = WorldInfo.elapsed
-        self.animation = animation
 
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
@@ -988,8 +963,6 @@ class Pawn(Actor):
                                  ge_mode, weight, speed=speed,
                                  blend_mode=ge_blend_mode)
 
-        self.replicate_animation(start, end, name, layer, blend, mode, speed)
-
     @simulated
     def is_playing_animation(self, layer=0):
         return self.skeleton.isPlayingAction(layer)
@@ -1001,24 +974,12 @@ class Pawn(Actor):
     @simulated
     def stop_animation(self, layer=0):
         self.skeleton.stopAction(layer)
-        self.unreplicate_animation(layer)
 
     @property
     def skeleton(self):
         for child in self.object.childrenRecursive:
             if isinstance(child, types.BL_ArmatureObject):
                 return child
-
-    @simulated
-    def on_animation(self, animation):
-        if animation.mode == AnimationMode.stop:
-            self.stop_animation(animation.layer)
-        else:
-            self.play_animation(animation.name, animation.start,
-                            animation.end, animation.layer,
-                            blend=animation.blend,
-                            mode=animation.mode,
-                            speed=animation.speed)
 
     @simulated
     @SetMoveTarget.listener
