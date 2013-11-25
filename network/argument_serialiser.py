@@ -23,9 +23,9 @@ class ArgumentSerialiser:
 
         # Bitfields used for packing
         # Boolean packing necessitates storing previous values
-        self.content_bits = Bitfield(size=self.total_contents + 1)
-        self.bool_bits = Bitfield(size=self.total_bools)
-        self.none_bits = Bitfield(size=self.total_contents)
+        self.content_bits = Bitfield(self.total_contents + 1)
+        self.bool_bits = Bitfield(self.total_bools)
+        self.none_bits = Bitfield(self.total_contents)
 
         self.bitfield_packer = get_handler(StaticValue(Bitfield))
 

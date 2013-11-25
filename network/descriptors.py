@@ -20,7 +20,7 @@ class Attribute(StaticValue):
     __slots__ = "notify", "complain", "name", "_data", "_value"
 
     def __init__(self, value=None, type_of=None,
-                 notify=False, complain=True, **kwargs):
+                 notify=False, complain=False, **kwargs):
 
         super().__init__(type_of or type(value), **kwargs)
 

@@ -24,7 +24,8 @@ from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo,
                      simulated, Netmodes, StaticValue, run_on,
                      TypeRegister, ReplicableUnregisteredSignal,
-                     UpdateSignal, ConnectionInterface, ConnectionStatus)
+                     UpdateSignal, ConnectionInterface, ConnectionStatus,
+                     profile)
 from os import path
 from operator import gt as more_than
 from functools import lru_cache
@@ -102,7 +103,6 @@ class Controller(Replicable):
 
     def setup_weapon(self, weapon):
         self.set_weapon(weapon)
-
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
     def start_server_fire(self) -> Netmodes.server:
@@ -181,15 +181,11 @@ class AIController(Controller):
         self.behaviour = BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-        self.animations = BehaviourTree(self)
-        self.animations.blackboard['controller'] = self
-
     @UpdateSignal.global_listener
     def update(self, delta_time):
         if self.debug:
             self.behaviour.debug()
         self.behaviour.update(delta_time)
-        self.animations.update(delta_time)
 
 
 class PlayerController(Controller):
@@ -465,15 +461,14 @@ class PlayerController(Controller):
 
 class Actor(Replicable):
 
-    rigid_body_state = Attribute(RigidBodyState(), notify=True, complain=False)
+    rigid_body_state = Attribute(RigidBodyState(), notify=True)
     roles = Attribute(
                           Roles(
                                 Roles.authority,
                                 Roles.autonomous_proxy
-                                )
+                                ),
+                      notify=True
                           )
-
-    health = Attribute(100, notify=True)
 
     entity_name = ""
     entity_class = GameObject
@@ -482,9 +477,6 @@ class Actor(Replicable):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
         remote_role = self.roles.remote
-
-        if is_complaint and (is_owner):
-            yield "health"
 
         # If simulated, send rigid body state
         if (remote_role == Roles.simulated_proxy) or \
@@ -562,7 +554,6 @@ class Actor(Replicable):
             parent_obj = actor.sockets[socket_name]
 
         else:
-            print(actor.sockets, actor.object)
             raise TypeError("Parent: {} does not have socket named {}".
                             format(actor, socket_name))
 
@@ -886,11 +877,13 @@ class Pawn(Actor):
     view_pitch = Attribute(0.0)
     animation = Attribute(type_of=AnimationState,
                           notify=True)
-    flash_count = Attribute(0,
-                   notify=True,
-                        complain=False)
+    flash_count = Attribute(0, notify=True)
     weapon_attachment_class = Attribute(type_of=TypeRegister,
-                                        notify=True)
+                                        notify=True,
+                                        complain=True)
+
+    health = Attribute(100, notify=True, complain=True)
+    alive = Attribute(True, notify=True, complain=True)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -902,7 +895,12 @@ class Pawn(Actor):
 
         if is_complaint:
             yield "weapon_attachment_class"
+            yield "alive"
 
+            if is_owner:
+                yield "health"
+
+    @simulated
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
         self.weapon_attachment.set_parent(self, "weapon")
@@ -926,10 +924,11 @@ class Pawn(Actor):
 
         self.animation_tolerance = 0.5
 
-        self.target = None
+        self.animations = BehaviourTree(self)
+        self.animations.blackboard['pawn'] = self
 
+    @simulated
     def on_notify(self, name):
-
         # play weapon effects
         if name == "flash_count":
             self.update_flashcount()
@@ -937,8 +936,10 @@ class Pawn(Actor):
         elif name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
 
-        elif name == "animation":
+        elif name == "animation" and 0:
             self.on_animation(self.animation)
+        elif name == "alive":
+            print("alive", self.alive)
 
         else:
             super().on_notify(name)
@@ -960,6 +961,9 @@ class Pawn(Actor):
         animation.speed = speed
         animation.timestamp = WorldInfo.elapsed
         self.animation = animation
+
+    def update_health(self):
+        self.alive = self.health > 0
 
     def unreplicate_animation(self, layer):
         animation = AnimationState()
@@ -1030,6 +1034,8 @@ class Pawn(Actor):
         if self.weapon_attachment:
             self.weapon_attachment.local_rotation = Euler((self.view_pitch, 0,
                                                            0))
+        self.update_health()
+        self.animations.update(delta_time)
 
     @simulated
     def update_flashcount(self):

@@ -54,6 +54,9 @@ class Timer(ManualTimer, SignalListener):
 
         self.register_signals()
 
+    def delete(self):
+        self.unregister_signals()
+
     @UpdateSignal.global_listener
     def update(self, delta_time):
         super().update(delta_time)

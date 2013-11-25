@@ -1,8 +1,40 @@
 from bge_network import *
 from mathutils import Vector
-from random import random
+from random import random, randrange
 from functools import partial
 from time import monotonic
+import bge
+
+
+def dead_animation():
+    play_state = SequenceNode(
+                              IsDead(),
+                              PlayAnimation("Death", 1, 44,
+                                            layer=0, blend=1),
+                              Delay(5),
+                              )
+
+    return play_state
+
+
+def walk_animation():
+    play_state = SequenceNode(
+                              IsWalking(),
+                              Inverter(IsDead()),
+                              PlayAnimation("Walk2", 15, 45, blend=1.0),
+                              )
+    play_state.should_restart = True
+    return play_state
+
+
+def idle_animation():
+    play_state = SequenceNode(
+                              Inverter(IsWalking()),
+                              Inverter(IsDead()),
+                              PlayAnimation("Idle", 0, 60, blend=1.0),
+                              )
+    play_state.should_restart = True
+    return play_state
 
 
 def dying_behaviour():
@@ -11,8 +43,6 @@ def dying_behaviour():
                          IsDead(),
                          GetAttacker(),
                          SetCollisionFlags(mask=CollisionGroups.geometry),
-                         PlayAnimation("Death", 1, 44,
-                                       layer=2, blend=1),
                          Delay(3),
                          Signal(ActorKilledSignal,
                                from_blackboard={"target": "pawn",
@@ -22,34 +52,16 @@ def dying_behaviour():
     return group
 
 
-def walk_animation():
-    play_state = SequenceNode(
-                              GetPawn(),
-                              IsWalking(),
-                              Inverter(IsDead()),
-                              PlayAnimation("Walk2", 15, 45, blend=1, mode=AnimationMode.loop),
-                              )
-    stop_state = SequenceNode(
-                              GetPawn(),
-                              Inverter(IsPlayingAnimation()),
-                              StopAnimation()
-                              )
-    group = SelectorNode(
-                         play_state,
-                         stop_state
-                         )
-    play_state.should_restart = True
-    return group
-
-
 def idle_behaviour():
     group = SequenceNode(
                          GetPawn(),
+                         Inverter(IsDead()),
                          FindRandomPoint(),
                          HasPointTarget(),
                          GetNavmesh(),
                          MoveToPoint(),
-                         ConsumePoint()
+                         ConsumePoint(),
+                         RandomDelay(2, 5),
                          )
 
     return group
@@ -61,7 +73,6 @@ def attack_behaviour():
                                     SequenceNode(
                                         GetNavmesh(),
                                         MoveToActor(),
-                                        Alert("Reached Target"),
                                         ),
                                   )
 
@@ -70,7 +81,7 @@ def attack_behaviour():
     aim_and_attack = SequenceNode(
                                      AimAtActor(),
                                      PlayAnimation("Attack", 0, 60,
-                                                   blend=1, layer=1),
+                                                   blend=1, layer=0),
                                  )
     aim_and_attack.should_restart = True
 
@@ -82,6 +93,7 @@ def attack_behaviour():
                                               ),
                                  ConvertState(EvaluationState.failure,
                                               EvaluationState.running,
+
                                               CheckTimer()
                                               ),
                                  Alert("{pawn} Attacking {actor}"),
@@ -92,6 +104,7 @@ def attack_behaviour():
 
     group = SequenceNode(
                          GetPawn(),
+                         Inverter(IsDead()),
                          GetCamera(),
                          GetWeapon(),
                          SelectorNode(
@@ -122,6 +135,21 @@ def fire_behind_shelter():
                                 IsInShelter(),
                                 Stand(),
                                 )"""
+
+
+class DebugState(SignalLeafNode):
+
+    def __init__(self, child):
+        super().__init__()
+        self.child = child
+
+    def evaluate(self, bb):
+        st = self.child.evaluate(bb)
+        x = self.child.children[0]._message
+        if st == EvaluationState.running and 0:
+            print("Running", self.child.children[self.child.resume_index])
+        #print("'", x, "'", EvaluationState[st])
+        return st
 
 
 class StateModifier(SequenceNode, SignalInnerNode):
@@ -221,11 +249,11 @@ class GetObstacle(ConditionNode):
 
 class Delay(SignalLeafNode):
 
-    def __init__(self, delay):
+    def __init__(self, delay=0.0):
         super().__init__()
 
         self._delay = delay
-        self._timer = ManualTimer(target_value=3)
+        self._timer = ManualTimer(target_value=self._delay)
 
     def on_enter(self, blackboard):
         self._timer.reset()
@@ -236,6 +264,18 @@ class Delay(SignalLeafNode):
         if self._timer.success:
             return EvaluationState.success
         return EvaluationState.running
+
+
+class RandomDelay(Delay):
+
+    def __init__(self, start, end):
+        super().__init__()
+
+        self._range = start, end
+
+    def on_enter(self, blackboard):
+        self._timer.reset()
+        self._timer.target = randrange(*self._range)
 
 
 class Alert(SignalLeafNode):
@@ -266,7 +306,7 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        return abs(pawn.velocity.y - pawn.walk_speed) <= 0.2
+        return abs(pawn.velocity.y - pawn.walk_speed) <= pawn.walk_speed / 2
 
 
 class PlayAnimation(SignalLeafNode):
@@ -281,7 +321,6 @@ class PlayAnimation(SignalLeafNode):
 
     def on_enter(self, blackboard):
         pawn = blackboard['pawn']
-        print("PLAY")
         pawn.play_animation(self._name, self._start,
                             self._end, **self._kwargs)
 
@@ -308,7 +347,6 @@ class StopAnimation(SignalLeafNode):
 
     def on_enter(self, blackboard):
         pawn = blackboard['pawn']
-        print("STOP")
         pawn.stop_animation(**self._kwargs)
 
     def evaluate(self, blackboard):
@@ -337,27 +375,7 @@ class HasAmmo(ConditionNode):
 class IsDead(ConditionNode):
 
     def condition(self, blackboard):
-        return blackboard['pawn'].health <= 0
-
-
-class CounterCheck(ConditionNode):
-
-    def condition(self, bb):
-        return bb['c'] < 120
-
-
-class CounterIncrement(SignalLeafNode):
-
-    def evaluate(self, bb):
-        bb['c'] += 1
-        return EvaluationState.success
-
-
-class CounterInit(SignalLeafNode):
-
-    def evaluate(self, bb):
-        bb['c'] = 0
-        return EvaluationState.success
+        return not blackboard['pawn'].alive
 
 
 class TargetIsAlive(ConditionNode):
@@ -385,10 +403,10 @@ class ConvertState(StateModifier):
 
     def __init__(self, st_from, st_to, *children):
         super().__init__(*children)
+
         self._map = {st_from: st_to}
 
     def transform(self, old_state):
-        print(EvaluationState[old_state], EvaluationState[list(self._map)[0]])
         return self._map.get(old_state, old_state)
 
 
@@ -467,8 +485,16 @@ class FireWeapon(SignalLeafNode):
 
 class FindRandomPoint(SignalLeafNode):
 
+    @property
+    def random_x(self):
+        return (random() - 0.5) * 100
+
+    @property
+    def random_y(self):
+        return self.random_x
+
     def evaluate(self, blackboard):
-        point = Vector(((random() - 0.5) * 100, (random() - 0.5) * 100, 1))
+        point = Vector((self.random_x, self.random_y, 1))
         blackboard['point'] = point
         return EvaluationState.success
 
@@ -623,7 +649,11 @@ class MoveToActor(SignalLeafNode):
         return target.position
 
     def on_exit(self, blackboard):
-        blackboard['pawn'].velocity.y = 0
+        try:
+            blackboard['pawn'].velocity.y = 0
+        except KeyError:
+            print(blackboard)
+            bge.logic.endGame()
 
     def draw(self, path):
         start = path[0]

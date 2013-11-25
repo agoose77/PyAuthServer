@@ -35,15 +35,7 @@ class EnemyController(AIController):
                                  )
 
         behaviour.should_restart = True
-
-        animations = SelectorNode(
-                                walk_animation(),
-                                )
-
-        animations.should_restart = True
-
         self.behaviour.root.add_child(behaviour)
-        self.animations.root.add_child(animations)
 
 
 class LegendController(PlayerController):
@@ -146,6 +138,16 @@ class Zombie(Pawn):
 
     def on_initialised(self):
         super().on_initialised()
+
+        animations = SelectorNode(
+                                  dead_animation(),
+                                  idle_animation(),
+                                  walk_animation(),
+                                )
+
+        animations.should_restart = True
+
+        self.animations.root.add_child(animations)
 
         self.walk_speed = 2.7
         self.run_speed = 6

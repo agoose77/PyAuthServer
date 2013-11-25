@@ -12,6 +12,8 @@ from matchmaker import BoundMatchmaker
 from replicables import *
 from random import randint
 
+from stats_ui import BGESystem
+
 
 class TeamDeathMatch(ReplicationRules):
 
@@ -76,10 +78,6 @@ class TeamDeathMatch(ReplicationRules):
 
         pawn.position = Vector((4, 4, 2))
 
-    def stop_countdown(self):
-        self.reset_countdown()
-        self.countdown_running = False
-
     def is_relevant(self, player_controller, replicable):
         # We never allow PlayerController classes
         if isinstance(replicable, Controller):
@@ -136,19 +134,14 @@ class TeamDeathMatch(ReplicationRules):
         self.info = GameReplicationInfo(register=True)
         self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/"\
                                      "networking/matchmaker")
-
-        self.matchmaker_updater = Timer(initial_value=10,
+        self.matchmaker_timer = Timer(initial_value=10,
                                             count_down=True,
                                             on_target=self.update_matchmaker,
                                             repeat=True)
-
         self.black_list = []
 
         self.matchmaker.register("Demo Server", "Test Map",
                                         self.player_limit, 0)
-
-        for i in range(6):
-            self.create_new_ai(self.ai_controller_class())
 
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
@@ -184,6 +177,10 @@ class TeamDeathMatch(ReplicationRules):
     def start_match(self):
         self.info.match_started = True
 
+    def stop_countdown(self):
+        self.reset_countdown()
+        self.countdown_running = False
+
     @UpdateSignal.global_listener
     def update(self, delta_time):
         info = self.info
@@ -199,8 +196,6 @@ class TeamDeathMatch(ReplicationRules):
         elif self.allow_countdown and not info.match_started:
             self.start_countdown()
 
-        self.matchmaker.update()
-
     def update_matchmaker(self):
         self.matchmaker.poll("Test Map", self.player_limit,
                                     self.players)
@@ -210,5 +205,6 @@ class Server(ServerGameLoop):
 
     def create_network(self):
         network = super().create_network()
+
         WorldInfo.rules = TeamDeathMatch(register=True)
         return network

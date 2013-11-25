@@ -1,7 +1,7 @@
 from bge_network import ClientGameLoop, Camera, WorldInfo
 
 from replicables import *
-from ui import BGESystem
+from client_ui import BGESystem
 
 
 class Client(ClientGameLoop):

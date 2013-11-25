@@ -43,6 +43,7 @@ class BehaviourTree:
 
     def reset(self):
         self.root.reset(self.blackboard)
+        self._last_visited.clear()
         self.blackboard = self.new_blackboard()
 
     def reset_visited(self, visited):
@@ -54,8 +55,10 @@ class BehaviourTree:
                 self._last_visited.remove(node)
 
         for node in self._last_visited:
+            #print("Node not visited", node)
             node.reset(self.blackboard)
 
+        self._last_visited = visited.copy()
         visited.clear()
 
 

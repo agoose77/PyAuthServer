@@ -155,4 +155,10 @@ class ServerChannel(Channel):
         # Outputting bytes asserts we have data
         if to_serialise:
             # Returns packed data
-            return self.serialiser.pack(to_serialise)
+            data = self.serialiser.pack(to_serialise)
+
+        else:
+            data = None
+
+        replicable.roles.context = None
+        return data

@@ -21,7 +21,8 @@ class Replicable(metaclass=ReplicableRegister):
                       Roles(
                             Roles.authority,
                             Roles.none
-                            )
+                            ),
+                      notify=True,
                       )
 
     always_relevant = False

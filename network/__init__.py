@@ -15,6 +15,7 @@ from .instance_register import *
 from .native_handlers import *
 from .network import *
 from .packet import *
+from .profiler import *
 from .replicable_register import *
 from .replicables import *
 from .replication_rules import *

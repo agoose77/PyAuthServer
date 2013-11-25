@@ -4,7 +4,7 @@ from functools import partial
 
 from threads import QueuedThread
 from queue import Empty as EmptyQueue
-from bge_network import GameExitSignal, SignalListener
+from bge_network import GameExitSignal, SignalListener, UpdateSignal
 
 
 class URLThread(QueuedThread):
@@ -75,7 +75,6 @@ class Matchmaker(SignalListener):
         return data
 
     def update(self):
-
         while True:
             try:
                 (callback, response) = self.thread.out_queue.get_nowait()
@@ -109,3 +108,7 @@ class BoundMatchmaker(Matchmaker):
 
     def unregister(self):
         self.perform_query(data=self.unregister_query(self._id))
+
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        super().update()

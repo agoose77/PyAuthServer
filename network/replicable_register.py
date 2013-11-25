@@ -16,6 +16,8 @@ class ReplicableRegister(InstanceRegister):
         if bases:
             # Get all the member methods
             for name, value in attrs.items():
+                if meta.found_in_parents(name, bases):
+                    continue
 
                 # Wrap them with permission
                 if not isinstance(value, (FunctionType, classmethod,

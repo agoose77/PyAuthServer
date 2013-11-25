@@ -1,5 +1,3 @@
-from math import ceil
-
 from .serialiser import (handler_from_byte_length, handler_from_bit_length,
                          bits2bytes)
 from .handler_interfaces import register_handler, get_handler
@@ -14,6 +12,10 @@ class Bitfield:
         field = Bitfield(size)
         field[:size] = iterable
         return field
+
+    @classmethod
+    def of_length(cls, size):
+        return cls(size)
 
     def __init__(self, size, value=0):
         self._size = size
@@ -73,6 +75,10 @@ class Bitfield:
 
     def clear(self):
         self._value = 0
+
+    def resize(self, size):
+        self._size = size
+        self.footprint = bits2bytes(self._size)
 
 
 class BitfieldInt:

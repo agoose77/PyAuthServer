@@ -90,6 +90,9 @@ class PhysicsSystem(SignalListener):
 
         self.register_signals()
 
+    def on_conversion_error(self, lookup, err):
+        print("Unable to convert {}: {}".format(lookup, err))
+
     def get_actor(self, lookup, name, type_of):
         if not name in lookup:
             return
@@ -98,18 +101,22 @@ class PhysicsSystem(SignalListener):
 
         try:
             name_cls = Replicable.from_type_name(lookup[name])
-            if not issubclass(name_cls, type_of):
-                return
+            assert issubclass(name_cls, type_of), ("Failed to find parent" \
+                       " class type {} in requested instance".format(type_of))
             return name_cls(instance_id=instance_id)
 
-        except LookupError:
-            return
+        except (AssertionError, LookupError) as e:
+            self.on_conversion_error(lookup, e)
 
     def setup_map_controller(self, pawn, obj):
         controller = self.get_actor(obj, "controller", Controller)
         camera = self.get_actor(obj, "camera", Camera)
 
-        if controller is None or camera is None:
+        try:
+            assert not None in (camera, controller), "Failed to find both camera and controller"
+
+        except AssertionError as e:
+            self.on_conversion_error(obj, e)
             return
 
         controller.possess(pawn)

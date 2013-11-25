@@ -132,6 +132,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
             self.last_time = start_time
 
+
         GameExitSignal.invoke()
 
     def main(self):
