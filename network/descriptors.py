@@ -17,7 +17,7 @@ class StaticValue:
 
 
 class Attribute(StaticValue):
-    __slots__ = "notify", "complain", "name", "_data", "_value"
+    __slots__ = "notify", "complain", "name", "_instances", "_value"
 
     def __init__(self, value=None, type_of=None,
                  notify=False, complain=False, **kwargs):
@@ -29,20 +29,20 @@ class Attribute(StaticValue):
 
         self.name = None
 
-        self._data = {}
+        self._instances = {}
         self._value = value
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
         try:
-            storage_interface = self._data[instance]
+            storage_interface = self._instances[instance]
             return storage_interface.value
 
         except AttributeError:
             return self
 
     def __set__(self, instance, value):
-        storage_interface = self._data[instance]
+        storage_interface = self._instances[instance]
 
         # Get the last value
         last_value = storage_interface.value
@@ -75,7 +75,7 @@ class Attribute(StaticValue):
     def register(self, instance, storage_interface):
         '''Registers attribute for instance
         Stores name of attribute through search'''
-        self._data[instance] = storage_interface
+        self._instances[instance] = storage_interface
         storage_interface.value = self.value
 
     __repr__ = __str__

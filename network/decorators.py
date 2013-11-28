@@ -1,4 +1,7 @@
+from .rpc import RPCInterface
+
 from functools import wraps
+from inspect import signature
 
 
 def reliable(func):
@@ -11,6 +14,13 @@ def simulated(func):
     return func
 
 
+def supply_data(**args):
+    def wrapper(func):
+        func.__annotations__['class_data'] = args
+        return func
+    return wrapper
+
+
 def signal_listener(signal_type, global_listener):
     def wrapper(func):
         func.__annotations__['signal'] = signal_type
@@ -19,7 +29,32 @@ def signal_listener(signal_type, global_listener):
     return wrapper
 
 
-class run_on:
+class SupplyData:
+
+    def __init__(self, **keys):
+        self._keys = keys
+
+    def __call__(self, function):
+        keys = self._keys
+
+        function_signature = signature(function)
+        function_arguments = RPCInterface.order_arguments(function_signature)
+        requested_arguments = {name: function_arguments[name] for name in keys}
+
+        @wraps(function)
+        def wrapper(instance, *args, **kwargs):
+            get_func = instance.__getattribute__
+
+            for name, argument in requested_arguments.items():
+                data = argument.data
+                for key in keys[name]:
+                    data[key] = get_func(key)
+
+            return function(instance, *args, **kwargs)
+        return wrapper
+
+
+class RequireNetmode:
     '''Runs method in netmode specific scope only'''
 
     def __init__(self, netmode):

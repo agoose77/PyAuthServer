@@ -39,8 +39,12 @@ class QueuedThread(threading.Thread):
 
             except queue.Empty:
                 continue
+            try:
+                self.handle_task(item, self.out_queue)
 
-            self.handle_task(item, self.out_queue)
+            except Exception as err:
+                print(err)
+                break
 
     def join(self, timeout=None):
         self._event.set()

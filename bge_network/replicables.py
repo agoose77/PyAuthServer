@@ -22,10 +22,10 @@ from collections import namedtuple, OrderedDict
 from math import pi, radians
 from mathutils import Euler, Vector, Matrix
 from network import (Replicable, Attribute, Roles, WorldInfo,
-                     simulated, Netmodes, StaticValue, run_on,
+                     simulated, Netmodes, StaticValue, RequireNetmode,
                      TypeRegister, ReplicableUnregisteredSignal,
                      UpdateSignal, ConnectionInterface, ConnectionStatus,
-                     profile)
+                     profile, supply_data)
 from os import path
 from operator import gt as more_than
 from functools import lru_cache
@@ -51,16 +51,6 @@ class Controller(Replicable):
             yield "weapon"
             yield "info"
 
-    def hear_sound(self, path, location):
-        pass
-
-    def on_initialised(self):
-        self.camera_setup = False
-        self.camera_mode = CameraMode.third_person
-        self.camera_offset = 2.0
-
-        super().on_initialised()
-
     def on_unregistered(self):
         if self.pawn:
             self.pawn.request_unregistration()
@@ -81,25 +71,14 @@ class Controller(Replicable):
         self.camera.unpossessed()
 
     def set_camera(self, camera):
-        self.camera = camera
-        self.camera.possessed_by(self)
-
         camera.set_parent(self.pawn, "camera")
 
-        self.setup_camera_perspective(camera)
+        self.camera = camera
+        self.camera.possessed_by(self)
 
     def set_weapon(self, weapon):
         self.weapon = weapon
         self.weapon.possessed_by(self)
-
-    def setup_camera_perspective(self, camera):
-        if self.camera_mode == CameraMode.first_person:
-            camera.local_position = Vector()
-
-        else:
-            camera.local_position = Vector((0, -self.camera_offset, 0))
-
-        camera.local_rotation = Euler((pi / 2, 0, 0))
 
     def setup_weapon(self, weapon):
         self.set_weapon(weapon)
@@ -261,7 +240,13 @@ class PlayerController(Controller):
                                move.mouse_x, move.mouse_y)
 
     def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
-        self.handle_inputs(inputs, mouse_diff_x, mouse_diff_y, delta_time)
+        blackboard = self.behaviour.blackboard
+
+        blackboard['inputs'] = inputs
+        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
+
+        self.behaviour.update(delta_time)
+
         PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
 
     def get_corrected_state(self, position, rotation):
@@ -315,6 +300,9 @@ class PlayerController(Controller):
         self.mouse_setup = False
         self.camera_setup = False
 
+        self.behaviour = BehaviourTree(self)
+        self.behaviour.blackboard['controller'] = self
+
     @simulated
     def on_notify(self, name):
         if name == "pawn":
@@ -339,31 +327,20 @@ class PlayerController(Controller):
 
         if not (self.pawn and self.camera):
             return
-        self.normal_update(delta_time)
 
-    def debug_update(self, delta_time):
-        if self.inputs.shoot:
-            self.increment_move()
-
-            mouse_diff_x, mouse_diff_y = self.mouse_delta
-
-            self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
-
-            self.save_move(self.current_move_id, delta_time,
-                           self.inputs.to_tuple(), mouse_diff_x,
-                           mouse_diff_y)
-
-        elif self.inputs.run:
-            move_id = min(self.previous_moves)
-            self.correct_bad_move(move_id, self.previous_moves[move_id])
-
-    def normal_update(self, delta_time):
         self.increment_move()
 
+        # Control Mouse data
+        near_zero = 0.001
         mouse_diff_x, mouse_diff_y = self.mouse_delta
 
-        if self.inputs.shoot:
-            self.start_fire()
+        if abs(mouse_diff_x) < near_zero:
+            mouse_diff_x = near_zero / 1000
+        if abs(mouse_diff_y) < near_zero:
+            mouse_diff_y = near_zero / 1000
+
+#         if self.inputs.shoot:
+#             self.start_fire()
 
         self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
 
@@ -400,18 +377,17 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @run_on(Netmodes.client)
+    @RequireNetmode(Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
 
         self.inputs = InputManager(keybindings)
         print("Created input manager")
 
+    @supply_data(inputs=["input_fields"])
     def server_validate(self, move_id: StaticValue(int, max_value=1024),
                                 last_correction: StaticValue(int, max_value=1024),
-                                inputs: StaticValue(InputManager,
-                                            class_data={"fields":
-                                                        "input_fields"}),
+                                inputs: StaticValue(InputManager),
                                 mouse_diff_x: StaticValue(float),
                                 mouse_diff_y: StaticValue(float),
                                 delta_time: StaticValue(float),
@@ -420,7 +396,7 @@ class PlayerController(Controller):
                             ) -> Netmodes.server:
 
         if not (self.pawn and self.camera):
-            return
+            return 
 
         self.current_move_id = move_id
 
@@ -708,7 +684,7 @@ class Weapon(Replicable):
 
         self.last_fired_time = WorldInfo.elapsed
 
-    @run_on(Netmodes.server)
+    @RequireNetmode(Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
@@ -813,6 +789,17 @@ class Camera(Actor):
     def fov(self, value):
         self.object.fov = value
 
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.mode = CameraMode.third_person
+        self.offset = 2.0
+
+    def possessed_by(self, parent):
+        super().possessed_by(parent)
+
+        self.setup_camera_perspective()
+
     def draw(self):
         orientation = self.rotation.to_matrix() * Matrix.Rotation(-radians(90),
                                                                   3, "X")
@@ -848,6 +835,15 @@ class Camera(Actor):
         if old_camera:
             scene.active_camera = old_camera
 
+    def setup_camera_perspective(self):
+        if self.mode == CameraMode.first_person:
+            self.local_position = Vector()
+
+        else:
+            self.local_position = Vector((0, -self.offset, 0))
+
+        self.local_rotation = Euler((pi / 2, 0, 0))
+
     def sees_actor(self, actor):
         if not isinstance(actor, Actor):
             return False
@@ -875,8 +871,6 @@ class Camera(Actor):
 class Pawn(Actor):
 
     view_pitch = Attribute(0.0)
-    animation = Attribute(type_of=AnimationState,
-                          notify=True)
     flash_count = Attribute(0, notify=True)
     weapon_attachment_class = Attribute(type_of=TypeRegister,
                                         notify=True,
@@ -993,8 +987,9 @@ class Pawn(Actor):
             self.use_flashcount()
 
         if self.weapon_attachment:
-            self.weapon_attachment.local_rotation = Euler((self.view_pitch, 0,
-                                                           0))
+            self.weapon_attachment.local_rotation = Euler(
+                                                          (self.view_pitch, 0, 0)
+                                                          )
         self.update_health()
         self.animations.update(delta_time)
 

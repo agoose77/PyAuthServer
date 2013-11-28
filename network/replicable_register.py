@@ -32,7 +32,7 @@ class ReplicableRegister(InstanceRegister):
                     print("Found pre-wrapped RPC call: {}, "\
                           "re-wrapping...(any data defined in "\
                           "__init__ will be lost)".format(name))
-                    value = value._func
+                    value = value._function
 
                 value = meta.permission_wrapper(value)
 

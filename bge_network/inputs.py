@@ -73,17 +73,22 @@ class InputPacker:
     handler = get_handler(StaticValue(Bitfield))
 
     def __init__(self, static_value):
-        self.fields = static_value.data['fields']
+        self._fields = static_value.data['input_fields']
 
     def pack(self, input_):
+        fields = self._fields
         values = Bitfield.from_iterable([getattr(input_, name)
-                                         for name in self.fields])
+                                         for name in fields])
         return self.handler.pack(values)
 
     def unpack(self, bytes_):
-        values = Bitfield(len(self.fields))
+        fields = self._fields
+
+        values = Bitfield(len(fields))
         self.handler.unpack_merge(values, bytes_)
-        data = dict(zip(self.fields, values))
+
+        data = dict(zip(fields, values))
+
         return InputManager(data, status_lookup=data.__getitem__)
 
     unpack_from = unpack

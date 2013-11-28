@@ -1,22 +1,22 @@
 from .argument_serialiser import ArgumentSerialiser
 from .descriptors import StaticValue
-from .conditions import is_simulated
+from .conditions import is_simulated, has_supplied_data
 
 from collections import OrderedDict
 from copy import deepcopy
+from functools import update_wrapper
 from inspect import signature
 
 
 class RPC:
     '''Manages instances of an RPC function for each object'''
 
-    def __init__(self, func):
-        self.__annotations__ = func.__annotations__
+    def __init__(self, function):
+        # Information about RPC
+        update_wrapper(self, function)
 
-        self._func = func
-        self._simulated = is_simulated(self)
+        self._function = function
         self._by_instance = {}
-        self._replacements = {}
 
     def __get__(self, instance, base):
         if instance is None:
@@ -25,34 +25,29 @@ class RPC:
         try:
             return self._by_instance[instance]
         except KeyError:
-            pass
+            return None
 
     def create_rpc_interface(self, instance):
-        bound_function = self._func.__get__(instance)
-        self.update_class_arguments(bound_function, instance)
+        bound_function = self._function.__get__(instance)
+
+        if has_supplied_data(bound_function):
+            self.update_class_arguments(bound_function, instance)
+
         self._by_instance[instance] = RPCInterface(bound_function)
+
         return self._by_instance[instance]
 
-    def update_class_arguments(self, func, instance):
-        annotations = func.__annotations__
+    def update_class_arguments(self, function, instance):
+        function_signature = signature(function)
+        function_keys = function.__annotations__['class_data']
+        function_arguments = RPCInterface.order_arguments(function_signature)
+        requested_arguments = {name: function_arguments[name]
+                               for name in function_keys}
 
-        instance_cls = instance.__class__
-
-        for name, static_value in annotations.items():
-            if not isinstance(static_value, StaticValue):
-                continue
-
-            replace = static_value.data.get("class_data", {})
-            replace_data = self._replacements.get(name, {})
-
-            for key, attr_name in replace.items():
-                try:
-                    value = replace_data[key]
-                except KeyError:
-                    value = getattr(instance_cls, attr_name)
-                    replace_data[key] = value
-
-                static_value.data[key] = value
+        for name, argument in requested_arguments.items():
+            data = argument.data
+            for key in function_keys[name]:
+                data[key] = getattr(instance, key)
 
 
 class RPCInterface:
@@ -61,12 +56,12 @@ class RPCInterface:
     def __init__(self, function):
 
         # Used to isolate rpc_for_instance for each function for each instance
-        self._function = function
+        self._function_name = function.__qualname__
         self._function_signature = signature(function)
+        self._function_call = function.__call__
 
         # Information about RPC
-        self.name = function.__qualname__
-        self.__annotations__ = function.__annotations__
+        update_wrapper(self, function)
 
         # Get the function signature
         self.target = self._function_signature.return_annotation
@@ -82,12 +77,11 @@ class RPCInterface:
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
         if self.target == self._system_netmode:
-            return self._function.__call__(*args, **kwargs)
+            return self._function_call(*args, **kwargs)
 
+        # Store serialised argument data for later sending
         arguments = self._binder(*args, **kwargs).arguments
-        packed_arguments = self._serialiser.pack(arguments)
-
-        self._interface.setter(packed_arguments)
+        self._interface.setter(self._serialiser.pack(arguments))
 
     def execute(self, bytes_):
         # Unpack RPC
@@ -95,21 +89,25 @@ class RPCInterface:
             unpacked_data = self._serialiser.unpack(bytes_)
 
         except Exception as err:
-            print("Error unpacking {}: {}".format(self.name, err))
+            print("Error unpacking {}: {}".format(
+                                          self._function_name, err))
 
         # Execute function
         try:
-            self._function.__call__(**dict(unpacked_data))
+            self._function_call(**dict(unpacked_data))
 
         except Exception as err:
-            print("Error invoking {}: {}".format(self.name, err))
+            print("Error invoking {}: {}".format(
+                                         self._function_name, err))
             raise
 
-    def order_arguments(self, sig):
+    @staticmethod
+    def order_arguments(signature):
         return OrderedDict((value.name, value.annotation)
-                           for value in sig.parameters.values()
+                           for value in signature.parameters.values()
                            if isinstance(value.annotation, StaticValue))
 
     def register(self, interface, rpc_id):
         self.rpc_id = rpc_id
+
         self._interface = interface
