@@ -1,46 +1,43 @@
-from bge_network import (WorldInfo, Netmodes, PlayerController, Controller, ReplicableInfo,
-                         Actor, Pawn, Camera, AuthError, ServerGameLoop, AIController,
-                         PlayerReplicationInfo, ReplicationRules, ConnectionStatus,
-                         ConnectionInterface, BlacklistError, EmptyWeapon,
-                         UpdateSignal, ActorDamagedSignal, ActorKilledSignal, Timer)
-from functools import partial
-from operator import gt as more_than
-from weakref import proxy as weak_proxy
+import bge_network
+import functools
+import operator
+import weakref
 
-from signals import ConsoleMessage
-from matchmaker import BoundMatchmaker
+import signals
+import matchmaker
+import random
+
+import stats_ui
+
 from replicables import *
-from random import randint
-
-from stats_ui import BGESystem
 
 
-class TeamDeathMatch(ReplicationRules):
+class TeamDeathMatch(bge_network.ReplicationRules):
 
     countdown_running = False
     countdown_start = 0
     minimum_players_for_countdown = 0
     player_limit = 4
 
-    ai_camera_class = Camera
+    ai_camera_class = bge_network.Camera
     ai_controller_class = EnemyController
     ai_pawn_class = Zombie
-    ai_replication_info_class = PlayerReplicationInfo
+    ai_replication_info_class = bge_network.PlayerReplicationInfo
     ai_weapon_class = ZombieWeapon
 
-    player_camera_class = Camera
+    player_camera_class = bge_network.Camera
     player_controller_class = LegendController
     player_pawn_class = RobertNeville
-    player_replication_info_class = PlayerReplicationInfo
+    player_replication_info_class = bge_network.PlayerReplicationInfo
     player_weapon_class = M4A1Weapon
 
     relevant_radius_squared = 9 ** 2
 
     @property
     def players(self):
-        return ConnectionInterface.by_status(
-                 ConnectionStatus.disconnected,
-                 more_than)
+        return bge_network.ConnectionInterface.by_status(
+                 bge_network.ConnectionStatus.disconnected,
+                 operator.gt)
 
     @property
     def allow_countdown(self):
@@ -53,7 +50,7 @@ class TeamDeathMatch(ReplicationRules):
         if not self.allows_broadcast(sender, message):
             return
 
-        for replicable in WorldInfo.subclass_of(PlayerController):
+        for replicable in bge_network.WorldInfo.subclass_of(bge_network.PlayerController):
             replicable.receive_broadcast(message)
 
     def create_new_ai(self, controller):
@@ -65,7 +62,7 @@ class TeamDeathMatch(ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((randint(-10, 10), randint(-10, 10), 3))
+        pawn.position = Vector((random.randint(-10, 10), random.randint(-10, 10), 3))
 
     def create_new_player(self, controller):
         pawn = self.player_pawn_class()
@@ -79,15 +76,15 @@ class TeamDeathMatch(ReplicationRules):
         pawn.position = Vector((4, 4, 2))
 
     def is_relevant(self, player_controller, replicable):
-        # We never allow PlayerController classes
-        if isinstance(replicable, Controller):
+        # We never allow bge_network.PlayerController classes
+        if isinstance(replicable, bge_network.Controller):
             return False
 
         if replicable.always_relevant:
             return True
 
         # Check by distance, then frustum checks
-        if isinstance(replicable, Actor) and (replicable.visible or \
+        if isinstance(replicable, bge_network.Actor) and (replicable.visible or \
                                               replicable.always_relevant):
             player_pawn = player_controller.pawn
 
@@ -107,7 +104,7 @@ class TeamDeathMatch(ReplicationRules):
         if isinstance(replicable, WeaponAttachment):
             return True
 
-    @ActorKilledSignal.global_listener
+    @bge_network.ActorKilledSignal.global_listener
     def killed(self, attacker, target):
         message = "{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn)
@@ -132,9 +129,10 @@ class TeamDeathMatch(ReplicationRules):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
-        self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/"\
-                                     "networking/matchmaker")
-        self.matchmaker_timer = Timer(initial_value=10,
+        self.matchmaker = matchmaker.BoundMatchmaker(
+                         "http://www.coldcinder.co.uk/networking/matchmaker"
+                         )
+        self.matchmaker_timer = bge_network.Timer(initial_value=10,
                                             count_down=True,
                                             on_target=self.update_matchmaker,
                                             repeat=True)
@@ -156,16 +154,16 @@ class TeamDeathMatch(ReplicationRules):
         return controller
 
     def pre_initialise(self, address_tuple, netmode):
-        if netmode == Netmodes.server:
-            raise AuthError("Peer was not a client")
+        if netmode == bge_network.Netmodes.server:
+            raise bge_network.AuthError("Peer was not a client")
 
         if self.players >= self.player_limit:
-            raise AuthError("Player limit reached")
+            raise bge_network.AuthError("Player limit reached")
 
         ip_address, port = address_tuple
 
         if ip_address in self.black_list:
-            raise BlacklistError()
+            raise bge_network.BlacklistError()
 
     def reset_countdown(self):
         self.info.time_to_start = float(self.countdown_start)
@@ -181,7 +179,7 @@ class TeamDeathMatch(ReplicationRules):
         self.reset_countdown()
         self.countdown_running = False
 
-    @UpdateSignal.global_listener
+    @bge_network.UpdateSignal.global_listener
     def update(self, delta_time):
         info = self.info
 
@@ -201,10 +199,10 @@ class TeamDeathMatch(ReplicationRules):
                                     self.players)
 
 
-class Server(ServerGameLoop):
+class Server(bge_network.ServerGameLoop):
 
     def create_network(self):
         network = super().create_network()
 
-        WorldInfo.rules = TeamDeathMatch(register=True)
+        bge_network.WorldInfo.rules = TeamDeathMatch(register=True)
         return network

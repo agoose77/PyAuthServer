@@ -1,21 +1,22 @@
-from bge_network import (PlayerController, ReplicableInfo,
-                         Attribute, Roles, Pawn,
-                         Weapon, WeaponAttachment, CameraMode,
-                         MovementState, Netmodes, StaticValue,
-                         WorldInfo, AIController, simulated, UpdateSignal)
-from mathutils import Vector, Euler
-from math import radians, cos, sin
-from signals import ConsoleMessage
+import bge_network
+import mathutils
+import math
+import signals
 
 from behaviours import *
-from controls import camera_control, inputs_control
+import controls
 
 
-class GameReplicationInfo(ReplicableInfo):
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
+class GameReplicationInfo(bge_network.ReplicableInfo):
+    roles = bge_network.Attribute(
+                                  bge_network.Roles(
+                                                    bge_network.Roles.authority,
+                                                    bge_network.Roles.simulated_proxy
+                                                    )
+                                  )
 
-    time_to_start = Attribute(0.0)
-    match_started = Attribute(False)
+    time_to_start = bge_network.Attribute(0.0)
+    match_started = bge_network.Attribute(False)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -24,7 +25,7 @@ class GameReplicationInfo(ReplicableInfo):
         yield "time_to_start"
 
 
-class EnemyController(AIController):
+class EnemyController(bge_network.AIController):
 
     def on_initialised(self):
         super().on_initialised()
@@ -39,27 +40,27 @@ class EnemyController(AIController):
         self.behaviour.root.add_child(behaviour)
 
 
-class LegendController(PlayerController):
+class LegendController(bge_network.PlayerController):
 
     input_fields = "forward", "backwards", "left", "right", "shoot", "run"
 
     def receive_broadcast(self, message_string:
-                          StaticValue(str)) ->  Netmodes.client:
-        ConsoleMessage.invoke(message_string)
+                          bge_network.StaticValue(str)) ->  bge_network.Netmodes.client:
+        signals.ConsoleMessage.invoke(message_string)
 
     def on_initialised(self):
         super().on_initialised()
 
         behaviour = SequenceNode(
-                                 camera_control(),
-                                 inputs_control()
+                                 controls.camera_control(),
+                                 controls.inputs_control()
                                  )
 
         behaviour.should_restart = True
         self.behaviour.root.add_child(behaviour)
 
 
-class RobertNeville(Pawn):
+class RobertNeville(bge_network.Pawn):
     entity_name = "Suzanne_Physics"
 
     def on_initialised(self):
@@ -69,7 +70,7 @@ class RobertNeville(Pawn):
         self.run_speed = 6
 
 
-class Zombie(Pawn):
+class Zombie(bge_network.Pawn):
 
     entity_name = "ZombieCollision"
 
@@ -90,7 +91,7 @@ class Zombie(Pawn):
         self.run_speed = 6
 
 
-class M4A1Weapon(Weapon):
+class M4A1Weapon(bge_network.Weapon):
 
     def on_initialised(self):
         super().on_initialised()
@@ -101,7 +102,7 @@ class M4A1Weapon(Weapon):
         self.shoot_interval = 1
 
 
-class ZombieWeapon(Weapon):
+class ZombieWeapon(bge_network.Weapon):
 
     def on_initialised(self):
         super().on_initialised()
@@ -118,6 +119,6 @@ class ZombieWeapon(Weapon):
         pass
 
 
-class M4A1Attachment(WeaponAttachment):
+class M4A1Attachment(bge_network.WeaponAttachment):
 
     entity_name = "M4"

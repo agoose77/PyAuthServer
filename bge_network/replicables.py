@@ -1,46 +1,36 @@
-from .bge_data import (GameObject, CameraObject,
-                       NavmeshObject)
-from .structs import (RigidBodyState, AnimationState)
-from .behaviour_tree import BehaviourTree
-from .configuration import load_configuration
-from .enums import (PhysicsType, ShotType, CameraMode, AIState,
-                    Axis, AnimationMode, AnimationBlend)
-from .signals import (CollisionSignal, PlayerInputSignal,
-                    PhysicsReplicatedSignal, PhysicsSingleUpdateSignal,
-                    PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
-                    ActorDamagedSignal, ActorKilledSignal, SetMoveTarget)
-from .inputs import InputManager
-from .utilities import falloff_fraction, progress_string
-from .timer import ManualTimer
-from .draw_tools import (draw_arrow, draw_circle,
-                         draw_box, draw_square_pyramid)
+from . import bge_data
+from . import structs
+from . import behaviour_tree
+from . import configuration
+from . import enums
+from . import signals
+from . import inputs
+from . import utilities
+from . import timer
+from . import draw_tools
 
-from aud import Factory, device as AudioDevice
-from bge import logic, types
-from collections import namedtuple, OrderedDict
+import aud
+import bge
+import collections
 
-from math import pi, radians
-from mathutils import Euler, Vector, Matrix
-from network import (Replicable, Attribute, Roles, WorldInfo,
-                     simulated, Netmodes, StaticValue, RequireNetmode,
-                     TypeRegister, ReplicableUnregisteredSignal,
-                     UpdateSignal, ConnectionInterface, ConnectionStatus,
-                     profile, supply_data)
-from os import path
-from operator import gt as more_than
-from functools import lru_cache
+import math
+import mathutils
+import network
+import os
+import operator
+import functools
 
-SavedMove = namedtuple("Move", ("position", "rotation", "velocity", "angular",
+SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity", "angular",
                                 "delta_time", "inputs", "mouse_x", "mouse_y"))
 
 
-class Controller(Replicable):
+class Controller(network.Replicable):
 
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
-    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
-    camera = Attribute(type_of=Replicable, complain=True, notify=True)
-    weapon = Attribute(type_of=Replicable, complain=True, notify=True)
-    info = Attribute(type_of=Replicable)
+    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.autonomous_proxy))
+    pawn = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
+    camera = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
+    weapon = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
+    info = network.Attribute(type_of=network.Replicable)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -84,13 +74,13 @@ class Controller(Replicable):
         self.set_weapon(weapon)
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
-    def start_server_fire(self) -> Netmodes.server:
-
+    def start_server_fire(self) -> network.Netmodes.server:
         if not self.weapon.can_fire:
             return
+
         self.weapon.fire(self.camera)
 
-        for controller in WorldInfo.subclass_of(Controller):
+        for controller in network.WorldInfo.subclass_of(Controller):
             if controller == self:
                 continue
 
@@ -102,7 +92,7 @@ class Controller(Replicable):
         self.pawn = None
 
 
-class ReplicableInfo(Replicable):
+class ReplicableInfo(network.Replicable):
 
     def on_initialised(self):
         super().on_initialised()
@@ -112,7 +102,7 @@ class ReplicableInfo(Replicable):
 
 class PlayerReplicationInfo(ReplicableInfo):
 
-    name = Attribute("")
+    name = network.Attribute("")
 
 
 class AIController(Controller):
@@ -123,7 +113,7 @@ class AIController(Controller):
 
         sees = self.camera.sees_actor
 
-        for actor in WorldInfo.subclass_of(Pawn):
+        for actor in network.WorldInfo.subclass_of(Pawn):
 
             if ignore_self and actor == self.pawn:
                 continue
@@ -136,11 +126,11 @@ class AIController(Controller):
         self.behaviour.blackboard['controller'] = self
         super().unpossess()
 
-    def hear_sound(self, path, source):
+    def hear_sound(self, sound_path, source):
         if not (self.pawn and self.camera):
             return
 
-        probability = falloff_fraction(self.pawn.position,
+        probability = utilities.falloff_fraction(self.pawn.position,
                             self.hear_range,
                             source,
                             self.effective_hear)
@@ -151,19 +141,16 @@ class AIController(Controller):
         self.hear_range = 15
         self.effective_hear = 10
 
-        self.target_dir = None
         self.debug = False
         self.target = None
 
-        self.camera_mode = CameraMode.first_person
+        self.camera_mode = enums.CameraMode.first_person
 
-        self.behaviour = BehaviourTree(self)
+        self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @UpdateSignal.global_listener
+    @network.UpdateSignal.global_listener
     def update(self, delta_time):
-        if self.debug:
-            self.behaviour.debug()
         self.behaviour.update(delta_time)
 
 
@@ -177,7 +164,7 @@ class PlayerController(Controller):
     @property
     def mouse_delta(self):
         '''Returns the mouse movement since the last tick'''
-        mouse = logic.mouse
+        mouse = bge.logic.mouse
         # The first tick the mouse won't be centred
         mouse_position = mouse.position
         screen_center = mouse.screen_center
@@ -194,7 +181,7 @@ class PlayerController(Controller):
 
         return mouse_diff_x, mouse_diff_y
 
-    def acknowledge_good_move(self, move_id: StaticValue(int, max_value=1024)) -> Netmodes.client:
+    def acknowledge_good_move(self, move_id: network.StaticValue(int, max_value=1024)) -> network.Netmodes.client:
         self.last_correction = move_id
 
         try:
@@ -211,8 +198,8 @@ class PlayerController(Controller):
 
         return True
 
-    def correct_bad_move(self, move_id: StaticValue(int, max_value=1024),
-                               correction: StaticValue(RigidBodyState)) -> Netmodes.client:
+    def correct_bad_move(self, move_id: network.StaticValue(int, max_value=1024),
+                               correction: network.StaticValue(structs.RigidBodyState)) -> network.Netmodes.client:
         if not self.acknowledge_good_move(move_id):
             print("No move found")
             return
@@ -247,7 +234,7 @@ class PlayerController(Controller):
 
         self.behaviour.update(delta_time)
 
-        PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
+        signals.PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
 
     def get_corrected_state(self, position, rotation):
         pos_difference = self.pawn.position - position
@@ -256,7 +243,7 @@ class PlayerController(Controller):
             return
 
         # Create correction if neccessary
-        correction = RigidBodyState()
+        correction = structs.RigidBodyState()
 
         correction.position = self.pawn.position
         correction.rotation = self.pawn.rotation
@@ -268,11 +255,11 @@ class PlayerController(Controller):
     def handle_inputs(self, inputs, mouse_x, mouse_y, delta_time):
         pass
 
-    def hear_sound(self, sound_path: StaticValue(str),
-                   source: StaticValue(Vector)) -> Netmodes.client:
+    def hear_sound(self, sound_path: network.StaticValue(str),
+                   source: network.StaticValue(mathutils.Vector)) -> network.Netmodes.client:
         return
-        full_path = logic.expandPath('//{}'.format(sound_path))
-        factory = Factory.file(full_path)
+        full_path = bge.logic.expandPath('//{}'.format(sound_path))
+        factory = aud.Factory.file(full_path)
         device = AudioDevice()
         # handle = device.play(factory)
 
@@ -282,7 +269,7 @@ class PlayerController(Controller):
             self.current_move_id = 0
 
     def load_keybindings(self):
-        bindings = load_configuration(self.config_filepath,
+        bindings = configuration.load_configuration(self.config_filepath,
                                       self.__class__.__name__,
                                       self.input_fields)
         print("Loaded {} keybindings".format(len(bindings)))
@@ -295,15 +282,15 @@ class PlayerController(Controller):
 
         self.current_move_id = 0
         self.last_correction = 0
-        self.previous_moves = OrderedDict()
+        self.previous_moves = collections.OrderedDict()
 
         self.mouse_setup = False
         self.camera_setup = False
 
-        self.behaviour = BehaviourTree(self)
+        self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @simulated
+    @network.simulated
     def on_notify(self, name):
         if name == "pawn":
             if self.pawn:
@@ -321,8 +308,8 @@ class PlayerController(Controller):
         else:
             super().on_notify(name)
 
-    @simulated
-    @PlayerInputSignal.global_listener
+    @network.simulated
+    @signals.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
 
         if not (self.pawn and self.camera):
@@ -357,11 +344,11 @@ class PlayerController(Controller):
     def possess(self, replicable):
         super().possess(replicable)
 
-        PhysicsUnsetSimulatedSignal.invoke(target=replicable)
+        signals.PhysicsUnsetSimulatedSignal.invoke(target=replicable)
 
         self.reset_corrections(replicable)
 
-    def receive_broadcast(self, message_string:StaticValue(str)) -> Netmodes.client:
+    def receive_broadcast(self, message_string:network.StaticValue(str)) -> network.Netmodes.client:
         print("BROADCAST: {}".format(message_string))
 
     def reset_corrections(self, replicable):
@@ -377,23 +364,23 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @RequireNetmode(Netmodes.client)
+    @network.RequireNetmode(network.Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
 
-        self.inputs = InputManager(keybindings)
+        self.inputs = inputs.InputManager(keybindings)
         print("Created input manager")
 
-    @supply_data(inputs=["input_fields"])
-    def server_validate(self, move_id: StaticValue(int, max_value=1024),
-                                last_correction: StaticValue(int, max_value=1024),
-                                inputs: StaticValue(InputManager),
-                                mouse_diff_x: StaticValue(float),
-                                mouse_diff_y: StaticValue(float),
-                                delta_time: StaticValue(float),
-                                position: StaticValue(Vector),
-                                rotation: StaticValue(Euler)
-                            ) -> Netmodes.server:
+    @network.supply_data(inputs=["input_fields"])
+    def server_validate(self, move_id: network.StaticValue(int, max_value=1024),
+                                last_correction: network.StaticValue(int, max_value=1024),
+                                inputs: network.StaticValue(inputs.InputManager),
+                                mouse_diff_x: network.StaticValue(float),
+                                mouse_diff_y: network.StaticValue(float),
+                                delta_time: network.StaticValue(float),
+                                position: network.StaticValue(mathutils.Vector),
+                                rotation: network.StaticValue(mathutils.Euler)
+                            ) -> network.Netmodes.server:
 
         if not (self.pawn and self.camera):
             return 
@@ -431,33 +418,33 @@ class PlayerController(Controller):
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
 
     def unpossess(self):
-        PhysicsSetSimulatedSignal.invoke(target=self.pawn)
+        signals.PhysicsSetSimulatedSignal.invoke(target=self.pawn)
         super().unpossess()
 
 
-class Actor(Replicable):
+class Actor(network.Replicable):
 
-    rigid_body_state = Attribute(RigidBodyState(), notify=True)
-    roles = Attribute(
-                          Roles(
-                                Roles.authority,
-                                Roles.autonomous_proxy
+    rigid_body_state = network.Attribute(structs.RigidBodyState(), notify=True)
+    roles = network.Attribute(
+                          network.Roles(
+                                network.Roles.authority,
+                                network.Roles.autonomous_proxy
                                 ),
                       notify=True
                           )
 
     entity_name = ""
-    entity_class = GameObject
+    entity_class = bge_data.GameObject
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
         remote_role = self.roles.remote
 
-        # If simulated, send rigid body state
-        if (remote_role == Roles.simulated_proxy) or \
-            (remote_role == Roles.dumb_proxy) or \
-            (self.roles.remote == Roles.autonomous_proxy and not is_owner):
+        # If network.simulated, send rigid body state
+        if (remote_role == network.Roles.simulated_proxy) or \
+            (remote_role == network.Roles.dumb_proxy) or \
+            (self.roles.remote == network.Roles.autonomous_proxy and not is_owner):
             if self.update_simulated_physics or is_initial:
                 yield "rigid_body_state"
 
@@ -493,35 +480,35 @@ class Actor(Replicable):
 
     def on_notify(self, name):
         if name == "rigid_body_state":
-            PhysicsReplicatedSignal.invoke(self.rigid_body_state, target=self)
+            signals.PhysicsReplicatedSignal.invoke(self.rigid_body_state, target=self)
         else:
             super().on_notify(name)
 
-    @ActorDamagedSignal.listener
+    @signals.ActorDamagedSignal.listener
     def take_damage(self, damage, instigator, hit_position, momentum):
         self.health = int(max(self.health - damage, 0))
 
-    @simulated
+    @network.simulated
     def trace_ray(self, local_vector):
         target = self.transform * local_vector
 
         return self.object.rayCast(self.object, target)
 
-    @simulated
-    def align_to(self, vector, time=1, axis=Axis.y):
+    @network.simulated
+    def align_to(self, vector, time=1, axis=enums.Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
 
-    @simulated
+    @network.simulated
     def add_child(self, actor):
         self.children.add(actor)
         self.child_entities.add(actor.object)
 
-    @simulated
+    @network.simulated
     def remove_child(self, actor):
         self.children.remove(actor)
         self.child_entities.remove(actor.object)
 
-    @simulated
+    @network.simulated
     def set_parent(self, actor, socket_name=None):
         if socket_name is None:
             parent_obj = actor.object
@@ -537,16 +524,16 @@ class Actor(Replicable):
         self.parent = actor
         actor.add_child(self)
 
-    @simulated
+    @network.simulated
     def remove_parent(self):
         self.parent.remove_child(self)
         self.object.setParent(None)
 
-    @simulated
+    @network.simulated
     def restore_physics(self):
         self.object.restoreDynamics()
 
-    @simulated
+    @network.simulated
     def suspend_physics(self):
         self.object.suspendDynamics()
 
@@ -582,8 +569,8 @@ class Actor(Replicable):
 
     @property
     def has_dynamics(self):
-        return self.object.physicsType in (PhysicsType.rigid_body,
-                                           PhysicsType.dynamic)
+        return self.object.physicsType in (enums.PhysicsType.rigid_body,
+                                           enums.PhysicsType.dynamic)
 
     @property
     def transform(self):
@@ -628,7 +615,7 @@ class Actor(Replicable):
     @property
     def velocity(self):
         if not self.has_dynamics:
-            return Vector()
+            return mathutils.Vector()
 
         return self.object.localLinearVelocity
 
@@ -642,7 +629,7 @@ class Actor(Replicable):
     @property
     def angular(self):
         if not self.has_dynamics:
-            return Vector()
+            return mathutils.Vector()
 
         return self.object.localAngularVelocity
 
@@ -654,22 +641,22 @@ class Actor(Replicable):
         self.object.localAngularVelocity = vel
 
 
-class Weapon(Replicable):
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
-    ammo = Attribute(70)
+class Weapon(network.Replicable):
+    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.autonomous_proxy))
+    ammo = network.Attribute(70)
 
     @property
     def can_fire(self):
         return bool(self.ammo) and \
-            (WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
+            (network.WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
 
     @property
     def sound_folder(self):
-        return path.join(self.sound_path, self.__class__.__name__)
+        return os.path.join(self.sound_path, self.__class__.__name__)
 
     @property
     def shoot_sound(self):
-        return path.join(self.sound_folder, "shoot.wav")
+        return os.path.join(self.sound_folder, "shoot.wav")
 
     def consume_ammo(self):
         self.ammo -= 1
@@ -677,14 +664,14 @@ class Weapon(Replicable):
     def fire(self, camera):
         self.consume_ammo()
 
-        if self.shot_type == ShotType.instant:
+        if self.shot_type == enums.ShotType.instant:
             self.instant_shot(camera)
         else:
             self.projectile_shot()
 
-        self.last_fired_time = WorldInfo.elapsed
+        self.last_fired_time = network.WorldInfo.elapsed
 
-    @RequireNetmode(Netmodes.server)
+    @network.RequireNetmode(network.Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
@@ -692,7 +679,7 @@ class Weapon(Replicable):
         if not hit_object:
             return
 
-        for replicable in WorldInfo.subclass_of(Actor):
+        for replicable in network.WorldInfo.subclass_of(Actor):
             if replicable.object == hit_object:
                 break
         else:
@@ -703,7 +690,7 @@ class Weapon(Replicable):
 
         hit_vector = (hit_position - camera.position)
 
-        falloff = falloff_fraction(camera.position,
+        falloff = utilities.falloff_fraction(camera.position,
                                     self.maximum_range,
                                     hit_position, self.effective_range)
 
@@ -711,7 +698,7 @@ class Weapon(Replicable):
 
         momentum = self.momentum * hit_vector.normalized() * falloff
 
-        ActorDamagedSignal.invoke(damage, self.owner, hit_position,
+        signals.ActorDamagedSignal.invoke(damage, self.owner, hit_position,
                                  momentum, target=replicable)
 
     def on_initialised(self):
@@ -722,7 +709,7 @@ class Weapon(Replicable):
         self.last_fired_time = 0.0
         self.max_ammo = 50
 
-        self.shot_type = ShotType.instant
+        self.shot_type = enums.ShotType.instant
 
         self.momentum = 1
         self.maximum_range = 20
@@ -734,7 +721,7 @@ class Weapon(Replicable):
 
 class EmptyWeapon(Weapon):
 
-    ammo = Attribute(0)
+    ammo = network.Attribute(0)
 
     def on_initialised(self):
         super().on_initialised()
@@ -744,7 +731,7 @@ class EmptyWeapon(Weapon):
 
 class WeaponAttachment(Actor):
 
-    roles = Attribute(Roles(Roles.authority, Roles.none))
+    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.none))
 
     def on_initialised(self):
         super().on_initialised()
@@ -761,17 +748,17 @@ class EmptyAttatchment(WeaponAttachment):
 
 class Camera(Actor):
 
-    entity_class = CameraObject
+    entity_class = bge_data.CameraObject
     entity_name = "Camera"
 
     @property
     def active(self):
-        return self.object == logic.getCurrentScene().active_camera
+        return self.object == bge.logic.getCurrentScene().active_camera
 
     @active.setter
     def active(self, status):
         if status:
-            logic.getCurrentScene().active_camera = self.object
+            bge.logic.getCurrentScene().active_camera = self.object
 
     @property
     def lens(self):
@@ -792,7 +779,7 @@ class Camera(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-        self.mode = CameraMode.third_person
+        self.mode = enums.CameraMode.third_person
         self.offset = 2.0
 
     def possessed_by(self, parent):
@@ -801,28 +788,28 @@ class Camera(Actor):
         self.setup_camera_perspective()
 
     def draw(self):
-        orientation = self.rotation.to_matrix() * Matrix.Rotation(-radians(90),
+        orientation = self.rotation.to_matrix() * mathutils.Matrix.Rotation(-math.radians(90),
                                                                   3, "X")
 
         circle_size = 0.20
 
-        upwards_orientation = orientation * Matrix.Rotation(radians(90),
+        upwards_orientation = orientation * mathutils.Matrix.Rotation(math.radians(90),
                                                             3, "X")
-        upwards_vector = Vector(upwards_orientation.col[1])
+        upwards_vector = mathutils.Vector(upwards_orientation.col[1])
 
-        sideways_orientation = orientation * Matrix.Rotation(radians(-90),
+        sideways_orientation = orientation * mathutils.Matrix.Rotation(math.radians(-90),
                                                              3, "Z")
-        sideways_vector = (Vector(sideways_orientation.col[1]))
-        forwards_vector = Vector(orientation.col[1])
+        sideways_vector = (mathutils.Vector(sideways_orientation.col[1]))
+        forwards_vector = mathutils.Vector(orientation.col[1])
 
-        draw_arrow(self.position, orientation, colour=[0, 1, 0])
-        draw_arrow(self.position + upwards_vector * circle_size,
+        draw_tools.draw_arrow(self.position, orientation, colour=[0, 1, 0])
+        draw_tools.draw_arrow(self.position + upwards_vector * circle_size,
                    upwards_orientation, colour=[0, 0, 1])
-        draw_arrow(self.position + sideways_vector * circle_size,
+        draw_tools.draw_arrow(self.position + sideways_vector * circle_size,
                    sideways_orientation, colour=[1, 0, 0])
-        draw_circle(self.position, orientation, circle_size)
-        draw_box(self.position, orientation)
-        draw_square_pyramid(self.position + forwards_vector * 0.4, orientation,
+        draw_tools.draw_circle(self.position, orientation, circle_size)
+        draw_tools.draw_box(self.position, orientation)
+        draw_tools.draw_square_pyramid(self.position + forwards_vector * 0.4, orientation,
                             colour=[1, 1, 0], angle=self.fov, incline=False)
 
     def render_temporary(self, render_func):
@@ -836,13 +823,13 @@ class Camera(Actor):
             scene.active_camera = old_camera
 
     def setup_camera_perspective(self):
-        if self.mode == CameraMode.first_person:
-            self.local_position = Vector()
+        if self.mode == enums.CameraMode.first_person:
+            self.local_position = mathutils.Vector()
 
         else:
-            self.local_position = Vector((0, -self.offset, 0))
+            self.local_position = mathutils.Vector((0, -self.offset, 0))
 
-        self.local_rotation = Euler((pi / 2, 0, 0))
+        self.local_rotation = mathutils.Euler((math.pi / 2, 0, 0))
 
     def sees_actor(self, actor):
         if not isinstance(actor, Actor):
@@ -854,8 +841,8 @@ class Camera(Actor):
         return self.object.sphereInsideFrustum(actor.position,
                            actor.camera_radius) != self.object.OUTSIDE
 
-    @simulated
-    @UpdateSignal.global_listener
+    @network.simulated
+    @network.UpdateSignal.global_listener
     def update(self, delta_time):
         if self.visible:
             self.draw()
@@ -864,20 +851,20 @@ class Camera(Actor):
         return self.object.getScreenRay(x_coord, y_coord, distance)
 
     def trace_ray(self, distance=0):
-        target = self.transform * Vector((0, 0, -distance))
+        target = self.transform * mathutils.Vector((0, 0, -distance))
         return self.object.rayCast(target, self.position, distance)
 
 
 class Pawn(Actor):
 
-    view_pitch = Attribute(0.0)
-    flash_count = Attribute(0, notify=True)
-    weapon_attachment_class = Attribute(type_of=TypeRegister,
+    view_pitch = network.Attribute(0.0)
+    flash_count = network.Attribute(0, notify=True)
+    weapon_attachment_class = network.Attribute(type_of=network.TypeRegister,
                                         notify=True,
                                         complain=True)
 
-    health = Attribute(100, notify=True)
-    alive = Attribute(True, notify=True, complain=True)
+    health = network.Attribute(100, notify=True)
+    alive = network.Attribute(True, notify=True, complain=True)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -893,13 +880,13 @@ class Pawn(Actor):
             if is_owner:
                 yield "health"
 
-    @simulated
+    @network.simulated
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
         self.weapon_attachment.set_parent(self, "weapon")
 
-        self.weapon_attachment.local_position = Vector()
-        self.weapon_attachment.local_rotation = Euler()
+        self.weapon_attachment.local_position = mathutils.Vector()
+        self.weapon_attachment.local_rotation = mathutils.Euler()
 
     def on_initialised(self):
         super().on_initialised()
@@ -917,10 +904,10 @@ class Pawn(Actor):
 
         self.animation_tolerance = 0.5
 
-        self.animations = BehaviourTree(self)
+        self.animations = behaviour_tree.BehaviourTree(self)
         self.animations.blackboard['pawn'] = self
 
-    @simulated
+    @network.simulated
     def on_notify(self, name):
         # play weapon effects
         if name == "flash_count":
@@ -941,77 +928,72 @@ class Pawn(Actor):
     def update_health(self):
         self.alive = self.health > 0
 
-    @simulated
+    @network.simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
-                       mode=AnimationMode.play, weight=0.0, speed=1.0,
-                       blend_mode=AnimationBlend.interpolate):
+                       mode=enums.AnimationMode.play, weight=0.0, speed=1.0,
+                       blend_mode=enums.AnimationBlend.interpolate):
 
-        ge_mode = {AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
-                   AnimationMode.loop: logic.KX_ACTION_MODE_LOOP,
-                   AnimationMode.ping_pong: logic.KX_ACTION_MODE_PING_PONG
+        ge_mode = {enums.AnimationMode.play: bge.logic.KX_ACTION_MODE_PLAY,
+                   enums.AnimationMode.loop: bge.logic.KX_ACTION_MODE_LOOP,
+                   enums.AnimationMode.ping_pong: bge.logic.KX_ACTION_MODE_PING_PONG
                    }[mode]
-        ge_blend_mode = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
-                         AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}[blend_mode]
+        ge_blend_mode = {enums.AnimationBlend.interpolate: bge.logic.KX_ACTION_BLEND_BLEND,
+                         enums.AnimationBlend.add: bge.logic.KX_ACTION_BLEND_ADD}[blend_mode]
 
         self.skeleton.playAction(name, start, end, layer, priority, blend,
                                  ge_mode, weight, speed=speed,
                                  blend_mode=ge_blend_mode)
 
-    @simulated
+    @network.simulated
     def is_playing_animation(self, layer=0):
         return self.skeleton.isPlayingAction(layer)
 
-    @simulated
+    @network.simulated
     def get_animation_frame(self, layer=0):
         return int(self.skeleton.getActionFrame(layer))
 
-    @simulated
+    @network.simulated
     def stop_animation(self, layer=0):
         self.skeleton.stopAction(layer)
 
     @property
     def skeleton(self):
         for child in self.object.childrenRecursive:
-            if isinstance(child, types.BL_ArmatureObject):
+            if isinstance(child, bge.types.BL_ArmatureObject):
                 return child
 
-    @simulated
-    @SetMoveTarget.listener
-    def track_toward(self, actor):
-        self.target = actor
-
-    @simulated
-    @UpdateSignal.global_listener
+    @network.simulated
+    @network.UpdateSignal.global_listener
     def update(self, delta_time):
         if self.outstanding_flash:
             self.use_flashcount()
 
         if self.weapon_attachment:
-            self.weapon_attachment.local_rotation = Euler(
+            self.weapon_attachment.local_rotation = mathutils.Euler(
                                                           (self.view_pitch, 0, 0)
                                                           )
         self.update_health()
         self.animations.update(delta_time)
 
-    @simulated
+    @network.simulated
     def update_flashcount(self):
         self.outstanding_flash += self.flash_count - self.last_flash_count
         self.last_flash_count = self.flash_count
 
-    @simulated
+    @network.simulated
     def use_flashcout(self):
         self.weapon_attachment.play_firing_effects()
         self.outstanding_flash -= 1
 
 
 class Navmesh(Actor):
-    roles = Roles(Roles.authority, Roles.none)
+    roles = network.Roles(network.Roles.authority, network.Roles.none)
 
-    entity_class = NavmeshObject
+    entity_class = bge_data.NavmeshObject
     entity_name = "Navmesh"
 
     def draw(self):
-        self.object.draw(logic.RM_TRIS)
+        self.object.draw(bge.logic.RM_TRIS)
 
     def find_path(self, from_point, to_point):
         return self.object.findPath(from_point, to_point)
