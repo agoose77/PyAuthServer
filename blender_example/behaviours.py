@@ -48,6 +48,7 @@ def dying_behaviour():
                                from_blackboard={"target": "pawn",
                                                 "attacker": "attacker"})
                          )
+    group.name = "DyingBehaviour"
 
     return group
 
@@ -63,7 +64,7 @@ def idle_behaviour():
                          ConsumePoint(),
                          RandomDelay(2, 5),
                          )
-
+    group.name = "IdleBehaviour"
     return group
 
 
@@ -97,7 +98,7 @@ def attack_behaviour():
                                               CheckTimer()
                                               ),
                                  Alert("{pawn} Attacking {actor}"),
-                                 aim_and_attack,
+                                 AimAtActor(),
                                  FireWeapon(),
                                  SetTimer()
                                  )
@@ -118,6 +119,7 @@ def attack_behaviour():
                          engage_target,
                          )
     group.should_restart = True
+    group.name = "AttackBehaviour"
     return group
 
 

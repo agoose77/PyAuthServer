@@ -75,10 +75,8 @@ class Controller(network.Replicable):
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
     def start_server_fire(self) -> network.Netmodes.server:
-        if not self.weapon.can_fire:
-            return
-
         self.weapon.fire(self.camera)
+        self.pawn.flash_count += 1
 
         for controller in network.WorldInfo.subclass_of(Controller):
             if controller == self:
@@ -152,6 +150,7 @@ class AIController(Controller):
     @network.UpdateSignal.global_listener
     def update(self, delta_time):
         self.behaviour.update(delta_time)
+      #  self.behaviour.debug()
 
 
 class PlayerController(Controller):
@@ -746,6 +745,10 @@ class EmptyAttatchment(WeaponAttachment):
     entity_name = "Empty.002"
 
 
+class testsignal(network.Signal):
+    pass
+
+
 class Camera(Actor):
 
     entity_class = bge_data.CameraObject
@@ -858,19 +861,18 @@ class Camera(Actor):
 class Pawn(Actor):
 
     view_pitch = network.Attribute(0.0)
-    flash_count = network.Attribute(0, notify=True)
+    flash_count = network.Attribute(0, notify=True, complain=True)
     weapon_attachment_class = network.Attribute(type_of=network.TypeRegister,
                                         notify=True,
                                         complain=True)
 
-    health = network.Attribute(100, notify=True)
+    health = network.Attribute(100, notify=True, complain=True)
     alive = network.Attribute(True, notify=True, complain=True)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
         if not is_owner:
-            yield "flash_count"
             yield "view_pitch"
 
         if is_complaint:
@@ -880,10 +882,17 @@ class Pawn(Actor):
             if is_owner:
                 yield "health"
 
+            else:
+                yield "flash_count"
+
     @network.simulated
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
         self.weapon_attachment.set_parent(self, "weapon")
+
+        if self.weapon_attachment is not None:
+            self.weapon_attachment.unpossessed()
+        self.weapon_attachment.possessed_by(self)
 
         self.weapon_attachment.local_position = mathutils.Vector()
         self.weapon_attachment.local_rotation = mathutils.Euler()
@@ -896,7 +905,6 @@ class Pawn(Actor):
 
         # Non owner attributes
         self.last_flash_count = 0
-        self.outstanding_flash = 0
 
         self.walk_speed = 4.0
         self.run_speed = 7.0
@@ -910,10 +918,7 @@ class Pawn(Actor):
     @network.simulated
     def on_notify(self, name):
         # play weapon effects
-        if name == "flash_count":
-            self.update_flashcount()
-
-        elif name == "weapon_attachment_class":
+        if name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
 
         else:
@@ -924,9 +929,6 @@ class Pawn(Actor):
             self.weapon_attachment.request_unregistration()
 
         super().on_unregistered()
-
-    def update_health(self):
-        self.alive = self.health > 0
 
     @network.simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
@@ -965,25 +967,26 @@ class Pawn(Actor):
     @network.simulated
     @network.UpdateSignal.global_listener
     def update(self, delta_time):
-        if self.outstanding_flash:
-            self.use_flashcount()
-
         if self.weapon_attachment:
-            self.weapon_attachment.local_rotation = mathutils.Euler(
-                                                          (self.view_pitch, 0, 0)
-                                                          )
+            self.update_weapon_attatchment()
+
+        # Allow remote players to determine if we are alive without seeing health
         self.update_health()
         self.animations.update(delta_time)
 
-    @network.simulated
-    def update_flashcount(self):
-        self.outstanding_flash += self.flash_count - self.last_flash_count
-        self.last_flash_count = self.flash_count
+    def update_health(self):
+        '''Update health boolean'''
+        self.alive = self.health > 0
 
     @network.simulated
-    def use_flashcout(self):
-        self.weapon_attachment.play_firing_effects()
-        self.outstanding_flash -= 1
+    def update_weapon_attatchment(self):
+        if self.flash_count != self.last_flash_count:
+            self.weapon_attachment.play_fire_effects()
+            self.last_flash_count += 1
+
+        self.weapon_attachment.local_rotation = mathutils.Euler(
+                                                        (self.view_pitch, 0, 0)
+                                                          )
 
 
 class Navmesh(Actor):

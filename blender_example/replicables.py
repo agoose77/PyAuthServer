@@ -37,7 +37,7 @@ class EnemyController(bge_network.AIController):
                                  )
 
         behaviour.should_restart = True
-        self.behaviour.root.add_child(behaviour)
+        self.behaviour.root = behaviour
 
 
 class LegendController(bge_network.PlayerController):
@@ -102,6 +102,18 @@ class M4A1Weapon(bge_network.Weapon):
         self.shoot_interval = 1
 
 
+class ZombieAttachment(bge_network.WeaponAttachment):
+
+    entity_name = "EmptyWeapon"
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+
+    @simulated
+    def play_fire_effects(self):
+        self.owner.play_animation("Attack", 0, 60)
+
+
 class ZombieWeapon(bge_network.Weapon):
 
     def on_initialised(self):
@@ -114,6 +126,7 @@ class ZombieWeapon(bge_network.Weapon):
         self.maximum_range = 8
         self.effective_range = 6
         self.base_damage = 80
+        self.attachment_class = ZombieAttachment
 
     def consume_ammo(self):
         pass

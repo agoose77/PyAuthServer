@@ -38,8 +38,8 @@ class BehaviourTree:
     def update(self, delta_time):
         self.blackboard['delta_time'] = delta_time
 
-        self.root.update(self.blackboard)
         self.reset_visited(self.blackboard['_visited'])
+        self.root.update(self.blackboard)
 
     def reset(self):
         self.root.reset(self.blackboard)
@@ -151,11 +151,14 @@ class InnerNode(LeafNode):
 
     def print_tree(self, index=0):
         super().print_tree(index)
-        for child in self.children:
 
+        if self.children:
+            print()
+
+        for child in self.children:
             child.print_tree(index + 1)
 
-        if index == 0:
+        if self.children:
             print()
 
     def remove_child(self, child):

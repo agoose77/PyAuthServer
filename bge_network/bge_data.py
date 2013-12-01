@@ -17,7 +17,10 @@ class EngineObject:
         mat_rot = kwargs.get("rotation", Matrix.Identity(4))
         # combine transformations
         mat_out = mat_loc * mat_rot * mat_sca
-        obj = scene.addObject(obj_name, mat_out, 0, -1)
+        try:
+            obj = scene.addObject(obj_name, mat_out, 0, -1)
+        except ValueError:
+            raise ValueError("Could not find object with name {}".format(obj_name))
         return super().__new__(cls, obj)
 
     @property

@@ -11,4 +11,4 @@ def has_supplied_data(func):
 
 
 def is_signal_listener(func):
-    return "signal" in func.__annotations__
+    return "signals" in func.__annotations__

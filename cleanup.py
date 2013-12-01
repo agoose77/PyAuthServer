@@ -121,16 +121,17 @@ def create_newlines(data):
         for key, key_data in conversions.items():
             for module in key_data:
                 found = finder(line, module)
-                for i in range(len(found)):
+                for index in range(len(found)):
                     change = attribute_import(key, module)
-                    start, end = found[i]
+                    start, end = found[index]
                     line = line[:start] + change + line[end:]
                     # Recalculate matches (as we have modified line)
                     found = finder(line, module)
 
         yield line
 
-sys.setrecursionlimit(10000)
-with open("C:/test.py", "w") as target:
-    with open("C:/file.txt") as source:
-        target.write(''.join(create_newlines(source.readlines())))
+
+def test(filepath):
+    sys.setrecursionlimit(10000)
+    with open(filepath, "r+") as file:
+        file.write(''.join(create_newlines(file.readlines())))

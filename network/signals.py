@@ -7,7 +7,9 @@ from inspect import getmembers, signature
 
 
 class SignalListener:
-    def get_events(self):
+
+    @property
+    def signal_callbacks(self):
         for name, val in getmembers(self):
 
             if not hasattr(val, "__annotations__"):
@@ -18,39 +20,39 @@ class SignalListener:
 
             yield (name, val)
 
-    def register_child(self, child, event_store=None, greedy=False):
-        # Mirror own events by default
-        if event_store is None:
-            event_store = self
+    def register_child(self, child, signal_store=None, greedy=False):
+        # Mirror own signals by default
+        if signal_store is None:
+            signal_store = self
 
-        for name, event in event_store.get_events():
-            signal = Signal.get_event(event)
-            signal.set_parent(child, self)
+        for name, callback in signal_store.signal_callbacks:
+            for signal, *_ in Signal.get_signals(callback):
+                signal.set_parent(child, self)
 
         if greedy:
             self.register_child(child, child)
 
-    def unregister_child(self, child, event_store=None, greedy=False):
-        # Mirror own events by default
-        if event_store is None:
-            event_store = self
+    def unregister_child(self, child, signal_store=None, greedy=False):
+        # Mirror own signals by default
+        if signal_store is None:
+            signal_store = self
 
-        for name, event in event_store.get_events():
-            signal = Signal.get_event(event)
-            signal.remove_parent(child, self)
+        for name, callback in signal_store.signal_callbacks:
+            for signal, *_ in Signal.get_signals(callback):
+                signal.remove_parent(child, self)
 
         if greedy:
             self.unregister_child(child, child)
 
     def register_signals(self):
-        for name, val in self.get_events():
-            Signal.subscribe(self, val)
+        for name, callback in self.signal_callbacks:
+            Signal.subscribe(self, callback)
 
         Signal.update_graph()
 
     def unregister_signals(self):
-        for name, val in self.get_events():
-            Signal.unsubscribe(self, val)
+        for name, callback in self.signal_callbacks:
+            Signal.unsubscribe(self, callback)
 
         Signal.update_graph()
 
@@ -73,8 +75,8 @@ class Signal(metaclass=TypeRegister):
         cls.to_child = defaultdict(set)
 
     @staticmethod
-    def get_event(decorated):
-        return decorated.__annotations__['signal']
+    def get_signals(decorated):
+        return decorated.__annotations__['signals']
 
     @classmethod
     def register_type(cls):
@@ -83,17 +85,22 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def unsubscribe(cls, identifier, callback):
-        signal_cls = cls.get_event(callback)
-        signal_cls.to_unsubscribe.append(identifier)
-        signal_cls.to_unisolate.append(identifier)
+        signals_data = cls.get_signals(callback)
 
-        if identifier in signal_cls.children:
-            for child in signal_cls.children[identifier]:
-                signal_cls.remove_parent(child, identifier)
+        for signal_cls, is_context in signals_data:
+            remove_list = (signal_cls.to_unisolate if is_context else
+                         signal_cls.to_unsubscribe)
+            remove_list.append(identifier)
 
-        for parent, children in signal_cls.children.items():
-            if identifier in children:
-                signal_cls.remove_parent(identifier, parent)
+            signal_children = signal_cls.children
+
+            if identifier in signal_children:
+                for child in signal_children[identifier]:
+                    signal_cls.remove_parent(child, identifier)
+
+            for parent, next_children in signal_children.items():
+                if identifier in next_children:
+                    signal_cls.remove_parent(identifier, parent)
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
@@ -113,17 +120,16 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def subscribe(cls, identifier, callback):
-        settings = callback.__annotations__
-        signal_cls = cls.get_event(callback)
-
+        signals_data = cls.get_signals(callback)
         func_signature = signature(callback)
 
         accepts_signal = "signal" in func_signature.parameters
         accepts_target = "target" in func_signature.parameters
 
-        data_dict = (signal_cls.to_isolate if settings['context_dependant']
-                     else signal_cls.to_subscribe)
-        data_dict[identifier] = callback, accepts_signal, accepts_target
+        for signal_cls, is_context in signals_data:
+            data_dict = (signal_cls.to_isolate if is_context else
+                         signal_cls.to_subscribe)
+            data_dict[identifier] = callback, accepts_signal, accepts_target
 
     @classmethod
     def update_state(cls):
