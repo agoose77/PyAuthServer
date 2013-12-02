@@ -1,9 +1,7 @@
 import bge_network
-import mathutils
-import math
-import signals
-
 from behaviours import *
+
+import signals
 import controls
 
 

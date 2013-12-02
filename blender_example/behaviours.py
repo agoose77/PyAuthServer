@@ -79,13 +79,6 @@ def attack_behaviour():
 
     can_hit_target.should_restart = True
 
-    aim_and_attack = SequenceNode(
-                                     AimAtActor(),
-                                     PlayAnimation("Attack", 0, 60,
-                                                   blend=1, layer=0),
-                                 )
-    aim_and_attack.should_restart = True
-
     engage_target = SequenceNode(
                                  can_hit_target,
                                  SelectorNode(

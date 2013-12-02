@@ -975,7 +975,8 @@ class Pawn(Actor):
         self.animations.update(delta_time)
 
     def update_health(self):
-        '''Update health boolean'''
+        '''Update health boolean
+        Runs on authority / autonomous proxy only'''
         self.alive = self.health > 0
 
     @network.simulated
