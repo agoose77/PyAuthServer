@@ -158,6 +158,7 @@ class ServerGameLoop(GameLoop):
 
     def create_network(self):
         WorldInfo.netmode = Netmodes.server
+
         return Network("", 1200)
 
 

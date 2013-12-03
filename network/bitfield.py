@@ -24,7 +24,7 @@ class Bitfield:
         self.footprint = bits2bytes(self._size)
 
     def __iter__(self):
-        return iter(self[:])
+        return self[:].__iter__()
 
     def __bool__(self):
         return self._value > 0
@@ -43,7 +43,7 @@ class Bitfield:
             if value >= self._size:
                 raise IndexError("Index out of range")
 
-            return bool(self._value & (1 << value))
+            return (self._value & (1 << value)) != 0
 
     def __setitem__(self, index, value):
         if isinstance(index, slice):

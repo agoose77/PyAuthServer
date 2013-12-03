@@ -72,11 +72,11 @@ class RPCInterface:
                                              self._function_signature))
 
         from .replicables import WorldInfo
-        self._system_netmode = WorldInfo.netmode
+        self._worldinfo = WorldInfo
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
-        if self.target == self._system_netmode:
+        if self.target == self._worldinfo.netmode:
             return self._function_call(*args, **kwargs)
 
         # Store serialised argument data for later sending
@@ -109,5 +109,4 @@ class RPCInterface:
 
     def register(self, interface, rpc_id):
         self.rpc_id = rpc_id
-
         self._interface = interface

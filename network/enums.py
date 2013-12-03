@@ -21,7 +21,7 @@ class Enum(type):
         return self.reverse[value]
 
     def __contains__(self, index):
-        return 0 <= index < max(self.reverse.keys())
+        return index in self.reverse
 
     def __repr__(self):
         return "[Enum: {}]\n{}\n".format(self.__name__,

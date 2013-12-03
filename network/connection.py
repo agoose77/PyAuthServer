@@ -51,10 +51,11 @@ class Connection(SignalListener):
     def get_method_replication(self):
 
         check_is_owner = self.is_owner
-        get_channel = self.channels.__getitem__
+        channels = self.channels
         packer = self.replicable_packer.pack_id
         no_role = Roles.none
         method_invoke = Protocols.method_invoke
+        make_packet = Packet
 
         for replicable in Replicable:
 
@@ -66,14 +67,14 @@ class Connection(SignalListener):
             packed_id = packer(instance_id)
 
             # Get attribute channel
-            channel = get_channel(instance_id)
+            channel = channels[instance_id]
 
             # Send RPC calls if we are the owner
             if channel.has_rpc_calls and check_is_owner(replicable):
                 for rpc_call, reliable in channel.take_rpc_calls():
                     rpc_data = packed_id + rpc_call
 
-                    yield Packet(protocol=method_invoke,
+                    yield make_packet(protocol=method_invoke,
                                       payload=rpc_data,
                                       reliable=reliable)
 
@@ -167,16 +168,7 @@ class ClientConnection(Connection):
         for packet in packets:
             protocol = packet.protocol
 
-            if protocol == Protocols.replication_update:
-                self.set_replication(packet)
-
-            elif protocol == Protocols.method_invoke:
-                self.set_replication(packet)
-
-            elif protocol == Protocols.replication_init:
-                self.set_replication(packet)
-
-            elif protocol == Protocols.replication_del:
+            if protocol in Protocols:
                 self.set_replication(packet)
 
 
@@ -219,9 +211,12 @@ class ServerConnection(Connection):
         is_relevant = WorldInfo.rules.is_relevant
         id_packer = self.replicable_packer.pack_id
         check_is_owner = self.is_owner
-        get_channel = self.channels.__getitem__
+        channels = self.channels
 
         no_role = Roles.none
+        make_packet = Packet
+        cached_packets = self.cached_packets
+        cache_packet = cached_packets.add
 
         method_invoke = Protocols.method_invoke
         replication_init = Protocols.replication_init
@@ -240,12 +235,12 @@ class ServerConnection(Connection):
             packed_id = id_packer(instance_id)
 
             # Get attribute channel
-            channel = get_channel(instance_id)
+            channel = channels[instance_id]
 
             # Send RPC calls if we are the owner
             if channel.has_rpc_calls and is_owner:
                 for rpc_call, reliable in channel.take_rpc_calls():
-                    yield Packet(protocol=method_invoke,
+                    yield make_packet(protocol=method_invoke,
                                       payload=packed_id + rpc_call,
                                       reliable=reliable)
 
@@ -260,7 +255,7 @@ class ServerConnection(Connection):
                     packed_is_host = self.int_packer.pack(
                                       replicable == self.replicable)
                     # Send the protocol, class name and owner status to client
-                    yield Packet(protocol=replication_init,
+                    yield make_packet(protocol=replication_init,
                                       payload=packed_id + packed_class +\
                                       packed_is_host, reliable=True)
 
@@ -272,15 +267,14 @@ class ServerConnection(Connection):
                     # This ensures references exist
                     # By calling it after all creation packets are yielded
                     update_payload = packed_id + attributes
-                    self.cached_packets.add(Packet(
+                    cache_packet(make_packet(
                                             protocol=replication_update,
                                             payload=update_payload,
                                             reliable=True))
 
         # Send any additional data
-        if self.cached_packets:
-            yield from self.cached_packets
-            self.cached_packets.clear()
+        yield from cached_packets
+        cached_packets.clear()
 
     def receive(self, packets):
         '''Server connection receive method

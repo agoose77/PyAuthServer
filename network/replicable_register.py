@@ -65,9 +65,13 @@ class ReplicableRegister(InstanceRegister):
                 return True
 
     def is_wrapped(func):
-        return "wrapped" in func.__annotations__
+        return bool(func.__annotations__.get("wrapped"))
 
-    def permission_wrapper(func):
+    def mark_wrapped(func):
+        func.__annotations__['wrapped'] = True
+
+    @classmethod
+    def permission_wrapper(meta, func):
         simulated_proxy = Roles.simulated_proxy
         func_is_simulated = is_simulated(func)
 
@@ -81,30 +85,20 @@ class ReplicableRegister(InstanceRegister):
             except IndexError:
                 return func(*args, **kwargs)
 
-            else:
-                # Check that the assumed instance/class has context_subscribers role method
-                if hasattr(assumed_instance, "roles"):
-                    arg_roles = assumed_instance.roles
-                    # Check that the roles are of an instance
-                    try:
-                        local_role = arg_roles.local
-                    except AttributeError:
-                        return
+            # Check that the assumed instance/class has roles
+            try:
+                arg_roles = assumed_instance.roles
+            except AttributeError:
+                return
 
-                    # Permission checks
-                    if (local_role > simulated_proxy or(func_is_simulated and
-                                            local_role >= simulated_proxy)):
-                        return func(*args, **kwargs)
+            # Check that the roles are of an instance
+            local_role = arg_roles.local
 
-                    elif getattr(assumed_instance, "verbose_execution", False):
-                        print("Error executing '{}': \
-                               Function does not have permission:\n{}".format(
-                                              func.__qualname__, arg_roles))
+            # Permission checks
+            if (local_role > simulated_proxy or(func_is_simulated and
+                                    local_role >= simulated_proxy)):
+                return func(*args, **kwargs)
 
-                elif getattr(assumed_instance, "verbose_execution", False):
-                    print("Error executing {}: \
-                        Function does not have permission roles")
-
-        func_wrapper.__annotations__['wrapped'] = True
+        meta.mark_wrapped(func)
 
         return func_wrapper

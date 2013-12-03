@@ -363,7 +363,7 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @network.RequireNetmode(network.Netmodes.client)
+    @network.requires_netmode(network.Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
 
@@ -670,7 +670,7 @@ class Weapon(network.Replicable):
 
         self.last_fired_time = network.WorldInfo.elapsed
 
-    @network.RequireNetmode(network.Netmodes.server)
+    @network.requires_netmode(network.Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
