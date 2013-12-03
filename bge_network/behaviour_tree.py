@@ -38,15 +38,17 @@ class BehaviourTree:
     def update(self, delta_time):
         self.blackboard['delta_time'] = delta_time
 
-        self.reset_visited(self.blackboard['_visited'])
-        self.root.update(self.blackboard)
+        self.reset_visited(self.blackboard)
+        self._root.update(self.blackboard)
 
     def reset(self):
-        self.root.reset(self.blackboard)
+        self._root.reset(self.blackboard)
         self._last_visited.clear()
         self.blackboard = self.new_blackboard()
 
-    def reset_visited(self, visited):
+    def reset_visited(self, blackboard):
+        visited = blackboard['_visited']
+
         for node in visited:
             if node.state != EvaluationState.running:
                 node.state = EvaluationState.ready
@@ -58,8 +60,8 @@ class BehaviourTree:
             #print("Node not visited", node)
             node.reset(self.blackboard)
 
-        self._last_visited = visited.copy()
-        visited.clear()
+        self._last_visited = visited
+        blackboard['_visited'] = set()
 
 
 class LeafNode(SignalListener):
@@ -94,11 +96,7 @@ class LeafNode(SignalListener):
             self.state = EvaluationState.running
             self.on_enter(blackboard)
 
-        new_state = self.evaluate(blackboard)
-
-        # Ensure we have a valid state
-        if new_state is not None:
-            self.state = new_state
+        self.state = self.evaluate(blackboard)
 
         # Invoke exit if neccessary
         if not self.state in (EvaluationState.ready, EvaluationState.running):
@@ -201,15 +199,17 @@ class SelectorNode(ResumableNode):
         start = 0 if self.should_restart else self.resume_index
         remembered_resume = False
 
+        running_state = EvaluationState.running
+        success_state = EvaluationState.success
+
         for index, child in enumerate(islice(self.children, start, None)):
             child.update(blackboard)
 
-            if child.state == EvaluationState.running:
-                self.resume_index = index + start
+            if child.state == running_state:
                 remembered_resume = True
                 break
 
-            if child.state == EvaluationState.success:
+            if child.state == success_state:
                 break
 
         else:
@@ -217,6 +217,7 @@ class SelectorNode(ResumableNode):
 
         # Copy child's state
         if remembered_resume:
+            self.resume_index = index + start
             child = self.children[self.resume_index]
 
         return child.state
@@ -241,15 +242,18 @@ class ConcurrentNode(ResumableNode):
         start = 0 if self.should_restart else self.resume_index
         remembered_resume = False
 
+        running_state = EvaluationState.running
+        success_state = EvaluationState.success
+
         for index, child in enumerate(islice(self.children, start, None)):
             child.update(blackboard)
 
             # Increment failure count (anything that isn't a success)
-            if child.state != EvaluationState.success:
+            if child.state != success_state:
                 failed += 1
 
             # Remember the first child that needed completion
-            if (child.state == EvaluationState.running
+            if (child.state == running_state
                             and not remembered_resume):
                 remembered_resume = True
                 self.resume_index = start + index
