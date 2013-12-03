@@ -123,12 +123,13 @@ class Network(SignalListener):
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
         send_func = self.send_to
+        disconnected_state = ConnectionStatus.disconnected
 
         # Send all queued data
         for connection in ConnectionInterface:
 
             # If the connection should be removed (timeout or explicit)
-            if connection.status < ConnectionStatus.disconnected:
+            if connection.status < disconnected_state:
                 connection.request_unregistration()
                 continue
 

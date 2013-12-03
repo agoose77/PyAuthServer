@@ -51,6 +51,7 @@ def get_handler(value):
 
         try:
             value_type = next(handled_superclasses)
+
         except StopIteration:
             raise TypeError("No handler for object with type {}".format(
                                                                 value.type))

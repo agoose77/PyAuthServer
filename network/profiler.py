@@ -13,6 +13,12 @@ def profile(category):
             start_time = monotonic()
             result = func(*args, **kwargs)
             end_time = monotonic()
-            profiles[category][func.__qualname__ if hasattr(func, "__qualname__") else func.__name__] += end_time - start_time
+            profiles[category][(func.__qualname__ if
+                            hasattr(func, "__qualname__") else
+                            func.__name__)] += end_time - start_time
+
+            return result
+
         return wrapper_
+
     return wrapper
