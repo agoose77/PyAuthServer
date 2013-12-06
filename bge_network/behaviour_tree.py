@@ -36,10 +36,10 @@ class BehaviourTree:
         self._root.print_tree()
 
     def update(self, delta_time):
-        self.blackboard['delta_time'] = delta_time
-
-        self.reset_visited(self.blackboard)
-        self._root.update(self.blackboard)
+        blackboard = self.blackboard
+        blackboard['delta_time'] = delta_time
+        self.reset_visited(blackboard)
+        self._root.update(blackboard)
 
     def reset(self):
         self._root.reset(self.blackboard)
@@ -48,16 +48,16 @@ class BehaviourTree:
 
     def reset_visited(self, blackboard):
         visited = blackboard['_visited']
+        last_visited = self._last_visited
 
         for node in visited:
             if node.state != EvaluationState.running:
                 node.state = EvaluationState.ready
 
-            if node in self._last_visited:
-                self._last_visited.remove(node)
+            if node in last_visited:
+                last_visited.remove(node)
 
-        for node in self._last_visited:
-            #print("Node not visited", node)
+        for node in last_visited:
             node.reset(self.blackboard)
 
         self._last_visited = visited
@@ -192,17 +192,15 @@ class ResumableNode(InnerNode):
 
 class SelectorNode(ResumableNode):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def evaluate(self, blackboard):
-        start = 0 if self.should_restart else self.resume_index
+        resume_index = 0 if self.should_restart else self.resume_index
         remembered_resume = False
 
         running_state = EvaluationState.running
         success_state = EvaluationState.success
 
-        for index, child in enumerate(islice(self.children, start, None)):
+        for index, child in enumerate(
+                                  islice(self.children, resume_index, None)):
             child.update(blackboard)
 
             if child.state == running_state:
@@ -217,7 +215,7 @@ class SelectorNode(ResumableNode):
 
         # Copy child's state
         if remembered_resume:
-            self.resume_index = index + start
+            self.resume_index = index + resume_index
             child = self.children[self.resume_index]
 
         return child.state
@@ -238,35 +236,37 @@ class ConcurrentNode(ResumableNode):
         self.resume_index = 0
 
     def evaluate(self, blackboard):
-        failed = 0
-        start = 0 if self.should_restart else self.resume_index
+        resume_index = 0 if self.should_restart else self.resume_index
         remembered_resume = False
+        failure_limit = self.failure_limit
+        failed_total = 0
 
         running_state = EvaluationState.running
         success_state = EvaluationState.success
 
-        for index, child in enumerate(islice(self.children, start, None)):
+        for index, child in enumerate(
+                                  islice(self.children, resume_index, None)):
             child.update(blackboard)
 
             # Increment failure count (anything that isn't a success)
             if child.state != success_state:
-                failed += 1
+                failed_total += 1
 
             # Remember the first child that needed completion
             if (child.state == running_state
                             and not remembered_resume):
                 remembered_resume = True
-                self.resume_index = start + index
+                self.resume_index = resume_index + index
 
             # At the limit we then return the last/ last running child's status
-            if failed == self.failure_limit:
+            if failed_total == failure_limit:
                 if remembered_resume:
                     return self.children[self.resume_index].state
 
                 else:
                     return child.state
 
-        return EvaluationState.success
+        return success_state
 
 
 class SequenceNode(ConcurrentNode):
@@ -279,9 +279,10 @@ class SequenceNode(ConcurrentNode):
 class LoopNode(SequenceNode):
 
     def evaluate(self, blackboard):
-        state = super().evaluate(blackboard)
-        while state not in (EvaluationState.failure, EvaluationState.error):
-            state = super().evaluate(blackboard)
+        state = None
+        evaluate = super().evaluate
+        while not state in (EvaluationState.failure, EvaluationState.error):
+            state = evaluate(blackboard)
         return state
 
 

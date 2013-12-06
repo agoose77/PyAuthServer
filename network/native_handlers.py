@@ -6,22 +6,22 @@ from .handler_interfaces import (register_handler, get_handler,
 from .type_register import TypeRegister
 
 
-class TypeHandler:
+class ReplicableTypeHandler:
 
-    def __init__(self, static_value):
-        self.base_type = Replicable
-        self.string_packer = get_handler(StaticValue(str))
+    string_packer = get_handler(StaticValue(str))
 
-    def pack(self, cls):
-        return self.string_packer.pack(cls.type_name)
+    @classmethod
+    def pack(cls, cls_):
+        return cls.string_packer.pack(cls_.type_name)
 
-    def unpack(self, bytes_):
-        name = self.string_packer.unpack_from(bytes_)
-        cls = self.base_type.from_type_name(name)
-        return cls
+    @classmethod
+    def unpack(cls, bytes_):
+        name = cls.string_packer.unpack_from(bytes_)
+        return Replicable.from_type_name(name)
 
-    def size(self, bytes_=None):
-        return self.string_packer.size(bytes_)
+    @classmethod
+    def size(cls, bytes_=None):
+        return cls.string_packer.size(bytes_)
 
     unpack_from = unpack
 
@@ -97,8 +97,8 @@ class ReplicableBaseHandler:
 
 ReplicableHandler = ReplicableBaseHandler()
 
-register_handler(TypeRegister, TypeHandler, True)
 register_handler(Roles, RolesHandler)
 register_handler(Replicable, ReplicableHandler)
 
-register_description(TypeRegister, type_description)
+register_handler(type(Replicable), ReplicableTypeHandler)
+register_description(type(Replicable), type_description)

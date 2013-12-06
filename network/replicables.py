@@ -185,6 +185,8 @@ class BaseWorldInfo(Replicable):
     elapsed = Attribute(0.0, complain=False)
 
     def conditions(self, is_owner, is_complain, is_initial):
+        yield from super().conditions(is_owner, is_complain, is_initial)
+
         if is_initial:
             yield "elapsed"
 
@@ -196,7 +198,7 @@ class BaseWorldInfo(Replicable):
     def subclass_of(self, actor_type):
         '''Returns registered actors that are subclasses of a given type
         @param actor_type: type to compare against'''
-        return (a for a in self.replicables if isinstance(a, actor_type))
+        return (a for a in Replicable if isinstance(a, actor_type))
 
     @simulated
     @UpdateSignal.global_listener

@@ -19,6 +19,7 @@ import network
 import os
 import operator
 import functools
+from Lib.tkinter.constants import ACTIVE
 
 SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity", "angular",
                                 "delta_time", "inputs", "mouse_x", "mouse_y"))
@@ -31,6 +32,12 @@ class Controller(network.Replicable):
     camera = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
     weapon = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
     info = network.Attribute(type_of=network.Replicable)
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.hear_range = 15
+        self.effective_hear = 10
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -136,9 +143,6 @@ class AIController(Controller):
     def on_initialised(self):
         super().on_initialised()
 
-        self.hear_range = 15
-        self.effective_hear = 10
-
         self.debug = False
         self.target = None
 
@@ -177,8 +181,16 @@ class PlayerController(Controller):
             self.mouse_setup = True
 
         mouse.position = 0.5, 0.5
+        factor = 0.4
 
-        return mouse_diff_x, mouse_diff_y
+        if self._previous_diff is not None:
+            smooth_x = utilities.lerp(self._previous_diff[0], mouse_diff_x, factor)
+            smooth_y = utilities.lerp(self._previous_diff[1], mouse_diff_y, factor)
+        else:
+            smooth_x = mouse_diff_x
+            smooth_y = mouse_diff_y
+        self._previous_diff = smooth_x, smooth_y
+        return smooth_x, smooth_y
 
     def acknowledge_good_move(self, move_id: network.StaticValue(int, max_value=1024)) -> network.Netmodes.client:
         self.last_correction = move_id
@@ -255,12 +267,25 @@ class PlayerController(Controller):
         pass
 
     def hear_sound(self, sound_path: network.StaticValue(str),
-                   source: network.StaticValue(mathutils.Vector)) -> network.Netmodes.client:
+                   source: network.StaticValue(mathutils.Vector)
+                   ) -> network.Netmodes.client:
+
+        if not (self.pawn and self.camera):
+            return
+        probability = utilities.falloff_fraction(self.pawn.position,
+                            self.hear_range,
+                            source,
+                            self.effective_hear)
         return
-        full_path = bge.logic.expandPath('//{}'.format(sound_path))
-        factory = aud.Factory.file(full_path)
-        device = AudioDevice()
-        # handle = device.play(factory)
+        file_path = bge.logic.expandPath("//{}".format(sound_path))
+
+        factory = aud.Factory.file(file_path)
+        try:
+            device = aud.dsa
+        except AttributeError:
+            device = aud.dsa = aud.device()
+
+        return device.play(factory)
 
     def increment_move(self):
         self.current_move_id += 1
@@ -285,6 +310,7 @@ class PlayerController(Controller):
 
         self.mouse_setup = False
         self.camera_setup = False
+        self._previous_diff = None
 
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
@@ -456,10 +482,73 @@ class Actor(network.Replicable):
         self.update_simulated_physics = True
         self.always_relevant = False
 
-        self.children = set()
         self.parent = None
-
+        self.children = set()
         self.child_entities = set()
+
+        self._suspended = False
+        self._new_colliders = set()
+        self._old_colliders = set()
+        self._registered = set()
+
+        self.register_callback()
+
+    @property
+    def suspended(self):
+        return self._suspended
+
+    @suspended.setter
+    def suspended(self, value):
+        if value:
+            self.object.suspendDynamics()
+        else:
+            self.object.restoreDynamics()
+        self._suspended = value
+
+    @property
+    def colliding(self):
+        return bool(self._registered)
+
+    @network.simulated
+    def register_callback(self):
+        physics_types = enums.PhysicsType
+        if not self.physics in [physics_types.dynamic, physics_types.static,
+                            physics_types.rigid_body, physics_types.character]:
+            return
+        callbacks = self.object.collisionCallbacks
+        callbacks.append(self._on_collide)
+
+    @network.simulated
+    def _on_collide(self, other, data):
+        if self.suspended:
+            return
+
+        # If we haven't already stored the collision
+        self._new_colliders.add(other)
+
+        if not other in self._registered:
+            self._registered.add(other)
+            signals.CollisionSignal.invoke(other, True, target=self)
+
+    @signals.UpdateCollidersSignal.global_listener
+    @network.simulated
+    def _update_colliders(self):
+        if self.suspended:
+            return
+
+        # If we have a stored collision
+        difference = self._old_colliders.difference(self._new_colliders)
+
+        self._old_colliders = self._new_colliders
+        self._new_colliders = set()
+
+        if not difference:
+            return
+
+        for obj in difference:
+            self._registered.remove(obj)
+
+            signals.CollisionSignal.invoke(obj, False, target=self)
 
     def on_unregistered(self):
 
@@ -528,14 +617,6 @@ class Actor(network.Replicable):
         self.parent.remove_child(self)
         self.object.setParent(None)
 
-    @network.simulated
-    def restore_physics(self):
-        self.object.restoreDynamics()
-
-    @network.simulated
-    def suspend_physics(self):
-        self.object.suspendDynamics()
-
     @property
     def collision_group(self):
         return self.object.collisionGroup
@@ -554,8 +635,9 @@ class Actor(network.Replicable):
 
     @property
     def visible(self):
-        return any(o.visible and o.meshes
-                   for o in self.object.childrenRecursive)
+        obj = self.object
+        return (obj.visible and obj.meshes) or any(o.visible and o.meshes
+                   for o in obj.childrenRecursive)
 
     @property
     def physics(self):
@@ -745,10 +827,6 @@ class EmptyAttatchment(WeaponAttachment):
     entity_name = "Empty.002"
 
 
-class testsignal(network.Signal):
-    pass
-
-
 class Camera(Actor):
 
     entity_class = bge_data.CameraObject
@@ -835,14 +913,15 @@ class Camera(Actor):
         self.local_rotation = mathutils.Euler((math.pi / 2, 0, 0))
 
     def sees_actor(self, actor):
-        if not isinstance(actor, Actor):
-            return False
+        try:
+            radius = actor.camera_radius
+        except AttributeError:
+            return
 
-        if actor.camera_radius < 0.5:
+        if radius < 0.5:
             return self.object.pointInsideFrustum(actor.position)
 
-        return self.object.sphereInsideFrustum(actor.position,
-                           actor.camera_radius) != self.object.OUTSIDE
+        return self.object.sphereInsideFrustum(actor.position, radius) != self.object.OUTSIDE
 
     @network.simulated
     @network.UpdateSignal.global_listener
@@ -862,7 +941,7 @@ class Pawn(Actor):
 
     view_pitch = network.Attribute(0.0)
     flash_count = network.Attribute(0, notify=True, complain=True)
-    weapon_attachment_class = network.Attribute(type_of=network.TypeRegister,
+    weapon_attachment_class = network.Attribute(type_of=type(network.Replicable),
                                         notify=True,
                                         complain=True)
 
@@ -988,6 +1067,37 @@ class Pawn(Actor):
         self.weapon_attachment.local_rotation = mathutils.Euler(
                                                         (self.view_pitch, 0, 0)
                                                           )
+
+
+class Lamp(Actor):
+    roles = network.Roles(network.Roles.authority, network.Roles.simulated)
+
+    entity_class = bge_data.LampObject
+    entity_name = "Lamp"
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self._intensity = self.intensity
+
+    @property
+    def intensity(self):
+        return self.object.energy
+
+    @intensity.setter
+    def intensity(self, energy):
+        self.object.energy = energy
+
+    @property
+    def active(self):
+        return not self.intensity
+
+    @active.setter
+    def active(self, state):
+        if state:
+            self._intensity, self.intensity = self.intensity, 0.0
+        else:
+            self._intensity, self.intensity = 0.0, self._intensity
 
 
 class Navmesh(Actor):

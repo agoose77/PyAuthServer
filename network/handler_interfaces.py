@@ -17,8 +17,13 @@ def static_description(obj):
 
         try:
             value_type = next(handled_superclasses)
+
         except StopIteration:
             return hash(obj)
+
+        else:
+            # Remember this for later call
+            descriptions[type(obj)] = descriptions[value_type]
 
     return descriptions[value_type](obj)
 
@@ -53,8 +58,12 @@ def get_handler(value):
             value_type = next(handled_superclasses)
 
         except StopIteration:
+            print(handlers)
             raise TypeError("No handler for object with type {}".format(
                                                                 value.type))
+        else:
+            # Remember this for later call
+            handlers[value.type] = handlers[value_type]
 
     callback, is_condition = handlers[value_type]
 

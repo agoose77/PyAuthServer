@@ -1,6 +1,8 @@
-import network
+import bge_network
+import aud
+from bge import logic
 
-
+"""
 class CustomSignal(network.Signal):
     pass
 
@@ -36,4 +38,40 @@ class Printer(network.Replicable):
 my_printer = Printer()
 
 my_printer.change_name("Angus")
-CustomSignal.invoke("Angus", target=my_printer)
+CustomSignal.invoke("Angus", target=my_printer)"""
+
+
+class Cube(bge_network.Actor):
+
+    entity_name = "Cube"
+
+    roles = bge_network.Attribute(bge_network.Roles(
+                                            local=bge_network.Roles.authority,
+                                            remote=bge_network.Roles.simulated,
+                                                    )
+                                  )
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.damage = 0
+        self.max_damage = 100
+
+    @bge_network.simulated
+    def play_sound(self):
+        file_path = logic.expandPath("//bump.mp3")
+        factory = aud.Factory.file(file_path)
+        device = aud.device()
+        handle = device.play(factory)
+
+    def handle_damage(self, is_collision):
+        self.damage -= 20
+
+        if self.damage <= self.max_damage:
+            self.destroy()
+
+    @bge_network.CollisionSignal.listener
+    def on_collided(self, target, is_collision):
+        if is_collision:
+            self.play_sound()
+            self.handle_damage()

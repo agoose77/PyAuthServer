@@ -3,7 +3,7 @@ from .enums import PhysicsType
 from .signals import (CollisionSignal, PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
                      PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
-                     MapLoadedSignal)
+                     MapLoadedSignal, UpdateCollidersSignal)
 
 from bge import logic, types
 from collections import defaultdict
@@ -11,57 +11,6 @@ from functools import partial
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable)
 from time import monotonic
-
-
-class CollisionStatus:
-    """Handles collision for Actors"""
-    def __init__(self, actor):
-
-        self.register_callback(actor)
-
-        self._new_colliders = set()
-        self._old_colliders = set()
-        self._registered = set()
-        self._actor = actor
-
-        self.receive_collisions = True
-
-    @property
-    def colliding(self):
-        return bool(self._registered)
-
-    def is_colliding(self, other, data):
-        if not self.receive_collisions:
-            return
-
-        # If we haven't already stored the collision
-        self._new_colliders.add(other)
-
-        if not other in self._registered:
-            self._registered.add(other)
-
-            CollisionSignal.invoke(other, True, target=self._actor)
-
-    def not_colliding(self):
-        if not self.receive_collisions:
-            return
-
-        # If we have a stored collision
-        difference = self._old_colliders.difference(self._new_colliders)
-
-        self._old_colliders = self._new_colliders
-        self._new_colliders = set()
-
-        if not difference:
-            return
-
-        for obj in difference:
-            self._registered.remove(obj)
-
-            CollisionSignal.invoke(obj, False, target=self._actor)
-
-    def register_callback(self, actor):
-        actor.object.collisionCallbacks.append(self.is_colliding)
 
 
 class PhysicsSystem(SignalListener):
@@ -83,7 +32,6 @@ class PhysicsSystem(SignalListener):
         super().__init__()
 
         self._exempt_actors = []
-        self._listeners = {}
         self._update_func = update_func
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
@@ -158,7 +106,6 @@ class PhysicsSystem(SignalListener):
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
-        self.remove_listener(target)
         if target in self._exempt_actors:
             self.remove_exemption(target)
 
@@ -180,11 +127,8 @@ class PhysicsSystem(SignalListener):
         for this_target in WorldInfo.subclass_of(Actor):
             if this_target == target:
                 continue
-            # Callbacks freeze
-            if target in self._listeners:
-                self._listeners[target].receive_collisions = False
 
-            this_target.suspend_physics()
+            this_target.suspended = True
 
         self._update_func(delta_time)
 
@@ -192,10 +136,7 @@ class PhysicsSystem(SignalListener):
             if this_target == target:
                 continue
 
-            if target in self._listeners:
-                self._listeners[target].receive_collisions = True
-
-            this_target.restore_physics()
+            this_target.suspended = False
 
         self._apply_func()
 
@@ -206,25 +147,17 @@ class PhysicsSystem(SignalListener):
 
         # Restore scheduled objects
         for actor in self._exempt_actors:
-            actor.suspend_physics()
-
-            if actor in self._listeners:
-                self._listeners[actor].receive_collisions = False
+            actor.suspended = True
 
         self._update_func(delta_time)
 
         # Restore scheduled objects
         for actor in self._exempt_actors:
-
-            if actor in self._listeners:
-                self._listeners[actor].receive_collisions = True
-
-            actor.restore_physics()
+            actor.suspended = False
 
         self._apply_func()
 
-        for key, listener in self._listeners.items():
-            listener.not_colliding()
+        UpdateCollidersSignal.invoke()
 
     def needs_listener(self, replicable):
         return replicable.physics in self._active_physics and not \
@@ -252,10 +185,6 @@ class ServerPhysics(PhysicsSystem):
             state.rotation = replicable.rotation.copy()
             state.angular = replicable.angular.copy()
 
-            # If we need to make a callback instance
-            if self.needs_listener(replicable):
-                self.create_listener(replicable)
-
 
 class ClientPhysics(PhysicsSystem):
 
@@ -264,11 +193,6 @@ class ClientPhysics(PhysicsSystem):
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
-
-        for replicable in WorldInfo.subclass_of(Actor):
-            # If we need to make a callback instance
-            if self.needs_listener(replicable):
-                self.create_listener(replicable)
 
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:

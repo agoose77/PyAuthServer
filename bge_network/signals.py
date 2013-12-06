@@ -5,6 +5,10 @@ class CollisionSignal(Signal):
     pass
 
 
+class UpdateCollidersSignal(Signal):
+    pass
+
+
 class SetMoveTarget(Signal):
     pass
 

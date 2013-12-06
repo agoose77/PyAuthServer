@@ -2,6 +2,10 @@ def clamp(low, high, actual):
     return min(high, max(low, actual))
 
 
+def lerp(a, b, factor):
+    return a + (b - a) * factor
+
+
 def falloff_fraction(origin, maximum, actual, effective):
     distance = (actual - origin).length
 

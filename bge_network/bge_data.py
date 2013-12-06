@@ -39,6 +39,10 @@ class CameraObject(EngineObject, types.KX_Camera):
     pass
 
 
+class LampObject(EngineObject, types.KX_LightObject):
+    pass
+
+
 class ArmatureObject(EngineObject, types.BL_ArmatureObject):
     pass
 
