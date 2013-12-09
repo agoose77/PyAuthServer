@@ -1,5 +1,5 @@
 from bge import logic, types
-from mathutils import Matrix
+from mathutils import Matrix, Euler
 
 
 class EngineObject:
@@ -14,7 +14,7 @@ class EngineObject:
         # create an identitiy matrix
         mat_sca = kwargs.get("scale", Matrix.Identity(4))
         # create a rotation matrix
-        mat_rot = kwargs.get("rotation", Matrix.Identity(4))
+        mat_rot = kwargs.get("rotation", Euler()).to_matrix().to_4x4()
         # combine transformations
         mat_out = mat_loc * mat_rot * mat_sca
         try:

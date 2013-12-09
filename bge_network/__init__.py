@@ -11,5 +11,7 @@ from .replicables import *
 from .signals import *
 from .structs import *
 from .timer import *
-
+from .threads import *
+from .stream import *
+from .proxy import *
 from network import *

@@ -26,6 +26,7 @@ class Replicable(metaclass=ReplicableRegister):
                       )
 
     always_relevant = False
+    irrelevant_to_owner = False
 
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
@@ -164,11 +165,6 @@ class Replicable(metaclass=ReplicableRegister):
         '''Returns a hash-like description for this replicable
         Used to check if the value of a replicated reference has changed'''
         return hash(self.instance_id)
-
-    def __bool__(self):
-        '''Returns the registration status of this replicable
-        Used instead of "if replicable is None" to allow safer proxying'''
-        return self.registered
 
 
 class BaseWorldInfo(Replicable):

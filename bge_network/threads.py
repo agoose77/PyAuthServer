@@ -2,14 +2,13 @@ import threading
 import queue
 import time
 
+from .proxy import Proxy
 
-class ThreadPointer():
 
-    def __init__(self, thread):
-        self._thread = thread
+class SafeProxy(Proxy):
 
     def __del__(self):
-        self._thread.join()
+        object.__getattribute__(self, "_obj").join()
 
 
 class QueuedThread(threading.Thread):
@@ -31,11 +30,14 @@ class QueuedThread(threading.Thread):
     def handle_task(self, task, queue):
         pass
 
+    def get_task(self, poll_interval, queue):
+        return queue.get(True, poll_interval)
+
     def run(self):
         while not self._event.isSet():
 
             try:
-                item = self.in_queue.get(True, self._poll_interval)
+                item = self.get_task(self._poll_interval, self.in_queue)
 
             except queue.Empty:
                 continue
@@ -50,3 +52,11 @@ class QueuedThread(threading.Thread):
         self._event.set()
 
         super().join(timeout)
+
+
+class SafeThread(QueuedThread):
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls, *args, **kwargs)
+        obj.__init__(*args, **kwargs)
+        return SafeProxy(obj)

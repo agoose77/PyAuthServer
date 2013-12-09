@@ -246,7 +246,7 @@ class ServerConnection(Connection):
 
             # Only send attributes if relevant
             # player controller and replicable
-            if is_owner or is_relevant(self.replicable, replicable):
+            if (is_owner and not replicable.irrelevant_to_owner) or is_relevant(self.replicable, replicable):
                 # If we've never replicated to this channel
                 if channel.is_initial:
                     # Pack the class name

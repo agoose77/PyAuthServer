@@ -44,29 +44,37 @@ def handler_from_byte_length(bytes_):
 
 
 class String:
-    packer = UInt8
+    def __init__(self, static_value):
+        bytes_ = static_value.data.get("max_length", 255)
+        self.packer = handler_from_int(bytes_)
 
-    @classmethod
-    def pack(cls, str_):
-        return cls.packer.pack(len(str_)) + str_.encode()
+    def pack(self, str_):
+        return self.packer.pack(len(str_)) + str_.encode()
 
-    @classmethod
-    def size(cls, bytes_):
-        length = cls.packer.unpack_from(bytes_)
-        return length + 1
+    def size(self, bytes_):
+        length = self.packer.unpack_from(bytes_)
+        return length + self.packer.size()
 
-    @classmethod
-    def unpack(cls, bytes_):
-        return bytes_[cls.packer.size():].decode()
+    def unpack(self, bytes_):
+        return bytes_[self.packer.size():].decode()
 
-    @classmethod
-    def unpack_from(cls, bytes_):
-        length = cls.size(bytes_)
-        return cls.unpack(bytes_[:length])
+    def unpack_from(self, bytes_):
+        length = self.size(bytes_)
+        return self.unpack(bytes_[:length])
+
+
+class Bytes(String):
+
+    def pack(self, bytes_):
+        return self.packer.pack(len(bytes_)) + bytes_
+
+    def unpack(self, bytes_):
+        return bytes_[self.packer.size():]
 
 
 # Register handlers for native types
-register_handler(str, String)
+register_handler(str, String, is_condition=True)
+register_handler(bytes, Bytes, is_condition=True)
 register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 255)),
                  is_condition=True)
 register_handler(float, lambda x: (Float8 if x.data.get("max_precision")

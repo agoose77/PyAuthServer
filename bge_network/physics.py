@@ -84,6 +84,7 @@ class PhysicsSystem(SignalListener):
 
         found_actors = {}
 
+        # Conversion step
         for obj in scene.objects:
             actor = self.get_actor(obj, "replicable", Actor)
 
@@ -99,6 +100,7 @@ class PhysicsSystem(SignalListener):
             if isinstance(actor, Pawn):
                 self.setup_map_controller(actor, obj)
 
+        # Establish parent relationships
         for obj, actor in found_actors.items():
             if obj.parent in found_actors:
                 actor.set_parent(found_actors[obj.parent])
@@ -106,8 +108,7 @@ class PhysicsSystem(SignalListener):
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
-        if target in self._exempt_actors:
-            self.remove_exemption(target)
+        self.remove_exemption(target)
 
     @PhysicsUnsetSimulatedSignal.global_listener
     def add_exemption(self, target):

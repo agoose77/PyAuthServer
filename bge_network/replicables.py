@@ -8,6 +8,7 @@ from . import inputs
 from . import utilities
 from . import timer
 from . import draw_tools
+from . import stream
 
 import aud
 import bge
@@ -19,18 +20,23 @@ import network
 import os
 import operator
 import functools
-from Lib.tkinter.constants import ACTIVE
+from bge import logic
 
-SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity", "angular",
-                                "delta_time", "inputs", "mouse_x", "mouse_y"))
+SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity",
+                                            "angular", "delta_time", "inputs",
+                                            "mouse_x", "mouse_y"))
 
 
 class Controller(network.Replicable):
 
-    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.autonomous_proxy))
-    pawn = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
-    camera = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
-    weapon = network.Attribute(type_of=network.Replicable, complain=True, notify=True)
+    roles = network.Attribute(network.Roles(network.Roles.authority,
+                                            network.Roles.autonomous_proxy))
+    pawn = network.Attribute(type_of=network.Replicable,
+                             complain=True, notify=True)
+    camera = network.Attribute(type_of=network.Replicable,
+                               complain=True, notify=True)
+    weapon = network.Attribute(type_of=network.Replicable,
+                               complain=True, notify=True)
     info = network.Attribute(type_of=network.Replicable)
 
     def on_initialised(self):
@@ -57,6 +63,9 @@ class Controller(network.Replicable):
             self.unpossess()
 
         super().on_unregistered()
+
+    def hear_voice(self, info, voice):
+        pass
 
     def possess(self, replicable):
         self.pawn = replicable
@@ -105,6 +114,50 @@ class ReplicableInfo(network.Replicable):
         self.always_relevant = True
 
 
+class VoiceReplicationInfo(ReplicableInfo):
+
+    data = network.Attribute(type_of=bytes, max_length=920, notify=True)
+    roles = network.Attribute(
+                                  network.Roles(
+                                                    network.Roles.authority,
+                                                    network.Roles.simulated_proxy
+                                                    )
+                                  )
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.sounds = stream.SpeakerStream()
+        self.irrelevant_to_owner = True
+        #self.voice_data = []
+
+    def on_unregistered(self):
+        super().on_unregistered()
+
+        del self.sounds
+
+    def on_notify(self, name):
+        if name == "data":
+#             self.voice_data.append(self.data)
+
+            self.sounds.decode(self.data)
+
+        else:
+            super().on_notify(name)
+
+    def conditions(self, is_owner, is_complain, is_initial):
+        yield from super().conditions(is_owner, is_complain, is_initial)
+        # Cull at replication relevancy level not replicated to owner)
+        yield "data"
+
+#     @network.UpdateSignal.global_listener
+#     @network.simulated
+#     def update(self, delta_time):
+#         if self.voice_data:
+#             self.sounds.decode(self.voice_data[0])
+#             self.voice_data.clear()
+
+
 class PlayerReplicationInfo(ReplicableInfo):
 
     name = network.Attribute("")
@@ -129,6 +182,7 @@ class AIController(Controller):
     def unpossess(self):
         self.behaviour.reset()
         self.behaviour.blackboard['controller'] = self
+
         super().unpossess()
 
     def hear_sound(self, sound_path, source):
@@ -154,7 +208,6 @@ class AIController(Controller):
     @network.UpdateSignal.global_listener
     def update(self, delta_time):
         self.behaviour.update(delta_time)
-      #  self.behaviour.debug()
 
 
 class PlayerController(Controller):
@@ -168,28 +221,32 @@ class PlayerController(Controller):
     def mouse_delta(self):
         '''Returns the mouse movement since the last tick'''
         mouse = bge.logic.mouse
-        # The first tick the mouse won't be centred
-        mouse_position = mouse.position
-        screen_center = mouse.screen_center
 
-        if self.mouse_setup:
+        # The first tick the mouse won't be centred
+        screen_center = (0.5, 0.5)
+        mouse_position, mouse.position = mouse.position, screen_center
+        epsilon = self._mouse_epsilon
+        smooth_factor = self.mouse_smoothing
+
+        # If we have already initialised the mouse
+        if self._mouse_delta is not None:
             mouse_diff_x = screen_center[0] - mouse_position[0]
             mouse_diff_y = screen_center[1] - mouse_position[1]
 
+            smooth_x = utilities.lerp(self._mouse_delta[0],
+                                      mouse_diff_x, smooth_factor)
+            smooth_y = utilities.lerp(self._mouse_delta[1],
+                                      mouse_diff_y, smooth_factor)
         else:
-            mouse_diff_x = mouse_diff_y = 0.0
-            self.mouse_setup = True
+            smooth_x = smooth_y = 0.0
 
-        mouse.position = 0.5, 0.5
-        factor = 0.4
+        # Handle near zero values (must be set to a number above zero)
+        if abs(smooth_x) < epsilon:
+            smooth_x = epsilon / 1000
+        if abs(smooth_y) < epsilon:
+            smooth_y = epsilon / 1000
 
-        if self._previous_diff is not None:
-            smooth_x = utilities.lerp(self._previous_diff[0], mouse_diff_x, factor)
-            smooth_y = utilities.lerp(self._previous_diff[1], mouse_diff_y, factor)
-        else:
-            smooth_x = mouse_diff_x
-            smooth_y = mouse_diff_y
-        self._previous_diff = smooth_x, smooth_y
+        self._mouse_delta = smooth_x, smooth_y
         return smooth_x, smooth_y
 
     def acknowledge_good_move(self, move_id: network.StaticValue(int, max_value=1024)) -> network.Netmodes.client:
@@ -302,15 +359,19 @@ class PlayerController(Controller):
     def on_initialised(self):
         super().on_initialised()
 
+        self.create_voice()
         self.setup_input()
+        self.setup_microphone()
 
         self.current_move_id = 0
         self.last_correction = 0
         self.previous_moves = collections.OrderedDict()
 
-        self.mouse_setup = False
         self.camera_setup = False
-        self._previous_diff = None
+        self.mouse_smoothing = 0.6
+
+        self._mouse_delta = None
+        self._mouse_epsilon = 0.00001
 
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
@@ -341,15 +402,10 @@ class PlayerController(Controller):
             return
 
         self.increment_move()
+        self.store_voice()
 
         # Control Mouse data
-        near_zero = 0.001
         mouse_diff_x, mouse_diff_y = self.mouse_delta
-
-        if abs(mouse_diff_x) < near_zero:
-            mouse_diff_x = near_zero / 1000
-        if abs(mouse_diff_y) < near_zero:
-            mouse_diff_y = near_zero / 1000
 
 #         if self.inputs.shoot:
 #             self.start_fire()
@@ -373,7 +429,7 @@ class PlayerController(Controller):
 
         self.reset_corrections(replicable)
 
-    def receive_broadcast(self, message_string:network.StaticValue(str)) -> network.Netmodes.client:
+    def receive_broadcast(self, message_string: network.StaticValue(str)) -> network.Netmodes.client:
         print("BROADCAST: {}".format(message_string))
 
     def reset_corrections(self, replicable):
@@ -396,6 +452,16 @@ class PlayerController(Controller):
         self.inputs = inputs.InputManager(keybindings)
         print("Created input manager")
 
+    @network.requires_netmode(network.Netmodes.server)
+    def create_voice(self):
+        self.voice = VoiceReplicationInfo()
+        #self.voice.possessed_by(self)
+
+    @network.requires_netmode(network.Netmodes.client)
+    def setup_microphone(self):
+        self.microphone = stream.MicrophoneStream()
+        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
+
     @network.supply_data(inputs=["input_fields"])
     def server_validate(self, move_id: network.StaticValue(int, max_value=1024),
                                 last_correction: network.StaticValue(int, max_value=1024),
@@ -408,7 +474,7 @@ class PlayerController(Controller):
                             ) -> network.Netmodes.server:
 
         if not (self.pawn and self.camera):
-            return 
+            return
 
         self.current_move_id = move_id
 
@@ -425,6 +491,26 @@ class PlayerController(Controller):
         else:
             self.correct_bad_move(move_id, correction)
             self.last_correction = move_id
+
+    def send_voice(self, data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.server:
+        info = self.info
+        for controller in network.WorldInfo.subclass_of(Controller):
+            if controller is self:
+                continue
+
+            controller.hear_voice(info, data)
+
+    def receive_voice(self, info: network.StaticValue(network.Replicable),
+                   data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.client:
+        player = self.sound_channels[info]
+        player.decode(data)
+
+    def store_voice(self):
+        data = self.microphone.encode()
+        self.send_voice(data)
+
+    def hear_voice(self, info, voice):
+        self.receive_voice(info, voice)
 
     def start_fire(self):
         if not self.weapon:
@@ -445,6 +531,14 @@ class PlayerController(Controller):
     def unpossess(self):
         signals.PhysicsSetSimulatedSignal.invoke(target=self.pawn)
         super().unpossess()
+
+    @network.requires_netmode(network.Netmodes.client)
+    def on_unregistered(self):
+        super().on_unregistered()
+
+        del self.microphone
+        for key in list(self.sound_channels):
+            del self.sound_channels[key]
 
 
 class Actor(network.Replicable):
@@ -551,7 +645,6 @@ class Actor(network.Replicable):
             signals.CollisionSignal.invoke(obj, False, target=self)
 
     def on_unregistered(self):
-
         # Unregister any actor children
         for child in self.children:
             child.request_unregistration()
@@ -641,7 +734,10 @@ class Actor(network.Replicable):
 
     @property
     def physics(self):
-        return self.object.physicsType
+        physics_type = self.object.physicsType
+        if physics_type != logic.KX_PHYSICS_NO_COLLISION and not getattr(self.object, "meshes", []):
+            return logic.KX_PHYSICS_NO_COLLISION
+        return physics_type
 
     @property
     def sockets(self):
@@ -1070,7 +1166,7 @@ class Pawn(Actor):
 
 
 class Lamp(Actor):
-    roles = network.Roles(network.Roles.authority, network.Roles.simulated)
+    roles = network.Roles(network.Roles.authority, network.Roles.simulated_proxy)
 
     entity_class = bge_data.LampObject
     entity_name = "Lamp"

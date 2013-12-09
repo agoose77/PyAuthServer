@@ -2,12 +2,11 @@ from json import loads
 from urllib import request, parse
 from functools import partial
 
-from threads import QueuedThread
 from queue import Empty as EmptyQueue
-from bge_network import GameExitSignal, SignalListener, UpdateSignal
+from bge_network import GameExitSignal, SignalListener, UpdateSignal, SafeThread
 
 
-class URLThread(QueuedThread):
+class URLThread(SafeThread):
 
     def handle_task(self, task, queue):
         callback, data, url = task

@@ -132,8 +132,10 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
             self.last_time = start_time
 
-
         GameExitSignal.invoke()
+        for replicable in Replicable:
+            replicable.request_unregistration()
+        Replicable.update_graph()
 
     def main(self):
         self.__init__()

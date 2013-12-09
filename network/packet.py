@@ -77,7 +77,7 @@ class Packet:
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
     protocol_handler = get_handler(StaticValue(int))
-    size_handler = get_handler(StaticValue(int))
+    size_handler = get_handler(StaticValue(int, max_value=1000))
 
     def __init__(self, protocol=None, payload=None, *, reliable=False,
                  on_success=None, on_failure=None):
