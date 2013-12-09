@@ -16,15 +16,13 @@ class ReplicableRegister(InstanceRegister):
         if bases:
             # Get all the member methods
             for name, value in attrs.items():
-                if meta.found_in_parents(name, bases):
-                    continue
 
                 # Wrap them with permission
                 if not isinstance(value, (FunctionType, classmethod,
                                       staticmethod)):
                     continue
-
-                if meta.is_wrapped(value):
+                
+                if meta.should_ignore(name, value, bases):
                     continue
 
                 # Recreate RPC from its function
@@ -64,8 +62,9 @@ class ReplicableRegister(InstanceRegister):
             if name in dir(parent):
                 return True
 
-    def is_wrapped(func):
-        return bool(func.__annotations__.get("wrapped"))
+    def should_ignore(name, func, bases):
+        wrapped = bool(func.__annotations__.get("wrapped"))
+        return wrapped or name in dir(bases[0])
 
     def mark_wrapped(func):
         func.__annotations__['wrapped'] = True

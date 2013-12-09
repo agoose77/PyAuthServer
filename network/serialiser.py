@@ -44,6 +44,7 @@ def handler_from_byte_length(bytes_):
 
 
 class String:
+
     def __init__(self, static_value):
         bytes_ = static_value.data.get("max_length", 255)
         self.packer = handler_from_int(bytes_)

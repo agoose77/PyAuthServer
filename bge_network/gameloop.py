@@ -131,7 +131,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
             self.last_time = start_time
-
         GameExitSignal.invoke()
         for replicable in Replicable:
             replicable.request_unregistration()
@@ -150,10 +149,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.network.stop()
 
 """
-@todo: add level loading support
-@todo load static actors
-@todo: create AI controller
-@todo: create Animation struct"""
+@todo: add level loading support"""
 
 
 class ServerGameLoop(GameLoop):

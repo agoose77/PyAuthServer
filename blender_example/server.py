@@ -198,6 +198,9 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         self.matchmaker.poll("Test Map", self.player_limit,
                                     self.players)
 
+    def on_unregistered(self):
+        super().on_unregistered()
+
 
 class Server(bge_network.ServerGameLoop):
 

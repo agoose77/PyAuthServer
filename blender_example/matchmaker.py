@@ -31,14 +31,9 @@ class Matchmaker(SignalListener):
 
     def __init__(self, url):
         self.register_signals()
-
         self.url = url
         self.thread = URLThread()
         self.thread.start()
-
-    @GameExitSignal.global_listener
-    def delete_thread(self):
-        self.thread.join()
 
     def perform_query(self, callback=None, data=None, is_json=True):
         if data is not None:
@@ -84,6 +79,10 @@ class Matchmaker(SignalListener):
             if callable(callback):
                 callback(response)
 
+    @GameExitSignal.global_listener
+    def quit(self):
+        del self.thread
+
 
 class BoundMatchmaker(Matchmaker):
 
@@ -95,7 +94,6 @@ class BoundMatchmaker(Matchmaker):
     def register(self, name, *args, **kwargs):
         data = self.register_query(name, *args, **kwargs)
         id_setter = partial(self.__setattr__, "_id")
-
         self.perform_query(id_setter, data)
         self._name = name
 

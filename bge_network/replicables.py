@@ -68,6 +68,8 @@ class Controller(network.Replicable):
         pass
 
     def possess(self, replicable):
+        if self.info:
+            self.info.pawn = replicable
         self.pawn = replicable
         self.pawn.possessed_by(self)
 
@@ -103,6 +105,8 @@ class Controller(network.Replicable):
 
     def unpossess(self):
         self.pawn.unpossessed()
+        if self.info:
+            self.info.pawn = None
         self.pawn = None
 
 
@@ -114,53 +118,10 @@ class ReplicableInfo(network.Replicable):
         self.always_relevant = True
 
 
-class VoiceReplicationInfo(ReplicableInfo):
-
-    data = network.Attribute(type_of=bytes, max_length=920, notify=True)
-    roles = network.Attribute(
-                                  network.Roles(
-                                                    network.Roles.authority,
-                                                    network.Roles.simulated_proxy
-                                                    )
-                                  )
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.sounds = stream.SpeakerStream()
-        self.irrelevant_to_owner = True
-        #self.voice_data = []
-
-    def on_unregistered(self):
-        super().on_unregistered()
-
-        del self.sounds
-
-    def on_notify(self, name):
-        if name == "data":
-#             self.voice_data.append(self.data)
-
-            self.sounds.decode(self.data)
-
-        else:
-            super().on_notify(name)
-
-    def conditions(self, is_owner, is_complain, is_initial):
-        yield from super().conditions(is_owner, is_complain, is_initial)
-        # Cull at replication relevancy level not replicated to owner)
-        yield "data"
-
-#     @network.UpdateSignal.global_listener
-#     @network.simulated
-#     def update(self, delta_time):
-#         if self.voice_data:
-#             self.sounds.decode(self.voice_data[0])
-#             self.voice_data.clear()
-
-
 class PlayerReplicationInfo(ReplicableInfo):
 
     name = network.Attribute("")
+    pawn = network.Attribute(type_of=network.Replicable)
 
 
 class AIController(Controller):
@@ -359,7 +320,6 @@ class PlayerController(Controller):
     def on_initialised(self):
         super().on_initialised()
 
-        self.create_voice()
         self.setup_input()
         self.setup_microphone()
 
@@ -451,11 +411,6 @@ class PlayerController(Controller):
 
         self.inputs = inputs.InputManager(keybindings)
         print("Created input manager")
-
-    @network.requires_netmode(network.Netmodes.server)
-    def create_voice(self):
-        self.voice = VoiceReplicationInfo()
-        #self.voice.possessed_by(self)
 
     @network.requires_netmode(network.Netmodes.client)
     def setup_microphone(self):
