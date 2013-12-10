@@ -1,4 +1,4 @@
-from .replicables import Actor, Pawn, Controller, Camera, Weapon
+from .replicables import Actor, Pawn, Controller, Camera, Weapon, ReplicableInfo
 from .enums import PhysicsType
 from .signals import (CollisionSignal, PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
@@ -59,14 +59,16 @@ class PhysicsSystem(SignalListener):
     def setup_map_controller(self, pawn, obj):
         controller = self.get_actor(obj, "controller", Controller)
         camera = self.get_actor(obj, "camera", Camera)
+        info = self.get_actor(obj, "info", ReplicableInfo)
 
         try:
-            assert not None in (camera, controller), "Failed to find both camera and controller"
+            assert not None in (camera, controller, info), "Failed to find camera, controller and info"
 
         except AssertionError as e:
             self.on_conversion_error(obj, e)
             return
 
+        controller.info = info
         controller.possess(pawn)
         controller.set_camera(camera)
 

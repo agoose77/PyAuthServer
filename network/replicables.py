@@ -25,9 +25,6 @@ class Replicable(metaclass=ReplicableRegister):
                       notify=True,
                       )
 
-    always_relevant = False
-    irrelevant_to_owner = False
-
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
         # If this is a locally authoritative
@@ -89,6 +86,7 @@ class Replicable(metaclass=ReplicableRegister):
     def on_initialised(self):
         self.owner = None
         self.always_relevant = False
+        self.irrelevant_to_owner = False
 
     def request_registration(self, instance_id, verbose=False):
         '''Handles registration of instances

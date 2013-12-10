@@ -22,7 +22,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     ai_camera_class = bge_network.Camera
     ai_controller_class = EnemyController
     ai_pawn_class = Zombie
-    ai_replication_info_class = bge_network.PlayerReplicationInfo
+    ai_replication_info_class = bge_network.AIReplicationInfo
     ai_weapon_class = ZombieWeapon
 
     player_camera_class = bge_network.Camera
@@ -50,10 +50,15 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if not self.allows_broadcast(sender, message):
             return
 
-        for replicable in bge_network.WorldInfo.subclass_of(bge_network.PlayerController):
+        for replicable in bge_network.WorldInfo.subclass_of(
+                                                bge_network.PlayerController):
             replicable.receive_broadcast(message)
 
-    def create_new_ai(self, controller):
+    def create_new_ai(self, controller=None):
+        if controller is None:
+            controller = self.ai_controller_class()
+            controller.info = self.ai_replication_info_class()
+
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
         weapon = self.ai_weapon_class()
@@ -62,9 +67,15 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((random.randint(-10, 10), random.randint(-10, 10), 3))
+        pawn.position = Vector((random.randint(-10, 10),
+                                random.randint(-10, 10), 3))
+        return controller
 
-    def create_new_player(self, controller):
+    def create_new_player(self, controller=None):
+        if controller is None:
+            controller = self.player_controller_class()
+            controller.info = self.player_replication_info_class()
+
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
         weapon = self.player_weapon_class()
@@ -74,8 +85,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.setup_weapon(weapon)
 
         pawn.position = Vector((4, 4, 2))
+        return controller
 
     def is_relevant(self, player_controller, replicable):
+        print(replicable, replicable.always_relevant)
         # We never allow bge_network.PlayerController classes
         if isinstance(replicable, bge_network.Controller):
             return False
@@ -145,13 +158,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         self.broadcast(replicable, "{} disconnected".format(replicable))
 
     def post_initialise(self, connection):
-        controller = self.player_controller_class()
-        player_info = self.player_replication_info_class()
-
-        controller.info = player_info
-        self.create_new_player(controller)
-
-        return controller
+        return self.create_new_player()
 
     def pre_initialise(self, address_tuple, netmode):
         if netmode == bge_network.Netmodes.server:

@@ -68,8 +68,7 @@ class Controller(network.Replicable):
         pass
 
     def possess(self, replicable):
-        if self.info:
-            self.info.pawn = replicable
+        self.info.pawn = replicable
         self.pawn = replicable
         self.pawn.possessed_by(self)
 
@@ -105,12 +104,15 @@ class Controller(network.Replicable):
 
     def unpossess(self):
         self.pawn.unpossessed()
-        if self.info:
-            self.info.pawn = None
+        self.info.pawn = None
         self.pawn = None
 
 
 class ReplicableInfo(network.Replicable):
+    roles = network.Attribute(
+                              network.Roles(network.Roles.authority,
+                                            network.Roles.simulated_proxy)
+                              )
 
     def on_initialised(self):
         super().on_initialised()
@@ -118,10 +120,26 @@ class ReplicableInfo(network.Replicable):
         self.always_relevant = True
 
 
-class PlayerReplicationInfo(ReplicableInfo):
+class AIReplicationInfo(ReplicableInfo):
 
-    name = network.Attribute("")
-    pawn = network.Attribute(type_of=network.Replicable)
+    pawn = network.Attribute(type_of=network.Replicable, complain=True)
+
+    def conditions(self, is_owner, is_complain, is_initial):
+        yield from super().conditions(is_owner, is_complain, is_initial)
+
+        if is_complain:
+            yield "pawn"
+
+
+class PlayerReplicationInfo(AIReplicationInfo):
+
+    name = network.Attribute("", complain=True)
+
+    def conditions(self, is_owner, is_complain, is_initial):
+        yield from super().conditions(is_owner, is_complain, is_initial)
+
+        if is_complain:
+            yield "name"
 
 
 class AIController(Controller):
@@ -131,13 +149,13 @@ class AIController(Controller):
             return
 
         sees = self.camera.sees_actor
+        my_pawn = self.pawn
 
         for actor in network.WorldInfo.subclass_of(Pawn):
 
-            if ignore_self and actor == self.pawn:
+            if (ignore_self and actor == my_pawn):
                 continue
-
-            if sees(actor):
+            elif sees(actor):
                 return actor
 
     def unpossess(self):
@@ -360,6 +378,10 @@ class PlayerController(Controller):
 
         if not (self.pawn and self.camera):
             return
+        info = network.WorldInfo.subclass_of(AIReplicationInfo)
+
+        for i in info:
+            print(i, i.pawn)
 
         self.increment_move()
         self.store_voice()
@@ -416,6 +438,9 @@ class PlayerController(Controller):
     def setup_microphone(self):
         self.microphone = stream.MicrophoneStream()
         self.sound_channels = collections.defaultdict(stream.SpeakerStream)
+
+    def set_name(self, name: network.StaticValue(str)) -> network.Netmodes.server:
+        self.info.name = name
 
     @network.supply_data(inputs=["input_fields"])
     def server_validate(self, move_id: network.StaticValue(int, max_value=1024),
@@ -488,12 +513,14 @@ class PlayerController(Controller):
         super().unpossess()
 
     @network.requires_netmode(network.Netmodes.client)
-    def on_unregistered(self):
-        super().on_unregistered()
-
+    def destroy_microphone(self):
         del self.microphone
         for key in list(self.sound_channels):
             del self.sound_channels[key]
+
+    def on_unregistered(self):
+        super().on_unregistered()
+        self.destroy_microphone()
 
 
 class Actor(network.Replicable):

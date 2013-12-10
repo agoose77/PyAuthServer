@@ -99,6 +99,7 @@ class SpeakerStream(GenericStream):
         if clear:
             with self.in_queue.mutex:
                 self.in_queue.queue.clear()
+
         decoder = self.decoder
         data = decoder(data)
         for chunk in self.slice_bytes(self.chunk_size, data):

@@ -77,7 +77,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
             return super().__new__(cls)
 
     def on_unregistered(self):
-
         if self.connection:
             self.connection.on_delete()
 
