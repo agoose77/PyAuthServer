@@ -2,7 +2,7 @@ from .handler_interfaces import static_description, get_handler
 from .argument_serialiser import ArgumentSerialiser
 from .conditions import is_reliable
 from .descriptors import StaticValue
-from .replicables import Replicable
+from .replicables import Replicable, WorldInfo
 
 from time import monotonic
 
@@ -14,7 +14,8 @@ class Channel:
         self.replicable = replicable
         self.connection = connection
         # Set initial (replication status) to True
-        self.last_replication_time = None
+        self.last_replication_time = WorldInfo.elapsed
+        self.is_initial = True
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
         # Sort by name (must be the same on both client and server)
@@ -72,6 +73,8 @@ class ClientChannel(Channel):
         replicable_data = replicable.attribute_storage.data
         get_attribute = replicable.attribute_storage.get_member_by_name
         notifications = []
+        notify = notifications.append
+        invoke_notify = replicable.on_notify
 
         # Process and store new values
         for attribute_name, value in self.serialiser.unpack(data,
@@ -82,12 +85,12 @@ class ClientChannel(Channel):
 
             # Check if needs notification
             if attribute.notify:
-                notifications.append(attribute_name)
+                notify(attribute_name)
 
         # Notify after all values are set
         if notifications:
             for attribute_name in notifications:
-                replicable.on_notify(attribute_name)
+                invoke_notify(attribute_name)
 
 
 class ServerChannel(Channel):
@@ -118,7 +121,7 @@ class ServerChannel(Channel):
         # Get names of Replicable attributes
         can_replicate = replicable.conditions(is_owner,
                                               is_complaining,
-                                              self.last_replication_time is None)
+                                              self.is_initial)
 
         get_description = static_description
         get_attribute = self.attribute_storage.get_member_by_name
@@ -140,7 +143,7 @@ class ServerChannel(Channel):
             # Get value hash
             # Use the complaint hash if it is there to save computation
             new_hash = complaint_hashes[attribute] if (attribute in
-                               complaint_hashes) else get_description(value)
+                       complaint_hashes) else get_description(value)
 
             # If values match, don't update
             if last_hash == new_hash:
@@ -153,11 +156,12 @@ class ServerChannel(Channel):
             previous_hashes[attribute] = new_hash
 
             # Set new complaint hash if it was complaining
-            if attribute in complaint_hashes and attribute.complain:
+            if attribute.complain and attribute in complaint_hashes:
                 previous_complaints[attribute] = new_hash
 
         # We must have now replicated
         self.last_replication_time = replication_time
+        self.is_initial = False
 
         # Outputting bytes asserts we have data
         if to_serialise:

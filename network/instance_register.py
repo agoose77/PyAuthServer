@@ -165,8 +165,8 @@ class InstanceRegister(TypeRegister):
         finally:
             instance.unregister_signals()
 
-    def __iter__(cls):
+    def __iter__(cls, iter=iter):
         return iter(cls._instances.values())
 
-    def __len__(cls):
+    def __len__(cls, len=len):
         return len(cls._instances)

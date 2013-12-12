@@ -27,10 +27,10 @@ class Replicable(metaclass=ReplicableRegister):
     # Reference to owner replicable
     owner = None
 
-    # Should this be considered for replication to owner
-    irrelevant_to_owner = False
+    # Should this be considered for replication to owner?
+    relevant_to_owner = True
 
-    # Is this always replicated (overrides preceeding condition)
+    # Is this always replicated (overrides preceeding condition)?
     always_relevant = False
 
     # Between 0.0 and 3.0

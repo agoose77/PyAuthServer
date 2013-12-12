@@ -134,22 +134,20 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
-            packets = self.get_handshake()
+            packet_collection = PacketCollection(self.get_handshake())
             self.status = ConnectionStatus.handshake
 
         # If connected send normal data
         elif self.status == ConnectionStatus.connected:
-            packets = self.connection.send(network_tick, self.bandwidth)
+            packet_collection = self.connection.send(network_tick,
+                                                     self.bandwidth)
 
         # Don't send any data between states
         else:
             return
 
-        # Create a packet collection from data
-        packet_collection = PacketCollection(packets)
-
         # Include any re-send
-        if self.buffer:
+        if self.buffer and 0:
             # Read buffer
             packet_collection += PacketCollection(self.buffer)
             # Empty buffer

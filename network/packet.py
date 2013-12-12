@@ -1,8 +1,8 @@
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
-from .memoize import Memoize, Memoizable
+from functools import lru_cache
 
-@Memoizable
+
 class PacketCollection:
     __slots__ = "members"
 
@@ -52,13 +52,13 @@ class PacketCollection:
         for member in self.reliable_members:
             member.on_not_ack()
 
-    @Memoize
     def to_bytes(self):
         return b''.join(m.to_bytes() for m in self.members)
 
     def from_bytes(self, bytes_):
         members = self.members = []
         append = members.append
+
         while bytes_:
             packet = Packet()
             bytes_ = packet.take_from(bytes_)
@@ -79,7 +79,6 @@ class PacketCollection:
     __bytes__ = to_bytes
 
 
-@Memoizable
 class Packet:
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
@@ -117,7 +116,7 @@ class Packet:
         if callable(self.on_failure):
             self.on_failure(self)
 
-    @Memoize
+    @lru_cache()
     def to_bytes(self):
         '''Converts packet into bytes'''
         data = self.protocol_handler.pack(self.protocol) + self.payload
@@ -153,6 +152,8 @@ class Packet:
         '''Printable version of a packet'''
         to_console = ["[Packet]"]
         for key in self.__slots__:
+            if key.startswith("_"):
+                continue
             to_console.append("{}: {}".format(key, getattr(self, key)))
 
         return '\n'.join(to_console)
