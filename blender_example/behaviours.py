@@ -90,7 +90,7 @@ def attack_behaviour():
 
                                               CheckTimer()
                                               ),
-                                 Alert("{pawn} Attacking {actor}"),
+                                 #Alert("{pawn} Attacking {actor}"),
                                  AimAtActor(),
                                  FireWeapon(),
                                  SetTimer()

@@ -234,17 +234,17 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # Iterate over ACK bitfield
         for index in range(self.ack_window):
-            sequence = ack_base - (index + 1)
+            sequence_ = ack_base - (index + 1)
 
             # If it was acked successfully
             flag = ack_bitfield[index]
 
             # If we are waiting for this packet, acknowledge it
-            if (flag and sequence in requested_ack):
-                requested_ack.pop(sequence).on_ack()
+            if (flag and sequence_ in requested_ack):
+                requested_ack.pop(sequence_).on_ack()
 
                 # Check throttling status
-                if sequence == self.tagged_throttle_sequence:
+                if sequence_ == self.tagged_throttle_sequence:
                     self.stop_throttling()
 
         # Acknowledge the sequence of this packet about
@@ -261,10 +261,10 @@ class ConnectionInterface(metaclass=InstanceRegister):
         missed_ack = False
 
         # Find packets we think are dropped and resend them
-        for sequence_ in requested_ack:
-            # If the packet drops off the ack_window assume it is lost
-            if (sequence - sequence_) < window_size:
-                continue
+        considered_dropped = set(seq_ for seq_ in requested_ack if
+                                 (sequence - seq_) >= window_size)
+        # If the packet drops off the ack_window assume it is lost
+        for sequence_ in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
             reliable_collection = requested_ack.pop(sequence_).to_reliable()
             reliable_collection.on_not_ack()

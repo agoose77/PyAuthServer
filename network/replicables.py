@@ -129,7 +129,6 @@ class Replicable(metaclass=ReplicableRegister):
 
             # Forces reassignment of instance id
             instance.request_registration(None)
-
         if verbose:
             print("Create {} with id {}".format(self.__class__.__name__,
                                                 instance_id))
@@ -162,6 +161,7 @@ class Replicable(metaclass=ReplicableRegister):
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
+        return
         print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 

@@ -39,6 +39,8 @@ class Controller(network.Replicable):
                                complain=True, notify=True)
     info = network.Attribute(type_of=network.Replicable)
 
+    replication_priority = 2.0
+
     def on_initialised(self):
         super().on_initialised()
 
@@ -1021,6 +1023,8 @@ class Pawn(Actor):
 
     health = network.Attribute(100, notify=True, complain=True)
     alive = network.Attribute(True, notify=True, complain=True)
+
+    replication_update_period = 1 / 10
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
