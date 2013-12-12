@@ -15,7 +15,6 @@ class Replicable(metaclass=ReplicableRegister):
     Default method for notification and generator for conditions.
     Additional attributes for attribute values (from descriptors)
     And complaining attributes'''
-    _by_types = defaultdict(list)
 
     roles = Attribute(
                       Roles(
@@ -24,6 +23,24 @@ class Replicable(metaclass=ReplicableRegister):
                             ),
                       notify=True,
                       )
+
+    # Reference to owner replicable
+    owner = None
+
+    # Should this be considered for replication to owner
+    irrelevant_to_owner = False
+
+    # Is this always replicated (overrides preceeding condition)
+    always_relevant = False
+
+    # Between 0.0 and 3.0
+    replication_priority = 1.0
+
+    # How frequently this should be updated
+    replication_update_period = 1/20
+
+    # Dictionary of class-owned instances
+    _by_types = defaultdict(list)
 
     def __init__(self, instance_id=None,
                  register=False, static=True, **kwargs):
@@ -52,9 +69,11 @@ class Replicable(metaclass=ReplicableRegister):
         replicable = self
 
         # Walk the parent tree until no parent
-        while replicable:
-            owner = getattr(replicable, "owner", None)
-            last, replicable = replicable, owner
+        try:
+            while replicable:
+                last, replicable = replicable, replicable.owner
+        except AttributeError:
+            pass
 
         return last
 
@@ -83,11 +102,6 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
-    def on_initialised(self):
-        self.owner = None
-        self.always_relevant = False
-        self.irrelevant_to_owner = False
-
     def request_registration(self, instance_id, verbose=False):
         '''Handles registration of instances
         Modifies behaviour to allow network priority over local instances
@@ -115,6 +129,7 @@ class Replicable(metaclass=ReplicableRegister):
 
             # Forces reassignment of instance id
             instance.request_registration(None)
+
         if verbose:
             print("Create {} with id {}".format(self.__class__.__name__,
                                                 instance_id))

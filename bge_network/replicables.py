@@ -68,8 +68,7 @@ class Controller(network.Replicable):
         pass
 
     def possess(self, replicable):
-        self.info.pawn = replicable
-        self.pawn = replicable
+        self.info.pawn = self.pawn = replicable
         self.pawn.possessed_by(self)
 
         replicable.register_child(self)
@@ -104,8 +103,7 @@ class Controller(network.Replicable):
 
     def unpossess(self):
         self.pawn.unpossessed()
-        self.info.pawn = None
-        self.pawn = None
+        self.info.pawn = self.pawn = None
 
 
 class ReplicableInfo(network.Replicable):
@@ -378,10 +376,8 @@ class PlayerController(Controller):
 
         if not (self.pawn and self.camera):
             return
-        info = network.WorldInfo.subclass_of(AIReplicationInfo)
 
-        for i in info:
-            print(i, i.pawn)
+        #info = network.WorldInfo.subclass_of(AIReplicationInfo)
 
         self.increment_move()
         self.store_voice()

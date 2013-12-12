@@ -7,14 +7,31 @@ from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
 
 
+def respect_bandwidth(func):
+    def wrapper(*args, bandwidth, **kwargs):
+        bandwidth_used = 0
+        generator = func(*args, **kwargs)
+
+        try:
+            while bandwidth > bandwidth_used:
+                packet = next(generator)
+                bandwidth_used += packet.size
+                yield packet
+
+        except StopIteration:
+            return
+    return wrapper
+
+
 class Connection(SignalListener):
 
     channel_class = None
 
     def __init__(self, netmode):
         self.netmode = netmode
-        self.channels = {}
         self.replicable = None
+
+        self.channels = {}
 
         self.string_packer = get_handler(StaticValue(str))
         self.int_packer = get_handler(StaticValue(int))
@@ -30,8 +47,7 @@ class Connection(SignalListener):
     def notify_registration(self, target):
         '''Create channel for context with network id
         @param instance_id: network id of context'''
-        channel = self.channel_class(self, target)
-        self.channels[target.instance_id] = channel
+        self.channels[target.instance_id] = self.channel_class(self, target)
 
     def on_delete(self):
         self.replicable.request_unregistration()
@@ -48,29 +64,45 @@ class Connection(SignalListener):
         except AttributeError:
             return False
 
-    def get_method_replication(self):
+    @staticmethod
+    def get_replication_priority(entry):
+        replicable, (is_owner, channel) = entry
+        return replicable.replication_priority
 
+    @property
+    def relevant_replicables(self):
         check_is_owner = self.is_owner
         channels = self.channels
-        packer = self.replicable_packer.pack_id
         no_role = Roles.none
-        method_invoke = Protocols.method_invoke
-        make_packet = Packet
 
         for replicable in Replicable:
-
+            # Check if remote role is permitted
             if replicable.roles.remote == no_role:
                 continue
 
+            channel = channels[replicable.instance_id]
+
+            # Now check if we are an owner, or relevant
+            is_owner = check_is_owner(replicable)
+            if (is_owner and not replicable.irrelevant_to_owner):
+                yield replicable, (is_owner, channel)
+
+    def get_method_replication(self):
+        channels = self.channels
+        method_invoke = Protocols.method_invoke
+        make_packet = Packet
+
+        for (replicable, (is_owner, channel)) in self.relevant_replicables:
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = packer(instance_id)
 
             # Get attribute channel
             channel = channels[instance_id]
 
             # Send RPC calls if we are the owner
-            if channel.has_rpc_calls and check_is_owner(replicable):
+            if channel.has_rpc_calls and is_owner:
+                packed_id = channel.packed_id
+
                 for rpc_call, reliable in channel.take_rpc_calls():
                     rpc_data = packed_id + rpc_call
 
@@ -153,12 +185,12 @@ class ClientConnection(Connection):
             else:
                 replicable.request_unregistration()
 
-    def send(self, network_tick):
+    def send(self, network_tick, available_bandwidth):
         '''Client connection send method
         Sends data using initialised context
         Sends RPC information
         Generator'''
-        yield from self.get_method_replication()
+        yield from self.get_method_replication(bandwidth=available_bandwidth)
 
     def receive(self, packets):
         '''Client connection receive method
@@ -196,85 +228,117 @@ class ServerConnection(Connection):
     def notify_unregistration(self, target):
         '''Called when replicable dies
         @param replicable: replicable that died'''
+        # Send delete packet
+        channel = self.channels[target.instance_id]
+        self.cached_packets.add(Packet(protocol=Protocols.replication_del,
+                                    payload=channel.packed_id, reliable=True))
+
         super().notify_unregistration(target)
 
-        instance_id = target.instance_id
-        packed_id = self.replicable_packer.pack_id(instance_id)
+    @staticmethod
+    def get_replication_priority(entry):
+        replicable, (is_owner, channel) = entry
+        try:
+            interval = (WorldInfo.elapsed - channel.last_replication_time)
 
-        # Send delete packet
-        self.cached_packets.add(Packet(protocol=Protocols.replication_del,
-                                    payload=packed_id, reliable=True))
+        except TypeError:
+            return replicable.replication_priority
 
-    def get_full_replication(self):
-        '''Yields replication packets for relevant replicable
-        @param replicable: replicable to replicate'''
+        elapsed_fraction = (interval / replicable.replication_update_period)
+        return replicable.replication_priority + (elapsed_fraction - 1)
+
+    @property
+    def prioritised_replicables(self):
+        return sorted(self.relevant_replicables, reverse=True,
+                      key=self.get_replication_priority)
+
+    @property
+    def relevant_replicables(self):
         is_relevant = WorldInfo.rules.is_relevant
-        id_packer = self.replicable_packer.pack_id
+        connection_replicable = self.replicable
+
         check_is_owner = self.is_owner
         channels = self.channels
-
         no_role = Roles.none
+
+        for replicable in Replicable:
+            # Check if remote role is permitted
+            if replicable.roles.remote == no_role:
+                continue
+
+            channel = channels[replicable.instance_id]
+
+            # Now check if we are an owner, or relevant
+            is_owner = check_is_owner(replicable)
+            if ((is_owner and not replicable.irrelevant_to_owner) or
+                is_relevant(connection_replicable, replicable)):
+                yield replicable, (is_owner, channel)
+
+    @respect_bandwidth
+    def get_attribute_replication(self):
+        '''Yields replication packets for relevant replicable
+        @param replicable: replicable to replicate'''
+        channels = self.channels
+
         make_packet = Packet
         cached_packets = self.cached_packets
         cache_packet = cached_packets.add
+        uncache_packet = cached_packets.pop
 
         method_invoke = Protocols.method_invoke
         replication_init = Protocols.replication_init
         replication_update = Protocols.replication_update
 
-        for replicable in Replicable:
-            # We cannot network remote roles of None
-            if replicable.roles.remote == no_role:
-                continue
+        timestamp = WorldInfo.elapsed
 
-            # Determine if we own this replicable
-            is_owner = check_is_owner(replicable)
-
+        for (replicable, (is_owner, channel)) in self.prioritised_replicables:
             # Get network ID
             instance_id = replicable.instance_id
-            packed_id = id_packer(instance_id)
-
             # Get attribute channel
             channel = channels[instance_id]
+            packed_id = channel.packed_id
 
-            # Send RPC calls if we are the owner
-            if channel.has_rpc_calls and is_owner:
-                for rpc_call, reliable in channel.take_rpc_calls():
-                    yield make_packet(protocol=method_invoke,
-                                      payload=packed_id + rpc_call,
-                                      reliable=reliable)
+            # Check whether enough time has elapsed
+            try:
+                interval = (timestamp - channel.last_replication_time)
+
+            except TypeError:
+                pass
+
+            else:
+                if interval < replicable.replication_update_period:
+                    continue
 
             # Only send attributes if relevant
             # player controller and replicable
-            if (is_owner and not replicable.irrelevant_to_owner) or is_relevant(self.replicable, replicable):
-                # If we've never replicated to this channel
-                if channel.is_initial:
-                    # Pack the class name
-                    packed_class = self.string_packer.pack(
-                                       replicable.__class__.type_name)
-                    packed_is_host = self.int_packer.pack(
-                                      replicable == self.replicable)
-                    # Send the protocol, class name and owner status to client
-                    yield make_packet(protocol=replication_init,
-                                      payload=packed_id + packed_class +\
-                                      packed_is_host, reliable=True)
+            # If we've never replicated to this channel
+            if channel.last_replication_time is None:
+                # Pack the class name
+                packed_class = self.string_packer.pack(
+                                   replicable.__class__.type_name)
+                packed_is_host = self.int_packer.pack(
+                                  replicable == self.replicable)
+                # Send the protocol, class name and owner status to client
+                yield make_packet(protocol=replication_init,
+                                  payload=packed_id + packed_class +\
+                                  packed_is_host, reliable=True)
 
-                # Send changed attributes
-                attributes = channel.get_attributes(is_owner)
+            # Send changed attributes
+            attributes = channel.get_attributes(is_owner, timestamp)
 
-                # If they have changed
-                if attributes:
-                    # This ensures references exist
-                    # By calling it after all creation packets are yielded
-                    update_payload = packed_id + attributes
-                    cache_packet(make_packet(
-                                            protocol=replication_update,
-                                            payload=update_payload,
-                                            reliable=True))
+            # If they have changed
+            if attributes:
+                # This ensures references exist
+                # By calling it after all creation packets are yielded
+                update_payload = packed_id + attributes
+                cache_packet(make_packet(
+                                        protocol=replication_update,
+                                        payload=update_payload,
+                                        reliable=True))
 
         # Send any additional data
-        yield from cached_packets
-        cached_packets.clear()
+        while cached_packets:
+            yield uncache_packet()
 
     def receive(self, packets):
         '''Server connection receive method
@@ -301,14 +365,17 @@ class ServerConnection(Connection):
                 if is_owner(channel.replicable):
                     channel.invoke_rpc_call(packet.payload[id_size:])
 
-    def send(self, network_tick):
+    def send(self, network_tick, available_bandwith):
         '''Server connection send method
         Sends data using initialised context
         Sends RPC and replication information
         Generator
-        @param network_tick: send any non urgent data (& RPC)'''
+        @param network_tick: send any non urgent data (& RPC)
+        @param available_bandwidth: number of bytes predicted to be available'''
+
+        yield from self.get_method_replication()
 
         if network_tick:
-            yield from self.get_full_replication()
-        else:
-            yield from self.get_method_replication()
+            yield from self.get_attribute_replication(
+                                             bandwidth=available_bandwith)
+

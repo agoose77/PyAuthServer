@@ -1,3 +1,5 @@
+from replicables import *
+
 import bge_network
 import functools
 import operator
@@ -8,8 +10,6 @@ import matchmaker
 import random
 
 import stats_ui
-
-from replicables import *
 
 
 class TeamDeathMatch(bge_network.ReplicationRules):
@@ -88,7 +88,6 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         return controller
 
     def is_relevant(self, player_controller, replicable):
-        print(replicable, replicable.always_relevant)
         # We never allow bge_network.PlayerController classes
         if isinstance(replicable, bge_network.Controller):
             return False

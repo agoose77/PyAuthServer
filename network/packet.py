@@ -1,9 +1,10 @@
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
+from .memoize import Memoize, Memoizable
 
-
+@Memoizable
 class PacketCollection:
-    __slots__ = "members",
+    __slots__ = "members"
 
     def __init__(self, members=None):
         if members is None:
@@ -27,6 +28,10 @@ class PacketCollection:
         '''The "unreliable" members of this packet collection'''
         return (m for m in self.members if not m.reliable)
 
+    @property
+    def size(self):
+        return len(self.to_bytes())
+
     def to_reliable(self):
         '''Returns a PacketCollection instance,
         comprised of only reliable members'''
@@ -47,6 +52,7 @@ class PacketCollection:
         for member in self.reliable_members:
             member.on_not_ack()
 
+    @Memoize
     def to_bytes(self):
         return b''.join(m.to_bytes() for m in self.members)
 
@@ -73,6 +79,7 @@ class PacketCollection:
     __bytes__ = to_bytes
 
 
+@Memoizable
 class Packet:
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
@@ -96,6 +103,10 @@ class Packet:
         '''Returns self as a member of a list'''
         return [self]
 
+    @property
+    def size(self):
+        return len(self.to_bytes())
+
     def on_ack(self):
         '''Called when packet is acknowledged'''
         if self.reliable and callable(self.on_success):
@@ -106,6 +117,7 @@ class Packet:
         if callable(self.on_failure):
             self.on_failure(self)
 
+    @Memoize
     def to_bytes(self):
         '''Converts packet into bytes'''
         data = self.protocol_handler.pack(self.protocol) + self.payload
@@ -135,8 +147,6 @@ class Packet:
         return bytes_[shift + length:]
 
     def __add__(self, other):
-        if not isinstance(other, self.__class__):
-            raise TypeError("Cannot add packet to {}".format(type(other)))
         return PacketCollection(members=self.members + other.members)
 
     def __str__(self):

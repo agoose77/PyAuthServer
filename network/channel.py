@@ -2,6 +2,9 @@ from .handler_interfaces import static_description, get_handler
 from .argument_serialiser import ArgumentSerialiser
 from .conditions import is_reliable
 from .descriptors import StaticValue
+from .replicables import Replicable
+
+from time import monotonic
 
 
 class Channel:
@@ -11,14 +14,18 @@ class Channel:
         self.replicable = replicable
         self.connection = connection
         # Set initial (replication status) to True
-        self.is_initial = True
+        self.last_replication_time = None
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
         # Sort by name (must be the same on both client and server)
         self.sorted_attributes = self.attribute_storage.get_ordered_members()
         # Create a serialiser instance
         self.serialiser = ArgumentSerialiser(self.sorted_attributes)
+
         self.rpc_id_packer = get_handler(StaticValue(int))
+        self.replicable_id_packer = get_handler(StaticValue(Replicable))
+
+        self.packed_id = self.replicable_id_packer.pack(replicable)
 
     def take_rpc_calls(self):
         '''Returns the requested RPC calls in a packaged format
@@ -94,7 +101,7 @@ class ServerChannel(Channel):
         self.hash_dict = self.attribute_storage.get_default_descriptions()
         self.complaint_dict = self.attribute_storage.get_default_complaints()
 
-    def get_attributes(self, is_owner):
+    def get_attributes(self, is_owner, replication_time):
         # Get Replicable and its class
         replicable = self.replicable
 
@@ -111,7 +118,7 @@ class ServerChannel(Channel):
         # Get names of Replicable attributes
         can_replicate = replicable.conditions(is_owner,
                                               is_complaining,
-                                              self.is_initial)
+                                              self.last_replication_time is None)
 
         get_description = static_description
         get_attribute = self.attribute_storage.get_member_by_name
@@ -150,7 +157,7 @@ class ServerChannel(Channel):
                 previous_complaints[attribute] = new_hash
 
         # We must have now replicated
-        self.is_initial = False
+        self.last_replication_time = replication_time
 
         # Outputting bytes asserts we have data
         if to_serialise:

@@ -10,7 +10,7 @@ class SignalListener:
 
     @property
     def signal_callbacks(self):
-        for name, val in getmembers(self):
+        for name, val in getmembers(self.__class__):
 
             if not hasattr(val, "__annotations__"):
                 continue
@@ -18,7 +18,7 @@ class SignalListener:
             if not (callable(val) and is_signal_listener(val)):
                 continue
 
-            yield (name, val)
+            yield (name, getattr(self, name))
 
     def register_child(self, child, signal_store=None, greedy=False):
         # Mirror own signals by default

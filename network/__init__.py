@@ -5,6 +5,7 @@ from .conditions import *
 from .connection import *
 from .connection_interfaces import *
 from .containers import *
+from .conversions import *
 from .data_struct import *
 from .decorators import *
 from .descriptors import *
@@ -12,6 +13,7 @@ from .enums import *
 from .factory_dict import *
 from .handler_interfaces import *
 from .instance_register import *
+from .memoize import *
 from .native_handlers import *
 from .network import *
 from .packet import *

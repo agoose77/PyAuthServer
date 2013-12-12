@@ -1,6 +1,7 @@
 from .replicables import WorldInfo
 from .bitfield import Bitfield
 from .connection import ClientConnection, ServerConnection
+from .conversions import conversion
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, TimeoutError
@@ -55,6 +56,12 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # Maintains an actual connection
         self.connection = None
+
+        # Estimate available bandwidth
+        self.bandwidth = conversion(1, "Mb", "B")
+        self.packet_growth = conversion(0.5, "KB", "B")
+        self.tagged_throttle_sequence = None
+        self.throttle_pending = False
 
         self.buffer = []
 
@@ -111,13 +118,19 @@ class ConnectionInterface(metaclass=InstanceRegister):
         ConnectionSuccessSignal.invoke(target=self)
 
     def send(self, network_tick):
-
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
 
             err = TimeoutError("Connection timed out")
             ConnectionErrorSignal.invoke(err, target=self)
+
+        # Self-incrementing sequence property
+        sequence = self.next_local_sequence
+
+        # If we are waiting to detect when packets have been received for throttling
+        if self.throttle_pending and self.tagged_throttle_sequence is None:
+            self.tagged_throttle_sequence = sequence
 
         # If not connected setup handshake
         if self.status == ConnectionStatus.disconnected:
@@ -126,7 +139,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
         # If connected send normal data
         elif self.status == ConnectionStatus.connected:
-            packets = self.connection.send(network_tick)
+            packets = self.connection.send(network_tick, self.bandwidth)
 
         # Don't send any data between states
         else:
@@ -158,9 +171,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
             ack_bitfield[index] = packet_sqn in received_window
 
-        # Self-incrementing sequence property
-        sequence = self.next_local_sequence
-
         # Construct header information
         ack_info = [self.sequence_handler.pack(sequence),
                     self.sequence_handler.pack(remote_sequence),
@@ -175,8 +185,18 @@ class ConnectionInterface(metaclass=InstanceRegister):
         if packet_bytes:
             ack_info.append(packet_bytes)
 
-        # Return as bytes
+        # Force bandwidth to grow (until throttled)
+        self.bandwidth += self.packet_growth
+
         return b''.join(ack_info)
+
+    def stop_throttling(self):
+        self.tagged_throttle_sequence = None
+        self.throttle_pending = False
+
+    def start_throttling(self):
+        self.bandwidth /= 2
+        self.throttle_pending = True
 
     def receive(self, bytes_):
         # Get the sequence id
@@ -223,20 +243,38 @@ class ConnectionInterface(metaclass=InstanceRegister):
             if (flag and sequence in requested_ack):
                 requested_ack.pop(sequence).on_ack()
 
+                # Check throttling status
+                if sequence == self.tagged_throttle_sequence:
+                    self.stop_throttling()
+
         # Acknowledge the sequence of this packet about
         if ack_base in self.requested_ack:
             requested_ack.pop(ack_base).on_ack()
 
-        # If the packet drops off the ack_window assume it is lost
-        likely_dropped = [k for k in requested_ack.keys()
-                          if (sequence - k) > self.ack_window]
+            # Check throttling status
+            if ack_base == self.tagged_throttle_sequence:
+                self.stop_throttling()
+
+        # Dropped locals
+        window_size = self.ack_window
+        buffer = self.buffer
+        missed_ack = False
 
         # Find packets we think are dropped and resend them
-        for sequence in likely_dropped:
+        for sequence_ in requested_ack:
+            # If the packet drops off the ack_window assume it is lost
+            if (sequence - sequence_) < window_size:
+                continue
             # Only reliable members asked to be informed if received/dropped
-            reliable_collection = requested_ack.pop(sequence).to_reliable()
+            reliable_collection = requested_ack.pop(sequence_).to_reliable()
             reliable_collection.on_not_ack()
-            self.buffer.append(reliable_collection)
+
+            missed_ack = True
+            buffer.append(reliable_collection)
+
+        # Respond to network conditions
+        if missed_ack and not self.throttle_pending:
+            self.start_throttling()
 
         # Called for handshake protocol
         receive_handshake = self.receive_handshake
