@@ -319,14 +319,9 @@ class ServerConnection(Connection):
                 packed_is_host = self.int_packer.pack(
                                   replicable == self.replicable)
                 # Send the protocol, class name and owner status to client
-                def T(p):
-                    print("YES")
-                def F(p):
-                    print("NO")
                 yield make_packet(protocol=replication_init,
                                   payload=packed_id + packed_class +\
-                                  packed_is_host, reliable=True, on_success=T,
-                                  on_failure=F)
+                                  packed_is_host, reliable=True)
 
             # Send changed attributes
             attributes = channel.get_attributes(is_owner, timestamp)
