@@ -349,7 +349,6 @@ class ServerConnection(Connection):
                                                   collection,
                                                   available_bandwidth)
 
-        available_bandwidth = max(0, available_bandwidth - collection.size)
         if network_tick:
             replicables = self.get_attribute_replication(replicables,
                                                          collection,

@@ -13,7 +13,6 @@ from .enums import *
 from .factory_dict import *
 from .handler_interfaces import *
 from .instance_register import *
-from .memoize import *
 from .native_handlers import *
 from .network import *
 from .packet import *

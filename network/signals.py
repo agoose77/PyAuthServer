@@ -7,9 +7,16 @@ from inspect import getmembers, signature
 
 
 class SignalListener:
+    """Provides interface for class based signal listeners
+    Uses class instance as target for signal binding
+    Optional greedy binding (binds the events supported by both classes)
+    """
 
     @property
     def signal_callbacks(self):
+        """Property
+        Gets the marked signal callbacks
+        @return: generator of (name, attribute) pairs"""
         for name, val in getmembers(self.__class__):
 
             if not hasattr(val, "__annotations__"):
@@ -21,6 +28,11 @@ class SignalListener:
             yield (name, getattr(self, name))
 
     def register_child(self, child, signal_store=None, greedy=False):
+        """Subscribes child to parent for signals
+        @param child: Child to subscribe for 
+        @param signal_store: SignalListener subclass instance, default=None
+        @param greedy: Determines if child should bind its own events, default=False
+        """
         # Mirror own signals by default
         if signal_store is None:
             signal_store = self
@@ -33,6 +45,11 @@ class SignalListener:
             self.register_child(child, child)
 
     def unregister_child(self, child, signal_store=None, greedy=False):
+        """Un-subscribes child to parent for signals
+        @param child: Child to un-subscribe for
+        @param signal_store: SignalListener subclass instance, default=None
+        @param greedy: Determines if child should un-bind its own events, default=False
+        """
         # Mirror own signals by default
         if signal_store is None:
             signal_store = self
@@ -45,12 +62,16 @@ class SignalListener:
             self.unregister_child(child, child)
 
     def register_signals(self):
+        """Registers signals to observer
+        """
         for name, callback in self.signal_callbacks:
             Signal.subscribe(self, callback)
 
         Signal.update_graph()
 
     def unregister_signals(self):
+        """Un-registers signals from observer
+        """
         for name, callback in self.signal_callbacks:
             Signal.unsubscribe(self, callback)
 
@@ -58,6 +79,8 @@ class SignalListener:
 
 
 class Signal(metaclass=TypeRegister):
+    """Observer class for signal-like invocation
+    """
 
     @classmethod
     def register_subtype(cls):

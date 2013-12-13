@@ -4,8 +4,6 @@ from .conditions import is_reliable
 from .descriptors import StaticValue
 from .replicables import Replicable, WorldInfo
 
-from time import monotonic
-
 
 class Channel:
 
