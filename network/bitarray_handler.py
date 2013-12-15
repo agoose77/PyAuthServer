@@ -5,7 +5,7 @@ from .handler_interfaces import register_handler, get_handler
 from .descriptors import StaticValue
 
 
-class BitfieldInt:
+class BitarrayInt:
 
     size_packer = get_handler(StaticValue(int))
 
@@ -35,4 +35,4 @@ class BitfieldInt:
         field_size = cls.size_packer.unpack_from(bytes_)
         return bits2bytes(field_size) + cls.size_packer.size()
 
-register_handler(Bitfield, BitfieldInt)
+#register_handler(Bitfield, BitarrayInt)

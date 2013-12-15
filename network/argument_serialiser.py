@@ -6,7 +6,7 @@ from .descriptors import StaticValue
 class ArgumentSerialiser:
     """Serialiser class for parsing/dumping data to bytes
     Packed structure:
-    Contents, Data, Booleans, Nones"""
+    [Contents, Data, Booleans, Nones]"""
 
     def __init__(self, arguments):
         '''Accepts ordered dict as argument'''

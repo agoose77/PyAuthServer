@@ -296,7 +296,8 @@ class ServerInterface(ConnectionInterface):
         self._auth_error = None
 
     def on_unregistered(self):
-        WorldInfo.rules.on_disconnect(self.connection.replicable)
+        if self.connection is not None:
+            WorldInfo.rules.on_disconnect(self.connection.replicable)
 
         super().on_unregistered()
 
