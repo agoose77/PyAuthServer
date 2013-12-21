@@ -1,28 +1,62 @@
 from .handler_interfaces import static_description
 from .descriptors import Attribute
-from .rpc import RPC
+from .rpc import RPCInterfaceFactory
 
 from functools import partial
 from collections import OrderedDict, deque
 from inspect import getmembers
 
 
+class ValueProperty:
+    """Property wrapper about data item
+    Handles __get__ and __set__ calls by
+    callbacks on the host class
+    @requires: Host methods get_value(), set_value(arg)"""
+
+    def __get__(self, instance, base):
+        if instance is None:
+            return self
+        return instance.get_value()
+
+    def __set__(self, instance, value):
+        instance.set_value(value)
+
+
 class StorageInterface:
+    """Interface for reading and writing a data value
+    @var value: Property descriptor with settable and gettable value"""
+    __slots__ = ["get_value", "set_value"]
 
     def __init__(self, getter, setter):
-        self.getter = getter
-        self.setter = setter
+        self.get_value = getter
+        self.set_value = setter
 
-    @property
-    def value(self):
-        return self.getter()
+    value = ValueProperty()
 
-    @value.setter
-    def value(self, value):
-        self.setter(value)
+
+class RPCStorageInterface(StorageInterface):
+    """RPC storage interface
+    Proxy for data storage only"""
+    __slots__ = StorageInterface.__slots__
+
+    def __init__(self, setter):
+        super().__init__(None, setter)
+
+
+class AttributeStorageInterface(StorageInterface):
+    """Attribute storage interface
+    Proxy for data storage, access and complaint status"""
+    __slots__ = StorageInterface.__slots__ + ["set_complaint"]
+
+    def __init__(self, getter, setter, complaint):
+        super().__init__(getter, setter)
+
+        self.set_complaint = complaint
 
 
 class AbstractStorageContainer:
+    """Abstract base class for reading and writing data values
+    belonging an object"""
 
     def __init__(self, instance):
         self._mapping = self.get_member_instances(instance)
@@ -34,10 +68,10 @@ class AbstractStorageContainer:
         self._instance = instance
 
     def get_initial_data(self, member):
-        return NotImplemented
+        raise NotImplemented
 
     def check_is_supported(self, member):
-        return NotImplemented
+        raise NotImplemented
 
     def get_member_instances(self, instance):
         return {name: value for name, value in getmembers(instance.__class__)
@@ -80,14 +114,15 @@ class AbstractStorageContainer:
 
 
 class RPCStorageContainer(AbstractStorageContainer):
-
+    """Storage container for RPC calls
+    Handles stored data only"""
     def __init__(self, instance):
         super().__init__(instance)
 
         self.functions = []
 
     def check_is_supported(self, member):
-        return isinstance(member, RPC)
+        return isinstance(member, RPCInterfaceFactory)
 
     def get_initialised_data(self, mapping):
         return deque()
@@ -103,7 +138,6 @@ class RPCStorageContainer(AbstractStorageContainer):
         return partial(self._add_call, instance)
 
     def new_storage_interface(self, name, member):
-
         rpc_instance = member.create_rpc_interface(self._instance)
         rpc_id = self.store_rpc(rpc_instance)
 
@@ -116,6 +150,8 @@ class RPCStorageContainer(AbstractStorageContainer):
 
 
 class AttributeStorageContainer(AbstractStorageContainer):
+    """Storage container for Attributes
+    Handles data storage, access and complaints"""
 
     def __init__(self, instance):
         super().__init__(instance)
@@ -150,17 +186,3 @@ class AttributeStorageContainer(AbstractStorageContainer):
         member.name = name
 
         return member
-
-
-class RPCStorageInterface(StorageInterface):
-
-    def __init__(self, setter):
-        super().__init__(object, setter)
-
-
-class AttributeStorageInterface(StorageInterface):
-
-    def __init__(self, getter, setter, complaint):
-        super().__init__(getter, setter)
-
-        self.set_complaint = complaint

@@ -8,7 +8,8 @@ from .channel import ClientChannel, ServerChannel
 
 
 class Connection(SignalListener):
-
+    """Connection between loacl host and remote peer
+    Represents a successful connection"""
     channel_class = None
 
     def __init__(self, netmode):
@@ -25,20 +26,27 @@ class Connection(SignalListener):
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
+        """Handles un-registration of a replicable instance
+        Deletes channel for replicable instance
+        @param target: replicable that was unregistered"""
         self.channels.pop(target.instance_id)
 
     @ReplicableRegisteredSignal.global_listener
     def notify_registration(self, target):
-        '''Create channel for context with network id
-        @param instance_id: network id of context'''
+        """Handles registration of a replicable instance
+        Create channel for replicable instance
+        @param target: replicable that was registered"""
         self.channels[target.instance_id] = self.channel_class(self, target)
 
     def on_delete(self):
+        """Delete callback"""
         self.replicable.request_unregistration()
 
     def is_owner(self, replicable):
-        '''Determines if a connection owns this replicable
-        Searches for Replicable with same network id as our Controller'''
+        '''Determines if a replicable is belongs to this connection
+        Compares uppermost parent of replicable with connection's replicable
+        @param replicable: replicable instance
+        @return: condition status'''
         # Determine if parent is our controller
         parent = replicable.uppermost
         try:
@@ -50,10 +58,16 @@ class Connection(SignalListener):
 
     @staticmethod
     def get_replication_priority(entry):
+        """Gets the replication prirority for a replicable
+        @param entry: replicable instance
+        @return: replication priority"""
         return entry[0].replication_priority
 
     @property
-    def relevant_replicables(self, Replicable=Replicable):
+    def replication_data(self, Replicable=Replicable):
+        """Property, generator
+        for replicables with a remote role != Roles.none
+        @yield: replicable, (is_owner and relevant_to_owner), channel"""
         check_is_owner = self.is_owner
         channels = self.channels
         no_role = Roles.none
@@ -71,17 +85,25 @@ class Connection(SignalListener):
                    channel)
 
     @property
-    def prioritised_replicables(self):
-        return iter(sorted(self.relevant_replicables, reverse=True,
+    def prioritised_replication_data(self):
+        """Property
+        @return: iterator of prioritised list of replication data"""
+        return iter(sorted(self.replication_data, reverse=True,
                       key=self.get_replication_priority))
 
     def get_method_replication(self, replicables, collection, bandwidth):
+        """Generator
+        Writes replicated function calls to packet collection
+        @param replicables: iterable of replicables to consider replication
+        @param collection: PacketCollection instance
+        @param bandwidth: available bandwidth
+        @yield: each entry in replicables"""
         method_invoke = Protocols.method_invoke
         make_packet = Packet
         store_packet = collection.members.append
 
         for item in replicables:
-            replicable, is_owner, channel = item 
+            replicable, is_owner, channel = item
 
             # Send RPC calls if we are the owner
             if is_owner and channel.has_rpc_calls:
@@ -178,12 +200,12 @@ class ClientConnection(Connection):
                 replicable.request_unregistration()
 
     def send(self, network_tick, available_bandwidth):
-        '''Client connection send method
-        Sends data using initialised context
-        Sends RPC information
-        Generator'''
+        '''Creates a packet collection of replicated function calls
+        @param network_tick: unused argument
+        @param available_bandwidth: estimated available bandwidth
+        @return: PacketCollection instance'''
         collection = PacketCollection()
-        replicables = self.get_method_replication(self.prioritised_replicables,
+        replicables = self.get_method_replication(self.prioritised_replication_data,
                                                   collection,
                                                   available_bandwidth)
 
@@ -194,10 +216,8 @@ class ClientConnection(Connection):
         return collection
 
     def receive(self, packets):
-        '''Client connection receive method
-        Receive data using initialised context
-        Receive RPC and replication information
-        Catches network errors'''
+        '''Handles incoming PacketCollection instance
+        @param packets: PacketCollection instance'''
         for packet in packets:
             protocol = packet.protocol
 
@@ -238,14 +258,22 @@ class ServerConnection(Connection):
 
     @staticmethod
     def get_replication_priority(entry, WorldInfo=WorldInfo):
+        """Gets the replication prirority for a replicable
+        Utilises replciation interval to increment priority of neglected replicables
+        @param entry: replicable instance
+        @return: replication priority"""
         replicable, is_owner, channel = entry
         interval = (WorldInfo.elapsed - channel.last_replication_time)
         elapsed_fraction = (interval / replicable.replication_update_period)
         return replicable.replication_priority + (elapsed_fraction - 1)
 
     def get_attribute_replication(self, replicables, collection, bandwidth):
-        '''Yields replication packets for relevant replicable
-        @param replicable: replicable to replicate'''
+        """Generator
+        Writes to packet collection, respecting bandwidth for attribute replication
+        @param replicables: iterable of replicables to consider replication
+        @param collection: PacketCollection instance
+        @param bandwidth: available bandwidth
+        @yield: each entry in replicables"""
 
         make_packet = Packet
         store_packet = collection.members.append
@@ -311,9 +339,8 @@ class ServerConnection(Connection):
             yield item
 
     def receive(self, packets):
-        '''Server connection receive method
-        Receive data using initialised context
-        Receive RPC information'''
+        '''Handles incoming PacketCollection instance
+        @param packets: PacketCollection instance'''
         # Local space variables
         is_owner = self.is_owner
         channels = self.channels
@@ -337,15 +364,13 @@ class ServerConnection(Connection):
                     channel.invoke_rpc_call(packet.payload[id_size:])
 
     def send(self, network_tick, available_bandwidth):
-        '''Server connection send method
-        Sends data using initialised context
-        Sends RPC and replication information
-        Generator
-        @param network_tick: send any non urgent data (& RPC)
-        @param available_bandwidth: number of bytes predicted available'''
+        '''Creates a packet collection of replicated function calls
+        @param network_tick: non urgent data is included in collection
+        @param available_bandwidth: estimated available bandwidth
+        @return: PacketCollection instance'''
 
         collection = PacketCollection()
-        replicables = self.get_method_replication(self.prioritised_replicables,
+        replicables = self.get_method_replication(self.prioritised_replication_data,
                                                   collection,
                                                   available_bandwidth)
 

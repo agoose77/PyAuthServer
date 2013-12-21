@@ -156,41 +156,43 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_state(cls):
-        cls.subscribers.update(cls.to_subscribe)
-        cls.isolated_subscribers.update(cls.to_isolate)
+        if cls.to_subscribe:
+            local_to_subscribe = cls.to_subscribe.copy()
+            cls.subscribers.update(cls.to_subscribe)
+            cls.to_subscribe.clear()
+            for identifier, data in local_to_subscribe.items():
+                cls.on_subscribed(False, identifier, data)
 
-        local_to_subscribe = cls.to_subscribe.copy()
-        local_to_isolate = cls.to_isolate.copy()
-
-        cls.to_isolate.clear()
-        cls.to_subscribe.clear()
+        if cls.to_isolate:
+            cls.isolated_subscribers.update(cls.to_isolate)
+            local_to_isolate = cls.to_isolate.copy()
+            cls.to_isolate.clear()
+            for identifier, data in local_to_isolate.items():
+                cls.on_subscribed(True, identifier, data)
 
         # Run safe notifications
-        for identifier, data in local_to_subscribe.items():
-            cls.on_subscribed(False, identifier, data)
+        if cls.to_unsubscribe:
+            for key in cls.to_unsubscribe:
+                cls.subscribers.pop(key, None)
+            cls.to_unsubscribe.clear()
 
-        for identifier, data in local_to_isolate.items():
-            cls.on_subscribed(True, identifier, data)
-
-        # Run normal unsubscriptions
-        for key in cls.to_unsubscribe:
-            cls.subscribers.pop(key, None)
-        cls.to_unsubscribe.clear()
-
-        for key in cls.to_unisolate:
-            cls.isolated_subscribers.pop(key, None)
-        cls.to_unisolate.clear()
+        if cls.to_unisolate:
+            for key in cls.to_unisolate:
+                cls.isolated_subscribers.pop(key, None)
+            cls.to_unisolate.clear()
 
         # Add new children
         cls.children.update(cls.to_child)
         cls.to_child.clear()
 
         # Remove old children
+        children = cls.children
         for (child, parent) in cls.to_unchild:
-            cls.children[parent].remove(child)
+            parent_children_dict = children[parent]
+            parent_children_dict.remove(child)
 
-            if not cls.children[parent]:
-                cls.children.pop(parent)
+            if not parent_children_dict:
+                children.pop(parent)
 
         cls.to_unchild.clear()
 

@@ -10,6 +10,7 @@ from .signals import (SignalListener, NetworkSendSignal,
 
 
 class UnblockingSocket(socket):
+    """Non blocking socket class"""
 
     def __init__(self, addr, port):
         '''Network socket initialiser'''
@@ -20,6 +21,9 @@ class UnblockingSocket(socket):
 
 
 class UnreliableSocket(UnblockingSocket, SignalListener):
+    """Non blocking socket class
+    A SignalListener which applies artificial latency
+    to outgoing packets"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,6 +59,7 @@ class UnreliableSocket(UnblockingSocket, SignalListener):
 
 
 class Network(SignalListener):
+    """Network management class"""
 
     def __init__(self, addr, port):
         '''Network socket initialiser'''

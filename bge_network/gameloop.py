@@ -35,9 +35,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self._last_sent = 0.0
         self._interval = 1 / 15
 
-        self.loaded = False
-
         self.register_signals()
+        MapLoadedSignal.invoke()
 
         print("Network initialised")
 
@@ -61,10 +60,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             Signal.update_graph()
 
             NetworkReceiveSignal.invoke()
-
-            if not self.loaded:
-                MapLoadedSignal.invoke()
-                self.loaded = True
 
             Replicable.update_graph()
 

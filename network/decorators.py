@@ -1,6 +1,4 @@
-from .rpc import RPCInterface
-
-from functools import wraps, update_wrapper
+from functools import wraps
 from inspect import signature
 
 
@@ -30,9 +28,14 @@ def signal_listener(signal_type, global_listener):
 
 
 def requires_netmode(netmode):
-    from .replicables import WorldInfo
+    """Decorator
+    @param netmode: netmode required to execute function
+    @requires: netmode context for execution of function
+    @return: decorator that prohibits function execution for incorrect netmodes"""
 
     def wrapper(func):
+        from .replicables import WorldInfo
+
         @wraps(func)
         def _wrapper(*args, **kwargs):
             if WorldInfo.netmode != netmode:

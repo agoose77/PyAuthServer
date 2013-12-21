@@ -7,6 +7,8 @@ from copy import deepcopy
 
 
 class Struct:
+    """Serialisable object with individual fields"""
+
     def __init__(self):
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()

@@ -8,14 +8,14 @@ from functools import update_wrapper
 from inspect import signature
 
 
-class RPC:
+class RPCInterfaceFactory:
     '''Manages instances of an RPC function for each object'''
 
     def __init__(self, function):
         # Information about RPC
         update_wrapper(self, function)
 
-        self._function = function
+        self.function = function
         self._by_instance = {}
 
     def __get__(self, instance, base):
@@ -28,7 +28,7 @@ class RPC:
             return None
 
     def create_rpc_interface(self, instance):
-        bound_function = self._function.__get__(instance)
+        bound_function = self.function.__get__(instance)
 
         if has_supplied_data(bound_function):
             self.update_class_arguments(bound_function, instance)
@@ -81,7 +81,7 @@ class RPCInterface:
 
         # Store serialised argument data for later sending
         arguments = self._binder(*args, **kwargs).arguments
-        self._interface.setter(self._serialiser.pack(arguments))
+        self._interface.value = self._serialiser.pack(arguments)
 
     def execute(self, bytes_):
         # Unpack RPC

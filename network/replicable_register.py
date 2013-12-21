@@ -1,7 +1,7 @@
 from .conditions import is_simulated
 from .enums import Roles, Netmodes
 from .instance_register import InstanceRegister
-from .rpc import RPC
+from .rpc import RPCInterfaceFactory
 
 from functools import wraps
 from inspect import getmembers
@@ -21,22 +21,24 @@ class ReplicableRegister(InstanceRegister):
                 if not isinstance(value, (FunctionType, classmethod,
                                       staticmethod)):
                     continue
-                
+
                 if meta.should_ignore(name, value, bases):
                     continue
 
                 # Recreate RPC from its function
-                if isinstance(value, RPC):
+                is_an_rpc = isinstance(value, RPCInterfaceFactory)
+
+                if is_an_rpc:
                     print("Found pre-wrapped RPC call: {}, "\
                           "re-wrapping...(any data defined in "\
                           "__init__ will be lost)".format(name))
-                    value = value._function
+                    value = value.function
 
                 value = meta.permission_wrapper(value)
 
                 # Automatically wrap RPC
-                if meta.is_rpc(value) and not isinstance(value, RPC):
-                    value = RPC(value)
+                if meta.is_rpc(value):
+                    value = RPCInterfaceFactory(value)
 
                 attrs[name] = value
 

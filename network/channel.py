@@ -6,6 +6,8 @@ from .replicables import Replicable, WorldInfo
 
 
 class Channel:
+    """Channel for replication information
+    Belongs to an instance of Replicable and a connection"""
 
     def __init__(self, connection, replicable):
         # Store important info
@@ -64,7 +66,9 @@ class Channel:
 
 class ClientChannel(Channel):
 
-    def set_attributes(self, data):
+    def set_attributes(self, bytes_):
+        '''Unpacks byte stream and updates attributes
+        @param bytes_: byte stream of attribute bytes_''' 
         replicable = self.replicable
 
         # Create local references outside loop
@@ -75,7 +79,7 @@ class ClientChannel(Channel):
         invoke_notify = replicable.on_notify
 
         # Process and store new values
-        for attribute_name, value in self.serialiser.unpack(data,
+        for attribute_name, value in self.serialiser.unpack(bytes_,
                                                     replicable_data):
             attribute = get_attribute(attribute_name)
             # Store new value

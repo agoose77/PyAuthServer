@@ -6,7 +6,7 @@ class StaticValue:
     '''Container for static-type values
     holds type for value and additional keyword arguments
     Pretty printable'''
-    __slots__ = 'type', 'data'
+    __slots__ = ['type', 'data']
 
     def __init__(self, type_, **kwargs):
         self.type = type_
@@ -17,7 +17,7 @@ class StaticValue:
 
 
 class Attribute(StaticValue):
-    __slots__ = "notify", "complain", "name", "_instances", "_value"
+    __slots__ = StaticValue.__slots__ + ["notify", "complain", "name", "_instances", "_value"]
 
     def __init__(self, value=None, type_of=None,
                  notify=False, complain=False, **kwargs):
@@ -66,7 +66,7 @@ class Attribute(StaticValue):
 
     def __str__(self):
         return "[Attribute] name: {}, type: {.__name__}".format(self.name,
-                                                       self.type)
+                                                                self.type)
 
     @property
     def value(self):

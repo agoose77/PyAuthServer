@@ -17,6 +17,8 @@ from time import monotonic
 
 
 class ConnectionInterface(metaclass=InstanceRegister):
+    """Interface for remote peer
+    Mediates a connection instance between local and remote peer"""
 
     def __init__(self, instance_id):
 
@@ -69,7 +71,8 @@ class ConnectionInterface(metaclass=InstanceRegister):
         super().__init__(instance_id=instance_id, register=True)
 
     def __new__(cls, *args, **kwargs):
-        """Constructor switch depending upon netmode"""
+        """Constructor switch
+        @requires: WorldInfo.netmode set"""
         if cls is ConnectionInterface:
             netmode = WorldInfo.netmode
 
@@ -84,11 +87,15 @@ class ConnectionInterface(metaclass=InstanceRegister):
             return super().__new__(cls)
 
     def on_unregistered(self):
+        """Unregistration callback"""
         if self.connection:
             self.connection.on_delete()
 
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
+        """Filter connections by status
+        @param status: status query
+        @param comparator: comparison callback for filter"""
         count = 0
         for interface in cls:
             if comparator(interface.status, status):
@@ -97,27 +104,41 @@ class ConnectionInterface(metaclass=InstanceRegister):
 
     @property
     def next_local_sequence(self):
+        """Property
+        @returns next local sequence identifier"""
         current_sequence = self.local_sequence
         self.local_sequence = (current_sequence + 1) if (current_sequence <
                                              self.sequence_max_size) else 0
         return self.local_sequence
 
     def set_time_out(self, delay):
+        """Sets the time out for peer
+        @param delay: delay until interface is timed out"""
         self.time_out = delay
 
-    def sequence_more_recent(self, s1, s2):
+    def sequence_more_recent(self, base, sequence):
+        """Compares two sequence identifiers
+        determines if one is greater than the other
+        @param base: base sequence to compare against
+        @param sequence: sequence tested against base"""
         half_seq = (self.sequence_max_size / 2)
-        return ((s1 > s2) and (s1 - s2) <= half_seq) or ((s2 > s1)
-                                             and (s2 - s1) > half_seq)
+        return (((base > sequence) and (base - sequence) <= half_seq)
+            or ((sequence > base) and (sequence - base) > half_seq))
 
     def delete(self):
+        """Sets connection state to deleted"""
         self.status = ConnectionStatus.deleted
 
     def connected(self, *args, **kwargs):
+        """Sets connection state to connected
+        @param args: additional positional arguments
+        @param kwargs: additional keyword arguments"""
         self.status = ConnectionStatus.connected
         ConnectionSuccessSignal.invoke(target=self)
 
     def send(self, network_tick):
+        """Pulls data from connection interfaces to send
+        @param network_tick: if this is a network tick"""
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
@@ -189,14 +210,18 @@ class ConnectionInterface(metaclass=InstanceRegister):
         return b''.join(ack_info)
 
     def stop_throttling(self):
+        """Stops updating metric for bandwith"""
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
     def start_throttling(self):
+        """Starts updating metric for bandwith"""
         self.bandwidth /= 2
         self.throttle_pending = True
 
     def receive(self, bytes_):
+        """Handles received bytes from peer
+        @param bytes_: data from peer"""
         # Get the sequence id
         sequence = self.sequence_handler.unpack_from(bytes_)
         bytes_ = bytes_[self.sequence_handler.size():]
@@ -293,6 +318,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
 class ServerInterface(ConnectionInterface):
 
     def on_initialised(self):
+        """Initialised callback"""
         self._auth_error = None
 
     def on_unregistered(self):
@@ -302,7 +328,8 @@ class ServerInterface(ConnectionInterface):
         super().on_unregistered()
 
     def get_handshake(self):
-        '''Will only exist if invoked'''
+        '''Creates a handshake packet
+        Either acknowledges connection or sends error state'''
         connection_failed = self.connection is None
 
         if connection_failed:
@@ -326,6 +353,8 @@ class ServerInterface(ConnectionInterface):
                           on_success=self.connected)
 
     def receive_handshake(self, packet):
+        """Receives a handshake packet
+        Either proceeds to setup connection or stores the error"""
         # Unpack data
         netmode = self.netmode_packer.unpack_from(packet.payload)
 
@@ -352,11 +381,15 @@ class ServerInterface(ConnectionInterface):
 class ClientInterface(ConnectionInterface):
 
     def get_handshake(self):
+        '''Creates a handshake packet
+        Sends netmode to server'''
         return Packet(protocol=Protocols.request_auth,
                       payload=self.netmode_packer.pack(WorldInfo.netmode),
                       reliable=True)
 
     def receive_handshake(self, packet):
+        """Receives a handshake packet
+        Either proceeds to setup connection or invokes the error"""
         protocol = packet.protocol
 
         if protocol == Protocols.auth_failure:
@@ -366,9 +399,9 @@ class ClientInterface(ConnectionInterface):
             err = NetworkError.from_type_name(err_type)
 
             ConnectionErrorSignal.invoke(err, target=self)
-
-        # Get remote network mode
-        netmode = self.netmode_packer.unpack_from(packet.payload)
-        # Must be success
-        self.connection = ClientConnection(netmode)
-        self.connected()
+        else:
+            # Get remote network mode
+            netmode = self.netmode_packer.unpack_from(packet.payload)
+            # If we did not have an error then we succeeded
+            self.connection = ClientConnection(netmode)
+            self.connected()
