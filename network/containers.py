@@ -13,6 +13,8 @@ class ValueProperty:
     callbacks on the host class
     @requires: Host methods get_value(), set_value(arg)"""
 
+    __slots__ = []
+
     def __get__(self, instance, base):
         if instance is None:
             return self
@@ -74,16 +76,21 @@ class AbstractStorageContainer:
         raise NotImplemented
 
     def get_member_instances(self, instance):
+        is_supported = self.check_is_supported
+
         return {name: value for name, value in getmembers(instance.__class__)
-                if self.check_is_supported(value)}
+                if is_supported(value)}
 
     def get_initialised_data(self, mapping):
-        return {member: self.get_initial_data(member) for member in
+        get_initial_data = self.get_initial_data
+
+        return {member: get_initial_data(member) for member in
                 mapping.values()}
 
     def get_ordered_members(self):
-        return OrderedDict((key, self._mapping[key]) for key in
-                           sorted(self._mapping))
+        mapping = self._mapping
+
+        return OrderedDict((key, mapping[key]) for key in sorted(mapping))
 
     def get_member_by_name(self, name):
         return self._mapping[name]
@@ -91,15 +98,18 @@ class AbstractStorageContainer:
     def get_name_by_member(self, member):
         try:
             return self._lazy_name_mapping[member]
+
         except KeyError:
             name = self._lazy_name_mapping[member] = next(n for n, a in
                                           self._mapping.items() if a == member)
             return name
 
     def register_storage_interfaces(self):
+        new_interface = self.new_storage_interface
+        store_interface = self._storage_interfaces.__setitem__
+
         for name, member in sorted(self._mapping.items()):
-            self._storage_interfaces[member] = self.new_storage_interface(name,
-                                                                      member)
+            store_interface(member, new_interface(name, member))
 
     def new_storage_interface(self, name, member):
         return StorageInterface(*self.get_storage_accessors(member))
@@ -107,6 +117,7 @@ class AbstractStorageContainer:
     def get_storage_accessors(self, member):
         getter = partial(self.data.__getitem__, member)
         setter = partial(self.data.__setitem__, member)
+
         return getter, setter
 
     def get_storage_interface(self, member):
@@ -158,16 +169,19 @@ class AttributeStorageContainer(AbstractStorageContainer):
 
         self.complaints = self.get_default_complaints()
 
-    def get_descriptions(self, data):
+    def get_descriptions(self, data, static_description=static_description):
         return {attribute: static_description(value) for attribute, value in
                 data.items()}
 
     def get_default_descriptions(self):
-        return self.get_descriptions({a: self.get_initial_data(a) for a in
-                                      self.data})
+        get_initial_data = self.get_initial_data
+
+        return self.get_descriptions({a: get_initial_data(a) for a in self.data})
 
     def get_default_complaints(self):
-        return {a: v for a, v in self.get_default_descriptions().items() if
+        get_default_descriptions = self.get_default_descriptions
+
+        return {a: v for a, v in get_default_descriptions().items() if
                 a.complain}
 
     def check_is_supported(self, member):

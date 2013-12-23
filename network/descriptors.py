@@ -34,8 +34,8 @@ class Attribute(StaticValue):
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
+        storage_interface = self._instances[instance]
         try:
-            storage_interface = self._instances[instance]
             return storage_interface.value
 
         except AttributeError:

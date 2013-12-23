@@ -97,14 +97,14 @@ class Animation:
 		self.next_value = value
 		self.start_time = self.last_update = time.time()
 		self.time = time_
-		self.callback = callback
+		self.on_target = callback
 
 	def update(self):
 		if (time.time() - self.start_time) * 1000 >= self.time:
-			# We're done, run the callback and
+			# We're done, run the on_target and
 			# return false to let widget know we can be removed
-			if self.callback:
-				self.callback()
+			if self.on_target:
+				self.on_target()
 			return False
 
 		dt = (time.time() - self.last_update) * 1000
@@ -128,10 +128,10 @@ class ArrayAnimation(Animation):
 
 	def update(self):
 		if (time.time() - self.start_time) * 1000 >= self.time:
-			# We're done, run the callback and
+			# We're done, run the on_target and
 			# return false to let widget know we can be removed
-			if self.callback:
-				self.callback()
+			if self.on_target:
+				self.on_target()
 			return False
 
 		dt = (time.time() - self.last_update) * 1000
@@ -362,7 +362,7 @@ class Widget:
 
 	@property
 	def on_click(self):
-		"""The widget's on_click callback"""
+		"""The widget's on_click on_target"""
 		return self._on_click
 
 	@on_click.setter
@@ -371,7 +371,7 @@ class Widget:
 
 	@property
 	def on_release(self):
-		"""The widget's on_release callback"""
+		"""The widget's on_release on_target"""
 		return self._on_release
 
 	@on_release.setter
@@ -380,7 +380,7 @@ class Widget:
 
 	@property
 	def on_hover(self):
-		"""The widget's on_hover callback"""
+		"""The widget's on_hover on_target"""
 		return self._on_hover
 
 	@on_hover.setter
@@ -389,7 +389,7 @@ class Widget:
 
 	@property
 	def on_mouse_enter(self):
-		"""The widget's on_mouse_enter callback"""
+		"""The widget's on_mouse_enter on_target"""
 		return self._on_mouse_enter
 
 	@on_mouse_enter.setter
@@ -398,7 +398,7 @@ class Widget:
 
 	@property
 	def on_mouse_exit(self):
-		"""The widget's on_mouse_exit callback"""
+		"""The widget's on_mouse_exit on_target"""
 		return self._on_mouse_exit
 
 	@on_mouse_exit.setter
@@ -407,7 +407,7 @@ class Widget:
 
 	@property
 	def on_active(self):
-		"""The widget's on_active callback"""
+		"""The widget's on_active on_target"""
 		return self._on_active
 
 	@on_active.setter
@@ -457,7 +457,7 @@ class Widget:
 
 		:param positon: The new position
 		:param time: The time in milliseconds to take doing the move
-		:param callback: An optional callback that is called when he animation is complete
+		:param on_target: An optional on_target that is called when he animation is complete
 		"""
 
 		self.anims.append(ArrayAnimation(self, "position", position, time, callback))
@@ -508,7 +508,7 @@ class Widget:
 				self.on_mouse_enter(self)
 		self._hover = True
 
-		# Run any children callback methods
+		# Run any children on_target methods
 		for widget in self.children.values():
 			if (widget.gl_position[0][0] <= pos[0] <= widget.gl_position[1][0]) and \
 				(widget.gl_position[0][1] <= pos[1] <= widget.gl_position[2][1]):

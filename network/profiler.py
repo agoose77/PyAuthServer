@@ -1,24 +1,24 @@
-from time import monotonic
-from functools import wraps
+from cProfile import Profile
 from collections import defaultdict
-from functools import partial
 
-profiles = defaultdict(partial(defaultdict, int))
+from .signals import ProfileSignal, SignalListener
 
 
-def profile(category):
-    def wrapper(func):
-        @wraps(func)
-        def wrapper_(*args, **kwargs):
-            start_time = monotonic()
-            result = func(*args, **kwargs)
-            end_time = monotonic()
-            profiles[category][(func.__qualname__ if
-                            hasattr(func, "__qualname__") else
-                            func.__name__)] += end_time - start_time
+class ProfileManager(SignalListener):
+    def __init__(self):
+        super().__init__()
 
-            return result
+        self._profiles = defaultdict(Profile)
 
-        return wrapper_
+        self.register_signals()
 
-    return wrapper
+    @ProfileSignal.global_listener
+    def update_profiler(self, profile_id, start):
+        profile = self._profiles[profile_id]
+        if start:
+            profile.enable()
+        else:
+            profile.disable()
+            profile.dump_stats("C:/{}.results".format(profile_id))
+
+profiler = ProfileManager()

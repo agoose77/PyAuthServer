@@ -16,6 +16,11 @@ class Replicable(metaclass=ReplicableRegister):
     Additional attributes for attribute values (from descriptors)
     And complaining attributes'''
 
+    relevant_to_owner = True
+    always_relevant = False
+    replication_priority = 1.0
+    replication_update_period = 1 / 20
+
     roles = Attribute(
                       Roles(
                             Roles.authority,
@@ -23,21 +28,6 @@ class Replicable(metaclass=ReplicableRegister):
                             ),
                       notify=True,
                       )
-
-    # Reference to owner replicable
-    owner = None
-
-    # Should this be considered for replication to owner?
-    relevant_to_owner = True
-
-    # Is this always replicated (overrides preceeding condition)?
-    always_relevant = False
-
-    # Between 0.0 and 3.0
-    replication_priority = 1.0
-
-    # How frequently this should be updated
-    replication_update_period = 1/20
 
     # Dictionary of class-owned instances
     _by_types = defaultdict(list)
@@ -56,6 +46,8 @@ class Replicable(metaclass=ReplicableRegister):
 
         self.attribute_storage.register_storage_interfaces()
         self.rpc_storage.register_storage_interfaces()
+
+        self.owner = None
 
         # Instantiate parent (this is when the creation callback may be called)
         super().__init__(instance_id=instance_id, register=register,

@@ -355,7 +355,8 @@ class Notification(bgui.Frame):
 
         move_timer.on_update = update_position
         if note_position:
-            move_timer.on_target = target_cb
+            #move_timer.on_target = target_cb
+            target_cb()
 
         self.add_timer(move_timer, "mover")
 
@@ -426,27 +427,21 @@ class NotificationPanel(Panel):
         self._notifications.remove(notification)
         self.notifications._remove_widget(notification)
 
-        removed_position = notification.initial_position[:]
-        if self._free_slot:
-            if self._free_slot[1] > removed_position[1]:
-                return
-
-        self._free_slot = removed_position
-
     def update(self, delta_time):
         for notification in self._notifications[:]:
             if notification.name in self.notifications._children:
                 notification.update(delta_time)
 
         # Handle sliding up when deleting notifications
-        if self._free_slot:
-            target = self._free_slot
-            for new_notification in self._notifications:
-                if new_notification.initial_position[1] > target[1]:
-                    continue
-                new_notification.move_to(target)
-                target = new_notification.initial_position
-            self._free_slot = []
+        y_shift = Notification.default_size[1] + self.entry_padding
+        for index, notification in enumerate(self._notifications):
+            intended_y = self.start_position[1] - (index * y_shift)
+            position_x, position_y = notification.initial_position
+
+            if (position_y == intended_y):
+                continue
+
+            notification.move_to([self.start_position[0], intended_y])
 
 
 class BGESystem(System):

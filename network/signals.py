@@ -352,3 +352,7 @@ class NetworkReceiveSignal(Signal):
 
 class UpdateSignal(Signal):
     pass
+
+
+class ProfileSignal(Signal):
+    pass

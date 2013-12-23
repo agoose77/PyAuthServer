@@ -182,7 +182,6 @@ class ClientConnection(Connection):
                                          replicable.roles.local)
             # If replicable is parent (top owner)
             if is_connection_host:
-
                 # Register as own replicable
                 self.replicable = replicable
 
