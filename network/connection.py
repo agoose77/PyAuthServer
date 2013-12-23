@@ -278,6 +278,7 @@ class ServerConnection(Connection):
         make_packet = Packet
         store_packet = collection.members.append
         insert_packet = collection.members.insert
+        extend_packets = collection.members.extend
 
         replication_init = Protocols.replication_init
         replication_update = Protocols.replication_update
@@ -337,6 +338,10 @@ class ServerConnection(Connection):
                     used_bandwidth += packet.size
 
             yield item
+
+        if self.cached_packets:
+            extend_packets(self.cached_packets)
+            self.cached_packets.clear()
 
     def receive(self, packets):
         '''Handles incoming PacketCollection instance

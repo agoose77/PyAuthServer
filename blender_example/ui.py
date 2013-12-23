@@ -4,6 +4,7 @@ import bgui
 from os import path, listdir
 
 from collections import OrderedDict
+from network import SignalListener
 
 CENTERY = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERX
@@ -69,11 +70,10 @@ class TableRenderer(bgui.ListBoxRenderer):
         return self.frame
 
 
-class System(bgui.System):
+class System(bgui.System, SignalListener):
 
     def __init__(self):
         theme_path = bge.logic.expandPath("//themes")
-
         super().__init__(theme_path)
 
         self.scene = bge.logic.getCurrentScene()
@@ -84,6 +84,7 @@ class System(bgui.System):
                                val.startswith('PAD')) and hasattr(bgui, val)}
 
         self.scene.post_draw.append(self.render)
+        self.register_signals()
 
     def update(self, delta_time):
         # Handle the mouse
@@ -122,16 +123,16 @@ class System(bgui.System):
             if state == bge.logic.KX_INPUT_JUST_ACTIVATED:
                 self.update_keyboard(self._keymap[key], is_shifted)
 
-        visible_panel = False
+        mouse_required = False
 
         for panel in self.children.values():
 
             if panel.visible:
                 panel.update(delta_time)
                 if panel.uses_mouse:
-                    visible_panel = True
+                    mouse_required = True
 
-        bge.logic.mouse.visible = visible_panel
+        bge.logic.mouse.visible = mouse_required
 
 
 class SpriteSequence(bgui.Image):
@@ -206,13 +207,14 @@ class ImageSequence(SpriteSequence):
         self.update_image(source)
 
 
-class Panel(bgui.Frame):
+class Panel(bgui.Frame, SignalListener):
 
     def __init__(self, system, name):
         super().__init__(parent=system, name=name,
                          size=[1, 1], options=CENTERED)
 
         self.uses_mouse = False
+        self.register_signals()
 
     def update(self, delta_time):
         pass

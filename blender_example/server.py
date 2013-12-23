@@ -122,7 +122,6 @@ class TeamDeathMatch(bge_network.ReplicationRules):
                                                 attacker.pawn)
 
         self.broadcast(attacker, message)
-        print(message)
 
         target.owner.unpossess()
         target.request_unregistration()

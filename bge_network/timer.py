@@ -6,7 +6,8 @@ from network import SignalListener, UpdateSignal
 class ManualTimer:
 
     def __init__(self, target_value=0.0, initial_value=0.0,
-                 count_down=False, on_target=None, repeat=False):
+                 count_down=False, on_target=None, on_update=None,
+                 repeat=False, active=True):
 
         self.target = target_value
         self.initial = self.value = initial_value
@@ -14,10 +15,23 @@ class ManualTimer:
         self.update_operator = sub_func if count_down else add_func
         self.comparison_operator = less_func if count_down else more_func
 
-        self.callback = on_target
-        self.repeat = repeat
+        self.on_target = on_target
+        self.on_update = on_update
 
-        self.active = True
+        self.repeat = repeat
+        self.active = active
+
+    def delete(self):
+        self.stop()
+
+        del self.on_target
+        del self.on_update
+
+    @property
+    def progress(self):
+        total = self.target - self.initial
+        current = self.value - self.initial
+        return (1 / total) * current
 
     @property
     def success(self):
@@ -35,10 +49,13 @@ class ManualTimer:
         if self.active:
             self.value = self.update_operator(self.value, delta_time)
 
+            if callable(self.on_update):
+                self.on_update()
+
         if self.comparison_operator(self.value, self.target):
 
-            if callable(self.callback):
-                self.callback()
+            if callable(self.on_target):
+                self.on_target()
 
             if self.repeat:
                 self.reset()

@@ -76,6 +76,7 @@ class RPCInterface:
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
+        
         if self.target == self._worldinfo.netmode:
             return self._function_call(*args, **kwargs)
 

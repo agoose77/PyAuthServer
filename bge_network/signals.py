@@ -51,3 +51,7 @@ class MapLoadedSignal(Signal):
 
 class GameExitSignal(Signal):
     pass
+
+
+class BroadcastMessage(Signal):
+    pass

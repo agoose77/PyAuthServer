@@ -1,5 +1,5 @@
-from bge_network import Signal
+from bge_network import Signal, BroadcastMessage
 
 
-class ConsoleMessage(Signal):
+class ConsoleMessage(BroadcastMessage):
     pass

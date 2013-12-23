@@ -5,7 +5,7 @@ class NetworkError(Exception, metaclass=TypeRegister):
     pass
 
 
-class TimeoutError(NetworkError):
+class ConnectionTimeoutError(NetworkError):
     pass
 
 

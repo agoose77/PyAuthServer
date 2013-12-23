@@ -410,7 +410,7 @@ class PlayerController(Controller):
         self.reset_corrections(replicable)
 
     def receive_broadcast(self, message_string: network.StaticValue(str)) -> network.Netmodes.client:
-        print("BROADCAST: {}".format(message_string))
+        BroadcastMessage.invoke(message_string)
 
     def reset_corrections(self, replicable):
         '''Forces the client to be corrected when spawned'''

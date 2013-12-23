@@ -44,8 +44,7 @@ class LegendController(bge_network.PlayerController):
 
     input_fields = "forward", "backwards", "left", "right", "shoot", "run"
 
-    def receive_broadcast(self, message_string:
-                          bge_network.StaticValue(str)) ->  bge_network.Netmodes.client:
+    def receive_broadcast(self, message_string: bge_network.StaticValue(str)) -> bge_network.Netmodes.client:
         signals.ConsoleMessage.invoke(message_string)
 
     def on_initialised(self):

@@ -43,7 +43,7 @@ def dying_behaviour():
                          IsDead(),
                          GetAttacker(),
                          SetCollisionFlags(mask=CollisionGroups.geometry),
-                         Delay(100),
+                         Delay(5),
                          Signal(ActorKilledSignal,
                                from_blackboard={"target": "pawn",
                                                 "attacker": "attacker"})

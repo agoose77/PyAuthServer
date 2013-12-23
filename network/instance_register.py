@@ -54,7 +54,7 @@ class InstanceMixins(SignalListener):
         return self.registered
 
     def __str__(self):
-        return "(RegisteredInstance {}: {})".format(self.__class__.__name__,
+        return "({}: {})".format(self.__class__.__name__,
                                                     self.instance_id)
     __repr__ = __str__
 

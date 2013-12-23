@@ -59,14 +59,20 @@ class ReplicableRegister(InstanceRegister):
 
         return return_type in Netmodes
 
-    def found_in_parents(name, parents):
+    @classmethod
+    def found_in_parents(meta, name, parents):
         for parent in parents:
-            if name in dir(parent):
-                return True
+            for cls in reversed(parent.__mro__):
+                if name in dir(cls):
+                    return True
+                if cls.__class__ == meta:
+                    break
+        return False
 
-    def should_ignore(name, func, bases):
+    @classmethod
+    def should_ignore(meta, name, func, bases):
         wrapped = bool(func.__annotations__.get("wrapped"))
-        return wrapped or name in dir(bases[0])
+        return wrapped or meta.found_in_parents(name, bases)
 
     def mark_wrapped(func):
         func.__annotations__['wrapped'] = True

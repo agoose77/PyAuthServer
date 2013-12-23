@@ -4,7 +4,7 @@ from .connection import ClientConnection, ServerConnection
 from .conversions import conversion
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
-from .errors import NetworkError, TimeoutError
+from .errors import NetworkError, ConnectionTimeoutError
 from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
@@ -12,7 +12,6 @@ from .instance_register import InstanceRegister
 
 from collections import deque
 from operator import eq as equals_operator
-from socket import gethostbyname
 from time import monotonic
 
 
@@ -143,7 +142,7 @@ class ConnectionInterface(metaclass=InstanceRegister):
         if (monotonic() - self.last_received) > self.time_out:
             self.status = ConnectionStatus.timeout
 
-            err = TimeoutError("Connection timed out")
+            err = ConnectionTimeoutError("Connection timed out")
             ConnectionErrorSignal.invoke(err, target=self)
 
         # Self-incrementing sequence property
