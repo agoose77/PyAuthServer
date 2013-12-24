@@ -94,7 +94,12 @@ class Controller(network.Replicable):
 
     def start_server_fire(self) -> network.Netmodes.server:
         self.weapon.fire(self.camera)
+
+        # Update flash count (for client-side fire effects)
         self.pawn.flash_count += 1
+        print(self.pawn.flash_count, self.pawn)
+        if self.pawn.flash_count > 255:
+            self.pawn.flash_count = 0
 
         for controller in network.WorldInfo.subclass_of(Controller):
             if controller == self:
@@ -864,7 +869,7 @@ class Weapon(network.Replicable):
         self.sound_path = ""
         self.shoot_interval = 0.5
         self.last_fired_time = 0.0
-        self.max_ammo = 50
+        self.max_ammo = 70
 
         self.shot_type = enums.ShotType.instant
 
