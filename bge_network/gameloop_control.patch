@@ -8,7 +8,7 @@
  source/blender/makesdna/DNA_scene_types.h          |   2 +
  source/blender/makesrna/intern/rna_scene.c         |   4 +
  .../BlenderRoutines/BL_KetsjiEmbedStart.cpp        | 500 ++++++++-------------
- .../Converter/BL_BlenderDataConversion.cpp         |  59 ++-
+ .../Converter/BL_BlenderDataConversion.cpp         |  60 ++-
  source/gameengine/GameLogic/SCA_IScene.h           |   4 +-
  source/gameengine/GameLogic/SCA_LogicManager.cpp   |   8 +
  source/gameengine/GameLogic/SCA_PythonMouse.cpp    |  22 +
@@ -16,8 +16,8 @@
  source/gameengine/Ketsji/KX_Camera.cpp             |  14 +-
  source/gameengine/Ketsji/KX_Camera.h               |   2 +
  source/gameengine/Ketsji/KX_Dome.h                 |   2 -
- source/gameengine/Ketsji/KX_GameObject.cpp         | 137 +++---
- source/gameengine/Ketsji/KX_GameObject.h           |  11 +-
+ source/gameengine/Ketsji/KX_GameObject.cpp         | 203 ++++++---
+ source/gameengine/Ketsji/KX_GameObject.h           |  17 +-
  source/gameengine/Ketsji/KX_KetsjiEngine.cpp       | 369 ++++-----------
  source/gameengine/Ketsji/KX_KetsjiEngine.h         |  67 ++-
  source/gameengine/Ketsji/KX_NearSensor.cpp         |   3 +-
@@ -32,10 +32,13 @@
  source/gameengine/Ketsji/KX_TouchEventManager.h    |  19 +-
  source/gameengine/Ketsji/KX_TouchSensor.cpp        |  26 +-
  source/gameengine/Ketsji/KX_TouchSensor.h          |   8 +-
- .../Physics/Bullet/CcdPhysicsEnvironment.cpp       |  51 ++-
- .../Physics/Bullet/CcdPhysicsEnvironment.h         |   2 +-
+ .../Physics/Bullet/CcdPhysicsController.cpp        |  10 +
+ .../Physics/Bullet/CcdPhysicsController.h          |   1 +
+ .../Physics/Bullet/CcdPhysicsEnvironment.cpp       |  83 +++-
+ .../Physics/Bullet/CcdPhysicsEnvironment.h         |   5 +-
  .../gameengine/Physics/common/PHY_DynamicTypes.h   |  11 +-
- 37 files changed, 1019 insertions(+), 793 deletions(-)
+ .../Physics/common/PHY_IPhysicsController.h        |   1 +
+ 40 files changed, 1138 insertions(+), 794 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 106c807..c2f9aee 100644
@@ -1136,10 +1139,10 @@ index 2b1c8a1..b08652c 100644
  
  	// Release Python's GIL
 diff --git a/source/gameengine/Converter/BL_BlenderDataConversion.cpp b/source/gameengine/Converter/BL_BlenderDataConversion.cpp
-index 9dfad5b..0c7e109 100644
+index 9dfad5b..0a1cfbe 100644
 --- a/source/gameengine/Converter/BL_BlenderDataConversion.cpp
 +++ b/source/gameengine/Converter/BL_BlenderDataConversion.cpp
-@@ -1463,14 +1463,46 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+@@ -1463,8 +1463,27 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  	//int userigidbody = SYS_GetCommandLineInt(syshandle,"norigidbody",0);
  	//bool bRigidBody = (userigidbody == 0);
  
@@ -1154,40 +1157,21 @@ index 9dfad5b..0c7e109 100644
 +	bool collision = (blenderobject->gameflag & OB_COLLISION) !=0;
 +	bool occluder = (blenderobject->gameflag & OB_OCCLUDER) != 0;
 +
++	// Inform object if it is an actor
 +	gameobj->m_physicsActor = actor;
 +
  	// object has physics representation?
 -	if (!(blenderobject->gameflag & OB_COLLISION)) {
 +	if (!collision) {
- 		// Respond to all collisions so that Near sensors work on No Collision
- 		// objects.
- 		gameobj->SetUserCollisionGroup(0xff);
- 		gameobj->SetUserCollisionMask(0xff);
 +		// Non collider Enums (ghost objects are still handled by collisions)
 +		if (navmesh)
 +			gameobj->m_physicsType = KX_GameObject::NAVIGATION_MESH;
-+
 +		else if (occluder)
 +			gameobj->m_physicsType = KX_GameObject::OCCLUDER;
- 		return;
- 	}
-+	// Set m_physicsType enum to read in game
-+	if (softbody)
-+		gameobj->m_physicsType = KX_GameObject::SOFT_BODY;
-+	else if (character)
-+		gameobj->m_physicsType = KX_GameObject::CHARACTER;
-+	else if (rigidbody)
-+		gameobj->m_physicsType = KX_GameObject::RIGID_BODY;
-+	else if (dynamic)
-+		gameobj->m_physicsType = KX_GameObject::DYNAMIC;
-+	else if (sensor)
-+		gameobj->m_physicsType = KX_GameObject::SENSOR;
-+	else
-+		gameobj->m_physicsType = KX_GameObject::STATIC;
- 
- 	gameobj->SetUserCollisionGroup(blenderobject->col_group);
- 	gameobj->SetUserCollisionMask(blenderobject->col_mask);
-@@ -1517,11 +1549,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+ 		// Respond to all collisions so that Near sensors work on No Collision
+ 		// objects.
+ 		gameobj->SetUserCollisionGroup(0xff);
+@@ -1517,11 +1536,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  	objprop.m_margin = blenderobject->margin;
  	
  	// ACTOR is now a separate feature
@@ -1206,7 +1190,7 @@ index 9dfad5b..0c7e109 100644
  	objprop.m_record_animation = (blenderobject->gameflag & OB_RECORD_ANIMATION) != 0;
  	
  	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
-@@ -1532,10 +1566,8 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+@@ -1532,10 +1553,8 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  	{
  		objprop.m_contactProcessingThreshold = 0.f;
  	}
@@ -1218,7 +1202,7 @@ index 9dfad5b..0c7e109 100644
  	{
  		///for game soft bodies
  		if (blenderobject->bsoft)
-@@ -1624,7 +1656,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+@@ -1624,7 +1643,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  		}
  	}
  
@@ -1226,7 +1210,7 @@ index 9dfad5b..0c7e109 100644
  	objprop.m_disableSleeping = (blenderobject->gameflag & OB_COLLISION_RESPONSE) != 0;//abuse the OB_COLLISION_RESPONSE flag
  	//mmm, for now, taks this for the size of the dynamicobject
  	// Blender uses inertia for radius of dynamic object
-@@ -1634,12 +1665,12 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+@@ -1634,12 +1652,12 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  	objprop.m_isdeformable = ((blenderobject->gameflag2 & 2)) != 0;
  	objprop.m_boundclass = objprop.m_dyna?KX_BOUNDSPHERE:KX_BOUNDMESH;
  	
@@ -1241,7 +1225,7 @@ index 9dfad5b..0c7e109 100644
  	{
  		objprop.m_boundclass = KX_BOUNDSPHERE;
  	}
-@@ -1714,8 +1745,8 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+@@ -1714,10 +1732,24 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
  		KX_GameObject *parentgameobject = converter->FindGameObject(parent);
  		objprop.m_dynamic_parent = parentgameobject;
  		//cannot be dynamic:
@@ -1251,7 +1235,23 @@ index 9dfad5b..0c7e109 100644
 +		objprop.m_softbody = softbody = false;
  		shapeprops->m_mass = 0.f;
  	}
++	
++		// Set m_physicsType enum to read in game
++		if (softbody)
++			gameobj->m_physicsType = KX_GameObject::SOFT_BODY;
++		else if (character)
++			gameobj->m_physicsType = KX_GameObject::CHARACTER;
++		else if (rigidbody)
++			gameobj->m_physicsType = KX_GameObject::RIGID_BODY;
++		else if (dynamic)
++			gameobj->m_physicsType = KX_GameObject::DYNAMIC;
++		else if (sensor)
++			gameobj->m_physicsType = KX_GameObject::SENSOR;
++		else
++			gameobj->m_physicsType = KX_GameObject::STATIC;
  
+ 	
+ 	objprop.m_concave = (blenderobject->collision_boundtype == OB_BOUND_TRIANGLE_MESH);
 diff --git a/source/gameengine/GameLogic/SCA_IScene.h b/source/gameengine/GameLogic/SCA_IScene.h
 index e2e1edd..55acb5a 100644
 --- a/source/gameengine/GameLogic/SCA_IScene.h
@@ -1439,7 +1439,7 @@ index a7e798a..ba4a7a5 100644
  	KX_KetsjiEngine* m_engine;
  	
 diff --git a/source/gameengine/Ketsji/KX_GameObject.cpp b/source/gameengine/Ketsji/KX_GameObject.cpp
-index 8b7e666..5ba361d 100644
+index 8b7e666..41e3616 100644
 --- a/source/gameengine/Ketsji/KX_GameObject.cpp
 +++ b/source/gameengine/Ketsji/KX_GameObject.cpp
 @@ -56,6 +56,7 @@ typedef unsigned long uint_ptr;
@@ -1469,16 +1469,32 @@ index 8b7e666..5ba361d 100644
  #endif
  {
  	m_ignore_activity_culling = false;
-@@ -1031,7 +1035,7 @@ const MT_Vector4& KX_GameObject::GetObjectColor()
+@@ -548,7 +552,14 @@ void KX_GameObject::ActivateGraphicController(bool recurse)
+ 		setGraphicController_recursive(GetSGNode());
+ 	}
+ }
+-
++short KX_GameObject::GetUserCollisionGroup()
++{
++	return m_userCollisionGroup;
++}
++short KX_GameObject::GetUserCollisionMask()
++{
++	return m_userCollisionMask;
++}
+ void KX_GameObject::SetUserCollisionGroup(short group)
+ {
+ 	m_userCollisionGroup = group;
+@@ -1031,7 +1042,7 @@ const MT_Vector4& KX_GameObject::GetObjectColor()
  void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
  {
  	MT_Matrix3x3 orimat;
 -	MT_Vector3 vect,ori,z,x,y;
-+	MT_Vector3 vect,ori,a,b,c;
++	MT_Vector3 vect, ori, a, b, c;
  	MT_Scalar len;
  
  	// check on valid node in case a python controller holds a reference to a deleted object
-@@ -1053,63 +1057,46 @@ void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
+@@ -1053,63 +1064,48 @@ void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
  	// normalize
  	vect /= len;
  	orimat = GetSGNode()->GetWorldOrientation();
@@ -1539,10 +1555,9 @@ index 8b7e666..5ba361d 100644
 -	orimat.setValue(	x[0],y[0],z[0],
 -						x[1],y[1],z[1],
 -						x[2],y[2],z[2]);
-+	
++	// Get axis
 +	int base [3] = {2, 0, 1};
 +	int fallback [3] = {1, 2, 0};
-+
 +	int base_axis = base[axis];
 +	int fallback_axis = fallback[axis];
 +
@@ -1557,8 +1572,7 @@ index 8b7e666..5ba361d 100644
 +
 +	} else {
 +		// Get a direction vector
-+		MT_Vector3 dir;
-+		dir[axis] = 1.0;
++		MT_Vector3 dir; dir[axis] = 1.0;
 +		a = (vect * fac) + ((orimat * dir) * (1.0f - fac));
 +		len = a.length();
 +		if (MT_fuzzyZero(len))
@@ -1569,6 +1583,10 @@ index 8b7e666..5ba361d 100644
 +
 +	b = ori.cross(a);
 +	c = a.cross(b);
++
++	a.normalize();
++	b.normalize();
++	c.normalize();
 +
 +	MT_Vector3 vectors[3];
 +	vectors[axis] = a;
@@ -1582,7 +1600,7 @@ index 8b7e666..5ba361d 100644
  	if (GetSGNode()->GetSGParent() != NULL)
  	{
  		// the object is a child, adapt its local orientation so that 
-@@ -1425,7 +1412,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
+@@ -1425,7 +1421,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
  			pe->AddSensor(spc);
  	}
  }
@@ -1591,7 +1609,7 @@ index 8b7e666..5ba361d 100644
  {
  	#ifdef WITH_PYTHON
  	Py_ssize_t len;
-@@ -1433,7 +1420,15 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider)
+@@ -1433,7 +1429,15 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider)
  
  	if (collision_callbacks && (len=PyList_GET_SIZE(collision_callbacks)))
  	{
@@ -1608,7 +1626,7 @@ index 8b7e666..5ba361d 100644
  		PyObject *func;
  		PyObject *ret;
  
-@@ -1823,6 +1818,8 @@ PyMethodDef KX_GameObject::Methods[] = {
+@@ -1823,6 +1827,8 @@ PyMethodDef KX_GameObject::Methods[] = {
  PyAttributeDef KX_GameObject::Attributes[] = {
  	KX_PYATTRIBUTE_RO_FUNCTION("name",		KX_GameObject, pyattr_get_name),
  	KX_PYATTRIBUTE_RO_FUNCTION("parent",	KX_GameObject, pyattr_get_parent),
@@ -1617,7 +1635,76 @@ index 8b7e666..5ba361d 100644
  	KX_PYATTRIBUTE_RO_FUNCTION("groupMembers",	KX_GameObject, pyattr_get_group_members),
  	KX_PYATTRIBUTE_RO_FUNCTION("groupObject",	KX_GameObject, pyattr_get_group_object),
  	KX_PYATTRIBUTE_RO_FUNCTION("scene",		KX_GameObject, pyattr_get_scene),
-@@ -2131,6 +2128,18 @@ PyObject *KX_GameObject::pyattr_get_group_members(void *self_v, const KX_PYATTRI
+@@ -1839,6 +1845,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
+ 	KX_PYATTRIBUTE_RW_FUNCTION("scaling",	KX_GameObject, pyattr_get_worldScaling,	pyattr_set_localScaling),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("timeOffset",KX_GameObject, pyattr_get_timeOffset,pyattr_set_timeOffset),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("collisionCallbacks",		KX_GameObject, pyattr_get_collisionCallbacks,	pyattr_set_collisionCallbacks),
++	KX_PYATTRIBUTE_RW_FUNCTION("collisionMask",		KX_GameObject, pyattr_get_collisionMask,	pyattr_set_collisionMask),
++	KX_PYATTRIBUTE_RW_FUNCTION("collisionGroup",	KX_GameObject, pyattr_get_collisionGroup,	pyattr_set_collisionGroup),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("state",		KX_GameObject, pyattr_get_state,	pyattr_set_state),
+ 	KX_PYATTRIBUTE_RO_FUNCTION("meshes",	KX_GameObject, pyattr_get_meshes),
+ 	KX_PYATTRIBUTE_RW_FUNCTION("localOrientation",KX_GameObject,pyattr_get_localOrientation,pyattr_set_localOrientation),
+@@ -1867,6 +1875,59 @@ PyAttributeDef KX_GameObject::Attributes[] = {
+ 	{NULL} //Sentinel
+ };
+ 
++PyObject *KX_GameObject::pyattr_get_collisionMask(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	return PyLong_FromLong(self->GetUserCollisionMask());
++}
++ 
++int KX_GameObject::pyattr_set_collisionMask(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	PHY_IPhysicsController *spc = self->GetPhysicsController();
++
++	short collisionMask = PyLong_AsLong(value);
++
++	if (collisionMask == -1 && PyErr_Occurred()) {
++		PyErr_SetString(PyExc_TypeError, "gameOb.collisionMask = int: KX_GameObject, expected an int bit field");
++		return PY_SET_ATTR_FAIL;
++	}
++
++	self->SetUserCollisionMask(collisionMask);
++
++	if (spc)
++		spc->RefreshCollisions();
++
++	return PY_SET_ATTR_SUCCESS;
++}
++
++
++PyObject *KX_GameObject::pyattr_get_collisionGroup(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	return PyLong_FromLong(self->GetUserCollisionGroup());
++}
++
++int KX_GameObject::pyattr_set_collisionGroup(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
++{
++	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
++	PHY_IPhysicsController *spc = self->GetPhysicsController();
++
++	short collisionGroup = PyLong_AsLong(value);
++
++	if (collisionGroup == -1 && PyErr_Occurred()) {
++		PyErr_SetString(PyExc_TypeError, "gameOb.collisionGroup = int: KX_GameObject, expected an int bit field");
++		return PY_SET_ATTR_FAIL;
++	}
++
++	self->SetUserCollisionGroup(collisionGroup);
++
++	if (spc)
++		spc->RefreshCollisions();
++
++	return PY_SET_ATTR_SUCCESS;
++}
++
+ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
+ {
+ 	KX_Scene *scene = KX_GetActiveScene();
+@@ -2131,6 +2192,18 @@ PyObject *KX_GameObject::pyattr_get_group_members(void *self_v, const KX_PYATTRI
  	Py_RETURN_NONE;
  }
  
@@ -1636,7 +1723,7 @@ index 8b7e666..5ba361d 100644
  PyObject* KX_GameObject::pyattr_get_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
  {
  	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-@@ -3033,7 +3042,8 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
+@@ -3033,7 +3106,8 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
  
  PyObject *KX_GameObject::PySuspendDynamics()
  {
@@ -1646,7 +1733,7 @@ index 8b7e666..5ba361d 100644
  	Py_RETURN_NONE;
  }
  
-@@ -3041,7 +3051,8 @@ PyObject *KX_GameObject::PySuspendDynamics()
+@@ -3041,7 +3115,8 @@ PyObject *KX_GameObject::PySuspendDynamics()
  
  PyObject *KX_GameObject::PyRestoreDynamics()
  {
@@ -1657,7 +1744,7 @@ index 8b7e666..5ba361d 100644
  }
  
 diff --git a/source/gameengine/Ketsji/KX_GameObject.h b/source/gameengine/Ketsji/KX_GameObject.h
-index ac0afca..5a49b7d 100644
+index ac0afca..8f7230b 100644
 --- a/source/gameengine/Ketsji/KX_GameObject.h
 +++ b/source/gameengine/Ketsji/KX_GameObject.h
 @@ -50,10 +50,12 @@
@@ -1683,7 +1770,16 @@ index ac0afca..5a49b7d 100644
  	/**
  	 * Helper function for modules that can't include KX_ClientObjectInfo.h
  	 */
-@@ -907,7 +910,7 @@ public:
+@@ -502,6 +505,8 @@ public:
+ 
+ 	void SetUserCollisionGroup(short filter);
+ 	void SetUserCollisionMask(short mask);
++	short GetUserCollisionGroup();
++	short GetUserCollisionMask();
+ 	/**
+ 	 * Extra broadphase check for user controllable collisions
+ 	 */
+@@ -907,7 +912,7 @@ public:
  
  	void RegisterCollisionCallbacks();
  	void UnregisterCollisionCallbacks();
@@ -1692,7 +1788,7 @@ index ac0afca..5a49b7d 100644
  	/**
  	 * Stop making progress
  	 */
-@@ -1000,7 +1003,9 @@ public:
+@@ -1000,7 +1005,9 @@ public:
  	/* attributes */
  	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
  	static PyObject*	pyattr_get_parent(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -1703,6 +1799,17 @@ index ac0afca..5a49b7d 100644
  	static PyObject*	pyattr_get_group_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
  	static PyObject*	pyattr_get_group_members(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
  	static PyObject*	pyattr_get_scene(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+@@ -1054,6 +1061,10 @@ public:
+ 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+ 	static PyObject*	pyattr_get_collisionCallbacks(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+ 	static int			pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
++	static PyObject*	pyattr_get_collisionMask(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static int			pyattr_set_collisionMask(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
++	static PyObject*	pyattr_get_collisionGroup(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
++	static int			pyattr_set_collisionGroup(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+ 	
+ 	/* Experimental! */
+ 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 diff --git a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
 index 3aa5a9f..f0da4fe 100644
 --- a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
@@ -3065,11 +3172,91 @@ index 6bd606d..f44c6fe 100644
  #endif
  	
  };
+diff --git a/source/gameengine/Physics/Bullet/CcdPhysicsController.cpp b/source/gameengine/Physics/Bullet/CcdPhysicsController.cpp
+index 3372601..8f7925b 100644
+--- a/source/gameengine/Physics/Bullet/CcdPhysicsController.cpp
++++ b/source/gameengine/Physics/Bullet/CcdPhysicsController.cpp
+@@ -1091,6 +1091,16 @@ void	CcdPhysicsController::RestoreDynamics()
+ 	}
+ }
+ 
++void CcdPhysicsController::RefreshCollisions()
++{
++	// Remove existing collisions
++	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
++	btRigidBody *body = GetRigidBody();
++	// Ensure the object isn't sleeping to ensure collisions are possible
++	if (!body->isActive())
++		GetRigidBody()->activate();
++}
++
+ void 		CcdPhysicsController::GetPosition(MT_Vector3&	pos) const
+ {
+ 	const btTransform& xform = m_object->getWorldTransform();
+diff --git a/source/gameengine/Physics/Bullet/CcdPhysicsController.h b/source/gameengine/Physics/Bullet/CcdPhysicsController.h
+index 0d6d408..98036d3 100644
+--- a/source/gameengine/Physics/Bullet/CcdPhysicsController.h
++++ b/source/gameengine/Physics/Bullet/CcdPhysicsController.h
+@@ -588,6 +588,7 @@ protected:
+ 
+ 		virtual void		SuspendDynamics(bool ghost);
+ 		virtual void		RestoreDynamics();
++		virtual void		RefreshCollisions();
+ 
+ 		// Shape control
+ 		virtual void    AddCompoundChild(PHY_IPhysicsController* child);
 diff --git a/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.cpp b/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.cpp
-index cddc12c..28d1128 100644
+index cddc12c..ce9922a 100644
 --- a/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.cpp
 +++ b/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.cpp
-@@ -642,7 +642,7 @@ bool	CcdPhysicsEnvironment::ProceedDeltaTime(double curTime,float timeStep,float
+@@ -326,7 +326,38 @@ static void DrawAabb(btIDebugDraw* debugDrawer,const btVector3& from,const btVec
+ #endif
+ 
+ 
++void CustomNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo){
++	btCollisionObject* colObj0 = (btCollisionObject*)collisionPair.m_pProxy0->m_clientObject;
++	btCollisionObject* colObj1 = (btCollisionObject*)collisionPair.m_pProxy1->m_clientObject;
++   /*Narrowphase callback that fixes first frame bug and ensures changes are immediately reflected
++   to the collisionGroup and collisionMasks*/
++	KX_GameObject *kxObj0 = KX_GameObject::GetClientObject(
++			(KX_ClientObjectInfo*)
++			((CcdPhysicsController*)
++					(colObj0->getUserPointer()))
++			->GetNewClientInfo());
++	KX_GameObject *kxObj1 = KX_GameObject::GetClientObject(
++			(KX_ClientObjectInfo*)
++			((CcdPhysicsController*)
++					(colObj1->getUserPointer()))
++			->GetNewClientInfo());
++
++	// First check the filters. Note that this is called during scene
++	// conversion, so we can't assume the KX_GameObject instances exist. This
++	// may make some objects erroneously collide on the first frame, but the
++	// alternative is to have them erroneously miss.
++	bool collides = true;
++
++	// Check the Blender mask and group
++	// Called during scene conversion, thus KX_GameObject instances may not exist
++	// But we can clean up in narrowphase by triggering erroneus inclusion
++	if (kxObj0 && kxObj1) {
++		collides = kxObj0->CheckCollision(kxObj1) && kxObj1->CheckCollision(kxObj0);
++	}
+ 
++	if (collides)
++		dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
++}
+ 
+ 
+ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling,btDispatcher* dispatcher,btOverlappingPairCache* pairCache)
+@@ -361,6 +392,7 @@ m_scalingPropagated(false)
+ 		dispatcher = disp;
+ 		btGImpactCollisionAlgorithm::registerAlgorithm(disp);
+ 		m_ownDispatcher = dispatcher;
++		disp->setNearCallback(CustomNearCallback);
+ 	}
+ 
+ 	//m_broadphase = new btAxisSweep3(btVector3(-1000,-1000,-1000),btVector3(1000,1000,1000));
+@@ -642,7 +674,7 @@ bool	CcdPhysicsEnvironment::ProceedDeltaTime(double curTime,float timeStep,float
  	}
  
  
@@ -3078,7 +3265,7 @@ index cddc12c..28d1128 100644
  
  	return true;
  }
-@@ -2166,7 +2166,7 @@ bool CcdPhysicsEnvironment::RequestCollisionCallback(PHY_IPhysicsController* ctr
+@@ -2166,7 +2198,7 @@ bool CcdPhysicsEnvironment::RequestCollisionCallback(PHY_IPhysicsController* ctr
  	return true;
  }
  
@@ -3087,7 +3274,7 @@ index cddc12c..28d1128 100644
  {
  	if (m_triggerCallbacks[PHY_OBJECT_RESPONSE] || (m_debugDrawer && (m_debugDrawer->getDebugMode() & btIDebugDraw::DBG_DrawContactPoints)))
  	{
-@@ -2181,16 +2181,33 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
+@@ -2181,16 +2213,33 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
  			{
  				const btRigidBody* rb0 = static_cast<const btRigidBody*>(manifold->getBody0());
  				const btRigidBody* rb1 = static_cast<const btRigidBody*>(manifold->getBody1());
@@ -3126,7 +3313,7 @@ index cddc12c..28d1128 100644
  				const btRigidBody* obj0 = rb0;
  				const btRigidBody* obj1 = rb1;
  
-@@ -2203,12 +2220,24 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
+@@ -2203,12 +2252,24 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
  				{
  					i = m_triggerControllers.find(ctrl1);
  				}
@@ -3137,7 +3324,7 @@ index cddc12c..28d1128 100644
  					m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE],
 -						ctrl0,ctrl1,0);
 +						ctrl0, ctrl1, manifolds);
-+				}
+ 				}
 +
 +				else
 +				{
@@ -3147,13 +3334,13 @@ index cddc12c..28d1128 100644
 +					}
 +
 +					delete manifolds;
- 				}
++				}
 +
 +
  				// Bullet does not refresh the manifold contact point for object without contact response
  				// may need to remove this when a newer Bullet version is integrated
  				if (!dispatcher->needsResponse(rb0, rb1))
-@@ -2218,14 +2247,12 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
+@@ -2218,14 +2279,12 @@ void	CcdPhysicsEnvironment::CallbackTriggers()
  					// Let's just clear the manifold, in any case, it is recomputed on each frame.
  					manifold->clearManifold(); //refreshContactPoints(rb0->getCenterOfMassTransform(),rb1->getCenterOfMassTransform());
  				}
@@ -3170,10 +3357,27 @@ index cddc12c..28d1128 100644
  
  // This call back is called before a pair is added in the cache
 diff --git a/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.h b/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.h
-index 0e8ac94..8b04deb 100644
+index 0e8ac94..7ef4fe8 100644
 --- a/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.h
 +++ b/source/gameengine/Physics/Bullet/CcdPhysicsEnvironment.h
-@@ -173,7 +173,7 @@ protected:
+@@ -43,6 +43,7 @@ class btDispatcher;
+ #define NEW_BULLET_VEHICLE_SUPPORT 1
+ 
+ #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
++#include "BulletCollision/BroadphaseCollision/btOverlappingPairCache.h"
+ 
+ class WrapperVehicle;
+ class btPersistentManifold;
+@@ -52,6 +53,8 @@ class btOverlappingPairCache;
+ class btIDebugDraw;
+ class PHY_IVehicle;
+ class CcdOverlapFilterCallBack;
++// Custom callback to fix collision mask errors
++void	CustomNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo);
+ 
+ /** CcdPhysicsEnvironment is an experimental mainloop for physics simulation using optional continuous collision detection.
+  * Physics Environment takes care of stepping the simulation and is a container for physics entities.
+@@ -173,7 +176,7 @@ protected:
  		virtual float		getAppliedImpulse(int	constraintid);
  
  
@@ -3216,4 +3420,16 @@ index d10f48a..e0f5652 100644
 +                                     void *coll_data);
  typedef void (*PHY_CullingCallback)(KX_ClientObjectInfo* info, void* param);
  
+ 
+diff --git a/source/gameengine/Physics/common/PHY_IPhysicsController.h b/source/gameengine/Physics/common/PHY_IPhysicsController.h
+index a1d0972..a0471a7 100644
+--- a/source/gameengine/Physics/common/PHY_IPhysicsController.h
++++ b/source/gameengine/Physics/common/PHY_IPhysicsController.h
+@@ -88,6 +88,7 @@ class PHY_IPhysicsController : public PHY_IController
+ 
+ 		virtual void		SuspendDynamics(bool ghost=false)=0;
+ 		virtual void		RestoreDynamics()=0;
++		virtual void		RefreshCollisions()=0;
+ 
+ 		virtual void		SetActive(bool active)=0;
  
