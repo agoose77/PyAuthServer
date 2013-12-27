@@ -701,6 +701,8 @@ class Actor(network.Replicable):
 
     @collision_group.setter
     def collision_group(self, group):
+        if self.object.collisionGroup == group:
+            return
         self.object.collisionGroup = group
 
     @property
@@ -709,6 +711,8 @@ class Actor(network.Replicable):
 
     @collision_mask.setter
     def collision_mask(self, mask):
+        if self.object.collisionMask == mask:
+            return
         self.object.collisionMask = mask
 
     @property

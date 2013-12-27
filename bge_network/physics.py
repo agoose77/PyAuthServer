@@ -174,6 +174,8 @@ class ServerPhysics(PhysicsSystem):
             state.velocity[:] = replicable.velocity
             state.angular[:] = replicable.angular
             state.rotation[:] = replicable.rotation
+            state.collision_group = replicable.collision_group
+            state.collision_mask = replicable.collision_mask
 
 
 class ClientPhysics(PhysicsSystem):
@@ -206,3 +208,5 @@ class ClientPhysics(PhysicsSystem):
 
         target.rotation = target_physics.rotation.copy()
         target.angular = target_physics.angular.copy()
+        target.collision_group = target_physics.collision_group
+        target.collision_mask = target_physics.collision_mask
