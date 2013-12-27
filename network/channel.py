@@ -18,10 +18,8 @@ class Channel:
         self.is_initial = True
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
-        # Sort by name (must be the same on both client and server)
-        self.sorted_attributes = self.attribute_storage.get_ordered_members()
         # Create a serialiser instance
-        self.serialiser = ArgumentSerialiser(self.sorted_attributes)
+        self.serialiser = ArgumentSerialiser(self.attribute_storage._ordered_mapping)
 
         self.rpc_id_packer = get_handler(StaticValue(int))
         self.replicable_id_packer = get_handler(StaticValue(Replicable))

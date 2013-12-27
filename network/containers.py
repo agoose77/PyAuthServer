@@ -62,14 +62,15 @@ class AbstractStorageContainer:
 
     def __init__(self, instance):
         self._mapping = self.get_member_instances(instance)
-
-        self.data = self.get_initialised_data(self._mapping)
+        self._ordered_mapping = self.get_ordered_members()
 
         self._lazy_name_mapping = {}
         self._storage_interfaces = {}
         self._instance = instance
 
-    def get_initial_data(self, member):
+        self.data = self.get_default_data()
+
+    def get_default_value(self, member):
         raise NotImplemented
 
     def check_is_supported(self, member):
@@ -81,15 +82,13 @@ class AbstractStorageContainer:
         return {name: value for name, value in getmembers(instance.__class__)
                 if is_supported(value)}
 
-    def get_initialised_data(self, mapping):
-        get_initial_data = self.get_initial_data
-
-        return {member: get_initial_data(member) for member in
-                mapping.values()}
+    def get_default_data(self):
+        initial_data = self.get_default_value
+        mapping = self._mapping
+        return {member: initial_data(member) for member in mapping.values()}
 
     def get_ordered_members(self):
         mapping = self._mapping
-
         return OrderedDict((key, mapping[key]) for key in sorted(mapping))
 
     def get_member_by_name(self, name):
@@ -135,7 +134,7 @@ class RPCStorageContainer(AbstractStorageContainer):
     def check_is_supported(self, member):
         return isinstance(member, RPCInterfaceFactory)
 
-    def get_initialised_data(self, mapping):
+    def get_default_data(self):
         return deque()
 
     def _add_call(self, member, value):
@@ -169,25 +168,30 @@ class AttributeStorageContainer(AbstractStorageContainer):
 
         self.complaints = self.get_default_complaints()
 
-    def get_descriptions(self, data, static_description=static_description):
-        return {attribute: static_description(value) for attribute, value in
-                data.items()}
+    @staticmethod
+    def get_descriptions_of(data, static_description=static_description):
+        return {attribute: static_description(value)
+                for attribute, value in data.items()}
+
+    def get_description_tuple(self, static_description=static_description):
+        complaints = self.complaints
+        data = self.data
+        members = self._ordered_mapping.values()
+
+        return tuple(complaints[member] if member in complaints else
+                     static_description(data[member]) for member in members)
 
     def get_default_descriptions(self):
-        get_initial_data = self.get_initial_data
-
-        return self.get_descriptions({a: get_initial_data(a) for a in self.data})
+        return self.get_descriptions_of(self.get_default_data())
 
     def get_default_complaints(self):
-        get_default_descriptions = self.get_default_descriptions
-
-        return {a: v for a, v in get_default_descriptions().items() if
-                a.complain}
+        default_descriptions = self.get_default_descriptions()
+        return {a: v for a, v in default_descriptions.items() if a.complain}
 
     def check_is_supported(self, member):
         return isinstance(member, Attribute)
 
-    def get_initial_data(self, attribute):
+    def get_default_value(self, attribute):
         return attribute.value
 
     def new_storage_interface(self, name, member):

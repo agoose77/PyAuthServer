@@ -152,8 +152,7 @@ class SpriteSequence(bgui.Image):
     @frame.setter
     def frame(self, index):
         x_size = 1 / self.length
-
-        if not 0 < index < self.length:
+        if not 0 <= index < self.length:
             raise IndexError("Frame not found")
 
         self._index = index

@@ -1,4 +1,4 @@
-from .handler_interfaces import register_handler, get_handler
+from .handler_interfaces import register_handler, get_handler, static_description
 from .descriptors import StaticValue
 from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
@@ -12,13 +12,12 @@ class Struct:
     def __init__(self):
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()
-        self._ordered_members = self._container.get_ordered_members()
-        self._serialiser = ArgumentSerialiser(self._ordered_members)
+        self._serialiser = ArgumentSerialiser(self._container._ordered_mapping)
 
     def __deepcopy__(self, memo):
         new_struct = self.__class__()
 
-        for name, member in self._ordered_members.items():
+        for name, member in self._container._ordered_mapping.items():
             old_value = self._container.data[member]
             new_member = new_struct._container.get_member_by_name(name)
             new_struct._container.data[new_member] = deepcopy(old_value)
@@ -26,11 +25,10 @@ class Struct:
         return new_struct
 
     def __description__(self):
-        return hash(tuple(self._container.get_descriptions(
-                                   self._container.data).values()))
+        return hash(self._container.get_description_tuple())
 
     def to_bytes(self):
-        return self._serialiser.pack({a.name: v for a, v in \
+        return self._serialiser.pack({a.name: v for a, v in
                                       self._container.data.items()})
 
     def on_notify(self, name):

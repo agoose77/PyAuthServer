@@ -1,9 +1,10 @@
 from ui import (Panel, ConsoleRenderer, System, TableRenderer,
-                CENTERX, CENTERY, CENTERED)
+                CENTERX, CENTERY, CENTERED, SpriteSequence)
 
 from matchmaker import Matchmaker
 from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
-                     SignalListener, WorldInfo, ManualTimer, BroadcastMessage)
+                     SignalListener, WorldInfo, ManualTimer, Timer,
+                     BroadcastMessage)
 from signals import ConsoleMessage
 from datetime import datetime
 
@@ -14,7 +15,7 @@ import uuid
 import copy
 
 
-class ConnectPanel(Panel, SignalListener):
+class ConnectPanel(Panel):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
@@ -156,18 +157,20 @@ class ConnectPanel(Panel, SignalListener):
         self.servers_box.renderer = TableRenderer(self.servers_box,
                                               labels=self.server_headers)
 
-        #self.sprite = SpriteSequence(self.servers_box, "sprite", "C:/Users/Angus/workspace/ReplicationSystem/trunk/blender_example/themes/477.png",
-                #                     length=20, loop=True,  size=[1, 1],  pos=[0, 0],
-                 #                    relative_path=False)
-        #self.sprite_timer = ManualTimer(target_value=1 / 20,
-                                     #   repeat=True,
-                                     #   on_target=self.sprite.next_frame)
+        self.sprite = SpriteSequence(self.error_group, "sprite",
+                                     bge.logic.expandPath("//themes/477.tga"),
+                                     length=20, loop=True,  size=[0.1, 0.6],
+                                     aspect=1, relative_path=False,
+                                     options=CENTERY)
+        self.sprite_timer = Timer(target_value=1 / 20,
+                                        repeat=True,
+                                        on_target=self.sprite.next_frame)
+
         self.connect_button.on_click = self.do_connect
         self.refresh_button.on_click = self.do_refresh
         self.servers_box.on_select = self.on_select
         self.uses_mouse = True
-
-        self.register_signals()
+        self.sprite.visible = False
 
     def on_select(self, list_box, entry):
         data = dict(entry)
@@ -179,17 +182,20 @@ class ConnectPanel(Panel, SignalListener):
         self.matchmaker.url = self.match_field.text
         self.matchmaker.perform_query(self.evaluate_servers,
                                       self.matchmaker.server_query())
+        self.sprite.visible = True
 
     def evaluate_servers(self, response):
         self.servers[:] = [tuple(entry.items()) for entry in response]
         self.connect_message.text = ("Refreshed Server List" if self.servers
                                     else "No Servers Found")
+        self.sprite.visible = False
 
     def do_connect(self, button):
         if not callable(self.connecter):
             return
 
         self.connecter(self.addr_field.text, int(self.port_field.text))
+        self.sprite.visible = True
 
     @ConnectionSuccessSignal.global_listener
     def on_connect(self, target):
@@ -198,11 +204,11 @@ class ConnectPanel(Panel, SignalListener):
     @ConnectionErrorSignal.global_listener
     def on_error(self, error, target, signal):
         self.connect_message.text = str(error)
+        self.sprite.visible = False
 
     def update(self, delta_time):
         self.connect_button.frozen = self.port_field.invalid
         self.matchmaker.update()
-        #self.sprite_timer.update(delta_time)
 
 
 class SamanthaPanel(Panel):

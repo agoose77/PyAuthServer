@@ -127,18 +127,19 @@ class PhysicsSystem(SignalListener):
         if not target.physics in self._active_physics:
             return
 
+        # Make a list of objects we touched
+        modified_states = []
         for this_target in WorldInfo.subclass_of(Actor):
             if this_target == target:
                 continue
 
             this_target.suspended = True
+            modified_states.append(this_target)
 
         self._update_func(delta_time)
 
-        for this_target in WorldInfo.subclass_of(Actor):
-            if this_target == target:
-                continue
-
+        # Restore suspended actors
+        for this_target in modified_states:
             this_target.suspended = False
 
         self._apply_func()
@@ -162,16 +163,6 @@ class PhysicsSystem(SignalListener):
 
         UpdateCollidersSignal.invoke()
 
-    def needs_listener(self, replicable):
-        return replicable.physics in self._active_physics and not \
-                            replicable in self._listeners
-
-    def create_listener(self, replicable):
-        self._listeners[replicable] = CollisionStatus(replicable)
-
-    def remove_listener(self, replicable):
-        self._listeners.pop(replicable, None)
-
 
 class ServerPhysics(PhysicsSystem):
 
@@ -182,11 +173,10 @@ class ServerPhysics(PhysicsSystem):
         for replicable in WorldInfo.subclass_of(Actor):
             state = replicable.rigid_body_state
 
-            # Can probably do this once then use muteable property
-            state.position = replicable.position.copy()
-            state.velocity = replicable.velocity.copy()
-            state.rotation = replicable.rotation.copy()
-            state.angular = replicable.angular.copy()
+            state.position[:] = replicable.position
+            state.velocity[:] = replicable.velocity
+            state.angular[:] = replicable.angular
+            state.rotation[:] = replicable.rotation
 
 
 class ClientPhysics(PhysicsSystem):

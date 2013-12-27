@@ -108,7 +108,7 @@ class Image(Widget):
 			# Load the texture data from disk
 			image = texture.ImageFFmpeg(img)
 			image.scale = False
-			print("IM", image.image)
+
 			if self.options & BGUI_CACHE:
 				Image._cache[img] = image
 

@@ -97,7 +97,7 @@ class Controller(network.Replicable):
 
         # Update flash count (for client-side fire effects)
         self.pawn.flash_count += 1
-        print(self.pawn.flash_count, self.pawn)
+
         if self.pawn.flash_count > 255:
             self.pawn.flash_count = 0
 
@@ -731,8 +731,7 @@ class Actor(network.Replicable):
 
     @property
     def has_dynamics(self):
-        return self.object.physicsType in (enums.PhysicsType.rigid_body,
-                                           enums.PhysicsType.dynamic)
+        return self.physics in (enums.PhysicsType.rigid_body, enums.PhysicsType.dynamic)
 
     @property
     def transform(self):
@@ -1097,6 +1096,7 @@ class Pawn(Actor):
                        mode=enums.AnimationMode.play, weight=0.0, speed=1.0,
                        blend_mode=enums.AnimationBlend.interpolate):
 
+        # Define conversions from Blender animations to Network animation enum
         ge_mode = {enums.AnimationMode.play: bge.logic.KX_ACTION_MODE_PLAY,
                    enums.AnimationMode.loop: bge.logic.KX_ACTION_MODE_LOOP,
                    enums.AnimationMode.ping_pong: bge.logic.KX_ACTION_MODE_PING_PONG
@@ -1133,10 +1133,10 @@ class Pawn(Actor):
             self.update_weapon_attatchment()
 
         # Allow remote players to determine if we are alive without seeing health
-        self.update_health()
+        self.update_alive_status()
         self.animations.update(delta_time)
 
-    def update_health(self):
+    def update_alive_status(self):
         '''Update health boolean
         Runs on authority / autonomous proxy only'''
         self.alive = self.health > 0
@@ -1161,7 +1161,7 @@ class Lamp(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-        self._intensity = self.intensity
+        self._intensity = None
 
     @property
     def intensity(self):
@@ -1177,10 +1177,16 @@ class Lamp(Actor):
 
     @active.setter
     def active(self, state):
+        '''Modifies the lamp state by setting the intensity to a placeholder
+        @param state: enabled state'''
+
+        if not (state != (self._intensity is None)):
+            return
+
         if state:
-            self._intensity, self.intensity = self.intensity, 0.0
+            self._intensity, self.intensity = None, self._intensity
         else:
-            self._intensity, self.intensity = 0.0, self._intensity
+            self._intensity, self.intensity = self.intensity, None
 
 
 class Navmesh(Actor):
