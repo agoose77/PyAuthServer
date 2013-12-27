@@ -144,9 +144,6 @@ class PhysicsSystem(SignalListener):
 
         self._apply_func()
 
-    def restore_objects(self):
-        pass
-
     def update(self, scene, delta_time):
 
         # Restore scheduled objects
