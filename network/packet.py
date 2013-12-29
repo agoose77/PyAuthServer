@@ -1,6 +1,8 @@
 from .handler_interfaces import get_handler
 from .descriptors import StaticValue
+
 from functools import lru_cache
+from itertools import chain
 
 
 class PacketCollection:
@@ -73,7 +75,7 @@ class PacketCollection:
         return '\n'.join(str(m) for m in self.members)
 
     def __add__(self, other):
-        return type(self)(self.members + other.members)
+        return self.__class__(self.members + other.members)
 
     __radd__ = __add__
     __bytes__ = to_bytes
@@ -87,9 +89,9 @@ class Packet:
 
     def __init__(self, protocol=None, payload=None, *, reliable=False,
                  on_success=None, on_failure=None):
+
         # Force reliability for callbacks
-        if on_success or on_failure:
-            reliable = True
+        reliable = reliable or bool(on_success or on_failure)
 
         self.on_success = on_success
         self.on_failure = on_failure

@@ -46,3 +46,12 @@ def requires_netmode(netmode):
         return _wrapper
 
     return wrapper
+
+
+def for_netmode(netmode):
+
+    def wrapper(cls):
+        cls._netmode_mapping[netmode] = cls
+        return cls
+
+    return wrapper

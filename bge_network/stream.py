@@ -31,10 +31,10 @@ class MicrophoneStream(GenericStream):
         super().__init__()
 
         self.stream = self.pyaudio.open(format=self.format,
-                channels=self.channels,
-                rate=self.bitrate,
-                input=True,
-                frames_per_buffer=self.chunk)
+                                        channels=self.channels,
+                                        rate=self.bitrate,
+                                        input=True,
+                                        frames_per_buffer=self.chunk)
 
         self._encoder = encoder.Encoder(self.bitrate, self.channels, 'voip')
         self.start()

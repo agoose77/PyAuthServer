@@ -2,12 +2,14 @@ from .replicables import WorldInfo
 from .bitfield import Bitfield
 from .connection import ClientConnection, ServerConnection
 from .conversions import conversion
+from .decorators import for_netmode
 from .descriptors import StaticValue
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, ConnectionTimeoutError
 from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
+from .netmode_selector import NetmodeSelector
 from .instance_register import InstanceRegister
 
 from collections import deque
@@ -15,12 +17,11 @@ from operator import eq as equals_operator
 from time import monotonic
 
 
-class ConnectionInterface(metaclass=InstanceRegister):
+class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
     """Interface for remote peer
     Mediates a connection instance between local and remote peer"""
 
-    def __init__(self, instance_id):
-
+    def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
         self.sequence_handler = get_handler(StaticValue(int,
@@ -65,25 +66,6 @@ class ConnectionInterface(metaclass=InstanceRegister):
         self.throttle_pending = False
 
         self.buffer = []
-
-        # Maintenance info
-        super().__init__(instance_id=instance_id, register=True)
-
-    def __new__(cls, *args, **kwargs):
-        """Constructor switch
-        @requires: WorldInfo.netmode set"""
-        if cls is ConnectionInterface:
-            netmode = WorldInfo.netmode
-
-            if netmode == Netmodes.server:
-                return ServerInterface.__new__(ServerInterface,
-                                               *args, **kwargs)
-
-            elif netmode == Netmodes.client:
-                return ClientInterface.__new__(ClientInterface,
-                                               *args, **kwargs)
-        else:
-            return super().__new__(cls)
 
     def on_unregistered(self):
         """Unregistration callback"""
@@ -314,10 +296,13 @@ class ConnectionInterface(metaclass=InstanceRegister):
             self.connection.receive(packet_collection.members)
 
 
+@for_netmode(Netmodes.server)
 class ServerInterface(ConnectionInterface):
 
     def on_initialised(self):
         """Initialised callback"""
+        super().on_initialised()
+
         self._auth_error = None
 
     def on_unregistered(self):
@@ -377,6 +362,7 @@ class ServerInterface(ConnectionInterface):
                 self.connection.replicable = returned_replicable
 
 
+@for_netmode(Netmodes.client)
 class ClientInterface(ConnectionInterface):
 
     def get_handshake(self):

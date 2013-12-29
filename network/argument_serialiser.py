@@ -76,7 +76,7 @@ class ArgumentSerialiser:
         # If there are Boolean values
         if self.total_bools and content_values[-2]:
             bitfield_packer.unpack_merge(self.bool_bits, bytes_)
-            for bool_value, (key, static_value) in zip(self.bool_bits,
+            for bool_value, (key, _) in zip(self.bool_bits,
                                                        self.bools):
                 yield (key, bool_value)
 

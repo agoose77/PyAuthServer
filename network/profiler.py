@@ -5,6 +5,7 @@ from .signals import ProfileSignal, SignalListener
 
 
 class ProfileManager(SignalListener):
+
     def __init__(self):
         super().__init__()
 

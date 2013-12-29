@@ -79,10 +79,11 @@ class Connection(SignalListener):
 
             channel = channels[replicable.instance_id]
 
-            # Now check if we are an owner, or relevant
+            # Now check if we are an owner
             is_owner = check_is_owner(replicable)
-            yield (replicable, is_owner and replicable.relevant_to_owner,
-                   channel)
+            relevant_to_owner = replicable.relevant_to_owner
+
+            yield (replicable, is_owner and relevant_to_owner, channel)
 
     @property
     def prioritised_replication_data(self):

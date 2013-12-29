@@ -25,16 +25,17 @@ class ReplicableRegister(InstanceRegister):
                 if meta.should_ignore(name, value, bases):
                     continue
 
-                # Recreate RPC from its function
-                is_an_rpc = isinstance(value, RPCInterfaceFactory)
-
-                if is_an_rpc:
-                    print("Found pre-wrapped RPC call: {}, "\
-                          "re-wrapping...(any data defined in "\
-                          "__init__ will be lost)".format(name))
+                # This is required to ensure class arguments
+                # Are not overwritten by child instances
+                if isinstance(value, RPCInterfaceFactory):
+                    print("Found wrapped RPC call: {}, re-wrapping..."
+                          .format(name))
+                    # Take the function and move it up
                     value = value.function
 
-                value = meta.permission_wrapper(value)
+                # RPC calls will have already wrapped their value
+                else:
+                    value = meta.permission_wrapper(value)
 
                 # Automatically wrap RPC
                 if meta.is_rpc(value):
@@ -47,6 +48,7 @@ class ReplicableRegister(InstanceRegister):
     def is_rpc(func):
         try:
             annotations = func.__annotations__
+
         except AttributeError:
             if not hasattr(func, "__func__"):
                 return False
@@ -71,11 +73,13 @@ class ReplicableRegister(InstanceRegister):
 
     @classmethod
     def should_ignore(meta, name, func, bases):
-        wrapped = bool(func.__annotations__.get("wrapped"))
-        return wrapped or meta.found_in_parents(name, bases)
+        return meta.is_wrapped(func) or meta.found_in_parents(name, bases)
 
     def mark_wrapped(func):
         func.__annotations__['wrapped'] = True
+
+    def is_wrapped(func):
+        return bool(func.__annotations__.get("wrapped"))
 
     @classmethod
     def permission_wrapper(meta, func):
