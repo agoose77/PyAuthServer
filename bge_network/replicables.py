@@ -45,7 +45,7 @@ class Controller(network.Replicable):
         super().on_initialised()
 
         self.hear_range = 15
-        self.effective_hear = 10
+        self.effective_hear_range = 10
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -157,9 +157,9 @@ class AIController(Controller):
         my_pawn = self.pawn
 
         for actor in network.WorldInfo.subclass_of(Pawn):
-
-            if (ignore_self and actor == my_pawn):
+            if (actor == my_pawn and ignore_self):
                 continue
+
             elif sees(actor):
                 return actor
 
@@ -176,16 +176,12 @@ class AIController(Controller):
         probability = utilities.falloff_fraction(self.pawn.position,
                             self.hear_range,
                             source,
-                            self.effective_hear)
+                            self.effective_hear_range)
 
     def on_initialised(self):
         super().on_initialised()
 
-        self.debug = False
-        self.target = None
-
         self.camera_mode = enums.CameraMode.first_person
-
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
@@ -256,22 +252,17 @@ class PlayerController(Controller):
             print("No move found")
             return
 
-        self.pawn.position = correction.position
-        self.pawn.velocity = correction.velocity
-        self.pawn.rotation = correction.rotation
-        self.pawn.angular = correction.angular
+        signals.PhysicsCopyState.invoke(correction, self.pawn)
 
         lookup_dict = {}
-
         print("{}: Correcting prediction for move {}".format(self, move_id))
 
         with self.inputs.using_interface(lookup_dict.__getitem__):
 
             for ind, (move_id, move) in enumerate(self.previous_moves.items()):
                 # Restore inputs
-                inputs_dict = dict(zip(sorted(self.inputs.keybindings),
-                                       move.inputs))
-                lookup_dict.update(inputs_dict)
+                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
+                lookup_dict.update(inputs_zip)
                 # Execute move
                 self.execute_move(self.inputs, move.mouse_x,
                                   move.mouse_y, move.delta_time)
@@ -296,11 +287,7 @@ class PlayerController(Controller):
 
         # Create correction if neccessary
         correction = structs.RigidBodyState()
-
-        correction.position = self.pawn.position
-        correction.rotation = self.pawn.rotation
-        correction.velocity = self.pawn.velocity
-        correction.angular = self.pawn.angular
+        signals.PhysicsCopyState.invoke(self.pawn, correction)
 
         return correction
 
@@ -316,7 +303,7 @@ class PlayerController(Controller):
         probability = utilities.falloff_fraction(self.pawn.position,
                             self.hear_range,
                             source,
-                            self.effective_hear)
+                            self.effective_hear_range)
         return
         file_path = bge.logic.expandPath("//{}".format(sound_path))
 

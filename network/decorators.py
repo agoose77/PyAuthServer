@@ -51,7 +51,7 @@ def requires_netmode(netmode):
 def for_netmode(netmode):
 
     def wrapper(cls):
-        cls._netmode_mapping[netmode] = cls
+        cls._netmode_data = cls, netmode
         return cls
 
     return wrapper

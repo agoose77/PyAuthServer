@@ -123,7 +123,6 @@ class HandleInputs(SignalLeafNode):
 
     def evaluate(self, blackboard):
         inputs = blackboard['inputs']
-        delta_time = blackboard['delta_time']
         pawn = blackboard['pawn']
 
         y_plane = inputs.forward - inputs.backwards
@@ -133,6 +132,7 @@ class HandleInputs(SignalLeafNode):
                                 else MovementState.walk
         if movement_mode == MovementState.walk:
             forward_speed = pawn.walk_speed
+
         elif movement_mode == MovementState.run:
             forward_speed = pawn.run_speed
 
@@ -140,4 +140,5 @@ class HandleInputs(SignalLeafNode):
         velocity.length = forward_speed
 
         pawn.velocity.xy = velocity.xy
+
         return EvaluationState.success

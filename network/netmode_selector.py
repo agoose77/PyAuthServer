@@ -2,11 +2,11 @@ from .replicables import WorldInfo
 
 
 class NetmodeSelector:
-    _netmode_mapping = {}
 
     @classmethod
     def netmode_specific(cls, id_):
-        return cls._netmode_mapping[id_]
+        return next(t for t in cls._types if
+                    getattr(t, "_netmode_data") == (t, id_))
 
     def __new__(cls, *args, **kwargs):
         specific_cls = cls.netmode_specific(WorldInfo.netmode)

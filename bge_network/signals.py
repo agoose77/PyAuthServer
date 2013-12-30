@@ -29,6 +29,10 @@ class PhysicsUnsetSimulatedSignal(Signal):
     pass
 
 
+class PhysicsCopyState(Signal):
+    pass
+
+
 class ActorDamagedSignal(Signal):
     pass
 

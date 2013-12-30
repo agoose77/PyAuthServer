@@ -3,30 +3,18 @@ from .enums import PhysicsType
 from .signals import (CollisionSignal, PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
                      PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
-                     MapLoadedSignal, UpdateCollidersSignal)
+                     MapLoadedSignal, UpdateCollidersSignal, PhysicsCopyState)
 
 from bge import logic, types
 from collections import defaultdict
 from functools import partial
 from network import (WorldInfo, Netmodes, SignalListener,
-                     ReplicableUnregisteredSignal, Replicable)
+                     ReplicableUnregisteredSignal, Replicable,
+                     NetmodeSelector, for_netmode, TypeRegister)
 from time import monotonic
 
 
-class PhysicsSystem(SignalListener):
-
-    def __new__(cls, *args, **kwargs):
-        """Constructor switch depending upon netmode"""
-        if cls is PhysicsSystem:
-            netmode = WorldInfo.netmode
-
-            if netmode == Netmodes.server:
-                return ServerPhysics.__new__(ServerPhysics, *args, **kwargs)
-
-            elif netmode == Netmodes.client:
-                return ClientPhysics.__new__(ClientPhysics, *args, **kwargs)
-        else:
-            return super().__new__(cls)
+class PhysicsSystem(NetmodeSelector, SignalListener, metaclass=TypeRegister):
 
     def __init__(self, update_func, apply_func):
         super().__init__()
@@ -160,7 +148,17 @@ class PhysicsSystem(SignalListener):
 
         UpdateCollidersSignal.invoke()
 
+    @PhysicsCopyState.global_listener
+    def interface_state(self, a, b):
+        b.position = a.position.copy()
+        b.velocity = a.velocity.copy()
+        b.angular = a.angular.copy()
+        b.rotation = a.rotation.copy()
+        b.collision_group = a.collision_group
+        b.collision_mask = a.collision_mask
 
+
+@for_netmode(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
     @PhysicsTickSignal.global_listener
@@ -169,15 +167,10 @@ class ServerPhysics(PhysicsSystem):
 
         for replicable in WorldInfo.subclass_of(Actor):
             state = replicable.rigid_body_state
-
-            state.position[:] = replicable.position
-            state.velocity[:] = replicable.velocity
-            state.angular[:] = replicable.angular
-            state.rotation[:] = replicable.rotation
-            state.collision_group = replicable.collision_group
-            state.collision_mask = replicable.collision_mask
+            self.interface_state(replicable, state)
 
 
+@for_netmode(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
