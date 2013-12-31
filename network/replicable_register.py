@@ -65,7 +65,7 @@ class ReplicableRegister(InstanceRegister):
     def found_in_parents(meta, name, parents):
         for parent in parents:
             for cls in reversed(parent.__mro__):
-                if name in dir(cls):
+                if hasattr(cls, name):
                     return True
                 if cls.__class__ == meta:
                     break

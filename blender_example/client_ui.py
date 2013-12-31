@@ -5,8 +5,10 @@ from matchmaker import Matchmaker
 from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
                      SignalListener, WorldInfo, ManualTimer, Timer,
                      BroadcastMessage)
-from signals import ConsoleMessage
+from signals import (ConsoleMessage, ConnectToSignal, UIUpdateSignal,
+                     UIWeaponChangedSignal)
 from datetime import datetime
+from functools import partial
 
 import bge
 import bgui
@@ -15,12 +17,17 @@ import uuid
 import copy
 
 
+def make_gradient(colour, factor, top_down=True):
+    by_factor = [v * factor  if i != 3 else v for i, v in enumerate(colour)]
+    result = [by_factor, by_factor, colour, colour]
+    return result if top_down else list(reversed(result))
+
+
 class ConnectPanel(Panel):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
 
-        self.connecter = None
         self.aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
 
         self.center_column = bgui.Frame(parent=self, name="center",
@@ -191,10 +198,7 @@ class ConnectPanel(Panel):
         self.sprite.visible = False
 
     def do_connect(self, button):
-        if not callable(self.connecter):
-            return
-
-        self.connecter(self.addr_field.text, int(self.port_field.text))
+        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
         self.sprite.visible = True
 
     @ConnectionSuccessSignal.global_listener
@@ -229,20 +233,49 @@ class SamanthaPanel(Panel):
                                     aspect=aspect, source=self.video_source)
 
 
-class Notification(bgui.Frame):
-    default_size = [1.0, 0.1]
+class TimerMixins:
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._timers = []
+
+    def add_timer(self, timer, name=""):
+        def on_stop():
+            timer.delete()
+            self._timers.remove(timer)
+
+        timer.on_stop = on_stop
+        self._timers.append(timer)
+
+    def update(self, delta_time):
+        '''Update all active timers'''
+        for timer in self._timers[:]:
+            timer.update(delta_time)
+
+
+class Notification(TimerMixins, bgui.Frame):
+    default_size = [1.0, 0.06]
 
     def __init__(self, parent, message, alive_time=5.0,
-                 fade_time=0.25, **kwargs):
+                 fade_time=0.25, font_size=35, **kwargs):
         super().__init__(parent=parent,
                          name="notification_{}".format(uuid.uuid4()),
                          size=self.default_size[:],
                          **kwargs)
 
-        self._timers = []
-
-        thin_bar_height = 0.125
+        thin_bar_height = 0.05
         main_bar_width = 0.985
+
+        self.fade_time = fade_time
+        self.alive_time = alive_time
+        self.message = message
+        self.message_length = 34
+
+        if len(message) > self.message_length:
+            message = message[:self.message_length]
+            status_timer = ManualTimer(target_value=self.alive_time * 0.9)
+            status_timer.on_update = partial(self.scroll_message, status_timer)
+            self.add_timer(status_timer, "scroll")
 
         self.upper_bar = bgui.Frame(parent=self, name="upper_bar",
                                     size=[1.0, thin_bar_height],
@@ -264,7 +297,7 @@ class Notification(bgui.Frame):
                                        options=CENTERED,
                                        pos=[0.0, 0.0],
                                        font=bge.logic.expandPath("//themes/agency.ttf"),
-                                       pt_size=45, color=[0.4, 0.4, 0.4, 1])
+                                       pt_size=font_size, color=[0.4, 0.4, 0.4, 1])
 
         self.upper_bar.colors = [[0, 0, 0, 1]] * 4
         self.lower_bar.colors = [[0, 0, 0, 1]] * 4
@@ -272,9 +305,6 @@ class Notification(bgui.Frame):
 
         self.initial_position = self._base_pos[:]
         self.initial_height = self._base_size[:]
-
-        self.fade_time = fade_time
-        self.alive_time = alive_time
 
         # Record of components
         components = [self.upper_bar, self.middle_bar,
@@ -290,6 +320,11 @@ class Notification(bgui.Frame):
 
         self.on_death = None
         self.is_visible = None
+
+    def scroll_message(self, timer):
+        message = self.message
+        index = min(round(timer.progress * len(message)), len(message) - self.message_length)
+        self.message_text.text = message[index: index + self.message_length]
 
     def _set_color(self, component, color):
         try:
@@ -311,19 +346,6 @@ class Notification(bgui.Frame):
         diff_y = target[1] - i_y
 
         return [i_x + (diff_x * factor), i_y + (diff_y * factor)]
-
-    def add_timer(self, timer, name=""):
-        initial_cb = timer.on_target
-
-        def on_target():
-            if callable(initial_cb):
-                initial_cb()
-            timer.delete()
-
-            self._timers.remove(timer)
-
-        timer.on_target = on_target
-        self._timers.append(timer)
 
     def fade_opacity(self, interval=0.5, out=True):
         fade_timer = ManualTimer(target_value=interval)
@@ -382,56 +404,210 @@ class Notification(bgui.Frame):
             if self.visible and not _visible:
                 self.fade_opacity(self.fade_time, out=False)
 
-        for timer in self._timers[:]:
-            timer.update(delta_time)
+        super().update(delta_time)
 
 
-class NotificationPanel(Panel):
+class UIPanel(TimerMixins, Panel):
 
     def __init__(self, system):
-        super().__init__(system, "NotificationPanel")
+        super().__init__(system, "UIPanel")
 
         self._notifications = []
         self._free_slot = []
 
         self.start_position = [1 - Notification.default_size[0],
                                1 - Notification.default_size[1]]
-        self.entry_padding = 0.03
+        self.entry_padding = 0.02
         self.panel_padding = 0.01
 
-        size = [0.2, 0.5]
-        pos = [1 - size[0] - self.panel_padding,
-              1 - self.panel_padding - size[1]]
+        # Main UI
+        self.dark_grey = [0.1, 0.1, 0.1, 1]
+        self.light_grey = [0.3, 0.3, 0.3, 1]
+        self.faded_white = [1, 1, 1, 0.6]
+        self.error_red = [1, 0.05, 0.05, 1]
+        self.font_size = 32
+
+        main_size = [0.2, 0.8]
+        main_pos = [1 - main_size[0] - self.panel_padding,
+              1 - self.panel_padding - main_size[1]]
 
         self.notifications = bgui.Frame(parent=self, name="NotificationsPanel",
-                                        size=size, pos=pos)
+                                        size=main_size[:], pos=main_pos[:])
+        lg = [0.3, 0.3, 0.3, 0.3]
+        self.notifications.colors = [lg] * 4
 
-    @BroadcastMessage.global_listener
-    def add_notification(self, message, alive_time=5.0):
-        if self._notifications:
-            position = self._notifications[-1].initial_position
-            position = [position[0], position[1] -
-                        self._notifications[-1].initial_height[1]]
+        self.weapons_box = bgui.Frame(self, "weapons", size=[main_size[0], 0.25],
+                                      pos=[main_pos[0], 0.025])
 
-        else:
-            position = self.start_position[:]
+        self.icon_box = bgui.Frame(self.weapons_box, "icons", size=[1.0, 0.5],
+                                   pos=[0.0, 0.5])
+        self.stats_box = bgui.Frame(self.weapons_box, "stats", size=[1.0, 0.5],
+                                    pos=[0.0, 0.0])
 
-        # Apply padding
-        position[1] -= self.entry_padding
+        self.weapon_icon = bgui.Image(self.icon_box, "icon", "",
+                                      size=[0.1, 1.0], aspect=314 / 143,
+                                      pos=[0.0, 0.0], options=CENTERED)
 
-        notification = Notification(self.notifications, message, pos=position,
-                                    alive_time=alive_time)
-        notification.visible = False
+        bar_size = [1.0, 0.35]
+        bar_margin = 0.025
+        bar_pos = [max(1 - bar_size[0] - bar_margin, 0),  0.25]
 
-        self._notifications.append(notification)
-        notification.on_death = lambda: self.delete_notification(notification)
-        notification.is_visible = lambda: bool(notification.position[1] >
-                                               self.notifications.position[1])
-        return notification
+        self.icon_bar = bgui.Frame(self.icon_box, "icon_bar", size=bar_size[:],
+                                   pos=bar_pos[:])
 
-    def delete_notification(self, notification):
-        self._notifications.remove(notification)
-        self.notifications._remove_widget(notification)
+        self.icon_shadow = bgui.Image(self.icon_bar, "icon_shadow",
+                                      "ui/checkers_border.tga",
+                                    size=[1.6, 1.6], aspect=1.0,
+                                    pos=[0.8, 0], options=CENTERY)
+
+        self.icon_back = bgui.Frame(self.icon_shadow, "icon_back",
+                                    size=[0.8, 0.8], aspect=1.0, options=CENTERED)
+
+        self.icon_middle = bgui.Frame(self.icon_back, "icon_middle",
+                                    size=[0.9, 0.9], aspect=1.0,
+                                    pos=[0.0, 0], options=CENTERED)
+        self.icon_theme = bgui.Frame(self.icon_middle, "icon_theme",
+                                    size=[1.0, 1.0], aspect=1.0,
+                                    pos=[0.0, 0], options=CENTERED)
+        self.icon_checkers = bgui.Image(self.icon_middle, "icon_checkers",
+                                        "ui/checkers_overlay.tga",
+                                        size=[1.0, 1.0], aspect=1.0,
+                                        pos=[0.0, 0.0], options=CENTERED)
+
+        self.weapon_name = bgui.Label(self.icon_bar, "weapon_name", "The Spitter",
+                                      font="ui/agency.ttf", pt_size=self.font_size,
+                                      shadow=True, shadow_color=self.light_grey,
+                                      options=CENTERY, pos=[0.05, 0.0],
+                                      color=self.dark_grey)
+
+        self.rounds_info = bgui.Frame(self.stats_box, "clips_info",
+                                      pos=[0.0, 0.7], size=[0.6, 0.35])
+        self.clips_info = bgui.Frame(self.stats_box, "rounds_info",
+                                     pos=[0.0, 0.2], size=[0.6, 0.35])
+        self.grenades_info = bgui.Frame(self.stats_box, "grenades_info",
+                                        pos=[0.6, 0.2], size=[0.35, 0.85])
+
+        self.frag_img = bgui.Image(self.grenades_info, "frag_img",
+                                   "ui/frag.tga", pos=[0.0, 0.0],
+                                     size=[1, 0.9], aspect=41 / 92,
+                                     options=CENTERY)
+        self.flashbang_img = bgui.Image(self.grenades_info, "flashbang_img",
+                                        "ui/flashbang.tga", pos=[0.5, 0.0],
+                                     size=[1, 0.9], aspect=41 / 92,
+                                     options=CENTERY)
+
+        self.frag_info = bgui.Frame(self.frag_img, "frag_info", size=[0.6, 0.35],
+                                   aspect=1, pos=[0.0, 0.0], options=CENTERED)
+        self.frag_box = bgui.Frame(self.frag_info, "frag_box", size=[1, 1],
+                                   pos=[0.0, 0.0], options=CENTERED)
+
+        self.frag_label = bgui.Label(self.frag_box, "frag_label", "4",
+                                      font="ui/agency.ttf",
+                                      pt_size=self.font_size,
+                                      options=CENTERED, pos=[0.05, 0.0],
+                                      color=self.dark_grey)
+
+        self.flashbang_info = bgui.Frame(self.flashbang_img, "flashbang_info",
+                                        size=[0.6, 0.35], aspect=1,
+                                        pos=[0.0, 0.0], options=CENTERED)
+
+        self.flashbang_box = bgui.Frame(self.flashbang_info, "flashbang_box", size=[1, 1],
+                                   pos=[0.0, 0.0], options=CENTERED)
+
+        self.flashbang_label = bgui.Label(self.flashbang_box,
+                                          "flashbang_label", "4",
+                                      font="ui/agency.ttf",
+                                      pt_size=self.font_size,
+                                      options=CENTERED, pos=[0.05, 0.0],
+                                      color=self.dark_grey)
+
+        self.rounds_img = bgui.Image(self.rounds_info, "rounds_img",
+                                     "ui/info_box.tga", pos=[0.0, 0.0],
+                                     size=[1, 1], aspect=1.0, options=CENTERY)
+        self.clips_img = bgui.Image(self.clips_info, "clips_img",
+                                    "ui/info_box.tga", pos=[0.0, 0.0],
+                                     size=[1, 1], aspect=1.0, options=CENTERY)
+
+        self.rounds_box = bgui.Frame(self.rounds_info, "rounds_box",
+                                     size=[0.6, 1.0], pos=[0.3, 0.0],
+                                     options=CENTERY)
+        self.clips_box = bgui.Frame(self.clips_info, "clips_box",
+                                    size=[0.6, 1.0], pos=[0.3, 0.0],
+                                    options=CENTERY)
+
+        self.rounds_label = bgui.Label(self.rounds_box, "rounds_label",
+                                       "ROUNDS", font="ui/agency.ttf",
+                                      pt_size=self.font_size,
+                                      options=CENTERY, pos=[0.05, 0.0],
+                                      color=self.dark_grey)
+
+        self.clips_label = bgui.Label(self.clips_box, "clips_label", "CLIPS",
+                                      font="ui/agency.ttf",
+                                      pt_size=self.font_size, options=CENTERY,
+                                      pos=[0.05, 0.0], color=self.dark_grey)
+
+        self.rounds_value = bgui.Label(self.rounds_img, "rounds_value", "100",
+                                      font="ui/agency.ttf",
+                                      pt_size=self.font_size, options=CENTERED,
+                                      pos=[0.05, 0.0], color=self.dark_grey)
+
+        self.clips_value = bgui.Label(self.clips_img, "clips_value", "4",
+                                      font="ui/agency.ttf",
+                                      pt_size=self.font_size, options=CENTERED,
+                                      pos=[0.05, 0.0], color=self.dark_grey)
+
+        self.icon_back.colors = [self.dark_grey] * 4
+        self.icon_middle.colors = [self.light_grey] * 4
+        self.rounds_box.colors = [self.faded_white] * 4
+        self.clips_box.colors = [self.faded_white] * 4
+        self.flashbang_info.colors = [self.faded_white] * 4
+        self.frag_info.colors = [self.faded_white] * 4
+        self.frag_box.colors = [self.faded_white] * 4
+        self.flashbang_box.colors = [self.faded_white] * 4
+
+        self.icon_bar.colors = [self.faded_white] * 4
+
+        self.visible = False
+
+        self.entries = {"ammo": (self.rounds_info, self.rounds_value),
+                         "clips": (self.clips_info, self.clips_value),
+                         "frags": (self.frag_box, self.frag_label),
+                         "flashbangs": (self.flashbang_box, self.flashbang_label)}
+        self.handled_concerns = {}
+
+    @UIUpdateSignal.global_listener
+    def update_entry(self, name, value):
+        field, value_field = self.entries[name]
+        value_field.text = str(value)
+
+    def create_glow_animation(self, entry):
+        glow = ManualTimer(1, repeat=True)
+        glow.on_update = partial(self.fading_animation, entry, glow)
+        self.add_timer(glow, "glow")
+        return glow
+
+    @property
+    def theme_colour(self):
+        return self.icon_theme.colors[0]
+
+    @theme_colour.setter
+    def theme_colour(self, value):
+        self.icon_theme.colors = make_gradient(value, 1/3)
+
+    @ConnectionSuccessSignal.global_listener
+    def on_connect(self, target):
+        self.visible = True
+
+    @UIWeaponChangedSignal.global_listener
+    def weapon_changed(self, weapon):
+        self.weapon_name.text = weapon.__class__.__name__
+        self.weapon_icon.update_image(weapon.icon_path)
+        self.theme_colour = weapon.theme_colour
+
+    def fading_animation(self, entry, timer):
+        err = (self.error_red[0], self.error_red[1],
+               self.error_red[2], 1 - timer.progress)
+        entry.colors = [err] * 4
 
     def update(self, delta_time):
         for notification in self._notifications[:]:
@@ -449,6 +625,56 @@ class NotificationPanel(Panel):
 
             notification.move_to([self.start_position[0], intended_y])
 
+        # Create any alert timers
+        for name, (field, label) in self.entries.items():
+            if label.text == "0":
+                if not name in self.handled_concerns:
+                    BroadcastMessage.invoke("Ran out of {}!".format(name), alive_time=10)
+                    self.handled_concerns[name] = self.create_glow_animation(
+                                                                         field)
+
+        # Check for handled timers
+        handled = []
+        for name, timer in self.handled_concerns.items():
+            field, label = self.entries[name]
+
+            if label.text != "0":
+                timer.stop()
+                handled.append(name)
+
+        # Remove handled UI timers
+        for handled_name in handled:
+            self.handled_concerns.pop(handled_name)
+
+        super().update(delta_time)
+
+    @BroadcastMessage.global_listener
+    def add_notification(self, message, alive_time=5.0):
+        if self._notifications:
+            position = self._notifications[-1].initial_position
+            position = [position[0], position[1] -
+                        self._notifications[-1].initial_height[1]]
+
+        else:
+            position = self.start_position[:]
+
+        # Apply padding
+        position[1] -= self.entry_padding
+
+        notification = Notification(self.notifications, message, pos=position,
+                                    alive_time=alive_time, font_size=self.font_size)
+        notification.visible = False
+
+        self._notifications.append(notification)
+        notification.on_death = lambda: self.delete_notification(notification)
+        notification.is_visible = lambda: bool(notification.position[1] >
+                                               self.notifications.position[1])
+        return notification
+
+    def delete_notification(self, notification):
+        self._notifications.remove(notification)
+        self.notifications._remove_widget(notification)
+
 
 class BGESystem(System):
 
@@ -456,7 +682,7 @@ class BGESystem(System):
         super().__init__()
 
         self.connect_panel = ConnectPanel(self)
-        self.notification_panel = NotificationPanel(self)
+        self.ui_panel = UIPanel(self)
 
     @ConnectionSuccessSignal.global_listener
     def invoke(self, *args, **kwargs):

@@ -20,7 +20,9 @@ class Label(Widget):
 				}
 
 	def __init__(self, parent, name, text="", font=None, pt_size=None, color=None,
-				outline_color=None, outline_size=None, outline_smoothing=None, pos=[0, 0], sub_theme='', options=BGUI_DEFAULT):
+				outline_color=None, outline_size=None, outline_smoothing=None,
+				shadow=False, shadow_color=[0, 0, 0, 1], shadow_blur=5,
+				pos=[0, 0], sub_theme='', options=BGUI_DEFAULT):
 		"""
 		:param parent: the widget's parent
 		:param name: the name of the widget
@@ -48,6 +50,7 @@ class Label(Widget):
 		else:
 			self.pt_size = self.theme['Size']
 
+
 		if color:
 			self.color = color
 		else:
@@ -70,6 +73,35 @@ class Label(Widget):
 			self.outline_smoothing = self.theme['OutlineSmoothing']
 
 		self.text = text
+		self.shadow = shadow
+		self.shadow_color = shadow_color
+		self.shadow_blur = shadow_blur
+
+	@property
+	def shadow_blur(self):
+		return self._shadow_blur
+
+	@shadow_blur.setter
+	def shadow_blur(self, blur):
+		self._shadow_blur = blur
+
+	@property
+	def shadow_color(self):
+		return self._shadow_color
+
+	@shadow_color.setter
+	def shadow_color(self, color):
+		self._shadow_color = color
+	
+	@property
+	def shadow(self):
+		return self._shadow
+	
+	@shadow.setter
+	def shadow(self, value):
+		func = blf.enable if value else blf.disable
+		func(self.fontid, blf.SHADOW)
+		self._shadow = value
 
 	@property
 	def text(self):
@@ -105,6 +137,8 @@ class Label(Widget):
 	def _draw_text(self, x, y):
 		for i, txt in enumerate([i for i in self._text.split('\n')]):
 			blf.position(self.fontid, x, y - (self.size[1] * i), 0)
+			blf.shadow(self.fontid, self.shadow_blur, self.shadow_color[0],
+					self.shadow_color[1], self.shadow_color[2], self.shadow_color[3])
 			blf.draw(self.fontid, txt.replace('\t', '    '))
 
 	def _draw(self):
@@ -122,7 +156,7 @@ class Label(Widget):
 			for x in steps:
 				for y in steps:
 					self._draw_text(self.position[0] + x, self.position[1] + y)
-
+		
 		glColor4f(*self.color)
 		self._draw_text(*self.position)
 

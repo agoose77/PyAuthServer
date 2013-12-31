@@ -7,7 +7,7 @@ class ManualTimer:
 
     def __init__(self, target_value=0.0, initial_value=0.0,
                  count_down=False, on_target=None, on_update=None,
-                 repeat=False, active=True):
+                 on_stop=None, on_reset=None, repeat=False, active=True):
 
         self.target = target_value
         self.initial = self.value = initial_value
@@ -17,15 +17,17 @@ class ManualTimer:
 
         self.on_target = on_target
         self.on_update = on_update
+        self.on_stop = on_stop
+        self.on_reset = on_reset
 
         self.repeat = repeat
         self.active = active
 
     def delete(self):
-        self.stop()
-
         del self.on_target
         del self.on_update
+        del self.on_stop
+        del self.on_reset
 
     @property
     def progress(self):
@@ -41,9 +43,15 @@ class ManualTimer:
         self.value = self.initial
         self.active = True
 
+        if callable(self.on_reset):
+            self.on_reset()
+
     def stop(self):
         self.value = self.target
         self.active = False
+
+        if callable(self.on_stop):
+            self.on_stop()
 
     def update(self, delta_time):
         if self.active:

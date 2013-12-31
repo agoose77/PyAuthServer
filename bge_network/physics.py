@@ -1,17 +1,14 @@
 from .replicables import Actor, Pawn, Controller, Camera, Weapon, ReplicableInfo
 from .enums import PhysicsType
-from .signals import (CollisionSignal, PhysicsReplicatedSignal,
+from .signals import (PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
                      PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
                      MapLoadedSignal, UpdateCollidersSignal, PhysicsCopyState)
 
-from bge import logic, types
-from collections import defaultdict
-from functools import partial
+from bge import logic
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable,
                      NetmodeSelector, for_netmode, TypeRegister)
-from time import monotonic
 
 
 class PhysicsSystem(NetmodeSelector, SignalListener, metaclass=TypeRegister):

@@ -44,6 +44,13 @@ class LegendController(bge_network.PlayerController):
 
     input_fields = "forward", "backwards", "left", "right", "shoot", "run"
 
+    def on_notify(self, name):
+        super().on_notify(name)
+
+        if name == "weapon":
+            signals.UIWeaponChangedSignal.invoke(self.weapon)
+            signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
+
     def receive_broadcast(self, message_string: bge_network.StaticValue(str)) -> bge_network.Netmodes.client:
         signals.ConsoleMessage.invoke(message_string)
 
@@ -57,6 +64,16 @@ class LegendController(bge_network.PlayerController):
 
         behaviour.should_restart = True
         self.behaviour.root.add_child(behaviour)
+
+    @bge_network.PlayerInputSignal.global_listener
+    def player_update(self, delta_time):
+        super().player_update(delta_time)
+
+        if self.inputs.shoot:
+            self.start_fire()
+
+        if self.weapon:
+            signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
 
 
 class RobertNeville(bge_network.Pawn):
@@ -130,18 +147,15 @@ class M4A1Weapon(bge_network.Weapon):
     def on_initialised(self):
         super().on_initialised()
 
-        self.sound_path = "sounds"
         self.max_ammo = 50
         self.attachment_class = M4A1Attachment
-        self.shoot_interval = 1
+        self.shoot_interval = 0.1
+        self.theme_colour = [0.53, 0.94, 0.28, 1.0]
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
 
     entity_name = "EmptyWeapon"
-
-    def __init__(self, *a, **k):
-        super().__init__(*a, **k)
 
     @simulated
     def play_fire_effects(self):
@@ -153,7 +167,6 @@ class ZombieWeapon(bge_network.Weapon):
     def on_initialised(self):
         super().on_initialised()
 
-        self.sound_path = "sounds"
         self.max_ammo = 1
 
         self.shoot_interval = 1

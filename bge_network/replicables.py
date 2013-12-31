@@ -21,6 +21,7 @@ import os
 import operator
 import functools
 from bge import logic
+from functools import lru_cache
 
 SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity",
                                             "angular", "delta_time", "inputs",
@@ -93,8 +94,9 @@ class Controller(network.Replicable):
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
     def start_server_fire(self) -> network.Netmodes.server:
+        if not self.weapon.can_fire:
+            return
         self.weapon.fire(self.camera)
-
         # Update flash count (for client-side fire effects)
         self.pawn.flash_count += 1
 
@@ -493,8 +495,6 @@ class PlayerController(Controller):
         if not self.weapon.can_fire or not self.camera:
             return
 
-        self.weapon.fire(self.camera)
-
         self.pawn.weapon_attachment.play_fire_effects()
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
 
@@ -561,15 +561,17 @@ class Actor(network.Replicable):
 
     @property
     def suspended(self):
-        return self._suspended
+        if self.physics in (enums.PhysicsType.navigation_mesh,
+                            enums.PhysicsType.no_collision):
+            return
+        return not self.object.useDynamics
 
     @suspended.setter
     def suspended(self, value):
-        if value:
-            self.object.suspendDynamics()
-        else:
-            self.object.restoreDynamics()
-        self._suspended = value
+        if self.physics in (enums.PhysicsType.navigation_mesh,
+                            enums.PhysicsType.no_collision):
+            return
+        self.object.useDynamics = not value
 
     @property
     def colliding(self):
@@ -577,9 +579,8 @@ class Actor(network.Replicable):
 
     @network.simulated
     def register_callback(self):
-        physics_types = enums.PhysicsType
-        if not self.physics in [physics_types.dynamic, physics_types.static,
-                            physics_types.rigid_body, physics_types.character]:
+        if self.physics in (enums.PhysicsType.navigation_mesh,
+                            enums.PhysicsType.no_collision):
             return
         callbacks = self.object.collisionCallbacks
         callbacks.append(self._on_collide)
@@ -709,9 +710,10 @@ class Actor(network.Replicable):
                    for o in obj.childrenRecursive)
 
     @property
+    @lru_cache()
     def physics(self):
         physics_type = self.object.physicsType
-        if physics_type != logic.KX_PHYSICS_NO_COLLISION and not getattr(self.object, "meshes", []):
+        if physics_type != logic.KX_PHYSICS_NO_COLLISION and not hasattr(self.object, "meshes"):
             return logic.KX_PHYSICS_NO_COLLISION
         return physics_type
 
@@ -803,12 +805,16 @@ class Weapon(network.Replicable):
             (network.WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
 
     @property
-    def sound_folder(self):
-        return os.path.join(self.sound_path, self.__class__.__name__)
+    def data_path(self):
+        return os.path.join(self._data_path, self.__class__.__name__)
 
     @property
     def shoot_sound(self):
-        return os.path.join(self.sound_folder, "shoot.wav")
+        return os.path.join(self.data_path, "sounds/shoot.wav")
+
+    @property
+    def icon_path(self):
+        return os.path.join(self.data_path, "icon/icon.tga")
 
     def consume_ammo(self):
         self.ammo -= 1
@@ -853,10 +859,15 @@ class Weapon(network.Replicable):
         signals.ActorDamagedSignal.invoke(damage, self.owner, hit_position,
                                  momentum, target=replicable)
 
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        yield "ammo"
+
     def on_initialised(self):
         super().on_initialised()
 
-        self.sound_path = ""
+        self._data_path = logic.expandPath("//data")
         self.shoot_interval = 0.5
         self.last_fired_time = 0.0
         self.max_ammo = 70

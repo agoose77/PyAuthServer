@@ -82,7 +82,7 @@ class Image(Widget):
 
 		Widget._cleanup(self)
 
-	def update_image(self, img, relative_path):
+	def update_image(self, img, relative_path=False):
 		"""Changes the image texture
 
 		:param img: the path to the new image
