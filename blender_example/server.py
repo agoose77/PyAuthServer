@@ -55,6 +55,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
             replicable.receive_broadcast(message)
 
     def create_new_ai(self, controller=None):
+        '''This function can be called without a controller,
+        in which case it establishes one.
+        Used to respawn AI character pawns
+        @param controller: options, controller instance'''
         if controller is None:
             controller = self.ai_controller_class()
             controller.info = self.ai_replication_info_class()
@@ -72,6 +76,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         return controller
 
     def create_new_player(self, controller=None):
+        '''This function can be called without a controller,
+        in which case it establishes one.
+        Used to respawn player character pawns
+        @param controller: options, controller instance'''
         if controller is None:
             controller = self.player_controller_class()
             controller.info = self.player_replication_info_class()
@@ -88,16 +96,11 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         return controller
 
     def is_relevant(self, player_controller, replicable):
-        # We never allow bge_network.PlayerController classes
-        if isinstance(replicable, bge_network.Controller):
-            return False
-
         if replicable.always_relevant:
             return True
 
         # Check by distance, then frustum checks
-        if isinstance(replicable, bge_network.Actor) and (replicable.visible or \
-                                              replicable.always_relevant):
+        if isinstance(replicable, bge_network.Actor) and replicable.visible:
             player_pawn = player_controller.pawn
 
             in_range = player_pawn and (replicable.position - \
@@ -106,15 +109,16 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
             player_camera = player_controller.camera
 
-            if in_range or (player_controller.camera and \
+            if in_range or (player_camera and \
                             player_camera.sees_actor(replicable)):
                 return True
 
-        if isinstance(replicable, Weapon):
+        # These classes are not permitted (unless owned by client)
+        if isinstance(replicable, (bge_network.Controller,
+                                   bge_network.Weapon)):
             return False
 
-        if isinstance(replicable, WeaponAttachment):
-            return True
+        return False
 
     @bge_network.ActorKilledSignal.global_listener
     def killed(self, attacker, target):
