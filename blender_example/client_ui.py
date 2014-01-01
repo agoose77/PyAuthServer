@@ -23,6 +23,22 @@ def make_gradient(colour, factor, top_down=True):
     return result if top_down else list(reversed(result))
 
 
+def labelled_field(parent, name, group_options, label_options, field_options):
+    group = bgui.Frame(parent=parent,
+                             name="{}_group".format(name),
+                             options=CENTERY,
+                             sub_theme="RowGroup",
+                             **group_options)
+    label = bgui.Label(parent=group, name="{}_label".format(name),
+                             options=CENTERY,
+                             **label_options)
+    field = bgui.TextInput(parent=group,
+                         name="{}_field".format(name),
+                        options=CENTERY,
+                         **field_options)
+    return field
+
+
 class ConnectPanel(Panel):
 
     def __init__(self, system):
@@ -39,40 +55,34 @@ class ConnectPanel(Panel):
                                         text="Connection Wizard",
                                         options=CENTERX, sub_theme="Title")
 
-        # IP input
         self.connection_row = bgui.Frame(parent=self.center_column,
                                          name="connection_frame",
                                          size=[0.8, 0.08], pos=[0.0, 0.85],
                                          sub_theme="ContentRow",
                                          options=CENTERX)
 
-        self.addr_group = bgui.Frame(parent=self.connection_row,
-                                     name="addr_group", size=[0.70, 1.0],
-                                     pos=[0.0, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
-        self.port_group = bgui.Frame(parent=self.connection_row,
-                                     name="port_group", size=[0.3, 1.0],
-                                     pos=[0.7, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
+        # IP input
+        self.addr_field = labelled_field(self.connection_row,
+                                         "addr",
+                                         dict(size=[0.70, 1.0],
+                                              pos=[0.0, 0.5]),
+                                         dict(text="IP Address",
+                                              pos=[0.05, 0.0]),
+                                         dict(text="localhost",
+                                              allow_empty=False,
+                                              size=[0.6, 1.0],
+                                              pos=[0.4, 0.0]))
 
-        self.addr_label = bgui.Label(parent=self.addr_group, name="addr_label",
-                                     text="IP Address:", options=CENTERY,
-                                     pos=[0.05, 0.0])
-        self.port_label = bgui.Label(parent=self.port_group, name="port_label",
-                                     text="Port:", options=CENTERY,
-                                     pos=[0.05, 0.0])
-
-        self.addr_field = bgui.TextInput(parent=self.addr_group,
-                                         name="addr_field", size=[0.6, 1.0],
-                                         pos=[0.4, 0.0], options=CENTERY,
-                                         text="localhost",
-                                         allow_empty=False)
-        self.port_field = bgui.TextInput(parent=self.port_group,
-                                         name="port_field", size=[0.6, 1.0],
-                                         pos=[0.4, 0.0], options=CENTERY,
-                                         type=bgui.BGUI_INPUT_INTEGER,
-                                         text="1200",
-                                         allow_empty=False)
+        self.port_field = labelled_field(self.connection_row,
+                                         "port",
+                                         dict(size=[0.3, 1.0],
+                                              pos=[0.7, 0.5]),
+                                         dict(text="Port:",
+                                              pos=[0.05, 0.0]),
+                                         dict(text="1200",
+                                              allow_empty=False,
+                                              size=[0.6, 1.0],
+                                              pos=[0.4, 0.0]))
 
         # Allows input fields to accept input when not hovered
         self.connection_row.is_listener = True
@@ -82,6 +92,7 @@ class ConnectPanel(Panel):
                                    name="data_frame", size=[0.8, 0.08],
                                    pos=[0.0, 0.77], sub_theme="ContentRow",
                                    options=CENTERX)
+
 
         self.error_msg_group = bgui.Frame(parent=self.data_row,
                                      name="error_msg_group", size=[0.3, 1.0],
@@ -130,18 +141,17 @@ class ConnectPanel(Panel):
                                                text="Connect", size=[1.0, 1.0],
                                                options=CENTERED)
 
-        self.match_group = bgui.Frame(parent=self.server_controls,
-                                     name="match_group", size=[0.7, 1.0],
-                                     pos=[0.3, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
-        self.match_label = bgui.Label(parent=self.match_group, name="match_label",
-                                     text="Matchmaker:", options=CENTERY,
-                                     pos=[0.025, 0.0])
-        self.match_field = bgui.TextInput(parent=self.match_group,
-                                         name="match_field", size=[0.8, 1.0],
-                                         pos=[0.2, 0.0], options=CENTERY,
-                                         text="http://coldcinder.co.uk/networking/matchmaker",
-                                         allow_empty=False)
+        self.match_field = labelled_field(self.server_controls,
+                                          "match",
+                                          dict(size=[0.7, 1.0],
+                                               pos=[0.3, 0.5]),
+                                          dict(pos=[0.025, 0.0],
+                                               text="Matchmaker:"),
+                                          dict(size=[0.8, 1.0],
+                                               pos=[0.2, 0.0],
+                                               text="http://coldcinder.co.uk/networking/matchmaker",
+                                               allow_empty=False)
+                                          )
 
         self.servers_list = bgui.Frame(parent=self.center_column,
                                    name="server_list", size=[0.8, 0.6],
@@ -165,7 +175,7 @@ class ConnectPanel(Panel):
                                               labels=self.server_headers)
 
         self.sprite = SpriteSequence(self.error_group, "sprite",
-                                     bge.logic.expandPath("//themes/477.tga"),
+                                     bge.logic.expandPath("//themes/ui/loading_sprite.tga"),
                                      length=20, loop=True,  size=[0.1, 0.6],
                                      aspect=1, relative_path=False,
                                      options=CENTERY)
@@ -176,6 +186,7 @@ class ConnectPanel(Panel):
         self.connect_button.on_click = self.do_connect
         self.refresh_button.on_click = self.do_refresh
         self.servers_box.on_select = self.on_select
+
         self.uses_mouse = True
         self.sprite.visible = False
 
@@ -215,31 +226,15 @@ class ConnectPanel(Panel):
         self.matchmaker.update()
 
 
-class SamanthaPanel(Panel):
-
-    def __init__(self, system):
-        super().__init__(system, "Samantha_Overlay")
-
-        aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
-        scene = system.scene
-
-        camera = scene.objects['Samantha_Camera']
-
-        self.video_source = bge.texture.ImageRender(scene, camera)
-        self.video_source.background = 255, 255, 255, 255
-
-        self.video = bgui.ImageRender(parent=self, name="Samantha_Video",
-                                    pos=[0, 0], size=[0.2, 0.2],
-                                    aspect=aspect, source=self.video_source)
-
-
 class TimerMixins:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self._timers = []
 
     def add_timer(self, timer, name=""):
+        '''Registers a timer for monitoring'''
         def on_stop():
             timer.delete()
             self._timers.remove(timer)
@@ -256,8 +251,10 @@ class TimerMixins:
 class Notification(TimerMixins, bgui.Frame):
     default_size = [1.0, 0.06]
 
-    def __init__(self, parent, message, alive_time=5.0,
-                 fade_time=0.25, font_size=35, **kwargs):
+    def __init__(self, parent, message,
+                 alive_time=5.0,
+                 fade_time=0.25,
+                 font_size=35, **kwargs):
         super().__init__(parent=parent,
                          name="notification_{}".format(uuid.uuid4()),
                          size=self.default_size[:],
@@ -269,10 +266,10 @@ class Notification(TimerMixins, bgui.Frame):
         self.fade_time = fade_time
         self.alive_time = alive_time
         self.message = message
-        self.message_length = 34
+        self.message_limit = 34
 
-        if len(message) > self.message_length:
-            message = message[:self.message_length]
+        if len(message) > self.message_limit:
+            message = message[:self.message_limit]
             status_timer = ManualTimer(target_value=self.alive_time * 0.9)
             status_timer.on_update = partial(self.scroll_message, status_timer)
             self.add_timer(status_timer, "scroll")
@@ -296,7 +293,6 @@ class Notification(TimerMixins, bgui.Frame):
                                        text=message.upper(),
                                        options=CENTERED,
                                        pos=[0.0, 0.0],
-                                       font=bge.logic.expandPath("//themes/agency.ttf"),
                                        pt_size=font_size, color=[0.4, 0.4, 0.4, 1])
 
         self.upper_bar.colors = [[0, 0, 0, 1]] * 4
@@ -323,8 +319,10 @@ class Notification(TimerMixins, bgui.Frame):
 
     def scroll_message(self, timer):
         message = self.message
-        index = min(round(timer.progress * len(message)), len(message) - self.message_length)
-        self.message_text.text = message[index: index + self.message_length]
+        message_limit = self.message_limit
+        max_shift = len(message) - message_limit
+        shift_index = round(timer.progress * max_shift)
+        self.message_text.text = message[shift_index: shift_index + message_limit]
 
     def _set_color(self, component, color):
         try:
@@ -474,10 +472,14 @@ class UIPanel(TimerMixins, Panel):
                                         size=[1.0, 1.0], aspect=1.0,
                                         pos=[0.0, 0.0], options=CENTERED)
 
-        self.weapon_name = bgui.Label(self.icon_bar, "weapon_name", "The Spitter",
-                                      font="ui/agency.ttf", pt_size=self.font_size,
-                                      shadow=True, shadow_color=self.light_grey,
-                                      options=CENTERY, pos=[0.05, 0.0],
+        self.weapon_name = bgui.Label(self.icon_bar,
+                                      name="weapon_name",
+                                      text="The Spitter",
+                                      pt_size=self.font_size,
+                                      shadow=True,
+                                      shadow_color=self.light_grey,
+                                      options=CENTERY,
+                                      pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
         self.rounds_info = bgui.Frame(self.stats_box, "clips_info",
@@ -487,39 +489,50 @@ class UIPanel(TimerMixins, Panel):
         self.grenades_info = bgui.Frame(self.stats_box, "grenades_info",
                                         pos=[0.6, 0.2], size=[0.35, 0.85])
 
-        self.frag_img = bgui.Image(self.grenades_info, "frag_img",
-                                   "ui/frag.tga", pos=[0.0, 0.0],
-                                     size=[1, 0.9], aspect=41 / 92,
+        self.frag_img = bgui.Image(self.grenades_info,
+                                   "frag_img",
+                                   "ui/frag.tga",
+                                   pos=[0.0, 0.0],
+                                   size=[1, 0.9],
+                                   aspect=41 / 92,
                                      options=CENTERY)
-        self.flashbang_img = bgui.Image(self.grenades_info, "flashbang_img",
-                                        "ui/flashbang.tga", pos=[0.5, 0.0],
-                                     size=[1, 0.9], aspect=41 / 92,
-                                     options=CENTERY)
+        self.flashbang_img = bgui.Image(self.grenades_info,
+                                        "flashbang_img",
+                                        "ui/flashbang.tga",
+                                        pos=[0.5, 0.0],
+                                        size=[1, 0.9],
+                                        aspect=41 / 92,
+                                        options=CENTERY)
 
         self.frag_info = bgui.Frame(self.frag_img, "frag_info", size=[0.6, 0.35],
                                    aspect=1, pos=[0.0, 0.0], options=CENTERED)
         self.frag_box = bgui.Frame(self.frag_info, "frag_box", size=[1, 1],
                                    pos=[0.0, 0.0], options=CENTERED)
 
-        self.frag_label = bgui.Label(self.frag_box, "frag_label", "4",
-                                      font="ui/agency.ttf",
+        self.frag_label = bgui.Label(self.frag_box,
+                                     "frag_label",
+                                     "4",
                                       pt_size=self.font_size,
-                                      options=CENTERED, pos=[0.05, 0.0],
+                                      options=CENTERED,
+                                      pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
-        self.flashbang_info = bgui.Frame(self.flashbang_img, "flashbang_info",
-                                        size=[0.6, 0.35], aspect=1,
-                                        pos=[0.0, 0.0], options=CENTERED)
+        self.flashbang_info = bgui.Frame(self.flashbang_img,
+                                         "flashbang_info",
+                                        size=[0.6, 0.35],
+                                        aspect=1,
+                                        options=CENTERED)
 
-        self.flashbang_box = bgui.Frame(self.flashbang_info, "flashbang_box", size=[1, 1],
-                                   pos=[0.0, 0.0], options=CENTERED)
+        self.flashbang_box = bgui.Frame(self.flashbang_info, "flashbang_box",
+                                        size=[1, 1],
+                                        pos=[0.0, 0.0],
+                                        options=CENTERED)
 
         self.flashbang_label = bgui.Label(self.flashbang_box,
                                           "flashbang_label", "4",
-                                      font="ui/agency.ttf",
-                                      pt_size=self.font_size,
-                                      options=CENTERED, pos=[0.05, 0.0],
-                                      color=self.dark_grey)
+                                          pt_size=self.font_size,
+                                          options=CENTERED, pos=[0.05, 0.0],
+                                          color=self.dark_grey)
 
         self.rounds_img = bgui.Image(self.rounds_info, "rounds_img",
                                      "ui/info_box.tga", pos=[0.0, 0.0],
@@ -535,26 +548,37 @@ class UIPanel(TimerMixins, Panel):
                                     size=[0.6, 1.0], pos=[0.3, 0.0],
                                     options=CENTERY)
 
-        self.rounds_label = bgui.Label(self.rounds_box, "rounds_label",
-                                       "ROUNDS", font="ui/agency.ttf",
+        self.rounds_label = bgui.Label(self.rounds_box,
+                                       name="rounds_label",
+                                       text="ROUNDS",
+                                       pt_size=self.font_size,
+                                       options=CENTERY,
+                                       pos=[0.05, 0.0],
+                                       color=self.dark_grey)
+
+        self.clips_label = bgui.Label(self.clips_box,
+                                      name="clips_label",
+                                      text="CLIPS",
                                       pt_size=self.font_size,
-                                      options=CENTERY, pos=[0.05, 0.0],
+                                      options=CENTERY,
+                                      pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
-        self.clips_label = bgui.Label(self.clips_box, "clips_label", "CLIPS",
-                                      font="ui/agency.ttf",
-                                      pt_size=self.font_size, options=CENTERY,
-                                      pos=[0.05, 0.0], color=self.dark_grey)
+        self.rounds_value = bgui.Label(self.rounds_img,
+                                       name="rounds_value",
+                                       text="100",
+                                       pt_size=self.font_size,
+                                       options=CENTERED,
+                                       pos=[0.05, 0.0],
+                                       color=self.dark_grey)
 
-        self.rounds_value = bgui.Label(self.rounds_img, "rounds_value", "100",
-                                      font="ui/agency.ttf",
-                                      pt_size=self.font_size, options=CENTERED,
-                                      pos=[0.05, 0.0], color=self.dark_grey)
-
-        self.clips_value = bgui.Label(self.clips_img, "clips_value", "4",
-                                      font="ui/agency.ttf",
-                                      pt_size=self.font_size, options=CENTERED,
-                                      pos=[0.05, 0.0], color=self.dark_grey)
+        self.clips_value = bgui.Label(self.clips_img,
+                                      name="clips_value",
+                                      text="4",
+                                      pt_size=self.font_size,
+                                      options=CENTERED,
+                                      pos=[0.05, 0.0],
+                                      color=self.dark_grey)
 
         self.icon_back.colors = [self.dark_grey] * 4
         self.icon_middle.colors = [self.light_grey] * 4
