@@ -1,11 +1,14 @@
 from .argument_serialiser import ArgumentSerialiser
-from .descriptors import StaticValue
-from .conditions import is_simulated, has_supplied_data
+from .descriptors import TypeFlag
+from .conditions import is_simulated
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from copy import deepcopy
 from functools import update_wrapper
 from inspect import signature
+
+
+FindAttribute = namedtuple("FindAttribute", "name")
 
 
 class RPCInterfaceFactory:
@@ -30,24 +33,21 @@ class RPCInterfaceFactory:
     def create_rpc_interface(self, instance):
         bound_function = self.function.__get__(instance)
 
-        if has_supplied_data(bound_function):
-            self.update_class_arguments(bound_function, instance)
-
+        self.update_class_arguments(bound_function, instance)
         self._by_instance[instance] = RPCInterface(bound_function)
 
         return self._by_instance[instance]
 
     def update_class_arguments(self, function, instance):
         function_signature = signature(function)
-        function_keys = function.__annotations__['class_data']
         function_arguments = RPCInterface.order_arguments(function_signature)
-        requested_arguments = {name: function_arguments[name]
-                               for name in function_keys}
-
-        for name, argument in requested_arguments.items():
+        lookup_type = FindAttribute
+        for argument in function_arguments.values():
             data = argument.data
-            for key in function_keys[name]:
-                data[key] = getattr(instance, key)
+            for arg_name, arg_value in data.items():
+                if not isinstance(arg_value, lookup_type):
+                    continue
+                data[arg_name] = getattr(instance, arg_value.name)
 
 
 class RPCInterface:
@@ -76,7 +76,6 @@ class RPCInterface:
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
-        
         if self.target == self._worldinfo.netmode:
             return self._function_call(*args, **kwargs)
 
@@ -88,25 +87,16 @@ class RPCInterface:
         # Unpack RPC
         try:
             unpacked_data = self._serialiser.unpack(bytes_)
-
-        except Exception as err:
-            print("Error unpacking {}: {}".format(
-                                          self._function_name, err))
-
-        # Execute function
-        try:
             self._function_call(**dict(unpacked_data))
-
         except Exception as err:
-            print("Error invoking {}: {}".format(
-                                         self._function_name, err))
+            print("Error invoking {}: {}".format(self._function_name, err))
             raise
 
     @staticmethod
     def order_arguments(signature):
         return OrderedDict((value.name, value.annotation)
                            for value in signature.parameters.values()
-                           if isinstance(value.annotation, StaticValue))
+                           if isinstance(value.annotation, TypeFlag))
 
     def register(self, interface, rpc_id):
         self.rpc_id = rpc_id

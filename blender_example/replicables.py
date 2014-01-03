@@ -51,7 +51,7 @@ class LegendController(bge_network.PlayerController):
             signals.UIWeaponChangedSignal.invoke(self.weapon)
             signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
 
-    def receive_broadcast(self, message_string: bge_network.StaticValue(str)) -> bge_network.Netmodes.client:
+    def receive_broadcast(self, message_string: bge_network.TypeFlag(str)) -> bge_network.Netmodes.client:
         signals.ConsoleMessage.invoke(message_string)
 
     def on_initialised(self):

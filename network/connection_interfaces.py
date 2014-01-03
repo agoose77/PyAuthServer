@@ -3,7 +3,7 @@ from .bitfield import Bitfield
 from .connection import ClientConnection, ServerConnection
 from .conversions import conversion
 from .decorators import for_netmode
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, ConnectionTimeoutError
 from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
@@ -24,7 +24,7 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
     def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
-        self.sequence_handler = get_handler(StaticValue(int,
+        self.sequence_handler = get_handler(TypeFlag(int,
                                             max_value=self.sequence_max_size))
 
         # Number of packets to ack per packet
@@ -32,14 +32,14 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
 
         # Bitfield and bitfield size
         self.ack_bitfield = Bitfield(self.ack_window)
-        self.ack_packer = get_handler(StaticValue(Bitfield))
+        self.ack_packer = get_handler(TypeFlag(Bitfield))
 
         # Additional data
-        self.netmode_packer = get_handler(StaticValue(int))
-        self.error_packer = get_handler(StaticValue(str))
+        self.netmode_packer = get_handler(TypeFlag(int))
+        self.error_packer = get_handler(TypeFlag(str))
 
         # Protocol unpacker
-        self.protocol_handler = get_handler(StaticValue(int))
+        self.protocol_handler = get_handler(TypeFlag(int))
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}

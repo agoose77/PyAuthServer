@@ -47,7 +47,7 @@ class ReplicatedFunctions(network.Replicable):
                               )
 
     @network.simulated
-    def change_name(self, name: network.StaticValue(str)) -> network.Netmodes.server:
+    def change_name(self, name: network.TypeFlag(str)) -> network.Netmodes.server:
         print(name, "is my new name!")
 
 

@@ -1,3 +1,5 @@
+from network import *
+
 from . import bge_data
 from . import structs
 from . import behaviour_tree
@@ -16,7 +18,6 @@ import collections
 
 import math
 import mathutils
-import network
 import os
 import operator
 import functools
@@ -28,17 +29,13 @@ SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity",
                                             "mouse_x", "mouse_y"))
 
 
-class Controller(network.Replicable):
+class Controller(Replicable):
 
-    roles = network.Attribute(network.Roles(network.Roles.authority,
-                                            network.Roles.autonomous_proxy))
-    pawn = network.Attribute(type_of=network.Replicable,
-                             complain=True, notify=True)
-    camera = network.Attribute(type_of=network.Replicable,
-                               complain=True, notify=True)
-    weapon = network.Attribute(type_of=network.Replicable,
-                               complain=True, notify=True)
-    info = network.Attribute(type_of=network.Replicable)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
+    camera = Attribute(type_of=Replicable, complain=True, notify=True)
+    weapon = Attribute(type_of=Replicable, complain=True, notify=True)
+    info = Attribute(type_of=Replicable)
 
     replication_priority = 2.0
 
@@ -93,9 +90,10 @@ class Controller(network.Replicable):
         self.set_weapon(weapon)
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
-    def start_server_fire(self) -> network.Netmodes.server:
+    def start_server_fire(self) -> Netmodes.server:
         if not self.weapon.can_fire:
             return
+
         self.weapon.fire(self.camera)
         # Update flash count (for client-side fire effects)
         self.pawn.flash_count += 1
@@ -103,7 +101,7 @@ class Controller(network.Replicable):
         if self.pawn.flash_count > 255:
             self.pawn.flash_count = 0
 
-        for controller in network.WorldInfo.subclass_of(Controller):
+        for controller in WorldInfo.subclass_of(Controller):
             if controller == self:
                 continue
 
@@ -115,11 +113,8 @@ class Controller(network.Replicable):
         self.info.pawn = self.pawn = None
 
 
-class ReplicableInfo(network.Replicable):
-    roles = network.Attribute(
-                              network.Roles(network.Roles.authority,
-                                            network.Roles.simulated_proxy)
-                              )
+class ReplicableInfo(Replicable):
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
 
     def on_initialised(self):
         super().on_initialised()
@@ -129,7 +124,7 @@ class ReplicableInfo(network.Replicable):
 
 class AIReplicationInfo(ReplicableInfo):
 
-    pawn = network.Attribute(type_of=network.Replicable, complain=True)
+    pawn = Attribute(type_of=Replicable, complain=True)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
@@ -140,7 +135,7 @@ class AIReplicationInfo(ReplicableInfo):
 
 class PlayerReplicationInfo(AIReplicationInfo):
 
-    name = network.Attribute("", complain=True)
+    name = Attribute("", complain=True)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
@@ -158,7 +153,7 @@ class AIController(Controller):
         sees = self.camera.sees_actor
         my_pawn = self.pawn
 
-        for actor in network.WorldInfo.subclass_of(Pawn):
+        for actor in WorldInfo.subclass_of(Pawn):
             if (actor == my_pawn and ignore_self):
                 continue
 
@@ -187,7 +182,7 @@ class AIController(Controller):
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @network.UpdateSignal.global_listener
+    @UpdateSignal.global_listener
     def update(self, delta_time):
         self.behaviour.update(delta_time)
 
@@ -197,6 +192,7 @@ class PlayerController(Controller):
     input_fields = []
 
     move_error_limit = 0.15 ** 2
+    move_id_max = 2 ** 16
     config_filepath = "inputs.conf"
 
     @property
@@ -231,14 +227,16 @@ class PlayerController(Controller):
         self._mouse_delta = smooth_x, smooth_y
         return smooth_x, smooth_y
 
-    def acknowledge_good_move(self, move_id: network.StaticValue(int, max_value=1024)) -> network.Netmodes.client:
+    def acknowledge_good_move(self, move_id: TypeFlag(int,
+                                    max_value=FindAttribute("move_id_max"))) -> Netmodes.client:
         self.last_correction = move_id
 
         try:
             self.previous_moves.pop(move_id)
 
         except KeyError:
-            print("Couldn't find move to acknowledge for move {}".format(move_id))
+            print("Couldn't find move to acknowledge for move {}"
+                  .format(move_id))
             return
 
         additional_keys = [k for k in self.previous_moves if k < move_id]
@@ -248,24 +246,25 @@ class PlayerController(Controller):
 
         return True
 
-    def correct_bad_move(self, move_id: network.StaticValue(int, max_value=1024),
-                               correction: network.StaticValue(structs.RigidBodyState)) -> network.Netmodes.client:
+    def correct_bad_move(self, move_id: TypeFlag(int,
+                               max_value=FindAttribute("move_id_max")),
+                         correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
         if not self.acknowledge_good_move(move_id):
             print("No move found")
             return
 
         signals.PhysicsCopyState.invoke(correction, self.pawn)
-
-        lookup_dict = {}
         print("{}: Correcting prediction for move {}".format(self, move_id))
 
+        lookup_dict = {}
         with self.inputs.using_interface(lookup_dict.__getitem__):
 
-            for ind, (move_id, move) in enumerate(self.previous_moves.items()):
-                # Restore inputs
+            for move_id, move in self.previous_moves.items():
+                # Place inputs into input manager
                 inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
                 lookup_dict.update(inputs_zip)
-                # Execute move
+    
+                # (Re) execute move
                 self.execute_move(self.inputs, move.mouse_x,
                                   move.mouse_y, move.delta_time)
                 self.save_move(move_id, move.delta_time, move.inputs,
@@ -296,31 +295,22 @@ class PlayerController(Controller):
     def handle_inputs(self, inputs, mouse_x, mouse_y, delta_time):
         pass
 
-    def hear_sound(self, sound_path: network.StaticValue(str),
-                   source: network.StaticValue(mathutils.Vector)
-                   ) -> network.Netmodes.client:
-
+    def hear_sound(self, sound_path: TypeFlag(str), source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
+
         return
         probability = utilities.falloff_fraction(self.pawn.position,
-                            self.hear_range,
-                            source,
-                            self.effective_hear_range)
-        return
+                                                 self.hear_range, source,
+                                                 self.effective_hear_range)
+
         file_path = bge.logic.expandPath("//{}".format(sound_path))
-
         factory = aud.Factory.file(file_path)
-        try:
-            device = aud.dsa
-        except AttributeError:
-            device = aud.dsa = aud.device()
-
-        return device.play(factory)
+        return aud.device().play(factory)
 
     def increment_move(self):
         self.current_move_id += 1
-        if self.current_move_id == 1024:
+        if self.current_move_id == self.__class__.move_id_max:
             self.current_move_id = 0
 
     def load_keybindings(self):
@@ -349,7 +339,7 @@ class PlayerController(Controller):
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @network.simulated
+    @simulated
     def on_notify(self, name):
         if name == "pawn":
             if self.pawn:
@@ -368,7 +358,7 @@ class PlayerController(Controller):
         else:
             super().on_notify(name)
 
-    @network.simulated
+    @simulated
     @signals.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
 
@@ -400,7 +390,7 @@ class PlayerController(Controller):
 
         self.reset_corrections(replicable)
 
-    def receive_broadcast(self, message_string: network.StaticValue(str)) -> network.Netmodes.client:
+    def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         BroadcastMessage.invoke(message_string)
 
     def reset_corrections(self, replicable):
@@ -416,31 +406,32 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @network.requires_netmode(network.Netmodes.client)
+    @requires_netmode(Netmodes.client)
     def setup_input(self):
         keybindings = self.load_keybindings()
 
         self.inputs = inputs.InputManager(keybindings)
         print("Created input manager")
 
-    @network.requires_netmode(network.Netmodes.client)
+    @requires_netmode(Netmodes.client)
     def setup_microphone(self):
         self.microphone = stream.MicrophoneStream()
         self.sound_channels = collections.defaultdict(stream.SpeakerStream)
 
-    def set_name(self, name: network.StaticValue(str)) -> network.Netmodes.server:
+    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
 
-    @network.supply_data(inputs=["input_fields"])
-    def server_validate(self, move_id: network.StaticValue(int, max_value=1024),
-                                last_correction: network.StaticValue(int, max_value=1024),
-                                inputs: network.StaticValue(inputs.InputManager),
-                                mouse_diff_x: network.StaticValue(float),
-                                mouse_diff_y: network.StaticValue(float),
-                                delta_time: network.StaticValue(float),
-                                position: network.StaticValue(mathutils.Vector),
-                                rotation: network.StaticValue(mathutils.Euler)
-                            ) -> network.Netmodes.server:
+    def server_validate(self, move_id: TypeFlag(int,
+                                 max_value=FindAttribute("move_id_max")),
+                        last_correction: TypeFlag(int,
+                                 max_value=FindAttribute("move_id_max")),
+                        inputs: TypeFlag(inputs.InputManager,
+                                 input_fields=FindAttribute("input_fields")),
+                        mouse_diff_x: TypeFlag(float),
+                        mouse_diff_y: TypeFlag(float),
+                        delta_time: TypeFlag(float),
+                        position: TypeFlag(mathutils.Vector),
+                        rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
 
         if not (self.pawn and self.camera):
             return
@@ -452,25 +443,32 @@ class PlayerController(Controller):
         self.save_move(move_id, delta_time, inputs.to_tuple(), mouse_diff_x,
                        mouse_diff_y)
 
-        correction = self.get_corrected_state(position, rotation)
-
-        if correction is None or (last_correction < self.last_correction):
+        # If this is an old move
+        if (last_correction < self.last_correction):
             self.acknowledge_good_move(move_id)
 
+        # Otherwise find if it needs correcting
         else:
-            self.correct_bad_move(move_id, correction)
-            self.last_correction = move_id
+            correction = self.get_corrected_state(position, rotation)
 
-    def send_voice_server(self, data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.server:
+            # It was a valid move
+            if correction is None:
+                self.acknowledge_good_move(move_id)
+
+            # Send the correction
+            else:
+                self.correct_bad_move(move_id, correction)
+                self.last_correction = move_id
+
+    def send_voice_server(self, data: TypeFlag(bytes, max_length=256)) -> Netmodes.server:
         info = self.info
-        for controller in network.WorldInfo.subclass_of(Controller):
+        for controller in WorldInfo.subclass_of(Controller):
             if controller is self:
                 continue
-
             controller.hear_voice(info, data)
 
-    def send_voice_client(self, info: network.StaticValue(network.Replicable),
-                   data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.client:
+    def send_voice_client(self, info: TypeFlag(Replicable),
+                   data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
         player = self.sound_channels[info]
         player.decode(data)
 
@@ -500,7 +498,7 @@ class PlayerController(Controller):
         signals.PhysicsSetSimulatedSignal.invoke(target=self.pawn)
         super().unpossess()
 
-    @network.requires_netmode(network.Netmodes.client)
+    @requires_netmode(Netmodes.client)
     def destroy_microphone(self):
         del self.microphone
         for key in list(self.sound_channels):
@@ -511,16 +509,11 @@ class PlayerController(Controller):
         self.destroy_microphone()
 
 
-class Actor(network.Replicable):
+class Actor(Replicable):
 
-    rigid_body_state = network.Attribute(structs.RigidBodyState(), notify=True)
-    roles = network.Attribute(
-                          network.Roles(
-                                network.Roles.authority,
-                                network.Roles.autonomous_proxy
-                                ),
-                      notify=True
-                          )
+    rigid_body_state = Attribute(structs.RigidBodyState(), notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
+                      notify=True)
 
     entity_name = ""
     entity_class = bge_data.GameObject
@@ -530,10 +523,10 @@ class Actor(network.Replicable):
 
         remote_role = self.roles.remote
 
-        # If network.simulated, send rigid body state
-        if (remote_role == network.Roles.simulated_proxy) or \
-            (remote_role == network.Roles.dumb_proxy) or \
-            (self.roles.remote == network.Roles.autonomous_proxy and not is_owner):
+        # If simulated, send rigid body state
+        if (remote_role == Roles.simulated_proxy) or \
+            (remote_role == Roles.dumb_proxy) or \
+            (self.roles.remote == Roles.autonomous_proxy and not is_owner):
             if self.update_simulated_physics or is_initial:
                 yield "rigid_body_state"
 
@@ -563,7 +556,7 @@ class Actor(network.Replicable):
     def from_object(obj):
         return obj.get("owner")
 
-    @network.simulated
+    @simulated
     def _establish_relationship(self):
         self.object['owner'] = self
 
@@ -585,7 +578,7 @@ class Actor(network.Replicable):
     def colliding(self):
         return bool(self._registered)
 
-    @network.simulated
+    @simulated
     def _register_callback(self):
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
@@ -593,7 +586,7 @@ class Actor(network.Replicable):
         callbacks = self.object.collisionCallbacks
         callbacks.append(self._on_collide)
 
-    @network.simulated
+    @simulated
     def _on_collide(self, other, data):
         if self.suspended:
             return
@@ -606,7 +599,7 @@ class Actor(network.Replicable):
             signals.CollisionSignal.invoke(other, True, target=self)
 
     @signals.UpdateCollidersSignal.global_listener
-    @network.simulated
+    @simulated
     def _update_colliders(self):
         if self.suspended:
             return
@@ -650,27 +643,27 @@ class Actor(network.Replicable):
     def take_damage(self, damage, instigator, hit_position, momentum):
         self.health = int(max(self.health - damage, 0))
 
-    @network.simulated
+    @simulated
     def trace_ray(self, local_vector):
         target = self.transform * local_vector
 
         return self.object.rayCast(self.object, target)
 
-    @network.simulated
+    @simulated
     def align_to(self, vector, time=1, axis=enums.Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
 
-    @network.simulated
+    @simulated
     def add_child(self, actor):
         self.children.add(actor)
         self.child_entities.add(actor.object)
 
-    @network.simulated
+    @simulated
     def remove_child(self, actor):
         self.children.remove(actor)
         self.child_entities.remove(actor.object)
 
-    @network.simulated
+    @simulated
     def set_parent(self, actor, socket_name=None):
         if socket_name is None:
             parent_obj = actor.object
@@ -686,7 +679,7 @@ class Actor(network.Replicable):
         self.parent = actor
         actor.add_child(self)
 
-    @network.simulated
+    @simulated
     def remove_parent(self):
         self.parent.remove_child(self)
         self.object.setParent(None)
@@ -803,14 +796,14 @@ class Actor(network.Replicable):
         self.object.localAngularVelocity = vel
 
 
-class Weapon(network.Replicable):
-    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.autonomous_proxy))
-    ammo = network.Attribute(70)
+class Weapon(Replicable):
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    ammo = Attribute(70)
 
     @property
     def can_fire(self):
         return bool(self.ammo) and \
-            (network.WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
+            (WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
 
     @property
     def data_path(self):
@@ -835,9 +828,9 @@ class Weapon(network.Replicable):
         else:
             self.projectile_shot()
 
-        self.last_fired_time = network.WorldInfo.elapsed
+        self.last_fired_time = WorldInfo.elapsed
 
-    @network.requires_netmode(network.Netmodes.server)
+    @requires_netmode(Netmodes.server)
     def instant_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
@@ -887,7 +880,7 @@ class Weapon(network.Replicable):
 
 class EmptyWeapon(Weapon):
 
-    ammo = network.Attribute(0)
+    ammo = Attribute(0)
 
     def on_initialised(self):
         super().on_initialised()
@@ -897,7 +890,7 @@ class EmptyWeapon(Weapon):
 
 class WeaponAttachment(Actor):
 
-    roles = network.Attribute(network.Roles(network.Roles.authority, network.Roles.none))
+    roles = Attribute(Roles(Roles.authority, Roles.none))
 
     def on_initialised(self):
         super().on_initialised()
@@ -1008,8 +1001,8 @@ class Camera(Actor):
 
         return self.object.sphereInsideFrustum(actor.position, radius) != self.object.OUTSIDE
 
-    @network.simulated
-    @network.UpdateSignal.global_listener
+    @simulated
+    @UpdateSignal.global_listener
     def update(self, delta_time):
         if self.visible:
             self.draw()
@@ -1023,14 +1016,14 @@ class Camera(Actor):
 
 
 class Pawn(Actor):
-    view_pitch = network.Attribute(0.0)
-    flash_count = network.Attribute(0, notify=True, complain=True)
-    weapon_attachment_class = network.Attribute(type_of=type(network.Replicable),
+    view_pitch = Attribute(0.0)
+    flash_count = Attribute(0, notify=True, complain=True)
+    weapon_attachment_class = Attribute(type_of=type(Replicable),
                                         notify=True,
                                         complain=True)
 
-    health = network.Attribute(100, notify=True, complain=True)
-    alive = network.Attribute(True, notify=True, complain=True)
+    health = Attribute(100, notify=True, complain=True)
+    alive = Attribute(True, notify=True, complain=True)
 
     replication_update_period = 1 / 60
 
@@ -1050,7 +1043,7 @@ class Pawn(Actor):
             else:
                 yield "flash_count"
 
-    @network.simulated
+    @simulated
     def create_weapon_attachment(self, cls):
         self.weapon_attachment = cls()
         self.weapon_attachment.set_parent(self, "weapon")
@@ -1080,7 +1073,7 @@ class Pawn(Actor):
         self.animations = behaviour_tree.BehaviourTree(self)
         self.animations.blackboard['pawn'] = self
 
-    @network.simulated
+    @simulated
     def on_notify(self, name):
         # play weapon effects
         if name == "weapon_attachment_class":
@@ -1096,7 +1089,7 @@ class Pawn(Actor):
 
         super().on_unregistered()
 
-    @network.simulated
+    @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
                        mode=enums.AnimationMode.play, weight=0.0, speed=1.0,
                        blend_mode=enums.AnimationBlend.interpolate):
@@ -1113,15 +1106,15 @@ class Pawn(Actor):
                                  ge_mode, weight, speed=speed,
                                  blend_mode=ge_blend_mode)
 
-    @network.simulated
+    @simulated
     def is_playing_animation(self, layer=0):
         return self.skeleton.isPlayingAction(layer)
 
-    @network.simulated
+    @simulated
     def get_animation_frame(self, layer=0):
         return int(self.skeleton.getActionFrame(layer))
 
-    @network.simulated
+    @simulated
     def stop_animation(self, layer=0):
         self.skeleton.stopAction(layer)
 
@@ -1131,8 +1124,8 @@ class Pawn(Actor):
             if isinstance(child, bge.types.BL_ArmatureObject):
                 return child
 
-    @network.simulated
-    @network.UpdateSignal.global_listener
+    @simulated
+    @UpdateSignal.global_listener
     def update(self, delta_time):
         if self.weapon_attachment:
             self.update_weapon_attatchment()
@@ -1146,7 +1139,7 @@ class Pawn(Actor):
         Runs on authority / autonomous proxy only'''
         self.alive = self.health > 0
 
-    @network.simulated
+    @simulated
     def update_weapon_attatchment(self):
         if self.flash_count != self.last_flash_count:
             self.weapon_attachment.play_fire_effects()
@@ -1158,7 +1151,7 @@ class Pawn(Actor):
 
 
 class Lamp(Actor):
-    roles = network.Roles(network.Roles.authority, network.Roles.simulated_proxy)
+    roles = Roles(Roles.authority, Roles.simulated_proxy)
 
     entity_class = bge_data.LampObject
     entity_name = "Lamp"
@@ -1195,7 +1188,7 @@ class Lamp(Actor):
 
 
 class Navmesh(Actor):
-    roles = network.Roles(network.Roles.authority, network.Roles.none)
+    roles = Roles(Roles.authority, Roles.none)
 
     entity_class = bge_data.NavmeshObject
     entity_name = "Navmesh"

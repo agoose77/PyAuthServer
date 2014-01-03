@@ -1,6 +1,6 @@
 from .packet import Packet, PacketCollection
 from .handler_interfaces import get_handler
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .replicables import Replicable, WorldInfo
 from .signals import ReplicableUnregisteredSignal, ReplicableRegisteredSignal, SignalListener
 from .enums import Roles, Protocols
@@ -18,9 +18,9 @@ class Connection(SignalListener):
 
         self.channels = {}
 
-        self.string_packer = get_handler(StaticValue(str))
-        self.int_packer = get_handler(StaticValue(int))
-        self.replicable_packer = get_handler(StaticValue(Replicable))
+        self.string_packer = get_handler(TypeFlag(str))
+        self.int_packer = get_handler(TypeFlag(int))
+        self.replicable_packer = get_handler(TypeFlag(Replicable))
 
         self.register_signals()
 

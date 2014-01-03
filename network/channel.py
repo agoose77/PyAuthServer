@@ -1,7 +1,7 @@
 from .handler_interfaces import static_description, get_handler
 from .argument_serialiser import ArgumentSerialiser
 from .conditions import is_reliable
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .replicables import Replicable, WorldInfo
 
 
@@ -21,8 +21,8 @@ class Channel:
         # Create a serialiser instance
         self.serialiser = ArgumentSerialiser(self.attribute_storage._ordered_mapping)
 
-        self.rpc_id_packer = get_handler(StaticValue(int))
-        self.replicable_id_packer = get_handler(StaticValue(Replicable))
+        self.rpc_id_packer = get_handler(TypeFlag(int))
+        self.replicable_id_packer = get_handler(TypeFlag(Replicable))
 
         self.packed_id = self.replicable_id_packer.pack(replicable)
 

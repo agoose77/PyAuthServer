@@ -1,5 +1,5 @@
 from bge import events, logic
-from network import FactoryDict, Bitfield, StaticValue, get_handler, register_handler
+from network import FactoryDict, Bitfield, TypeFlag, get_handler, register_handler
 from functools import partial
 import bge
 
@@ -71,7 +71,7 @@ class InputManager:
 
 
 class InputPacker:
-    handler = get_handler(StaticValue(Bitfield))
+    handler = get_handler(TypeFlag(Bitfield))
 
     def __init__(self, static_value):
         self._fields = static_value.data['input_fields']

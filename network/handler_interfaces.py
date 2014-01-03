@@ -45,8 +45,8 @@ def register_description(type_, callable):
 
 
 def get_handler(value):
-    '''Takes a StaticValue (or subclass thereof) and return handler
-    @param value: StaticValue subclass'''
+    '''Takes a TypeFlag (or subclass thereof) and return handler
+    @param value: TypeFlag subclass'''
 
     value_type = value.type
 

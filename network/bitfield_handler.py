@@ -1,12 +1,12 @@
 from .serialiser import (handler_from_byte_length, handler_from_bit_length, bits2bytes)
 from .handler_interfaces import register_handler, get_handler
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .bitfield import Bitfield
 
 
 class BitfieldInt:
 
-    size_packer = get_handler(StaticValue(int))
+    size_packer = get_handler(TypeFlag(int))
 
     @classmethod
     def pack(cls, field):

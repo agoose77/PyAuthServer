@@ -1,6 +1,6 @@
 from .bitfield import Bitfield
 from .handler_interfaces import get_handler
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 
 
 class ArgumentSerialiser:
@@ -27,7 +27,7 @@ class ArgumentSerialiser:
         self.bool_bits = Bitfield(self.total_bools)
         self.none_bits = Bitfield(self.total_contents)
 
-        self.bitfield_packer = get_handler(StaticValue(Bitfield))
+        self.bitfield_packer = get_handler(TypeFlag(Bitfield))
 
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''

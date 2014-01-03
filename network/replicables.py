@@ -1,5 +1,5 @@
 from .containers import AttributeStorageContainer, RPCStorageContainer
-from .descriptors import Attribute, StaticValue
+from .descriptors import Attribute, TypeFlag
 from .enums import Roles, Netmodes
 from .decorators import simulated
 from .replicable_register import ReplicableRegister

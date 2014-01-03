@@ -31,8 +31,15 @@ def bits2bytes(bits):
 
 
 def handler_from_bit_length(bits):
-    bytes_ = bits2bytes(bits)
-    return int_sized[bytes_]
+    bytes_length = bits2bytes(bits)
+
+    last_packer = None
+    for packer in int_packers:
+        if packer.size() > bytes_length:
+            break
+        last_packer = packer
+
+    return last_packer
 
 
 def handler_from_int(value):

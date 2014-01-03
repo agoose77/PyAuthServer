@@ -1,6 +1,6 @@
 from .handler_interfaces import (register_handler, get_handler,
                                  static_description)
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
 
@@ -68,7 +68,7 @@ class StructHandler:
 
     def __init__(self, static_value):
         self.struct_cls = static_value.type
-        self.size_packer = get_handler(StaticValue(int))
+        self.size_packer = get_handler(TypeFlag(int))
 
     def pack(self, struct):
         bytes_ = struct.to_bytes()

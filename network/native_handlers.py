@@ -1,5 +1,5 @@
 from .replicables import Replicable, WorldInfo
-from .descriptors import StaticValue
+from .descriptors import TypeFlag
 from .enums import Roles
 from .handler_interfaces import (register_handler, get_handler,
                                  register_description)
@@ -8,7 +8,7 @@ from .type_register import TypeRegister
 
 class ReplicableTypeHandler:
 
-    string_packer = get_handler(StaticValue(str))
+    string_packer = get_handler(TypeFlag(str))
 
     @classmethod
     def pack(cls, cls_):
@@ -31,7 +31,7 @@ def type_description(cls):
 
 
 class RolesHandler:
-    packer = get_handler(StaticValue(int))
+    packer = get_handler(TypeFlag(int))
 
     @classmethod
     def pack(cls, roles):
@@ -56,7 +56,7 @@ class ReplicableBaseHandler:
 
     def __init__(self):
         self._maximum_replicables = 400
-        self._packer = get_handler(StaticValue(int,
+        self._packer = get_handler(TypeFlag(int,
                                    max_value=self._maximum_replicables))
 
     @property
@@ -66,7 +66,7 @@ class ReplicableBaseHandler:
     @maximum_replicables.setter
     def maximum_replicables(self, value):
         self._maximum_replicables = value
-        self._packer = get_handler(StaticValue(int, max_value=value))
+        self._packer = get_handler(TypeFlag(int, max_value=value))
 
     def pack(self, replicable):
         # Send the instance ID
