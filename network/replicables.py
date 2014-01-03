@@ -32,8 +32,8 @@ class Replicable(metaclass=ReplicableRegister):
     # Dictionary of class-owned instances
     _by_types = defaultdict(list)
 
-    def __init__(self, instance_id=None,
-                 register=False, static=True, **kwargs):
+    def __init__(self, instance_id=None, register=False,
+                 static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
 
@@ -94,7 +94,7 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
-    def request_registration(self, instance_id, verbose=False):
+    def request_registration(self, instance_id):
         '''Handles registration of instances
         Modifies behaviour to allow network priority over local instances
         Handles edge cases such as static replicables
@@ -103,27 +103,18 @@ class Replicable(metaclass=ReplicableRegister):
         # This is not static or replicated then it's local
         if instance_id is None:
             self._local_authority = True
+            self._static = False
 
         # Therefore we will have authority to change things
         if self.__class__.graph_has_instance(instance_id):
             instance = self.__class__.get_from_graph(instance_id)
             # If the instance is not local, then we have a conflict
             error_message = "Authority over instance id {}\
-             is unresolveable".format(instance_id)
+                             cannot be resolved".format(instance_id)
             assert instance._local_authority, error_message
-
-            # Possess the instance id
-            super().request_registration(instance_id)
-
-            if verbose:
-                print("Transferring authority of id {} from {} to {}".format(
-                                                 instance_id, instance, self))
 
             # Forces reassignment of instance id
             instance.request_registration(None)
-        if verbose:
-            print("Create {} with id {}".format(self.__class__.__name__,
-                                                instance_id))
 
         # Possess the instance id
         super().request_registration(instance_id)
@@ -153,7 +144,6 @@ class Replicable(metaclass=ReplicableRegister):
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
-        return
         print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 
@@ -170,6 +160,14 @@ class Replicable(metaclass=ReplicableRegister):
         '''Returns a hash-like description for this replicable
         Used to check if the value of a replicated reference has changed'''
         return hash(self.instance_id)
+
+    def __repr__(self):
+        if not self.registered:
+            return "(Replicable {})".format(
+                    self.__class__.__name__)
+
+        return ("(Replicable {0}: id={1.instance_id})"
+                .format(self.__class__.__name__, self))
 
 
 class BaseWorldInfo(Replicable):

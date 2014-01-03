@@ -53,10 +53,11 @@ class InstanceMixins(SignalListener):
     def __bool__(self):
         return self.registered
 
-    def __str__(self):
-        return "({}: {})".format(self.__class__.__name__,
+    def __repr__(self):
+        if not self.registered:
+            return "(Instance {})".format(self.__class__.__name__)
+        return "(Instance {}: id={})".format(self.__class__.__name__,
                                                     self.instance_id)
-    __repr__ = __str__
 
 
 class InstanceRegister(TypeRegister):

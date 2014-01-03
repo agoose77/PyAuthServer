@@ -2,6 +2,7 @@ import itertools
 import pyaudio
 
 from opus import encoder, decoder
+from threading import Event
 from . import threads
 
 
@@ -19,10 +20,24 @@ class GenericStream(threads.SafeThread):
         self.pyaudio = pyaudio.PyAudio()
         self.compress = False
 
+        self._active = Event()
+        self._active.set()
+
     @property
     def chunk_size(self):
         return (self.chunk * self.pyaudio.get_sample_size(self.format)
                 * self.channels)
+
+    @property
+    def active(self):
+        return self._active.is_set()
+
+    @active.setter
+    def active(self, value):
+        if value:
+            self._active.set()
+        else:
+            self._active.clear()
 
 
 class MicrophoneStream(GenericStream):
@@ -46,7 +61,12 @@ class MicrophoneStream(GenericStream):
         return self.stream.read(self.chunk)
 
     def handle_task(self, task, queue):
-        queue.put(task)
+        if self.active:
+            queue.put(task)
+
+        elif not queue.empty():
+            with queue.mutex:
+                queue.queue.clear()
 
     def encode(self, clear=True):
         encoder = self.encoder
@@ -71,10 +91,10 @@ class SpeakerStream(GenericStream):
         super().__init__()
 
         self.stream = self.pyaudio.open(format=self.format,
-                channels=self.channels,
-                rate=self.bitrate,
-                output=True,
-                frames_per_buffer=self.chunk)
+                                        channels=self.channels,
+                                        rate=self.bitrate,
+                                        output=True,
+                                        frames_per_buffer=self.chunk)
 
         self._decoder = decoder.Decoder(self.bitrate, self.channels)
         self.start()
@@ -93,7 +113,13 @@ class SpeakerStream(GenericStream):
             yield chunk
 
     def handle_task(self, task, queue):
-        self.stream.write(task)
+        if self.active:
+            self.stream.write(task)
+
+        # Clear playback buffer
+        elif not queue.empty():
+            with queue.mutex:
+                queue.queue.clear()
 
     def decode(self, data, clear=True):
         if clear:

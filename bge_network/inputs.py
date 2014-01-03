@@ -61,11 +61,12 @@ class InputManager:
     def __getattr__(self, name):
         if name in self.keybindings:
             return self.status_lookup(name)
+        raise AttributeError("Input manager does not have {} binding"
+                            .format(name))
 
     def __str__(self):
-        data = []
-        for key in self.keybindings:
-            data.append("{}: {}".format(key, self.status_lookup(key)))
+        lookup = self.status_lookup
+        data = [("{}: {}".format(key, lookup(key))) for key in self.keybindings]
         return "[Input Manager] " + ', '.join(data)
 
 

@@ -7,8 +7,7 @@ from collections import Counter
 from bge import logic, events, types
 from network import (Netmodes, WorldInfo, Network, Replicable,
                      SignalListener, ReplicableRegisteredSignal,
-                     UpdateSignal, NetworkReceiveSignal, NetworkSendSignal,
-                     Signal)
+                     UpdateSignal, Signal)
 from time import monotonic
 
 
@@ -33,9 +32,10 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                                             self.apply_physics)
 
         self._last_sent = 0.0
-        self._interval = 1 / 15
+        self._interval = 1 / 25
 
         self.register_signals()
+
         MapLoadedSignal.invoke()
 
         print("Network initialised")
@@ -59,7 +59,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             Signal.update_graph()
 
-            NetworkReceiveSignal.invoke()
+            self.network.receive()
 
             Replicable.update_graph()
 
@@ -86,7 +86,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             if is_full_update:
                 self._last_sent = current_time
 
-            NetworkSendSignal.invoke(is_full_update)
+            self.network.send(is_full_update)
 
         else:
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
@@ -148,7 +148,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.network.stop()
 
 """
-@todo: add level loading support"""
+@todo: add level loading support
+"""
 
 
 class ServerGameLoop(GameLoop):
@@ -163,4 +164,5 @@ class ClientGameLoop(GameLoop):
 
     def create_network(self):
         WorldInfo.netmode = Netmodes.client
+
         return Network("", 0)

@@ -92,7 +92,8 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((4, 4, 2))
+        pawn.position = Vector((random.randint(-10, 10),
+                                random.randint(-10, 10), 3))
         return controller
 
     def is_relevant(self, player_controller, replicable):
@@ -158,8 +159,11 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
+        self.update_matchmaker()
 
     def post_initialise(self, connection):
+        # This is allowed here because player count
+        # comes from connections that aren't disconnected
         return self.create_new_player()
 
     def pre_initialise(self, address_tuple, netmode):
@@ -203,12 +207,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         elif self.allow_countdown and not info.match_started:
             self.start_countdown()
 
+    @bge_network.ConnectionSuccessSignal.global_listener
     def update_matchmaker(self):
         self.matchmaker.poll("Test Map", self.player_limit,
                                     self.players)
-
-    def on_unregistered(self):
-        super().on_unregistered()
 
 
 class Server(bge_network.ServerGameLoop):

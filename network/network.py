@@ -5,8 +5,7 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
-from .signals import (SignalListener, NetworkSendSignal,
-                     NetworkReceiveSignal)
+from .signals import SignalListener
 
 
 class UnblockingSocket(socket):
@@ -20,7 +19,7 @@ class UnblockingSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(UnblockingSocket, SignalListener):
+class UnreliableSocket(UnblockingSocket):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -33,10 +32,7 @@ class UnreliableSocket(UnblockingSocket, SignalListener):
         self._buffer_out = deque()
         self._buffer_in = deque()
 
-        self.register_signals()
-
-    @NetworkSendSignal.global_listener
-    def poll(self, delta_time):
+    def poll(self):
         systime = monotonic()
         sendable = []
 
@@ -58,7 +54,7 @@ class UnreliableSocket(UnblockingSocket, SignalListener):
         return 0
 
 
-class Network(SignalListener):
+class Network:
     """Network management class"""
 
     def __init__(self, addr, port):
@@ -71,8 +67,6 @@ class Network(SignalListener):
         self.received_bytes = 0
 
         self.socket = UnblockingSocket(addr, port)
-
-        self.register_signals()
 
     @property
     def send_rate(self):
@@ -101,7 +95,6 @@ class Network(SignalListener):
         except socket_error:
             return
 
-    @NetworkReceiveSignal.global_listener
     def receive(self):
         '''Receive all data from socket'''
         # Get connections
@@ -124,7 +117,6 @@ class Network(SignalListener):
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()
 
-    @NetworkSendSignal.global_listener
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
         send_func = self.send_to

@@ -1,4 +1,5 @@
-from .handler_interfaces import register_handler, get_handler, static_description
+from .handler_interfaces import (register_handler, get_handler,
+                                 static_description)
 from .descriptors import StaticValue
 from .containers import AttributeStorageContainer
 from .argument_serialiser import ArgumentSerialiser
@@ -55,6 +56,12 @@ class Struct:
         if notifications:
             for attribute_name in notifications:
                 self.on_notify(attribute_name)
+
+    def __repr__(self):
+        attribute_count = len(self._container.data)
+        return "<Struct {}: {} member{}>".format(self.__class__.__name__,
+                                                 attribute_count, 's' if
+                                                 attribute_count != 1 else '')
 
 
 class StructHandler:

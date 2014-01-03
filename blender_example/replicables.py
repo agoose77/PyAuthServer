@@ -42,7 +42,7 @@ class EnemyController(bge_network.AIController):
 
 class LegendController(bge_network.PlayerController):
 
-    input_fields = "forward", "backwards", "left", "right", "shoot", "run"
+    input_fields = "forward", "backwards", "left", "right", "shoot", "run", "voice"
 
     def on_notify(self, name):
         super().on_notify(name)
@@ -71,6 +71,10 @@ class LegendController(bge_network.PlayerController):
 
         if self.inputs.shoot:
             self.start_fire()
+
+        # Only record when we need to
+        if self.inputs.voice != self.microphone.active:
+            self.microphone.active = self.inputs.voice
 
         if self.weapon:
             signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
@@ -105,41 +109,6 @@ class Zombie(bge_network.Pawn):
 
         self.walk_speed = 2.7
         self.run_speed = 6
-
-
-class Cube(bge_network.Actor):
-
-    entity_name = "Cube.004"
-    always_relevant= 1
-
-    roles = bge_network.Attribute(bge_network.Roles(
-                                            local=bge_network.Roles.authority,
-                                            remote=bge_network.Roles.simulated_proxy,
-                                            )
-                                  )
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.max_damage = 100
-        self.damage = 0
-
-    @bge_network.simulated
-    def play_sound(self):
-        for controller in WorldInfo.subclass_of(bge_network.Controller):
-            pass#1#controller.hear_sound("sounds/bump.mp3", self.position)
-
-    def handle_damage(self):
-        self.damage += 20
-        if self.damage >= self.max_damage:
-            self.request_unregistration()
-
-    @bge_network.CollisionSignal.listener
-    @bge_network.simulated
-    def on_collided(self, other, is_collision):
-        if is_collision:
-            self.play_sound()
-            self.handle_damage()
 
 
 class M4A1Weapon(bge_network.Weapon):

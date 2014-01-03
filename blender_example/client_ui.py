@@ -12,6 +12,7 @@ from functools import partial
 
 import bge
 import bgui
+import blf
 
 import uuid
 import copy
@@ -23,20 +24,35 @@ def make_gradient(colour, factor, top_down=True):
     return result if top_down else list(reversed(result))
 
 
-def labelled_field(parent, name, group_options, label_options, field_options):
+def framed_element(parent, id_name, element_type, frame_options, label_options):
+    name = "{}_{}".format(id_name, element_type.__name__)
     group = bgui.Frame(parent=parent,
-                             name="{}_group".format(name),
+                             name="{}_frame".format(name),
                              options=CENTERY,
                              sub_theme="RowGroup",
-                             **group_options)
-    label = bgui.Label(parent=group, name="{}_label".format(name),
-                             options=CENTERY,
-                             **label_options)
-    field = bgui.TextInput(parent=group,
-                         name="{}_field".format(name),
-                        options=CENTERY,
-                         **field_options)
-    return field
+                             **frame_options)
+
+    label_options.update(dict(parent=group, name="{}".format(name), options=CENTERED))
+    try:
+        element = element_type(**label_options)
+    except ZeroDivisionError:
+        element = element_type(size=[1, 1], **label_options)
+    return group, element
+
+
+def make_adjacent(*elements, full_size=None):
+    pos = elements[0]._base_pos
+
+    if full_size:
+        factor = full_size / sum(x._base_size[0] for x in elements)
+    else:
+        factor = 1
+
+    for element in elements:
+        size = [element._base_size[0] * factor,
+                element._base_size[1]]
+        element._update_position(size[:], pos[:])
+        pos = [pos[0] + size[0], pos[1]]
 
 
 class ConnectPanel(Panel):
@@ -47,111 +63,115 @@ class ConnectPanel(Panel):
         self.aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
 
         self.center_column = bgui.Frame(parent=self, name="center",
-                                        size=[0.8, 0.8], options=CENTERED,
+                                        size=[0.8, 0.8],
+                                        options=CENTERED,
                                         sub_theme="ContentBox")
 
         self.connect_label = bgui.Label(parent=self.center_column,
-                                        name="label", pos=[0.0, 0.025],
+                                        name="label",
+                                        pos=[0.0, 0.025],
                                         text="Connection Wizard",
-                                        options=CENTERX, sub_theme="Title")
+                                        options=CENTERX,
+                                        sub_theme="Title")
 
         self.connection_row = bgui.Frame(parent=self.center_column,
                                          name="connection_frame",
-                                         size=[0.8, 0.08], pos=[0.0, 0.85],
+                                         size=[0.8, 0.08],
+                                         pos=[0.0, 0.85],
                                          sub_theme="ContentRow",
                                          options=CENTERX)
 
-        # IP input
-        self.addr_field = labelled_field(self.connection_row,
-                                         "addr",
-                                         dict(size=[0.70, 1.0],
-                                              pos=[0.0, 0.5]),
-                                         dict(text="IP Address",
-                                              pos=[0.05, 0.0]),
-                                         dict(text="localhost",
-                                              allow_empty=False,
-                                              size=[0.6, 1.0],
-                                              pos=[0.4, 0.0]))
-
-        self.port_field = labelled_field(self.connection_row,
-                                         "port",
-                                         dict(size=[0.3, 1.0],
-                                              pos=[0.7, 0.5]),
-                                         dict(text="Port:",
-                                              pos=[0.05, 0.0]),
-                                         dict(text="1200",
-                                              allow_empty=False,
-                                              size=[0.6, 1.0],
-                                              pos=[0.4, 0.0]))
-
-        # Allows input fields to accept input when not hovered
-        self.connection_row.is_listener = True
-
         # Data input
         self.data_row = bgui.Frame(parent=self.center_column,
-                                   name="data_frame", size=[0.8, 0.08],
-                                   pos=[0.0, 0.77], sub_theme="ContentRow",
+                                   name="data_frame",
+                                   size=[0.8, 0.08],
+                                   pos=[0.0, 0.77],
+                                   sub_theme="ContentRow",
                                    options=CENTERX)
 
+        # IP input
+        self.addr_label_frame, _ = framed_element(self.connection_row,
+                                               "addr",
+                                               bgui.Label,
+                                               dict(size=[0.3, 1.0],
+                                                    pos=[0.0, 0.5]),
+                                               dict(text="IP Address"))
 
-        self.error_msg_group = bgui.Frame(parent=self.data_row,
-                                     name="error_msg_group", size=[0.3, 1.0],
-                                     pos=[0.0, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
+        self.addr_input_frame, self.addr_field = framed_element(self.connection_row,
+                                               "addr",
+                                               bgui.TextInput,
+                                               dict(size=[0.4, 1.0],
+                                                    pos=[0.0, 0.5]),
+                                               dict(allow_empty=False,
+                                                    text="localhost"))
 
-        self.error_msg_label = bgui.Label(parent=self.error_msg_group,
-                                          name="error_status",
-                                          text="Connection Information:",
-                                          pos=[0.0, 0.0],
-                                          options=CENTERED)
+        self.port_label_frame, _ = framed_element(self.connection_row,
+                                              "port",
+                                              bgui.Label,
+                                              dict(size=[0.2, 1.0],
+                                                   pos=[0.0, 0.5]),
+                                              dict(text="Port"))
 
-        self.error_group = bgui.Frame(parent=self.data_row,
-                                     name="error_group", size=[0.7, 1.0],
-                                     pos=[0.3, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
+        self.port_input_frame, self.port_field = framed_element(self.connection_row,
+                                               "port",
+                                               bgui.TextInput,
+                                               dict(size=[0.1, 1.0],
+                                                    pos=[0.0, 0.5]),
+                                               dict(allow_empty=False,
+                                                    text="1200"))
+        make_adjacent(self.addr_label_frame, self.addr_input_frame,
+                      self.port_label_frame, self.port_input_frame)
 
-        self.connect_message = bgui.Label(parent=self.error_group,
-                                          name="connect_status",
-                                          text="",
-                                          pos=[0.0, 0.0],
-                                          options=CENTERED)
+        self.error_label_frame, _ = framed_element(self.data_row,
+                                                "error",
+                                                bgui.Label,
+                                                dict(size=[0.3, 1.0],
+                                                     pos=[0.0, 0.5]),
+                                                dict(text="Information")
+                                                )
 
-        self.server_controls = bgui.Frame(parent=self.center_column,
+        self.error_message_frame, self.error_body_field = framed_element(self.data_row,
+                                                  "error_msg",
+                                                  bgui.Label,
+                                                  dict(size=[0.7, 1.0],
+                                                       pos=[0.0, 0.5]),
+                                                  dict(text="")
+                                                  )
+
+        make_adjacent(self.error_label_frame, self.error_message_frame)
+
+        self.controls_row = bgui.Frame(parent=self.center_column,
                                    name="server_controls", size=[0.8, 0.08],
                                    pos=[0.0, 0.69], sub_theme="ContentRow",
                                    options=CENTERX)
+ 
+        self.refresh_button = bgui.FrameButton(self.controls_row, "refresh_button",
+                                               size=[0.2, 1.0], pos=[0.0, 0.0],
+                                               text="Refresh")
+        self.connect_button = bgui.FrameButton(self.controls_row, "connect_button",
+                                               size=[0.2, 1.0], pos=[0.0, 0.0],
+                                               text="Connect")
 
-        self.refresh_group = bgui.Frame(parent=self.server_controls,
-                                     name="refresh_group", size=[0.15, 1.0],
-                                     pos=[0.0, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
+        self.match_label_frame, _ = framed_element(self.controls_row,
+                                              "matchmaker",
+                                              bgui.Label,
+                                              dict(size=[0.2, 1.0],
+                                                   pos=[0.0, 0.5]),
+                                              dict(text="Matchmaker"))
 
-        self.refresh_button = bgui.FrameButton(parent=self.refresh_group,
-                                               name="refresh_button",
-                                               text="Update", size=[1.0, 1.0],
-                                               options=CENTERED)
+        self.match_input_frame, self.match_field = framed_element(self.controls_row,
+                                               "matchmaker",
+                                               bgui.TextInput,
+                                               dict(size=[0.5, 1.0],
+                                                    pos=[0.0, 0.5]),
+                                               dict(allow_empty=False,
+                                                    text="http://coldcinder.co.uk/networking/matchmaker/asdsad"))
+        #print(sum(self.match_field.dimensions), self.match_input_frame.size[0])
 
-        self.connect_group = bgui.Frame(parent=self.server_controls,
-                                     name="connect_group", size=[0.15, 1.0],
-                                     pos=[0.15, 0.5], options=CENTERY,
-                                     sub_theme="RowGroup")
-
-        self.connect_button = bgui.FrameButton(parent=self.connect_group,
-                                               name="connect_button",
-                                               text="Connect", size=[1.0, 1.0],
-                                               options=CENTERED)
-
-        self.match_field = labelled_field(self.server_controls,
-                                          "match",
-                                          dict(size=[0.7, 1.0],
-                                               pos=[0.3, 0.5]),
-                                          dict(pos=[0.025, 0.0],
-                                               text="Matchmaker:"),
-                                          dict(size=[0.8, 1.0],
-                                               pos=[0.2, 0.0],
-                                               text="http://coldcinder.co.uk/networking/matchmaker",
-                                               allow_empty=False)
-                                          )
+        make_adjacent(self.refresh_button, self.connect_button,
+                      full_size=0.3)
+        make_adjacent(self.refresh_button, self.connect_button,
+                      self.match_label_frame, self.match_input_frame)
 
         self.servers_list = bgui.Frame(parent=self.center_column,
                                    name="server_list", size=[0.8, 0.6],
@@ -174,7 +194,7 @@ class ConnectPanel(Panel):
         self.servers_box.renderer = TableRenderer(self.servers_box,
                                               labels=self.server_headers)
 
-        self.sprite = SpriteSequence(self.error_group, "sprite",
+        self.sprite = SpriteSequence(self.error_message_frame, "sprite",
                                      bge.logic.expandPath("//themes/ui/loading_sprite.tga"),
                                      length=20, loop=True,  size=[0.1, 0.6],
                                      aspect=1, relative_path=False,
@@ -183,18 +203,28 @@ class ConnectPanel(Panel):
                                         repeat=True,
                                         on_target=self.sprite.next_frame)
 
+        # Allows input fields to accept input when not hovered
+        self.connection_row.is_listener = True
+
         self.connect_button.on_click = self.do_connect
         self.refresh_button.on_click = self.do_refresh
-        self.servers_box.on_select = self.on_select
+        self.servers_box.on_select = self.do_select
 
         self.uses_mouse = True
         self.sprite.visible = False
 
-    def on_select(self, list_box, entry):
+    def display_error(self, text):
+        self.error_body_field.text = text
+
+    def do_select(self, list_box, entry):
         data = dict(entry)
 
         self.addr_field.text = data['address']
         self.port_field.text = data['port']
+
+    def do_connect(self, button):
+        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
+        self.sprite.visible = True
 
     def do_refresh(self, button):
         self.matchmaker.url = self.match_field.text
@@ -204,25 +234,21 @@ class ConnectPanel(Panel):
 
     def evaluate_servers(self, response):
         self.servers[:] = [tuple(entry.items()) for entry in response]
-        self.connect_message.text = ("Refreshed Server List" if self.servers
+        self.display_error("Refreshed Server List" if self.servers
                                     else "No Servers Found")
         self.sprite.visible = False
 
-    def do_connect(self, button):
-        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
-        self.sprite.visible = True
-
     @ConnectionSuccessSignal.global_listener
-    def on_connect(self, target):
+    def on_connected(self, target):
         self.visible = False
 
     @ConnectionErrorSignal.global_listener
-    def on_error(self, error, target, signal):
-        self.connect_message.text = str(error)
+    def on_error_occurred(self, error, target, signal):
+        self.display_error(str(error))
         self.sprite.visible = False
 
     def update(self, delta_time):
-        self.connect_button.frozen = self.port_field.invalid
+#         self.connect_button.frozen = self.port_field.invalid
         self.matchmaker.update()
 
 
@@ -266,13 +292,6 @@ class Notification(TimerMixins, bgui.Frame):
         self.fade_time = fade_time
         self.alive_time = alive_time
         self.message = message
-        self.message_limit = 34
-
-        if len(message) > self.message_limit:
-            message = message[:self.message_limit]
-            status_timer = ManualTimer(target_value=self.alive_time * 0.9)
-            status_timer.on_update = partial(self.scroll_message, status_timer)
-            self.add_timer(status_timer, "scroll")
 
         self.upper_bar = bgui.Frame(parent=self, name="upper_bar",
                                     size=[1.0, thin_bar_height],
@@ -294,6 +313,26 @@ class Notification(TimerMixins, bgui.Frame):
                                        options=CENTERED,
                                        pos=[0.0, 0.0],
                                        pt_size=font_size, color=[0.4, 0.4, 0.4, 1])
+
+        # Determine if overflowing
+        width_running = 0
+        notification_width = self.size[0]
+        message_widths = self.get_message_widths(self.message_text)
+
+        for index, width in enumerate(message_widths):
+            width_running += width
+            if width_running >= notification_width:
+                break
+        else:
+            index = None
+
+        self.message_index_end = index
+
+        if index:
+            self.message_text.text = message[:index]
+            status_timer = ManualTimer(target_value=self.alive_time * 0.9)
+            status_timer.on_update = partial(self.scroll_message, status_timer)
+            self.add_timer(status_timer, "scroll")
 
         self.upper_bar.colors = [[0, 0, 0, 1]] * 4
         self.lower_bar.colors = [[0, 0, 0, 1]] * 4
@@ -317,12 +356,17 @@ class Notification(TimerMixins, bgui.Frame):
         self.on_death = None
         self.is_visible = None
 
+    def get_message_widths(self, label):
+        return [(blf.dimensions(label.fontid, char * 20)[0] / 20)
+                for char in label.text]
+
     def scroll_message(self, timer):
         message = self.message
-        message_limit = self.message_limit
+        message_limit = self.message_index_end
         max_shift = len(message) - message_limit
         shift_index = round(timer.progress * max_shift)
-        self.message_text.text = message[shift_index: shift_index + message_limit]
+        self.message_text.text = message[shift_index:
+                                         shift_index + message_limit]
 
     def _set_color(self, component, color):
         try:

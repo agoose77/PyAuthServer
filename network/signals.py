@@ -342,14 +342,6 @@ class ConnectionSuccessSignal(Signal):
     pass
 
 
-class NetworkSendSignal(Signal):
-    pass
-
-
-class NetworkReceiveSignal(Signal):
-    pass
-
-
 class UpdateSignal(Signal):
     pass
 

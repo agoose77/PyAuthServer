@@ -80,7 +80,7 @@ class Matchmaker(SignalListener):
                 callback(response)
 
     @GameExitSignal.global_listener
-    def quit(self):
+    def on_quit(self):
         del self.thread
 
 
@@ -109,3 +109,9 @@ class BoundMatchmaker(Matchmaker):
     @UpdateSignal.global_listener
     def update(self, delta_time):
         super().update()
+
+    @GameExitSignal.global_listener
+    def on_quit(self):
+        self.unregister()
+
+        super().on_quit()

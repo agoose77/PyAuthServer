@@ -357,6 +357,7 @@ class PlayerController(Controller):
                 self.unpossess()
 
         elif name == "camera":
+            assert self.pawn
             self.set_camera(self.camera)
             self.camera.active = True
 
@@ -373,16 +374,10 @@ class PlayerController(Controller):
         if not (self.pawn and self.camera):
             return
 
-        #info = network.WorldInfo.subclass_of(AIReplicationInfo)
-
         self.increment_move()
-        self.store_voice()
 
         # Control Mouse data
         mouse_diff_x, mouse_diff_y = self.mouse_delta
-
-#         if self.inputs.shoot:
-#             self.start_fire()
 
         self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
 
@@ -395,6 +390,7 @@ class PlayerController(Controller):
                              self.inputs, mouse_diff_x,
                              mouse_diff_y, delta_time, self.pawn.position,
                              self.pawn.rotation)
+        self.store_voice()
 
     def possess(self, replicable):
         super().possess(replicable)
@@ -464,7 +460,7 @@ class PlayerController(Controller):
             self.correct_bad_move(move_id, correction)
             self.last_correction = move_id
 
-    def send_voice(self, data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.server:
+    def send_voice_server(self, data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.server:
         info = self.info
         for controller in network.WorldInfo.subclass_of(Controller):
             if controller is self:
@@ -472,17 +468,18 @@ class PlayerController(Controller):
 
             controller.hear_voice(info, data)
 
-    def receive_voice(self, info: network.StaticValue(network.Replicable),
+    def send_voice_client(self, info: network.StaticValue(network.Replicable),
                    data: network.StaticValue(bytes, max_length=256)) -> network.Netmodes.client:
         player = self.sound_channels[info]
         player.decode(data)
 
     def store_voice(self):
         data = self.microphone.encode()
-        self.send_voice(data)
+        if data:
+            self.send_voice_server(data)
 
     def hear_voice(self, info, voice):
-        self.receive_voice(info, voice)
+        self.send_voice_client(info, voice)
 
     def start_fire(self):
         if not self.weapon:
@@ -1020,7 +1017,6 @@ class Camera(Actor):
 
 
 class Pawn(Actor):
-
     view_pitch = network.Attribute(0.0)
     flash_count = network.Attribute(0, notify=True, complain=True)
     weapon_attachment_class = network.Attribute(type_of=type(network.Replicable),
@@ -1030,7 +1026,7 @@ class Pawn(Actor):
     health = network.Attribute(100, notify=True, complain=True)
     alive = network.Attribute(True, notify=True, complain=True)
 
-    replication_update_period = 1 / 10
+    replication_update_period = 1 / 60
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -1083,7 +1079,8 @@ class Pawn(Actor):
         # play weapon effects
         if name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
-
+        elif name == "flash_count":
+            pass
         else:
             super().on_notify(name)
 
