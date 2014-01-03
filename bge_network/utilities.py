@@ -11,17 +11,19 @@ def falloff_fraction(origin, maximum, actual, effective):
 
     # If in optimal range
     if distance <= effective:
-        distance_fraction = 0
+        distance_fraction = 1
 
     elif distance > maximum:
-        distance_fraction = 1
+        distance_fraction = 0
 
     # If we are beyond optimal range
     else:
-        distance_fraction = (((distance - effective) ** 2)
-                     / (maximum - effective) ** 2)
+        falloff_fraction = (((distance - effective) ** 2)
+                             / (maximum - effective) ** 2)
 
-    return clamp(0, 1, (1 - distance_fraction))
+        return clamp(0, 1, (1 - falloff_fraction))
+
+    return distance_fraction
 
 
 def progress_string(fraction, fidelity=10):

@@ -33,6 +33,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         self._last_sent = 0.0
         self._interval = 1 / 25
+        self._profile = None
 
         self.register_signals()
 
@@ -45,11 +46,21 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         if isinstance(target, Camera):
             target.render_temporary(self.update_render)
 
+    def start_profile(self, *args, **kwargs):
+        self._profile = args, kwargs
+        super().start_profile(*args, **kwargs)
+
     def apply_physics(self):
+        _profile = self._profile
+        self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
         self.update_scenegraph(self.get_time())
+        self.start_profile(*_profile[0], **_profile[1])
 
     def physics_callback(self, delta_time):
+        _profile = self._profile
+        self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
         self.update_physics(self.get_time(), delta_time)
+        self.start_profile(*_profile[0], **_profile[1])
 
     def update_scene(self, scene, current_time, delta_time):
         self.update_logic_bricks(current_time)

@@ -281,8 +281,10 @@ class LoopNode(SequenceNode):
     def evaluate(self, blackboard):
         state = None
         evaluate = super().evaluate
+
         while not state in (EvaluationState.failure, EvaluationState.error):
             state = evaluate(blackboard)
+    
         return state
 
 

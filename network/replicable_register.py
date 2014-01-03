@@ -18,9 +18,10 @@ class ReplicableRegister(InstanceRegister):
             for name, value in attrs.items():
 
                 # Wrap them with permission
-                if not isinstance(value, (FunctionType, classmethod,
-                                      staticmethod)):
+                if (not isinstance(value, FunctionType) or
+                    isinstance(value, (classmethod, staticmethod))):
                     continue
+                print(isinstance(value, staticmethod))
 
                 if meta.should_ignore(name, value, bases):
                     continue

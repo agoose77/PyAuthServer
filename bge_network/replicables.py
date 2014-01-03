@@ -174,7 +174,7 @@ class AIController(Controller):
     def hear_sound(self, sound_path, source):
         if not (self.pawn and self.camera):
             return
-
+        return
         probability = utilities.falloff_fraction(self.pawn.position,
                             self.hear_range,
                             source,
@@ -302,6 +302,7 @@ class PlayerController(Controller):
 
         if not (self.pawn and self.camera):
             return
+        return
         probability = utilities.falloff_fraction(self.pawn.position,
                             self.hear_range,
                             source,
@@ -540,6 +541,7 @@ class Actor(network.Replicable):
         super().on_initialised()
 
         self.object = self.entity_class(self.entity_name)
+
         self.camera_radius = 1
 
         self.update_simulated_physics = True
@@ -554,7 +556,16 @@ class Actor(network.Replicable):
         self._old_colliders = set()
         self._registered = set()
 
-        self.register_callback()
+        self._register_callback()
+        self._establish_relationship()
+
+    @staticmethod
+    def from_object(obj):
+        return obj.get("owner")
+
+    @network.simulated
+    def _establish_relationship(self):
+        self.object['owner'] = self
 
     @property
     def suspended(self):
@@ -575,7 +586,7 @@ class Actor(network.Replicable):
         return bool(self._registered)
 
     @network.simulated
-    def register_callback(self):
+    def _register_callback(self):
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
             return
@@ -834,13 +845,9 @@ class Weapon(network.Replicable):
         if not hit_object:
             return
 
-        for replicable in network.WorldInfo.subclass_of(Actor):
-            if replicable.object == hit_object:
-                break
-        else:
-            return
+        replicable = Actor.from_object(hit_object)
 
-        if replicable == self.owner.pawn:
+        if replicable == self.owner.pawn or not replicable:
             return
 
         hit_vector = (hit_position - camera.position)
@@ -850,7 +857,6 @@ class Weapon(network.Replicable):
                                     hit_position, self.effective_range)
 
         damage = self.base_damage * falloff
-
         momentum = self.momentum * hit_vector.normalized() * falloff
 
         signals.ActorDamagedSignal.invoke(damage, self.owner, hit_position,
@@ -1201,4 +1207,4 @@ class Navmesh(Actor):
         return self.object.findPath(from_point, to_point)
 
     def get_wall_intersection(self, from_point, to_point):
-        return  self.object.raycast(from_point, to_point)
+        return self.object.raycast(from_point, to_point)

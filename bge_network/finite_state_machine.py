@@ -57,9 +57,6 @@ class FiniteStateMachine:
         else:
             self.transitions[to_identifier] = transition
 
-    def get_state(self, identifier):
-        return self.states[identifier]
-
     def reset(self, run=False):
         self._reset_state = True
 
@@ -99,7 +96,7 @@ class FiniteStateMachine:
         # Check global conditions
         for condition, to_state_identifier in self.conditions.items():
 
-            if last!=condition and condition(self):
+            if last != condition and condition(self):
                 transition = self.transitions.get(to_state_identifier)
                 new_state = self.states[to_state_identifier]
 

@@ -64,6 +64,7 @@ class Replicable(metaclass=ReplicableRegister):
         try:
             while replicable:
                 last, replicable = replicable, replicable.owner
+
         except AttributeError:
             pass
 
