@@ -34,14 +34,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     relevant_radius_squared = 9 ** 2
 
     @property
-    def players(self):
-        return bge_network.ConnectionInterface.by_status(
-                 bge_network.ConnectionStatus.disconnected,
-                 operator.gt)
-
-    @property
-    def allow_countdown(self):
-        return self.players >= self.minimum_players_for_countdown
+    def connected_players(self):
+        disconnected_status = bge_network.ConnectionStatus.disconnected
+        return bge_network.ConnectionInterface.by_status(disconnected_status,
+                                                         operator.gt)
 
     def allows_broadcast(self, sender, message):
         return len(message) <= 255
@@ -50,8 +46,8 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if not self.allows_broadcast(sender, message):
             return
 
-        for replicable in bge_network.WorldInfo.subclass_of(
-                                                bge_network.PlayerController):
+        PlayerController = bge_network.PlayerController
+        for replicable in bge_network.WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
     def create_new_ai(self, controller=None):
@@ -146,12 +142,14 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
         self.info = GameReplicationInfo(register=True)
         self.matchmaker = matchmaker.BoundMatchmaker(
-                         "http://www.coldcinder.co.uk/networking/matchmaker"
-                         )
-        self.matchmaker_timer = bge_network.Timer(initial_value=10,
-                                            count_down=True,
-                                            on_target=self.update_matchmaker,
-                                            repeat=True)
+                         "http://www.coldcinder.co.uk/networking/matchmaker")
+        self.matchmaker_timer = bge_network.Timer(initial_value=10, count_down=True,
+                                                  on_target=self.update_matchmaker,
+                                                  repeat=True)
+
+        self.countdown_timer = bge_network.Timer(target_value=self.countdown_start,
+                                                 on_target=self.start_match,
+                                                 active=False)
         self.black_list = []
 
         self.matchmaker.register("Demo Server", "Test Map",
@@ -170,7 +168,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if netmode == bge_network.Netmodes.server:
             raise bge_network.AuthError("Peer was not a client")
 
-        if self.players >= self.player_limit:
+        if self.connected_players >= self.player_limit:
             raise bge_network.AuthError("Player limit reached")
 
         ip_address, port = address_tuple
@@ -178,39 +176,24 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if ip_address in self.black_list:
             raise bge_network.BlacklistError()
 
-    def reset_countdown(self):
-        self.info.time_to_start = float(self.countdown_start)
-
-    def start_countdown(self):
-        self.reset_countdown()
-        self.countdown_running = True
-
     def start_match(self):
         self.info.match_started = True
-
-    def stop_countdown(self):
-        self.reset_countdown()
-        self.countdown_running = False
 
     @bge_network.UpdateSignal.global_listener
     def update(self, delta_time):
         info = self.info
 
-        if self.countdown_running:
-            info.time_to_start = max(0.0, info.time_to_start - delta_time)
+        players_needed = self.minimum_players_for_countdown
+        countdown_running = self.countdown_timer.active
 
-            # If countdown stops, start match
-            if not info.time_to_start:
-                self.stop_countdown()
-                self.start_match()
-
-        elif self.allow_countdown and not info.match_started:
-            self.start_countdown()
+        if (not (countdown_running or info.match_started) and
+            (self.connected_players >= players_needed)):
+            self.countdown_timer.reset()
 
     @bge_network.ConnectionSuccessSignal.global_listener
     def update_matchmaker(self):
         self.matchmaker.poll("Test Map", self.player_limit,
-                                    self.players)
+                             self.connected_players)
 
 
 class Server(bge_network.ServerGameLoop):
