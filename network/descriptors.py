@@ -1,6 +1,8 @@
 from copy import deepcopy
 from .handler_interfaces import static_description
 
+__all__ = ['TypeFlag', 'Attribute']
+
 
 class TypeFlag:
     '''Container for static-type values
@@ -17,8 +19,7 @@ class TypeFlag:
 
 
 class Attribute(TypeFlag):
-    __slots__ = TypeFlag.__slots__ + ["notify", "complain", "name",
-                                      "_instances", "_value"]
+    __slots__ = ["notify", "complain", "name", "_instances", "_value"]
 
     def __init__(self, value=None, type_of=None,
                  notify=False, complain=False, **kwargs):
@@ -59,8 +60,8 @@ class Attribute(TypeFlag):
 
         # Force type check
         if value is not None and not isinstance(value, self.type):
-            raise TypeError("Cannot set {.__name__} value to {.__name__} value"
-                            .format(self.type, type(value)))
+            raise TypeError("{}: Cannot set value to {} value"
+                            .format(self, value.__class__.__name__))
 
         # Store value
         storage_interface.value = value
@@ -68,12 +69,9 @@ class Attribute(TypeFlag):
     def __repr__(self):
         return "<Attribute {}: type={.__name__}>".format(self.name, self.type)
 
-    @property
-    def value(self):
-        return deepcopy(self._value)
-
     def register(self, instance, storage_interface):
-        '''Registers attribute for instance
-        Stores name of attribute through search'''
+        '''Registers attribute for instance'''
         self._instances[instance] = storage_interface
-        storage_interface.value = self.value
+
+    def get_new_value(self):
+        return deepcopy(self._value)

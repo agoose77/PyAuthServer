@@ -1,23 +1,25 @@
 from .replicables import WorldInfo
-from .bitfield import Bitfield
+from .bitfield import BitField
 from .connection import ClientConnection, ServerConnection
 from .conversions import conversion
-from .decorators import for_netmode
+from .decorators import netmode_switch
 from .descriptors import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols
 from .errors import NetworkError, ConnectionTimeoutError
 from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
-from .netmode_selector import NetmodeSelector
+from .netmode_switch import NetmodeSwitch
 from .instance_register import InstanceRegister
 
 from collections import deque
 from operator import eq as equals_operator
 from time import monotonic
 
+__all__ = ["ConnectionInterface", "ClientInterface", "ServerInterface"]
 
-class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
+
+class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     """Interface for remote peer
     Mediates a connection instance between local and remote peer"""
 
@@ -30,9 +32,9 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
         # Number of packets to ack per packet
         self.ack_window = 32
 
-        # Bitfield and bitfield size
-        self.ack_bitfield = Bitfield(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(Bitfield))
+        # BitField and bitfield size
+        self.ack_bitfield = BitField(self.ack_window)
+        self.ack_packer = get_handler(TypeFlag(BitField))
 
         # Additional data
         self.netmode_packer = get_handler(TypeFlag(int))
@@ -54,7 +56,7 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
         self.last_received = monotonic()
 
         # Simple connected status
-        self.status = ConnectionStatus.disconnected
+        self.status = ConnectionStatus.disconnected  # @UndefinedVariable
 
         # Maintains an actual connection
         self.connection = None
@@ -108,13 +110,13 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
 
     def delete(self):
         """Sets connection state to deleted"""
-        self.status = ConnectionStatus.deleted
+        self.status = ConnectionStatus.deleted  # @UndefinedVariable
 
     def connected(self, *args, **kwargs):
         """Sets connection state to connected
         @param args: additional positional arguments
         @param kwargs: additional keyword arguments"""
-        self.status = ConnectionStatus.connected
+        self.status = ConnectionStatus.connected  # @UndefinedVariable
         ConnectionSuccessSignal.invoke(target=self)
 
     def send(self, network_tick):
@@ -122,7 +124,7 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
         @param network_tick: if this is a network tick"""
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
-            self.status = ConnectionStatus.timeout
+            self.status = ConnectionStatus.timeout  # @UndefinedVariable
 
             err = ConnectionTimeoutError("Connection timed out")
             ConnectionErrorSignal.invoke(err, target=self)
@@ -135,12 +137,12 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
             self.tagged_throttle_sequence = sequence
 
         # If not connected setup handshake
-        if self.status == ConnectionStatus.disconnected:
+        if self.status == ConnectionStatus.disconnected:  # @UndefinedVariable
             packet_collection = PacketCollection(self.get_handshake())
             self.status = ConnectionStatus.handshake
 
         # If connected send normal data
-        elif self.status == ConnectionStatus.connected:
+        elif self.status == ConnectionStatus.connected:  # @UndefinedVariable
             packet_collection = self.connection.send(network_tick,
                                                      self.bandwidth)
 
@@ -284,10 +286,10 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
         receive_handshake = self.receive_handshake
 
         # Call post-processed receive
-        if self.status != ConnectionStatus.connected:
+        if self.status != ConnectionStatus.connected:  # @UndefinedVariable
             for member in packet_collection.members:
 
-                if member.protocol > Protocols.request_auth:
+                if member.protocol > Protocols.request_auth:  # @UndefinedVariable @IgnorePep8
                     continue
 
                 receive_handshake(member)
@@ -296,7 +298,7 @@ class ConnectionInterface(NetmodeSelector, metaclass=InstanceRegister):
             self.connection.receive(packet_collection.members)
 
 
-@for_netmode(Netmodes.server)
+@netmode_switch(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):
 
     def on_initialised(self):
@@ -362,7 +364,7 @@ class ServerInterface(ConnectionInterface):
                 self.connection.replicable = returned_replicable
 
 
-@for_netmode(Netmodes.client)
+@netmode_switch(Netmodes.client)
 class ClientInterface(ConnectionInterface):
 
     def get_handshake(self):

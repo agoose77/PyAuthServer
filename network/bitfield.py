@@ -1,76 +1,79 @@
 from .serialiser import bits2bytes
 
-class Bitfield:
-	@classmethod
-	def from_iterable(cls, iterable):
-		size = len(iterable)
-		field = Bitfield(size)
-		field[:size] = iterable
-		return field
+__all__ = ["BitField"]
 
-	@classmethod
-	def of_length(cls, size):
-		return cls(size)
 
-	def __init__(self, size, value=0):
-		self._size = size
-		self._value = value
+class BitField:
+    @classmethod
+    def from_iterable(cls, iterable):
+        size = len(iterable)
+        field = cls(size)
+        field[:size] = iterable
+        return field
 
-		self.footprint = bits2bytes(size)
+    @classmethod
+    def of_length(cls, size):
+        return cls(size)
 
-	def __iter__(self):
-		return self[:].__iter__()
+    def __init__(self, size, value=0):
+        self._size = size
+        self._value = value
 
-	def __bool__(self):
-		return self._value > 0
+        self.footprint = bits2bytes(size)
 
-	def __getitem__(self,  value):
-		if isinstance(value, slice):
-			_value = self._value
-			return [bool(_value & (1 << index)) for index in
-					range(*value.indices(self._size))]
+    def __iter__(self):
+        return self[:].__iter__()
 
-		else:
-			# Relative indices
-			if value < 0:
-				value += self._size
+    def __bool__(self):
+        return self._value != 0
 
-			if value >= self._size:
-				raise IndexError("Index out of range")
+    def __getitem__(self,  value):
+        if isinstance(value, slice):
+            _value = self._value
+            return [bool(_value & (1 << index)) for index in
+                    range(*value.indices(self._size))]
 
-			return (self._value & (1 << value)) != 0
+        else:
+            # Relative indices
+            if value < 0:
+                value += self._size
 
-	def __setitem__(self, index, value):
-		if isinstance(index, slice):
+            if value >= self._size:
+                raise IndexError("Index out of range")
 
-			current_value = self._value
+            return (self._value & (1 << value)) != 0
 
-			for shift_depth, slice_value in zip(
-				range(*index.indices(self._size)), value):
+    def __setitem__(self, index, value):
+        if isinstance(index, slice):
 
-				if slice_value:
-					current_value |= 1 << shift_depth
-				else:
-					current_value &= ~(1 << shift_depth)
+            current_value = self._value
 
-			self._value = current_value
+            for shift_depth, slice_value in zip(
+                range(*index.indices(self._size)), value):
 
-		else:
-			if index < 0:
-				index += self._size
+                if slice_value:
+                    current_value |= 1 << shift_depth
+                else:
+                    current_value &= ~(1 << shift_depth)
 
-			elif index >= self._size:
-				raise IndexError("Index out of range")
+            self._value = current_value
 
-			if value:
-				self._value |= (1 << index)
+        else:
+            if index < 0:
+                index += self._size
 
-			else:
-				self._value &= ~(1 << index)
+            elif index >= self._size:
+                raise IndexError("Index out of range")
 
-	def clear(self):
-		self._value = 0
+            if value:
+                self._value |= (1 << index)
 
-	def resize(self, size):
-		self._size = size
-		self.footprint = bits2bytes(self._size)
+            else:
+                self._value &= ~(1 << index)
+
+    def clear(self):
+        self._value = 0
+
+    def resize(self, size):
+        self._size = size
+        self.footprint = bits2bytes(self._size)

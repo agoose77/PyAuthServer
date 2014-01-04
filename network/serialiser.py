@@ -3,6 +3,10 @@ from math import ceil
 
 from .handler_interfaces import register_handler
 
+__all__ = ['IStruct', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8',
+           'bits2bytes', 'handler_from_bit_length', 'handler_from_int',
+           'handler_from_byte_length', 'StringHandler', 'BytesHandler']
+
 
 class IStruct(PyStruct):
     def size(self, bytes_=None):
@@ -50,7 +54,7 @@ def handler_from_byte_length(bytes_):
     return int_sized[bytes_]
 
 
-class String:
+class StringHandler:
 
     def __init__(self, static_value):
         bytes_ = static_value.data.get("max_length", 255)
@@ -71,7 +75,7 @@ class String:
         return self.unpack(bytes_[:length])
 
 
-class Bytes(String):
+class BytesHandler(StringHandler):
 
     def pack(self, bytes_):
         return self.packer.pack(len(bytes_)) + bytes_
@@ -81,8 +85,8 @@ class Bytes(String):
 
 
 # Register handlers for native types
-register_handler(str, String, is_condition=True)
-register_handler(bytes, Bytes, is_condition=True)
+register_handler(str, StringHandler, is_condition=True)
+register_handler(bytes, BytesHandler, is_condition=True)
 register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 255)),
                  is_condition=True)
 register_handler(float, lambda x: (Float8 if x.data.get("max_precision")

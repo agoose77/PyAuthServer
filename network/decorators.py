@@ -1,5 +1,7 @@
 from functools import wraps
-from inspect import signature
+
+__all__ = ['reliable', 'simulated', 'signal_listener',
+           'requires_netmode', 'netmode_switch']
 
 
 def reliable(func):
@@ -24,7 +26,8 @@ def requires_netmode(netmode):
     """Decorator
     @param netmode: netmode required to execute function
     @requires: netmode context for execution of function
-    @return: decorator that prohibits function execution for incorrect netmodes"""
+    @return: decorator that prohibits function execution
+    for incorrect netmodes"""
 
     def wrapper(func):
         from .replicables import WorldInfo
@@ -41,7 +44,7 @@ def requires_netmode(netmode):
     return wrapper
 
 
-def for_netmode(netmode):
+def netmode_switch(netmode):
 
     def wrapper(cls):
         cls._netmode_data = cls, netmode

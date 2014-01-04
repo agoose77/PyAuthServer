@@ -5,6 +5,10 @@ from .decorators import signal_listener
 from collections import defaultdict
 from inspect import getmembers, signature
 
+__all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal',
+           'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
+           'ConnectionSuccessSignal', 'UpdateSignal', 'ProfileSignal']
+
 
 class SignalListener:
     """Provides interface for class based signal listeners
@@ -37,7 +41,7 @@ class SignalListener:
         if signal_store is None:
             signal_store = self
 
-        for name, callback in signal_store.signal_callbacks:
+        for _, callback in signal_store.signal_callbacks:
             for signal, *_ in Signal.get_signals(callback):
                 signal.set_parent(child, self)
 
@@ -45,7 +49,7 @@ class SignalListener:
             self.register_child(child, child)
 
     def unregister_child(self, child, signal_store=None, greedy=False):
-        """Un-subscribes child to parent for signals
+        """Unsubscribe the child to parent for signals
         @param child: Child to un-subscribe for
         @param signal_store: SignalListener subclass instance, default=None
         @param greedy: Determines if child should un-bind its own events, default=False
@@ -54,7 +58,7 @@ class SignalListener:
         if signal_store is None:
             signal_store = self
 
-        for name, callback in signal_store.signal_callbacks:
+        for _, callback in signal_store.signal_callbacks:
             for signal, *_ in Signal.get_signals(callback):
                 signal.remove_parent(child, self)
 
@@ -62,17 +66,17 @@ class SignalListener:
             self.unregister_child(child, child)
 
     def register_signals(self):
-        """Registers signals to observer
+        """Register signals to observer
         """
-        for name, callback in self.signal_callbacks:
+        for _, callback in self.signal_callbacks:
             Signal.subscribe(self, callback)
 
         Signal.update_graph()
 
     def unregister_signals(self):
-        """Un-registers signals from observer
+        """Unregister signals from observer
         """
-        for name, callback in self.signal_callbacks:
+        for _, callback in self.signal_callbacks:
             Signal.unsubscribe(self, callback)
 
         Signal.update_graph()
@@ -156,6 +160,7 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_state(cls):
+        # Run safe notifications
         if cls.to_subscribe:
             local_to_subscribe = cls.to_subscribe.copy()
             cls.subscribers.update(cls.to_subscribe)
@@ -170,7 +175,7 @@ class Signal(metaclass=TypeRegister):
             for identifier, data in local_to_isolate.items():
                 cls.on_subscribed(True, identifier, data)
 
-        # Run safe notifications
+        # Remove old subscribers
         if cls.to_unsubscribe:
             for key in cls.to_unsubscribe:
                 cls.subscribers.pop(key, None)
@@ -182,21 +187,23 @@ class Signal(metaclass=TypeRegister):
             cls.to_unisolate.clear()
 
         # Add new children
-        cls.children.update(cls.to_child)
-        cls.to_child.clear()
+        if cls.to_child:
+            cls.children.update(cls.to_child)
+            cls.to_child.clear()
 
         # Remove old children
-        children = cls.children
-        for (child, parent) in cls.to_unchild:
-            parent_children_dict = children[parent]
-            parent_children_dict.remove(child)
+        if cls.to_unchild:
+            children = cls.children
+            for (child, parent) in cls.to_unchild:
+                parent_children_dict = children[parent]
+                parent_children_dict.remove(child)
 
-            if not parent_children_dict:
-                children.pop(parent)
+                if not parent_children_dict:
+                    children.pop(parent)
 
-        cls.to_unchild.clear()
+            cls.to_unchild.clear()
 
-        # Catch any missed subscribers
+        # Recurse to catch any missed subscribers
         if cls.to_subscribe or cls.to_isolate:
             cls.update_state()
 
@@ -221,30 +228,25 @@ class Signal(metaclass=TypeRegister):
             callback(*args, **kwargs)
 
     @classmethod
-    def invoke_targets(cls, all_targets, *args, target=None, **kwargs):
-        targets = [target]
+    def invoke_targets(cls, all_targets, *args, target=None, addressee=None,
+                       **kwargs):
+        if addressee is None:
+            addressee = target
 
-        while targets:
-            try:
-                target_ = targets.pop(0)
+        cls.update_graph()
 
-            except IndexError:
-                return
+        # If the child is a context listener
+        if addressee in all_targets:
+            callback, supply_signal, supply_target = all_targets[addressee]
+            # Invoke with the same target context even if this is a child
+            cls.invoke_signal(args, target, kwargs, callback,
+                             supply_signal, supply_target)
 
-            if target_ is None:
-                continue
-
-            cls.update_graph()
-            # Bugfix? In future may need to do an == loop to check
-            # If the child is a context listener
-            if target_ in all_targets:
-                callback, supply_signal, supply_target = all_targets[target_]
-                # Invoke with the same target context even if this is a child
-                cls.invoke_signal(args, target, kwargs, callback,
-                                 supply_signal, supply_target)
-
-            if target_ in cls.children:
-                targets.extend(cls.children[target_])
+        # Update children of this listener
+        if addressee in cls.children:
+            for target_child in cls.children[addressee]:
+                cls.invoke_targets(all_targets, *args, target=target,
+                                   addressee=target_child, **kwargs)
 
     @classmethod
     def invoke_general(cls, all_subscribers, *args, target=None, **kwargs):
@@ -256,16 +258,15 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def invoke(cls, *args, target=None, **kwargs):
-        cls.invoke_targets(cls.isolated_subscribers, *args,
-                           target=target, **kwargs)
+        if target:
+            cls.invoke_targets(cls.isolated_subscribers, *args,
+                               target=target, **kwargs)
         cls.invoke_general(cls.subscribers, *args,
                            target=target, **kwargs)
-
         cls.invoke_parent(*args, target=target, **kwargs)
 
     @classmethod
     def invoke_parent(cls, *args, target=None, **kwargs):
-
         if cls.highest_signal == cls:
             return
 
@@ -296,7 +297,6 @@ class CachedSignal(Signal):
 
     @classmethod
     def invoke(cls, *args, subscriber_data=None, target=None, **kwargs):
-
         # Only cache normal invocations
         if subscriber_data is None:
             cls.cache.append((args, target, kwargs))

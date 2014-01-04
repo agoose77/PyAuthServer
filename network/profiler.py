@@ -3,6 +3,8 @@ from collections import defaultdict
 
 from .signals import ProfileSignal, SignalListener
 
+__all__ = ['ProfileManager', 'profiler']
+
 
 class ProfileManager(SignalListener):
 

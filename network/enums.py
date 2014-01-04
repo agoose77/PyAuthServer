@@ -1,5 +1,7 @@
 from contextlib import contextmanager
 
+__all__ = ['Enum', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles']
+
 
 class Enum(type):
     '''Metaclass for Enums in Python'''
@@ -24,18 +26,28 @@ class Enum(type):
         return index in self.reverse
 
     def __repr__(self):
-        return "[Enum: {}]\n{}\n".format(self.__name__,
+        return "<Enum {}>\n{}\n".format(self.__name__,
                                  '\n'.join("<{}: {}>".format(n, v)
                                    for v, n in self.reverse.items()))
+
+
+class ConnectionStatus(metaclass=Enum):
+    values = ("deleted", "timeout", "disconnected", "handshake", "connected")
 
 
 class Netmodes(metaclass=Enum):
     values = "server", "client", "listen", "single"
 
 
+class Protocols(metaclass=Enum):
+    values = ("auth_failure", "auth_success", "request_auth",
+              "replication_init", "replication_del",
+              "replication_update", "method_invoke")
+
+
 class Roles(metaclass=Enum):
     values = ("none", "dumb_proxy", "simulated_proxy",
-            "autonomous_proxy", "authority")
+              "autonomous_proxy", "authority")
 
     __slots__ = "local", "remote", "context"
 
@@ -49,7 +61,8 @@ class Roles(metaclass=Enum):
 
     def __repr__(self):
         return "Roles: Local: {}, Remote: {}".format(
-             self.__class__[self.local], self.__class__[self.remote])
+                                                 self.__class__[self.local],
+                                                 self.__class__[self.remote])
 
     @contextmanager
     def switched(self):
@@ -67,15 +80,3 @@ class Roles(metaclass=Enum):
         if fix_autonomous:
             self.local = Roles.autonomous_proxy
         self.remote, self.local = self.local, self.remote
-
-
-class Protocols(metaclass=Enum):
-    values = ("auth_failure", "auth_success",
-            "request_auth", "replication_init",
-            "replication_del", "replication_update",
-            "method_invoke")
-
-
-class ConnectionStatus(metaclass=Enum):
-    values = ("deleted", "timeout", "disconnected",
-            "handshake", "connected")

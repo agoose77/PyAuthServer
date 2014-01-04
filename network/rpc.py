@@ -1,14 +1,14 @@
-from .argument_serialiser import ArgumentSerialiser
+from .flag_serialiser import FlagSerialiser
 from .descriptors import TypeFlag
-from .conditions import is_simulated
 
 from collections import OrderedDict, namedtuple
-from copy import deepcopy
 from functools import update_wrapper
 from inspect import signature
 
+__all__ = ['MarkAttribute', 'RPCInterfaceFactory', 'RPCInterface']
 
-FindAttribute = namedtuple("FindAttribute", "name")
+
+MarkAttribute = namedtuple("MarkAttribute", "name")
 
 
 class RPCInterfaceFactory:
@@ -41,7 +41,7 @@ class RPCInterfaceFactory:
     def update_class_arguments(self, function, instance):
         function_signature = signature(function)
         function_arguments = RPCInterface.order_arguments(function_signature)
-        lookup_type = FindAttribute
+        lookup_type = MarkAttribute
         for argument in function_arguments.values():
             data = argument.data
             for arg_name, arg_value in data.items():
@@ -68,7 +68,7 @@ class RPCInterface:
 
         # Interface between data and bytes
         self._binder = self._function_signature.bind
-        self._serialiser = ArgumentSerialiser(self.order_arguments(
+        self._serialiser = FlagSerialiser(self.order_arguments(
                                              self._function_signature))
 
         from .replicables import WorldInfo

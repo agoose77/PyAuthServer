@@ -1,7 +1,9 @@
-from .signals import SignalListener, Signal
+from .signals import SignalListener
 from .type_register import TypeRegister
 
 from itertools import chain
+
+__all__ = ['InstanceRegister', 'InstanceMixins']
 
 
 class InstanceMixins(SignalListener):
@@ -62,10 +64,10 @@ class InstanceMixins(SignalListener):
 
 class InstanceRegister(TypeRegister):
 
-    def __new__(meta, name, parents, attrs):
+    def __new__(self, name, parents, attrs):
 
         parents += (InstanceMixins,)
-        cls = super().__new__(meta, name, parents, attrs)
+        cls = super().__new__(self, name, parents, attrs)
 
         if not hasattr(cls, "_instances"):
             cls._instances = {}
@@ -74,22 +76,22 @@ class InstanceRegister(TypeRegister):
 
         return cls
 
-    def get_entire_graph_ids(cls, instigator=None):
+    def get_entire_graph_ids(cls, instigator=None):  # @NoSelf
         instance_ids = (k for k, v in cls._instances.items()
                         if v != instigator)
         register_ids = (i.instance_id for i in cls._to_register
                         if i != instigator)
         return chain(instance_ids, register_ids)
 
-    def get_graph_instances(cls, only_real=True):
+    def get_graph_instances(cls, only_real=True):  # @NoSelf
         if only_real:
             return cls._instances.values()
         return chain(cls._instances.values(), cls._to_register)
 
-    def graph_has_instance(cls, instance_id):
+    def graph_has_instance(cls, instance_id):  # @NoSelf
         return instance_id in cls._instances
 
-    def get_from_graph(cls, instance_id, only_real=True):
+    def get_from_graph(cls, instance_id, only_real=True):  # @NoSelf
         try:
             return cls._instances[instance_id]
         except KeyError:
@@ -103,7 +105,7 @@ class InstanceRegister(TypeRegister):
             except StopIteration:
                 raise LookupError
 
-    def remove_from_entire_graph(cls, instance_id):
+    def remove_from_entire_graph(cls, instance_id):  # @NoSelf
         if not instance_id in cls._instances:
             return
         instance = cls._instances[instance_id]
@@ -120,14 +122,14 @@ class InstanceRegister(TypeRegister):
             cls._to_register.remove(i)
             return i
 
-    def get_random_id(cls):
+    def get_random_id(cls):  # @NoSelf
         all_instances = list(cls.get_entire_graph_ids())
 
         for key in range(len(all_instances) + 1):
             if not key in all_instances:
                 return key
 
-    def update_graph(cls):
+    def update_graph(cls):  # @NoSelf
         if cls._to_register:
             for instance in cls._to_register.copy():
                 cls._register_to_graph(instance)
@@ -139,7 +141,7 @@ class InstanceRegister(TypeRegister):
         if cls._to_register or cls._to_unregister:
             cls.update_graph()
 
-    def _register_to_graph(cls, instance):
+    def _register_to_graph(cls, instance):  # @NoSelf
         if instance.registered:
             return
 
@@ -153,7 +155,7 @@ class InstanceRegister(TypeRegister):
         except Exception as err:
             raise err
 
-    def _unregister_from_graph(cls, instance):
+    def _unregister_from_graph(cls, instance):  # @NoSelf
         cls._instances.pop(instance.instance_id)
         cls._to_unregister.remove(instance)
 
@@ -166,8 +168,8 @@ class InstanceRegister(TypeRegister):
         finally:
             instance.unregister_signals()
 
-    def __iter__(cls, iter=iter):
+    def __iter__(cls, iter=iter):  # @NoSelf
         return iter(cls._instances.values())
 
-    def __len__(cls, len=len):
+    def __len__(cls, len=len):  # @NoSelf
         return len(cls._instances)

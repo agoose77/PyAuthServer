@@ -1,5 +1,5 @@
 from .containers import AttributeStorageContainer, RPCStorageContainer
-from .descriptors import Attribute, TypeFlag
+from .descriptors import Attribute
 from .enums import Roles, Netmodes
 from .decorators import simulated
 from .replicable_register import ReplicableRegister
@@ -7,6 +7,8 @@ from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
                      UpdateSignal)
 
 from collections import defaultdict
+
+__all__ = ['Replicable', '_WorldInfo', 'WorldInfo']
 
 
 class Replicable(metaclass=ReplicableRegister):
@@ -23,8 +25,8 @@ class Replicable(metaclass=ReplicableRegister):
 
     roles = Attribute(
                       Roles(
-                            Roles.authority,
-                            Roles.none
+                            Roles.authority,  # @UndefinedVariable
+                            Roles.none  # @UndefinedVariable
                             ),
                       notify=True,
                       )
@@ -171,15 +173,15 @@ class Replicable(metaclass=ReplicableRegister):
                 .format(self.__class__.__name__, self))
 
 
-class BaseWorldInfo(Replicable):
+class _WorldInfo(Replicable):
     '''Holds info about game state'''
-    netmode = Netmodes.server
+    netmode = Netmodes.server  # @UndefinedVariable
     rules = None
 
     roles = Attribute(
                       Roles(
-                            Roles.authority,
-                            Roles.simulated_proxy
+                            Roles.authority,  # @UndefinedVariable
+                            Roles.simulated_proxy  # @UndefinedVariable
                             )
                       )
     elapsed = Attribute(0.0, complain=False)
@@ -213,4 +215,4 @@ class BaseWorldInfo(Replicable):
     has_replicable = simulated(Replicable.graph_has_instance)
 
 
-WorldInfo = BaseWorldInfo(255, register=True)
+WorldInfo = _WorldInfo(255, register=True)

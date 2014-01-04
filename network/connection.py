@@ -2,9 +2,20 @@ from .packet import Packet, PacketCollection
 from .handler_interfaces import get_handler
 from .descriptors import TypeFlag
 from .replicables import Replicable, WorldInfo
-from .signals import ReplicableUnregisteredSignal, ReplicableRegisteredSignal, SignalListener
+from .signals import (ReplicableUnregisteredSignal, ReplicableRegisteredSignal,
+                      SignalListener)
 from .enums import Roles, Protocols
 from .channel import ClientChannel, ServerChannel
+
+__all__ = ['Connection', 'ServerConnection', 'ClientConnection']
+
+
+def consume(iterable):
+    """Consumes an iterable
+    Iterates over iterable until StopIteration is raised
+    @param iterable: Iterable object"""
+    for _ in iterable:
+        pass
 
 
 class Connection(SignalListener):
@@ -43,10 +54,10 @@ class Connection(SignalListener):
         self.replicable.request_unregistration()
 
     def is_owner(self, replicable):
-        '''Determines if a replicable is belongs to this connection
+        """Determines if a replicable is belongs to this connection
         Compares uppermost parent of replicable with connection's replicable
         @param replicable: replicable instance
-        @return: condition status'''
+        @return: condition status"""
         # Determine if parent is our controller
         parent = replicable.uppermost
         try:
@@ -58,19 +69,19 @@ class Connection(SignalListener):
 
     @staticmethod
     def get_replication_priority(entry):
-        """Gets the replication prirority for a replicable
+        """Gets the replication priority for a replicable
         @param entry: replicable instance
         @return: replication priority"""
         return entry[0].replication_priority
 
     @property
     def replication_data(self, Replicable=Replicable):
-        """Property, generator
-        for replicables with a remote role != Roles.none
+        """Returns a generator for replicables
+        with a remote role != Roles.none
         @yield: replicable, (is_owner and relevant_to_owner), channel"""
         check_is_owner = self.is_owner
         channels = self.channels
-        no_role = Roles.none
+        no_role = Roles.none  # @UndefinedVariable
 
         for replicable in Replicable:
             # Check if remote role is permitted
@@ -87,24 +98,23 @@ class Connection(SignalListener):
 
     @property
     def prioritised_replication_data(self):
-        """Property
+        """Returns an iterator of priorised replicable data
         @return: iterator of prioritised list of replication data"""
         return iter(sorted(self.replication_data, reverse=True,
                       key=self.get_replication_priority))
 
     def get_method_replication(self, replicables, collection, bandwidth):
-        """Generator
-        Writes replicated function calls to packet collection
+        """Writes replicated function calls to packet collection
         @param replicables: iterable of replicables to consider replication
         @param collection: PacketCollection instance
         @param bandwidth: available bandwidth
         @yield: each entry in replicables"""
-        method_invoke = Protocols.method_invoke
+        method_invoke = Protocols.method_invoke  # @UndefinedVariable
         make_packet = Packet
         store_packet = collection.members.append
 
         for item in replicables:
-            replicable, is_owner, channel = item
+            is_owner, channel = item[1:]
 
             # Send RPC calls if we are the owner
             if is_owner and channel.has_rpc_calls:
@@ -133,7 +143,7 @@ class ClientConnection(Connection):
         instance_id = self.replicable_packer.unpack_id(packet.payload)
 
         # If an update for a replicable
-        if packet.protocol == Protocols.replication_update:
+        if packet.protocol == Protocols.replication_update:  # @UndefinedVariable @IgnorePep8
             try:
                 channel = self.channels[instance_id]
 
@@ -146,7 +156,7 @@ class ClientConnection(Connection):
                                       self.replicable_packer.size():])
 
         # If it is an RPC call
-        elif packet.protocol == Protocols.method_invoke:
+        elif packet.protocol == Protocols.method_invoke:  # @UndefinedVariable
             try:
                 channel = self.channels[instance_id]
 
@@ -160,7 +170,7 @@ class ClientConnection(Connection):
                                            self.replicable_packer.size():])
 
         # If construction for replicable
-        elif packet.protocol == Protocols.replication_init:
+        elif packet.protocol == Protocols.replication_init:  # @UndefinedVariable @IgnorePep8
 
             id_size = self.replicable_packer.size()
 
@@ -174,7 +184,7 @@ class ClientConnection(Connection):
                        packet.payload[id_size + type_size:]))
 
             # Create replicable of same type
-            replicable_cls = Replicable.from_type_name(type_name)
+            replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
             # Perform incomplete role switch
@@ -187,11 +197,11 @@ class ClientConnection(Connection):
                 self.replicable = replicable
 
         # If it is the deletion request
-        elif packet.protocol == Protocols.replication_del:
+        elif packet.protocol == Protocols.replication_del:  # @UndefinedVariable @IgnorePep8
 
             # If the replicable exists
             try:
-                replicable = Replicable.get_from_graph(instance_id)
+                replicable = Replicable.get_from_graph(instance_id)  # @UndefinedVariable @IgnorePep8
 
             except LookupError:
                 pass
@@ -205,14 +215,13 @@ class ClientConnection(Connection):
         @param available_bandwidth: estimated available bandwidth
         @return: PacketCollection instance'''
         collection = PacketCollection()
-        replicables = self.get_method_replication(self.prioritised_replication_data,
-                                                  collection,
-                                                  available_bandwidth)
+        replicables = self.get_method_replication(
+                                          self.prioritised_replication_data,
+                                          collection,
+                                          available_bandwidth)
 
         # Consume iterable
-        for item in replicables:
-            pass
-
+        consume(replicables)
         return collection
 
     def receive(self, packets):
@@ -251,25 +260,27 @@ class ServerConnection(Connection):
         @param replicable: replicable that died'''
         # Send delete packet
         channel = self.channels[target.instance_id]
-        self.cached_packets.add(Packet(protocol=Protocols.replication_del,
+        self.cached_packets.add(Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
                                     payload=channel.packed_id, reliable=True))
 
         super().notify_unregistration(target)
 
     @staticmethod
     def get_replication_priority(entry, WorldInfo=WorldInfo):
-        """Gets the replication prirority for a replicable
-        Utilises replciation interval to increment priority of neglected replicables
+        """Gets the replication priority for a replicable
+        Utilises replication interval to increment priority
+        of neglected replicables
         @param entry: replicable instance
         @return: replication priority"""
-        replicable, is_owner, channel = entry
+        replicable, _, channel = entry
         interval = (WorldInfo.elapsed - channel.last_replication_time)
         elapsed_fraction = (interval / replicable.replication_update_period)
         return replicable.replication_priority + (elapsed_fraction - 1)
 
     def get_attribute_replication(self, replicables, collection, bandwidth):
         """Generator
-        Writes to packet collection, respecting bandwidth for attribute replication
+        Writes to packet collection, respecting bandwidth for attribute
+        replication
         @param replicables: iterable of replicables to consider replication
         @param collection: PacketCollection instance
         @param bandwidth: available bandwidth
@@ -280,8 +291,8 @@ class ServerConnection(Connection):
         insert_packet = collection.members.insert
         extend_packets = collection.members.extend
 
-        replication_init = Protocols.replication_init
-        replication_update = Protocols.replication_update
+        replication_init = Protocols.replication_init  # @UndefinedVariable
+        replication_update = Protocols.replication_update  # @UndefinedVariable
 
         timestamp = WorldInfo.elapsed
         is_relevant = WorldInfo.rules.is_relevant
@@ -353,7 +364,7 @@ class ServerConnection(Connection):
         unpacker = self.replicable_packer.unpack_id
         id_size = self.replicable_packer.size()
 
-        method_invoke = Protocols.method_invoke
+        method_invoke = Protocols.method_invoke  # @UndefinedVariable
 
         # Run RPC invoke for each packet
         for packet in packets:
@@ -375,9 +386,10 @@ class ServerConnection(Connection):
         @return: PacketCollection instance'''
 
         collection = PacketCollection()
-        replicables = self.get_method_replication(self.prioritised_replication_data,
-                                                  collection,
-                                                  available_bandwidth)
+        replicables = self.get_method_replication(
+                                          self.prioritised_replication_data,
+                                          collection,
+                                          available_bandwidth)
 
         if network_tick:
             replicables = self.get_attribute_replication(replicables,
@@ -385,7 +397,5 @@ class ServerConnection(Connection):
                                                          available_bandwidth)
 
         # Consume iterable
-        for item in replicables:
-            pass
-
+        consume(replicables)
         return collection

@@ -1,6 +1,9 @@
 handlers = {}
 descriptions = {}
 
+__all__ = ['static_description', 'register_handler', 'register_description',
+           'get_handler']
+
 
 def static_description(obj):
     '''Uses hash-like comparison of muteable and/or immuteable data
@@ -37,11 +40,11 @@ def register_handler(type_, callable_, is_condition=False):
     handlers[type_] = callable_, is_condition
 
 
-def register_description(type_, callable):
-    '''Registers special description for non-subclassable types
+def register_description(type_, callback):
+    '''Registers special description for non-subclass-able types
     @param type_: type of object
     @param callable: callable for description'''
-    descriptions[type_] = callable
+    descriptions[type_] = callback
 
 
 def get_handler(value):
@@ -50,8 +53,10 @@ def get_handler(value):
 
     value_type = value.type
 
-    if not value_type in handlers:
+    try:
+        callback, is_callable = handlers[value_type]
 
+    except KeyError:
         handled_superclasses = (cls for cls in value.type.__mro__
                                 if cls in handlers)
 
@@ -59,13 +64,10 @@ def get_handler(value):
             value_type = next(handled_superclasses)
 
         except StopIteration:
-            print(handlers)
-            raise TypeError("No handler for object with type {}".format(
+            raise TypeError("No handler found for object with type {}".format(
                                                                 value.type))
         else:
             # Remember this for later call
-            handlers[value.type] = handlers[value_type]
+            callback, is_callable = handlers[value.type] = handlers[value_type]
 
-    callback, is_condition = handlers[value_type]
-
-    return callback(value) if is_condition else callback
+    return callback(value) if is_callable else callback

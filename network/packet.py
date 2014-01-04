@@ -2,7 +2,8 @@ from .handler_interfaces import get_handler
 from .descriptors import TypeFlag
 
 from functools import lru_cache
-from itertools import chain
+
+__all__ = ['PacketCollection', 'Packet']
 
 
 class PacketCollection:

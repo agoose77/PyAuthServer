@@ -5,10 +5,10 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
-from .signals import SignalListener
+__all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
 
 
-class UnblockingSocket(socket):
+class UDPSocket(socket):
     """Non blocking socket class"""
 
     def __init__(self, addr, port):
@@ -19,7 +19,7 @@ class UnblockingSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(UnblockingSocket):
+class UnreliableSocket(UDPSocket):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -66,7 +66,7 @@ class Network:
         self.sent_bytes = 0
         self.received_bytes = 0
 
-        self.socket = UnblockingSocket(addr, port)
+        self.socket = UDPSocket(addr, port)
 
     @property
     def send_rate(self):
@@ -98,7 +98,7 @@ class Network:
     def receive(self):
         '''Receive all data from socket'''
         # Get connections
-        get_connection = ConnectionInterface.get_from_graph
+        get_connection = ConnectionInterface.get_from_graph  # @UndefinedVariable @IgnorePep8
 
         # Receives all incoming data
         for bytes_, addr in iter(self.receive_from, None):
@@ -115,12 +115,12 @@ class Network:
             self.received_bytes += len(bytes_)
 
         # Apply any changes to the Connection interface
-        ConnectionInterface.update_graph()
+        ConnectionInterface.update_graph()  # @UndefinedVariable
 
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
         send_func = self.send_to
-        disconnected_state = ConnectionStatus.disconnected
+        disconnected_state = ConnectionStatus.disconnected  # @UndefinedVariable @IgnorePep8
 
         # Send all queued data
         for connection in ConnectionInterface:
@@ -138,7 +138,7 @@ class Network:
                 send_func(data, connection.instance_id)
 
         # Delete dead connections
-        ConnectionInterface.update_graph()
+        ConnectionInterface.update_graph()  # @UndefinedVariable
 
     @staticmethod
     def connect_to(peer_data, *args, **kwargs):

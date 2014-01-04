@@ -1,10 +1,9 @@
-from .handler_interfaces import (register_handler, get_handler,
-                                 static_description)
-from .descriptors import TypeFlag
 from .containers import AttributeStorageContainer
-from .argument_serialiser import ArgumentSerialiser
+from .flag_serialiser import FlagSerialiser
 
 from copy import deepcopy
+
+__all__ = ['Struct']
 
 
 class Struct:
@@ -13,7 +12,7 @@ class Struct:
     def __init__(self):
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()
-        self._serialiser = ArgumentSerialiser(self._container._ordered_mapping)
+        self._serialiser = FlagSerialiser(self._container._ordered_mapping)
 
     def __deepcopy__(self, memo):
         new_struct = self.__class__()
@@ -62,28 +61,3 @@ class Struct:
         return "<Struct {}: {} member{}>".format(self.__class__.__name__,
                                                  attribute_count, 's' if
                                                  attribute_count != 1 else '')
-
-
-class StructHandler:
-
-    def __init__(self, static_value):
-        self.struct_cls = static_value.type
-        self.size_packer = get_handler(TypeFlag(int))
-
-    def pack(self, struct):
-        bytes_ = struct.to_bytes()
-        return self.size_packer.pack(len(bytes_)) + bytes_
-
-    def unpack_from(self, bytes_):
-        struct = self.struct_cls()
-        self.unpack_merge(struct, bytes_)
-        return struct
-
-    def unpack_merge(self, struct, bytes_):
-        struct.from_bytes(bytes_[self.size_packer.size():])
-
-    def size(self, bytes_):
-        return self.size_packer.unpack_from(bytes_) + self.size_packer.size()
-
-
-register_handler(Struct, StructHandler, True)

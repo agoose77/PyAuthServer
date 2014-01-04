@@ -4,14 +4,14 @@ from .instance_register import InstanceRegister
 from .rpc import RPCInterfaceFactory
 
 from functools import wraps
-from inspect import getmembers
-from traceback import print_exc
 from types import FunctionType
+
+__all__ = ['ReplicableRegister']
 
 
 class ReplicableRegister(InstanceRegister):
 
-    def __new__(meta, cls_name, bases, attrs):
+    def __new__(self, cls_name, bases, attrs):
         # If this isn't the base class
         if bases:
             # Get all the member methods
@@ -21,9 +21,8 @@ class ReplicableRegister(InstanceRegister):
                 if (not isinstance(value, FunctionType) or
                     isinstance(value, (classmethod, staticmethod))):
                     continue
-                print(isinstance(value, staticmethod))
 
-                if meta.should_ignore(name, value, bases):
+                if self.should_ignore(name, value, bases):
                     continue
 
                 # This is required to ensure class arguments
@@ -36,17 +35,17 @@ class ReplicableRegister(InstanceRegister):
 
                 # RPC calls will have already wrapped their value
                 else:
-                    value = meta.permission_wrapper(value)
+                    value = self.permission_wrapper(value)
 
                 # Automatically wrap RPC
-                if meta.is_rpc(value):
+                if self.is_rpc(value):
                     value = RPCInterfaceFactory(value)
 
                 attrs[name] = value
 
-        return super().__new__(meta, cls_name, bases, attrs)
+        return super().__new__(self, cls_name, bases, attrs)
 
-    def is_rpc(func):
+    def is_rpc(func):  # @NoSelf
         try:
             annotations = func.__annotations__
 
@@ -76,15 +75,15 @@ class ReplicableRegister(InstanceRegister):
     def should_ignore(meta, name, func, bases):
         return meta.is_wrapped(func) or meta.found_in_parents(name, bases)
 
-    def mark_wrapped(func):
+    def mark_wrapped(func):  # @NoSelf
         func.__annotations__['wrapped'] = True
 
-    def is_wrapped(func):
+    def is_wrapped(func):  # @NoSelf
         return bool(func.__annotations__.get("wrapped"))
 
     @classmethod
     def permission_wrapper(meta, func):
-        simulated_proxy = Roles.simulated_proxy
+        simulated_proxy = Roles.simulated_proxy  # @UndefinedVariable
         func_is_simulated = is_simulated(func)
 
         @wraps(func)

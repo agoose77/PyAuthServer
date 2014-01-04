@@ -1,7 +1,9 @@
 from .replicables import WorldInfo
 
+__all__ = ['NetmodeSwitch']
 
-class NetmodeSelector:
+
+class NetmodeSwitch:
 
     @classmethod
     def netmode_specific(cls, id_):

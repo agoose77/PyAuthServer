@@ -6,6 +6,10 @@ from functools import partial
 from collections import OrderedDict, deque
 from inspect import getmembers
 
+__all__ = ['ValueProperty', 'StorageInterface', 'RPCStorageInterface',
+           'AttributeStorageInterface', 'AbstractStorageContainer',
+           'RPCStorageContainer', 'AttributeStorageContainer']
+
 
 class ValueProperty:
     """Property wrapper about data item
@@ -71,10 +75,10 @@ class AbstractStorageContainer:
         self.data = self.get_default_data()
 
     def get_default_value(self, member):
-        raise NotImplemented
+        raise NotImplementedError
 
     def check_is_supported(self, member):
-        raise NotImplemented
+        raise NotImplementedError
 
     def get_member_instances(self, instance):
         is_supported = self.check_is_supported
@@ -192,15 +196,17 @@ class AttributeStorageContainer(AbstractStorageContainer):
         return isinstance(member, Attribute)
 
     def get_default_value(self, attribute):
-        return attribute.value
+        return attribute.get_new_value()
 
     def new_storage_interface(self, name, member):
         getter, setter = self.get_storage_accessors(member)
 
         complain_setter = partial(self.complaints.__setitem__, member)
         interface = AttributeStorageInterface(getter, setter, complain_setter)
+        default_value = self.get_default_value(member)
 
         member.register(self._instance, interface)
+        setter(default_value)
         member.name = name
 
         return member

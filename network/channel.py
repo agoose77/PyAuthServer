@@ -1,8 +1,10 @@
 from .handler_interfaces import static_description, get_handler
-from .argument_serialiser import ArgumentSerialiser
+from .flag_serialiser import FlagSerialiser
 from .conditions import is_reliable
 from .descriptors import TypeFlag
 from .replicables import Replicable, WorldInfo
+
+__all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
 class Channel:
@@ -19,7 +21,8 @@ class Channel:
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
         # Create a serialiser instance
-        self.serialiser = ArgumentSerialiser(self.attribute_storage._ordered_mapping)
+        self.serialiser = FlagSerialiser(
+                                     self.attribute_storage._ordered_mapping)
 
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))
@@ -28,7 +31,7 @@ class Channel:
 
     def take_rpc_calls(self):
         '''Returns the requested RPC calls in a packaged format
-        Format: rpc_id (bytes) + payload (bytes), reliable status (bool)'''
+        Format: rpc_id (bytes) + body (bytes), reliable status (bool)'''
         id_packer = self.rpc_id_packer.pack
         get_reliable = is_reliable
 
@@ -40,7 +43,7 @@ class Channel:
         storage_data.clear()
 
     def invoke_rpc_call(self, rpc_call):
-        '''Invokes an rpc call from packaged format
+        '''Invokes an RPC call from packaged format
         @param rpc_call: rpc data (see take_rpc_calls)'''
         rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
 
@@ -66,7 +69,7 @@ class ClientChannel(Channel):
 
     def set_attributes(self, bytes_):
         '''Unpacks byte stream and updates attributes
-        @param bytes_: byte stream of attribute bytes_''' 
+        @param bytes_: byte stream of attribute bytes_'''
         replicable = self.replicable
 
         # Create local references outside loop

@@ -2,8 +2,8 @@ class TypeRegister(type):
     '''Registers all subclasses of parent class
     Stores class name: class mapping on parent._types'''
 
-    def __new__(meta, name, parents, attrs):
-        cls = super().__new__(meta, name, parents, attrs)
+    def __new__(self, name, parents, attrs):
+        cls = super().__new__(self, name, parents, attrs)
 
         if not hasattr(cls, "_types"):
             cls._types = []
