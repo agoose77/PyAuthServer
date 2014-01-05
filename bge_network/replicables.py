@@ -21,6 +21,7 @@ import mathutils
 import os
 import operator
 import functools
+
 from bge import logic
 from functools import lru_cache
 
@@ -76,6 +77,21 @@ class Controller(Replicable):
     def remove_camera(self):
         self.camera.unpossessed()
 
+    def server_fire(self):
+        self.weapon.fire(self.camera)
+        # Update flash count (for client-side fire effects)
+        self.pawn.flash_count += 1
+
+        if self.pawn.flash_count > 255:
+            self.pawn.flash_count = 0
+
+        for controller in WorldInfo.subclass_of(Controller):
+            if controller == self:
+                continue
+
+            controller.hear_sound(self.weapon.shoot_sound,
+                                  self.pawn.position)
+
     def set_camera(self, camera):
         camera.set_parent(self.pawn, "camera")
 
@@ -94,19 +110,7 @@ class Controller(Replicable):
         if not self.weapon.can_fire:
             return
 
-        self.weapon.fire(self.camera)
-        # Update flash count (for client-side fire effects)
-        self.pawn.flash_count += 1
-
-        if self.pawn.flash_count > 255:
-            self.pawn.flash_count = 0
-
-        for controller in WorldInfo.subclass_of(Controller):
-            if controller == self:
-                continue
-
-            controller.hear_sound(self.weapon.shoot_sound,
-                                  self.pawn.position)
+        self.server_fire()
 
     def unpossess(self):
         self.pawn.unpossessed()
@@ -136,12 +140,15 @@ class AIReplicationInfo(ReplicableInfo):
 class PlayerReplicationInfo(AIReplicationInfo):
 
     name = Attribute("", complain=True)
+    ping = Attribute(0.0)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
 
         if is_complain:
             yield "name"
+
+        yield "ping"
 
 
 class AIController(Controller):
@@ -246,6 +253,10 @@ class PlayerController(Controller):
 
         return True
 
+    @requires_netmode(Netmodes.server)
+    def calculate_ping(self):
+        self.send_ping_request(WorldInfo.elapsed)
+
     def correct_bad_move(self, move_id: TypeFlag(int,
                                max_value=MarkAttribute("move_id_max")),
                          correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
@@ -263,12 +274,17 @@ class PlayerController(Controller):
                 # Place inputs into input manager
                 inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
                 lookup_dict.update(inputs_zip)
-    
                 # (Re) execute move
                 self.execute_move(self.inputs, move.mouse_x,
                                   move.mouse_y, move.delta_time)
                 self.save_move(move_id, move.delta_time, move.inputs,
                                move.mouse_x, move.mouse_y)
+
+    @requires_netmode(Netmodes.client)
+    def destroy_microphone(self):
+        del self.microphone
+        for key in list(self.sound_channels):
+            del self.sound_channels[key]
 
     def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
         blackboard = self.behaviour.blackboard
@@ -295,7 +311,8 @@ class PlayerController(Controller):
     def handle_inputs(self, inputs, mouse_x, mouse_y, delta_time):
         pass
 
-    def hear_sound(self, sound_path: TypeFlag(str), source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
+    def hear_sound(self, sound_path: TypeFlag(str),
+                   source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
 
@@ -307,6 +324,9 @@ class PlayerController(Controller):
         file_path = bge.logic.expandPath("//{}".format(sound_path))
         factory = aud.Factory.file(file_path)
         return aud.device().play(factory)
+
+    def hear_voice(self, info, voice):
+        self.send_voice_client(info, voice)
 
     def increment_move(self):
         self.current_move_id += 1
@@ -334,12 +354,16 @@ class PlayerController(Controller):
         self.mouse_smoothing = 0.6
 
         self._mouse_delta = None
-        self._mouse_epsilon = 0.00001
+        self._mouse_epsilon = 0.001
 
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @simulated
+        self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
+                                      repeat=True)
+        self.ping_results = collections.deque()
+        self.ping_samples = 3
+
     def on_notify(self, name):
         if name == "pawn":
             if self.pawn:
@@ -358,7 +382,10 @@ class PlayerController(Controller):
         else:
             super().on_notify(name)
 
-    @simulated
+    def on_unregistered(self):
+        super().on_unregistered()
+        self.destroy_microphone()
+
     @signals.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
 
@@ -406,20 +433,31 @@ class PlayerController(Controller):
                                                   delta_time, input_tuple,
                                                   mouse_diff_x, mouse_diff_y)
 
-    @requires_netmode(Netmodes.client)
-    def setup_input(self):
-        keybindings = self.load_keybindings()
+    def send_ping_request(self, timestamp: TypeFlag(float)) -> Netmodes.client:
+        self.send_ping_reply(timestamp)
 
-        self.inputs = inputs.InputManager(keybindings)
-        print("Created input manager")
+    def send_ping_reply(self, timestamp: TypeFlag(float)) -> Netmodes.server:
+        if len(self.ping_results) > self.ping_samples:
+            self.ping_results.popleft()
+        self.ping_results.append(WorldInfo.elapsed - timestamp)
+        self.info.ping = sum(self.ping_results) / len(self.ping_results)
 
-    @requires_netmode(Netmodes.client)
-    def setup_microphone(self):
-        self.microphone = stream.MicrophoneStream()
-        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
+    def send_voice_server(self, data: TypeFlag(bytes,
+                                               max_length=256)) -> Netmodes.server:
+        info = self.info
+        for controller in WorldInfo.subclass_of(Controller):
+            if controller is self:
+                continue
+            controller.hear_voice(info, data)
 
-    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
-        self.info.name = name
+    def send_voice_client(self, info: TypeFlag(Replicable),
+                          data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
+        player = self.sound_channels[info]
+        player.decode(data)
+
+    def server_fire(self):
+        print("Rolling back by {:.3f} seconds".format(self.info.ping))
+        super().server_fire()
 
     def server_validate(self, move_id: TypeFlag(int,
                                  max_value=MarkAttribute("move_id_max")),
@@ -460,25 +498,20 @@ class PlayerController(Controller):
                 self.correct_bad_move(move_id, correction)
                 self.last_correction = move_id
 
-    def send_voice_server(self, data: TypeFlag(bytes, max_length=256)) -> Netmodes.server:
-        info = self.info
-        for controller in WorldInfo.subclass_of(Controller):
-            if controller is self:
-                continue
-            controller.hear_voice(info, data)
+    @requires_netmode(Netmodes.client)
+    def setup_input(self):
+        keybindings = self.load_keybindings()
 
-    def send_voice_client(self, info: TypeFlag(Replicable),
-                   data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
-        player = self.sound_channels[info]
-        player.decode(data)
+        self.inputs = inputs.InputManager(keybindings)
+        print("Created input manager")
 
-    def store_voice(self):
-        data = self.microphone.encode()
-        if data:
-            self.send_voice_server(data)
+    @requires_netmode(Netmodes.client)
+    def setup_microphone(self):
+        self.microphone = stream.MicrophoneStream()
+        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
 
-    def hear_voice(self, info, voice):
-        self.send_voice_client(info, voice)
+    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
+        self.info.name = name
 
     def start_fire(self):
         if not self.weapon:
@@ -494,19 +527,14 @@ class PlayerController(Controller):
         self.pawn.weapon_attachment.play_fire_effects()
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
 
+    def store_voice(self):
+        data = self.microphone.encode()
+        if data:
+            self.send_voice_server(data)
+
     def unpossess(self):
         signals.PhysicsSetSimulatedSignal.invoke(target=self.pawn)
         super().unpossess()
-
-    @requires_netmode(Netmodes.client)
-    def destroy_microphone(self):
-        del self.microphone
-        for key in list(self.sound_channels):
-            del self.sound_channels[key]
-
-    def on_unregistered(self):
-        super().on_unregistered()
-        self.destroy_microphone()
 
 
 class Actor(Replicable):

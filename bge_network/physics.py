@@ -4,11 +4,51 @@ from .signals import (PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
                      PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
                      MapLoadedSignal, UpdateCollidersSignal, PhysicsCopyState)
+from .structs import RigidBodyState
 
 from bge import logic
+from collections import deque, defaultdict
+from mathutils import Vector
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable,
-                     NetmodeSwitch, netmode_switch, TypeRegister)
+                     NetmodeSwitch, netmode_switch, TypeRegister,
+                     FactoryDict)
+
+
+class EPICInterpolator:
+
+    def __init__(self, actor):
+        self.actor = actor
+
+        self._last_time = None
+        self._update_time = 1 / 25
+
+    def add_sample(self, physics):
+        position = self.actor.position
+        timestamp = WorldInfo.elapsed
+
+        self._last_time = timestamp#packet_timestamp
+
+        aim_timestamp = timestamp + self._update_time
+        delta_time = self._update_time #aim_timestamp - packet_timestamp
+        # Where we intend to be in the future
+        aim_position = physics.position + physics.velocity * delta_time
+
+        if (abs(aim_timestamp - timestamp) < 0.001):
+            velocity = physics.velocity
+
+        else:
+           # delta_time = 1.0 / (aim_timestamp - timestamp)
+            velocity = (aim_position - position) * self._update_time
+
+        new_state = RigidBodyState()
+        new_state.position = position
+        new_state.velocity = velocity
+        new_state.rotation = physics.rotation
+        new_state.angular = physics.angular
+        new_state.collision_group = self.actor.collision_group
+        new_state.collision_mask = self.actor.collision_mask 
+        return new_state
 
 
 class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
@@ -172,9 +212,17 @@ class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1
 
-    @PhysicsTickSignal.global_listener
-    def update(self, scene, delta_time):
-        super().update(scene, delta_time)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.extrapolators = FactoryDict(EPICInterpolator)
+
+    @ReplicableUnregisteredSignal.global_listener
+    def notify_unregistration(self, target):
+        super().notify_unregistration(target)
+
+        if target in self.extrapolators:
+            self.extrapolators.pop(target)
 
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:
@@ -183,6 +231,12 @@ class ClientPhysics(PhysicsSystem):
 
     @PhysicsReplicatedSignal.global_listener
     def actor_replicated(self, target_physics, target):
+        self.match_state(target_physics, target)
+        return
+        extrapolator = self.extrapolators[target]
+        self.interface_state(extrapolator.add_sample(target_physics), target)
+
+    def match_state(self, target_physics, target):
         difference = target_physics.position - target.position
 
         small_correction = difference.length_squared < \
@@ -190,13 +244,13 @@ class ClientPhysics(PhysicsSystem):
 
         if small_correction:
             target.position += difference * 0.2
-            target.velocity = target_physics.velocity + difference * 0.8
+            target.velocity = target_physics.velocity + (difference * 0.8) / 25
 
         else:
-            target.position = target_physics.position.copy()
-            target.velocity = target_physics.velocity.copy()
+            target.position = target_physics.position
+            target.velocity = target_physics.velocity
 
-        target.rotation = target_physics.rotation.copy()
-        target.angular = target_physics.angular.copy()
+        target.rotation = target_physics.rotation
+        target.angular = target_physics.angular
         target.collision_group = target_physics.collision_group
         target.collision_mask = target_physics.collision_mask

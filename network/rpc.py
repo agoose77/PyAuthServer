@@ -27,8 +27,9 @@ class RPCInterfaceFactory:
 
         try:
             return self._by_instance[instance]
+
         except KeyError:
-            return None
+            return self.function.__get__(instance)
 
     def create_rpc_interface(self, instance):
         bound_function = self.function.__get__(instance)
@@ -48,6 +49,9 @@ class RPCInterfaceFactory:
                 if not isinstance(arg_value, lookup_type):
                     continue
                 data[arg_name] = getattr(instance, arg_value.name)
+
+    def __repr__(self):
+        return "<RPC {}>".format(self.function.__qualname__)
 
 
 class RPCInterface:

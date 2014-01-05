@@ -642,7 +642,7 @@ class UIPanel(TimerMixins, Panel):
 
     @UIUpdateSignal.global_listener
     def update_entry(self, name, value):
-        value_field = self.entries[name][0]
+        value_field = self.entries[name][1]
         value_field.text = str(value)
 
     def create_glow_animation(self, entry):
