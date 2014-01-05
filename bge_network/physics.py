@@ -8,10 +8,10 @@ from .signals import (PhysicsReplicatedSignal,
 from bge import logic
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable,
-                     NetmodeSelector, for_netmode, TypeRegister)
+                     NetmodeSwitch, netmode_switch, TypeRegister)
 
 
-class PhysicsSystem(NetmodeSelector, SignalListener, metaclass=TypeRegister):
+class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     def __init__(self, update_func, apply_func):
         super().__init__()
@@ -155,7 +155,7 @@ class PhysicsSystem(NetmodeSelector, SignalListener, metaclass=TypeRegister):
         b.collision_mask = a.collision_mask
 
 
-@for_netmode(Netmodes.server)
+@netmode_switch(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
     @PhysicsTickSignal.global_listener
@@ -167,7 +167,7 @@ class ServerPhysics(PhysicsSystem):
             self.interface_state(replicable, state)
 
 
-@for_netmode(Netmodes.client)
+@netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 1

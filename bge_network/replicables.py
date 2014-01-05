@@ -228,7 +228,7 @@ class PlayerController(Controller):
         return smooth_x, smooth_y
 
     def acknowledge_good_move(self, move_id: TypeFlag(int,
-                                    max_value=FindAttribute("move_id_max"))) -> Netmodes.client:
+                                    max_value=MarkAttribute("move_id_max"))) -> Netmodes.client:
         self.last_correction = move_id
 
         try:
@@ -247,7 +247,7 @@ class PlayerController(Controller):
         return True
 
     def correct_bad_move(self, move_id: TypeFlag(int,
-                               max_value=FindAttribute("move_id_max")),
+                               max_value=MarkAttribute("move_id_max")),
                          correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
         if not self.acknowledge_good_move(move_id):
             print("No move found")
@@ -422,11 +422,11 @@ class PlayerController(Controller):
         self.info.name = name
 
     def server_validate(self, move_id: TypeFlag(int,
-                                 max_value=FindAttribute("move_id_max")),
+                                 max_value=MarkAttribute("move_id_max")),
                         last_correction: TypeFlag(int,
-                                 max_value=FindAttribute("move_id_max")),
+                                 max_value=MarkAttribute("move_id_max")),
                         inputs: TypeFlag(inputs.InputManager,
-                                 input_fields=FindAttribute("input_fields")),
+                                 input_fields=MarkAttribute("input_fields")),
                         mouse_diff_x: TypeFlag(float),
                         mouse_diff_y: TypeFlag(float),
                         delta_time: TypeFlag(float),

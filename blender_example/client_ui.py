@@ -7,7 +7,6 @@ from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
                      BroadcastMessage)
 from signals import (ConsoleMessage, ConnectToSignal, UIUpdateSignal,
                      UIWeaponChangedSignal)
-from datetime import datetime
 from functools import partial
 
 import bge
@@ -165,8 +164,7 @@ class ConnectPanel(Panel):
                                                dict(size=[0.5, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
-                                                    text="http://coldcinder.co.uk/networking/matchmaker/asdsad"))
-        #print(sum(self.match_field.dimensions), self.match_input_frame.size[0])
+                        text="http://coldcinder.co.uk/networking/matchmaker/asdsad"))
 
         make_adjacent(self.refresh_button, self.connect_button,
                       full_size=0.3)
@@ -465,6 +463,7 @@ class UIPanel(TimerMixins, Panel):
         # Main UI
         self.dark_grey = [0.1, 0.1, 0.1, 1]
         self.light_grey = [0.3, 0.3, 0.3, 1]
+        self.faded_grey = [0.3, 0.3, 0.3, 0.3]
         self.faded_white = [1, 1, 1, 0.6]
         self.error_red = [1, 0.05, 0.05, 1]
         self.font_size = 32
@@ -475,8 +474,7 @@ class UIPanel(TimerMixins, Panel):
 
         self.notifications = bgui.Frame(parent=self, name="NotificationsPanel",
                                         size=main_size[:], pos=main_pos[:])
-        lg = [0.3, 0.3, 0.3, 0.3]
-        self.notifications.colors = [lg] * 4
+        self.notifications.colors = [self.faded_grey] * 4
 
         self.weapons_box = bgui.Frame(self, "weapons", size=[main_size[0], 0.25],
                                       pos=[main_pos[0], 0.025])
@@ -632,7 +630,6 @@ class UIPanel(TimerMixins, Panel):
         self.frag_info.colors = [self.faded_white] * 4
         self.frag_box.colors = [self.faded_white] * 4
         self.flashbang_box.colors = [self.faded_white] * 4
-
         self.icon_bar.colors = [self.faded_white] * 4
 
         self.visible = False
@@ -645,7 +642,7 @@ class UIPanel(TimerMixins, Panel):
 
     @UIUpdateSignal.global_listener
     def update_entry(self, name, value):
-        field, value_field = self.entries[name]
+        value_field = self.entries[name][0]
         value_field.text = str(value)
 
     def create_glow_animation(self, entry):
@@ -660,7 +657,7 @@ class UIPanel(TimerMixins, Panel):
 
     @theme_colour.setter
     def theme_colour(self, value):
-        self.icon_theme.colors = make_gradient(value, 1/3)
+        self.icon_theme.colors = make_gradient(value, 1 / 3)
 
     @ConnectionSuccessSignal.global_listener
     def on_connect(self, target):
@@ -686,7 +683,7 @@ class UIPanel(TimerMixins, Panel):
         y_shift = Notification.default_size[1] + self.entry_padding
         for index, notification in enumerate(self._notifications):
             intended_y = self.start_position[1] - (index * y_shift)
-            position_x, position_y = notification.initial_position
+            position_y = notification.initial_position[1]
 
             if (position_y == intended_y):
                 continue
