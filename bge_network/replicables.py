@@ -414,7 +414,6 @@ class PlayerController(Controller):
         super().possess(replicable)
 
         signals.PhysicsUnsetSimulatedSignal.invoke(target=replicable)
-
         self.reset_corrections(replicable)
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
@@ -540,7 +539,7 @@ class PlayerController(Controller):
 class Actor(Replicable):
 
     rigid_body_state = Attribute(structs.RigidBodyState(), notify=True)
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
                       notify=True)
 
     entity_name = ""
@@ -624,7 +623,7 @@ class Actor(Replicable):
 
         if not other in self._registered:
             self._registered.add(other)
-            signals.CollisionSignal.invoke(other, True, target=self)
+            signals.CollisionSignal.invoke(other, True, data, target=self)
 
     @signals.UpdateCollidersSignal.global_listener
     @simulated
@@ -644,7 +643,7 @@ class Actor(Replicable):
         for obj in difference:
             self._registered.remove(obj)
 
-            signals.CollisionSignal.invoke(obj, False, target=self)
+            signals.CollisionSignal.invoke(obj, False, None, target=self)
 
     def on_unregistered(self):
         # Unregister any actor children
@@ -824,6 +823,26 @@ class Actor(Replicable):
         self.object.localAngularVelocity = vel
 
 
+class Projectile(Actor):
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.update_simulated_physics = False
+        self.lifespan = 10
+
+        self.create_timer()
+
+    def create_timer(self):
+        self._timer = timer.Timer(self.lifespan, on_target=self.request_unregistration)
+
+    def on_unregistered(self):
+        super().on_unregistered()
+
+        self._timer.stop()
+        self._timer.delete()
+
+
 class Weapon(Replicable):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
     ammo = Attribute(70)
@@ -868,7 +887,7 @@ class Weapon(Replicable):
 
         replicable = Actor.from_object(hit_object)
 
-        if replicable == self.owner.pawn or not replicable:
+        if replicable == self.owner.pawn or not isinstance(replicable, Pawn):
             return
 
         hit_vector = (hit_position - camera.position)
@@ -937,6 +956,9 @@ class Camera(Actor):
 
     entity_class = bge_data.CameraObject
     entity_name = "Camera"
+
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
+                      notify=True)
 
     @property
     def active(self):
@@ -1052,6 +1074,8 @@ class Pawn(Actor):
 
     health = Attribute(100, notify=True, complain=True)
     alive = Attribute(True, notify=True, complain=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
+                      notify=True)
 
     replication_update_period = 1 / 60
 

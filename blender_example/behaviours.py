@@ -301,7 +301,7 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        return abs(pawn.velocity.y - pawn.walk_speed) <= pawn.walk_speed / 2
+        return abs(pawn.velocity.y) >= pawn.walk_speed * 0.9
 
 
 class PlayAnimation(SignalLeafNode):

@@ -9,10 +9,13 @@ from .structs import RigidBodyState
 from bge import logic
 from collections import deque, defaultdict
 from mathutils import Vector
+from contextlib import contextmanager
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable,
                      NetmodeSwitch, netmode_switch, TypeRegister,
                      FactoryDict)
+
+__all__ = ["EPICInterpolator", "PhysicsSystem", "ServerPhysics", "ClientPhysics"]
 
 
 class EPICInterpolator:
@@ -105,6 +108,16 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         if pawn.weapon_attachment_class is not None:
             pawn.create_weapon_attachment(pawn.weapon_attachment_class)
 
+    @contextmanager
+    def protect_exemptions(self, exemptions):
+        # Suspend exempted objects
+        for actor in exemptions:
+            actor.suspended = True
+        yield
+        # Restore scheduled objects
+        for actor in exemptions:
+            actor.suspended = False
+
     @MapLoadedSignal.global_listener
     def convert_map(self, target=None):
         scene = logic.getCurrentScene()
@@ -152,34 +165,19 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         if not target.physics in self._active_physics:
             return
 
-        # Make a list of objects we touched
-        modified_states = []
-        for this_target in WorldInfo.subclass_of(Actor):
-            if this_target == target:
-                continue
+        # Make a list of actors which aren't us
+        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a != target]
 
-            this_target.suspended = True
-            modified_states.append(this_target)
-
-        self._update_func(delta_time)
-
-        # Restore suspended actors
-        for this_target in modified_states:
-            this_target.suspended = False
+        with self.protect_exemptions(other_actors):
+            self._update_func(delta_time)
 
         self._apply_func()
 
+    @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
-
         # Restore scheduled objects
-        for actor in self._exempt_actors:
-            actor.suspended = True
-
-        self._update_func(delta_time)
-
-        # Restore scheduled objects
-        for actor in self._exempt_actors:
-            actor.suspended = False
+        with self.protect_exemptions(self._exempt_actors):
+            self._update_func(delta_time)
 
         self._apply_func()
 
@@ -210,7 +208,7 @@ class ServerPhysics(PhysicsSystem):
 @netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
-    small_correction_squared = 1
+    small_correction_squared = 3
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -231,26 +229,21 @@ class ClientPhysics(PhysicsSystem):
 
     @PhysicsReplicatedSignal.global_listener
     def actor_replicated(self, target_physics, target):
-        self.match_state(target_physics, target)
-        return
-        extrapolator = self.extrapolators[target]
-        self.interface_state(extrapolator.add_sample(target_physics), target)
-
-    def match_state(self, target_physics, target):
         difference = target_physics.position - target.position
 
+        target.rotation = target_physics.rotation
         small_correction = difference.length_squared < \
                             self.small_correction_squared
 
         if small_correction:
-            target.position += difference * 0.2
-            target.velocity = target_physics.velocity + (difference * 0.8) / 25
+            target.position += difference * 0.3
+            target.velocity = target_physics.velocity# + difference
 
         else:
             target.position = target_physics.position
             target.velocity = target_physics.velocity
 
-        target.rotation = target_physics.rotation
         target.angular = target_physics.angular
         target.collision_group = target_physics.collision_group
         target.collision_mask = target_physics.collision_mask
+

@@ -5,6 +5,8 @@ from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
 
+from . import signals
+
 __all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
 
 
@@ -19,7 +21,7 @@ class UDPSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(UDPSocket):
+class UnreliableSocket(UDPSocket, signals.SignalListener):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -27,10 +29,15 @@ class UnreliableSocket(UDPSocket):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.delay = 0.100
+        self.delay = 0.400
 
         self._buffer_out = deque()
         self._buffer_in = deque()
+        self.register_signals()
+
+    @signals.UpdateSignal.global_listener
+    def cb(self, dt):
+        self.poll()
 
     def poll(self):
         systime = monotonic()

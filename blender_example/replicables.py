@@ -5,6 +5,7 @@ from bge import logic
 import signals
 import aud
 import controls
+import mathutils
 
 
 class GameReplicationInfo(bge_network.ReplicableInfo):
@@ -120,6 +121,13 @@ class M4A1Weapon(bge_network.Weapon):
         self.attachment_class = M4A1Attachment
         self.shoot_interval = 0.1
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
+        self.shot_type = bge_network.ShotType.projectile
+
+    def projectile_shot(self):
+        projectile = SphereProjectile()
+        projectile.position = self.owner.pawn.position + self.owner.pawn.rotation.to_matrix().col[1] * 3 + Vector((0, 0, 1))
+        projectile.rotation = self.owner.pawn.rotation.copy()
+        projectile.velocity = mathutils.Vector((0, 15, 2))
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
@@ -129,6 +137,19 @@ class ZombieAttachment(bge_network.WeaponAttachment):
     @simulated
     def play_fire_effects(self):
         self.owner.play_animation("Attack", 0, 60)
+
+
+class SphereProjectile(bge_network.Projectile):
+    entity_name = "Sphere"
+
+    def on_initialised(self):
+        self.lifespan = 10
+
+        super().on_initialised()
+
+    @bge_network.CollisionSignal.listener
+    def on_collision(self, other, is_new, data):
+        self.request_unregistration()
 
 
 class ZombieWeapon(bge_network.Weapon):
