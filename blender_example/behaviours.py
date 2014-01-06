@@ -553,8 +553,8 @@ class GetNavmesh(SignalLeafNode):
 
     def evaluate(self, blackboard):
         try:
-            navmesh = next(WorldInfo.subclass_of(Navmesh))
-        except StopIteration:
+            navmesh = WorldInfo.subclass_of(Navmesh)[0]
+        except IndexError:
             return EvaluationState.failure
 
         blackboard['navmesh'] = navmesh

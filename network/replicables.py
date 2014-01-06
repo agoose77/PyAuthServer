@@ -186,6 +186,23 @@ class _WorldInfo(Replicable):
                       )
     elapsed = Attribute(0.0, complain=False)
 
+    def on_initialised(self):
+        self._cache = {}
+
+    @ReplicableRegisteredSignal.global_listener
+    def _add_replicable(self, target):
+        cache = self._cache
+        for cls_type, values in cache.items():
+            if isinstance(target, cls_type):
+                values.append(target)
+
+    @ReplicableUnregisteredSignal.global_listener
+    def _remove_replicable(self, target):
+        cache = self._cache
+        for values in cache.values():
+            if target in values:
+                values.remove(target)
+
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
 
@@ -200,7 +217,12 @@ class _WorldInfo(Replicable):
     def subclass_of(self, actor_type):
         '''Returns registered actors that are subclasses of a given type
         @param actor_type: type to compare against'''
-        return (a for a in Replicable if isinstance(a, actor_type))
+        try:
+            return self._cache[actor_type]
+        except KeyError:
+            values = self._cache[actor_type] = [a for a in Replicable if
+                                                isinstance(a, actor_type)]
+            return values
 
     @simulated
     @UpdateSignal.global_listener

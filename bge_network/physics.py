@@ -1,19 +1,18 @@
-from .replicables import Actor, Pawn, Controller, Camera, Weapon, ReplicableInfo
+from .replicables import Actor, Pawn, Controller, Camera, Weapon, ReplicableInfo, PlayerController
 from .enums import PhysicsType
 from .signals import (PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
-                     PhysicsSetSimulatedSignal, PhysicsUnsetSimulatedSignal,
-                     MapLoadedSignal, UpdateCollidersSignal, PhysicsCopyState)
+                     PhysicsRoleChangedSignal, MapLoadedSignal,
+                     UpdateCollidersSignal, PhysicsCopyState)
 from .structs import RigidBodyState
 
 from bge import logic
 from collections import deque, defaultdict
-from mathutils import Vector
 from contextlib import contextmanager
 from network import (WorldInfo, Netmodes, SignalListener,
                      ReplicableUnregisteredSignal, Replicable,
                      NetmodeSwitch, netmode_switch, TypeRegister,
-                     FactoryDict)
+                     FactoryDict, Roles)
 
 __all__ = ["EPICInterpolator", "PhysicsSystem", "ServerPhysics", "ClientPhysics"]
 
@@ -150,12 +149,17 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     def notify_unregistration(self, target):
         self.remove_exemption(target)
 
-    @PhysicsUnsetSimulatedSignal.global_listener
+    @PhysicsRoleChangedSignal.global_listener
+    def role_changed(self, target):
+        if target.roles.local < Roles.autonomous_proxy:
+            self.remove_exemption(target)
+        else:
+            self.add_exemption(target)
+
     def add_exemption(self, target):
         if not target in self._exempt_actors:
             self._exempt_actors.append(target)
 
-    @PhysicsSetSimulatedSignal.global_listener
     def remove_exemption(self, target):
         if target in self._exempt_actors:
             self._exempt_actors.remove(target)
@@ -196,6 +200,22 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 @netmode_switch(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._rewind_buffers = defaultdict(deque)
+
+    def store_rewind_data(self):
+        rewind_buffers = self._rewind_buffers
+
+        # Store rewinding
+        timestamp = WorldInfo.elapsed
+        for pawn in WorldInfo.subclass_of(Pawn):
+            buffer = rewind_buffers[pawn]
+            buffer.append((timestamp, pawn.rigid_body_state.to_tuple()))
+            if (timestamp - buffer[0][0]) > 1.0:
+                buffer.popleft()
+
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         super().update(scene, delta_time)
@@ -203,6 +223,8 @@ class ServerPhysics(PhysicsSystem):
         for replicable in WorldInfo.subclass_of(Actor):
             state = replicable.rigid_body_state
             self.interface_state(replicable, state)
+
+        self.store_rewind_data()
 
 
 @netmode_switch(Netmodes.client)

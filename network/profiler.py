@@ -16,12 +16,13 @@ class ProfileManager(SignalListener):
         self.register_signals()
 
     @ProfileSignal.global_listener
-    def update_profiler(self, profile_id, start):
+    def update_profiler(self, profile_id, start, dump=True):
         profile = self._profiles[profile_id]
         if start:
             profile.enable()
         else:
             profile.disable()
-            profile.dump_stats("C:/{}.results".format(profile_id))
+            if dump:
+                profile.dump_stats("C:/{}.results".format(profile_id))
 
 profiler = ProfileManager()

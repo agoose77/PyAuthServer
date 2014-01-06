@@ -302,9 +302,6 @@ class Widget:
 					[x + width, y + height],
 					[x, y + height]
 				]
-		if self.__class__.__name__.endswith("Render"):
-		
-			print(self.name, self.gl_position)
 
 		# Update any children
 		for widget in self.children.values():

@@ -31,6 +31,17 @@ class Struct:
         return self._serialiser.pack({a.name: v for a, v in
                                       self._container.data.items()})
 
+    def to_tuple(self):
+        container = self._container
+        attributes = container._ordered_mapping.values()
+        data = container.data
+        return tuple(data[k] for k in attributes)
+
+    def from_tuple(self, tuple_):
+        for member, value in zip(
+                         self._container._ordered_mapping.values(), tuple_):
+            self._data[member] = value
+
     def on_notify(self, name):
         pass
 

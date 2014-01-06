@@ -21,11 +21,11 @@ class PhysicsSingleUpdateSignal(Signal):
     pass
 
 
-class PhysicsSetSimulatedSignal(Signal):
+class PhysicsRoleChangedSignal(Signal):
     pass
 
 
-class PhysicsUnsetSimulatedSignal(Signal):
+class PhysicsRewindSignal(Signal):
     pass
 
 

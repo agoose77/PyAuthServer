@@ -72,6 +72,7 @@ class Controller(Replicable):
         self.info.pawn = self.pawn = replicable
         self.pawn.possessed_by(self)
 
+        # Register as child for signals
         replicable.register_child(self)
 
     def remove_camera(self):
@@ -412,8 +413,7 @@ class PlayerController(Controller):
 
     def possess(self, replicable):
         super().possess(replicable)
-
-        signals.PhysicsUnsetSimulatedSignal.invoke(target=replicable)
+        signals.PhysicsRoleChangedSignal.invoke(target=self.pawn)
         self.reset_corrections(replicable)
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
@@ -531,9 +531,9 @@ class PlayerController(Controller):
         if data:
             self.send_voice_server(data)
 
-    def unpossess(self):
-        signals.PhysicsSetSimulatedSignal.invoke(target=self.pawn)
-        super().unpossess()
+    def unpossessed(self):
+        super().unpossessed()
+        signals.PhysicsRoleChangedSignal.invoke(target=self.pawn)
 
 
 class Actor(Replicable):
