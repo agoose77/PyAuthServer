@@ -11,10 +11,6 @@ class BitField:
         field[:size] = iterable
         return field
 
-    @classmethod
-    def of_length(cls, size):
-        return cls(size)
-
     def __init__(self, size, value=0):
         self._size = size
         self._value = value
@@ -22,7 +18,7 @@ class BitField:
         self.footprint = bits2bytes(size)
 
     def __iter__(self):
-        return self[:].__iter__()
+        return (self[i] for i in range(self._size))
 
     def __bool__(self):
         return self._value != 0

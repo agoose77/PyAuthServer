@@ -3,7 +3,8 @@ from .enums import PhysicsType
 from .signals import (PhysicsReplicatedSignal,
                      PhysicsTickSignal, PhysicsSingleUpdateSignal,
                      PhysicsRoleChangedSignal, MapLoadedSignal,
-                     UpdateCollidersSignal, PhysicsCopyState)
+                     UpdateCollidersSignal, PhysicsCopyState,
+                     PhysicsRewindSignal)
 from .structs import RigidBodyState
 
 from bge import logic
@@ -14,43 +15,7 @@ from network import (WorldInfo, Netmodes, SignalListener,
                      NetmodeSwitch, netmode_switch, TypeRegister,
                      FactoryDict, Roles)
 
-__all__ = ["EPICInterpolator", "PhysicsSystem", "ServerPhysics", "ClientPhysics"]
-
-
-class EPICInterpolator:
-
-    def __init__(self, actor):
-        self.actor = actor
-
-        self._last_time = None
-        self._update_time = 1 / 25
-
-    def add_sample(self, physics):
-        position = self.actor.position
-        timestamp = WorldInfo.elapsed
-
-        self._last_time = timestamp#packet_timestamp
-
-        aim_timestamp = timestamp + self._update_time
-        delta_time = self._update_time #aim_timestamp - packet_timestamp
-        # Where we intend to be in the future
-        aim_position = physics.position + physics.velocity * delta_time
-
-        if (abs(aim_timestamp - timestamp) < 0.001):
-            velocity = physics.velocity
-
-        else:
-           # delta_time = 1.0 / (aim_timestamp - timestamp)
-            velocity = (aim_position - position) * self._update_time
-
-        new_state = RigidBodyState()
-        new_state.position = position
-        new_state.velocity = velocity
-        new_state.rotation = physics.rotation
-        new_state.angular = physics.angular
-        new_state.collision_group = self.actor.collision_group
-        new_state.collision_mask = self.actor.collision_mask 
-        return new_state
+__all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics"]
 
 
 class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
@@ -150,7 +115,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         self.remove_exemption(target)
 
     @PhysicsRoleChangedSignal.global_listener
-    def role_changed(self, target):
+    def role_changed(self, target): 
         if target.roles.local < Roles.autonomous_proxy:
             self.remove_exemption(target)
         else:
@@ -204,25 +169,86 @@ class ServerPhysics(PhysicsSystem):
         super().__init__(*args, **kwargs)
 
         self._rewind_buffers = defaultdict(deque)
+        self._rewind_length = 1.0
 
-    def store_rewind_data(self):
+    @PhysicsRewindSignal.global_listener
+    def rewind_to(self, timestamp=None):
         rewind_buffers = self._rewind_buffers
 
-        # Store rewinding
+        # Reverse rewind
+        if timestamp is None:
+            for pawn, buffer in rewind_buffers.items():
+                try:
+                    rigid_state = buffer[-1]
+                except IndexError:
+                    continue
+                pawn.rigid_body_state.from_tuple(rigid_state)
+
+        first_pawn, pawn_data = next(rewind_buffers.items().__iter__(), None)
+
+        if first_pawn is None:
+            return
+        # Find rewinding
+        for index, (from_timestamp, from_state) in enumerate(
+                                                 reversed(pawn_data)):
+            if from_timestamp <= timestamp:
+                break
+            to_timestamp = from_timestamp
+
+        else:
+            return
+        # Apply rewinding
+        if from_timestamp == timestamp:
+            for pawn, buffer in rewind_buffers.items():
+                try:
+                    to_state = buffer[-(index + 1)][1]
+                except IndexError:
+                    continue
+                rigid_state = RigidBodyState()
+                rigid_state.from_tuple(to_state)
+                self.interface_state(rigid_state, pawn)
+
+        else:
+            for pawn, buffer in rewind_buffers.items():
+                delta_time = to_timestamp - from_timestamp
+                progress = timestamp - from_timestamp
+                factor = progress / delta_time
+                try:
+                    from_state = buffer[-(index + 1)][1]
+                    to_state = buffer[-index][1]
+                except IndexError:
+                    continue
+
+                state_f = RigidBodyState()
+                state_f.from_tuple(from_state)
+                state_t = RigidBodyState()
+                state_t.from_tuple(to_state)
+                state_f.lerp(state_t, factor)
+                print((state_f.position- state_t.position).length)
+                self.interface_state(state_f, pawn)
+
+    def store_rewind_data(self):
+        buffers = self._rewind_buffers
         timestamp = WorldInfo.elapsed
+
         for pawn in WorldInfo.subclass_of(Pawn):
-            buffer = rewind_buffers[pawn]
-            buffer.append((timestamp, pawn.rigid_body_state.to_tuple()))
-            if (timestamp - buffer[0][0]) > 1.0:
+            buffer = buffers[pawn]
+
+            state = pawn.rigid_body_state.to_tuple()
+            buffer.append((timestamp, state))
+
+            if (timestamp - buffer[0][0]) > self._rewind_length:
                 buffer.popleft()
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
-        super().update(scene, delta_time)
-
+        """Send state with unset data so velocities"""
+        """reflect results of behaviour"""
         for replicable in WorldInfo.subclass_of(Actor):
-            state = replicable.rigid_body_state
-            self.interface_state(replicable, state)
+            self.interface_state(replicable,
+                                 replicable.rigid_body_state)
+
+        super().update(scene, delta_time)
 
         self.store_rewind_data()
 
@@ -231,18 +257,6 @@ class ServerPhysics(PhysicsSystem):
 class ClientPhysics(PhysicsSystem):
 
     small_correction_squared = 3
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.extrapolators = FactoryDict(EPICInterpolator)
-
-    @ReplicableUnregisteredSignal.global_listener
-    def notify_unregistration(self, target):
-        super().notify_unregistration(target)
-
-        if target in self.extrapolators:
-            self.extrapolators.pop(target)
 
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:

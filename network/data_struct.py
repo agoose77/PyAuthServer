@@ -38,9 +38,11 @@ class Struct:
         return tuple(data[k] for k in attributes)
 
     def from_tuple(self, tuple_):
+        container = self._container
+        data = container.data
         for member, value in zip(
-                         self._container._ordered_mapping.values(), tuple_):
-            self._data[member] = value
+                         container._ordered_mapping.values(), tuple_):
+            data[member] = value
 
     def on_notify(self, name):
         pass

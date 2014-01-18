@@ -301,7 +301,8 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        return abs(pawn.velocity.y) >= pawn.walk_speed * 0.9
+        print(pawn.velocity.y, pawn.walk_speed)
+        return pawn.velocity.xy.length >= pawn.walk_speed * 0.9
 
 
 class PlayAnimation(SignalLeafNode):
@@ -680,9 +681,8 @@ class MoveToActor(SignalLeafNode):
         else:
             return EvaluationState.success
 
-        pawn.velocity.y = pawn.walk_speed
         pawn.align_to(to_target.cross(Vector((0, 0, 1))), 1, axis=Axis.x)
-
+        pawn.velocity = Vector((0, pawn.walk_speed, pawn.velocity.z))
         return EvaluationState.running
 
 

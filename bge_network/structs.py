@@ -12,6 +12,19 @@ class RigidBodyState(Struct):
     collision_group = Attribute(type_of=int)
     collision_mask = Attribute(type_of=int)
 
+    def lerp(self, other, factor):
+        self.position += (other.position - self.position) * factor
+        self.velocity += (other.velocity - self.velocity) * factor
+        #print(self._container.data)
+        #print(other.angular)
+        res =  (other.angular - self.angular) * factor
+        self.angular += res
+
+        target_rotation = other.rotation.to_quaternion()
+        rotation = self.rotation.to_quaternion()
+        rotation.slerp(target_rotation, factor)
+        self.rotation = rotation.to_euler()
+
 
 class AnimationState(Struct):
 

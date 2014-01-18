@@ -456,6 +456,7 @@ class PlayerController(Controller):
 
     def server_fire(self):
         print("Rolling back by {:.3f} seconds".format(self.info.ping))
+        signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)
         super().server_fire()
 
     def server_validate(self, move_id: TypeFlag(int,
@@ -741,7 +742,7 @@ class Actor(Replicable):
     @lru_cache()
     def physics(self):
         physics_type = self.object.physicsType
-        if physics_type != logic.KX_PHYSICS_NO_COLLISION and not hasattr(self.object, "meshes"):
+        if not getattr(self.object, "meshes", []):
             return logic.KX_PHYSICS_NO_COLLISION
         return physics_type
 

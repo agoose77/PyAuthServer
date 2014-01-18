@@ -27,7 +27,7 @@ class Axis(metaclass=Enum):
 
 
 class CollisionGroups(metaclass=Enum):
-    bits = True
+    use_bits = True
     values = ("geometry", "pawns")
 
 

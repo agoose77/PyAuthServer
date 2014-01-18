@@ -36,18 +36,13 @@ def requires_netmode(netmode):
         def _wrapper(*args, **kwargs):
             if WorldInfo.netmode != netmode:
                 return
-
             return func(*args, **kwargs)
-
         return _wrapper
-
     return wrapper
 
 
 def netmode_switch(netmode):
-
     def wrapper(cls):
         cls._netmode_data = cls, netmode
         return cls
-
     return wrapper

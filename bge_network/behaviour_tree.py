@@ -47,6 +47,9 @@ class BehaviourTree:
         self.blackboard = self.new_blackboard()
 
     def reset_visited(self, blackboard):
+        """Ensure that nodes are cleared
+        In case a branch isn't evaluated
+        @param blackboard: blackboard instance"""
         visited = blackboard['_visited']
         last_visited = self._last_visited
 

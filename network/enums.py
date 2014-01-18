@@ -7,13 +7,13 @@ class Enum(type):
     '''Metaclass for Enums in Python'''
     def __new__(cls, name, parents, attrs):
         # Get settings
-        bits = attrs.get('bits', False)
-        reverse = attrs['reverse'] = {}
+        use_bits = attrs.get('use_bits', False)
+        reverse_map = attrs['reverse'] = {}
         # Set the new values
         for index, key in enumerate(attrs["values"]):
-            value = index if not bits else (2 ** index)
+            value = index if not use_bits else (2 ** index)
             attrs[key] = value
-            reverse[value] = key
+            reverse_map[value] = key
 
         # Return new class
         return super().__new__(cls, name, parents, attrs)

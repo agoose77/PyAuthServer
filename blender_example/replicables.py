@@ -108,7 +108,7 @@ class Zombie(bge_network.Pawn):
 
         self.animations.root.add_child(animations)
 
-        self.walk_speed = 2.7
+        self.walk_speed = 1
         self.run_speed = 6
 
 
