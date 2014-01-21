@@ -7,8 +7,9 @@ class NetmodeSwitch:
 
     @classmethod
     def netmode_specific(cls, id_):
-        return next(t for t in cls._types if
-                    getattr(t, "_netmode_data") == (t, id_))
+        netmode_classes = (t for t in cls._types.values() if
+                           getattr(t, "_netmode_data") == (t, id_))
+        return next(netmode_classes)
 
     def __new__(cls, *args, **kwargs):
         specific_cls = cls.netmode_specific(WorldInfo.netmode)

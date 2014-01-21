@@ -209,7 +209,7 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_graph(cls):
-        for cls in cls._types:
+        for cls in cls._types.values():
             cls.update_state()
 
     @classmethod

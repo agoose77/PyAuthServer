@@ -287,7 +287,7 @@ class LoopNode(SequenceNode):
 
         while not state in (EvaluationState.failure, EvaluationState.error):
             state = evaluate(blackboard)
-    
+
         return state
 
 

@@ -870,16 +870,38 @@ class Weapon(Replicable):
 
     def fire(self, camera):
         self.consume_ammo()
-
-        if self.shot_type == enums.ShotType.instant:
-            self.instant_shot(camera)
-        else:
-            self.projectile_shot()
-
         self.last_fired_time = WorldInfo.elapsed
 
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        yield "ammo"
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self._data_path = logic.expandPath("//data")
+        self.shoot_interval = 0.5
+        self.last_fired_time = 0.0
+        self.max_ammo = 70
+
+        self.momentum = 1
+        self.maximum_range = 20
+        self.effective_range = 10
+        self.base_damage = 40
+
+        self.attachment_class = None
+
+
+class TraceWeapon(Weapon):
+
+    def fire(self, camera):
+        super().fire(camera)
+
+        self.trace_shot(camera)
+
     @requires_netmode(Netmodes.server)
-    def instant_shot(self, camera):
+    def trace_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
 
@@ -903,27 +925,28 @@ class Weapon(Replicable):
         signals.ActorDamagedSignal.invoke(damage, self.owner, hit_position,
                                  momentum, target=replicable)
 
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
 
-        yield "ammo"
+class ProjectileWeapon(Weapon):
 
     def on_initialised(self):
         super().on_initialised()
 
-        self._data_path = logic.expandPath("//data")
-        self.shoot_interval = 0.5
-        self.last_fired_time = 0.0
-        self.max_ammo = 70
+        self.projectile_class = None
+        self.projectile_velocity = mathutils.Vector()
 
-        self.shot_type = enums.ShotType.instant
+    def fire(self, camera):
+        super().fire(camera)
 
-        self.momentum = 1
-        self.maximum_range = 20
-        self.effective_range = 10
-        self.base_damage = 40
+        self.projectiole_shot(camera)
 
-        self.attachment_class = None
+    @requires_netmode(Netmodes.server)
+    def projectile_shot(self, camera):
+        projectile = self.projectile_class()
+        forward_vector = mathutils.Vector((0, 1, 0))
+        forward_vector.rotate(camera.rotation)
+        projectile.position = camera.position + forward_vector * 3.0
+        projectile.rotation = camera.rotation.copy()
+        projectile.velocity = self.projectile_velocity
 
 
 class EmptyWeapon(Weapon):
@@ -950,6 +973,7 @@ class WeaponAttachment(Actor):
 
 
 class EmptyAttatchment(WeaponAttachment):
+
     entity_name = "Empty.002"
 
 
@@ -985,6 +1009,30 @@ class Camera(Actor):
     @fov.setter
     def fov(self, value):
         self.object.fov = value
+
+    @property
+    def rotation(self):
+        rotation = mathutils.Euler((-math.radians(90), 0, 0))
+        rotation.rotate(self.object.worldOrientation)
+        return rotation
+
+    @rotation.setter
+    def rotation(self, rot):
+        rotation = mathutils.Euler((math.radians(90), 0, 0))
+        rotation.rotate(rot)
+        self.object.worldOrientation = rotation
+
+    @property
+    def local_rotation(self):
+        rotation = mathutils.Euler((-math.radians(90), 0, 0))
+        rotation.rotate(self.object.localOrientation)
+        return rotation
+
+    @local_rotation.setter
+    def local_rotation(self, rot):
+        rotation = mathutils.Euler((math.radians(90), 0, 0))
+        rotation.rotate(rot)
+        self.object.localOrientation = rotation
 
     def on_initialised(self):
         super().on_initialised()
@@ -1039,7 +1087,7 @@ class Camera(Actor):
         else:
             self.local_position = mathutils.Vector((0, -self.offset, 0))
 
-        self.local_rotation = mathutils.Euler((math.pi / 2, 0, 0))
+        self.local_rotation = mathutils.Euler()
 
     def sees_actor(self, actor):
         try:
@@ -1181,7 +1229,7 @@ class Pawn(Actor):
     @UpdateSignal.global_listener
     def update(self, delta_time):
         if self.weapon_attachment:
-            self.update_weapon_attatchment()
+            self.update_weapon_attachment()
 
         # Allow remote players to determine if we are alive without seeing health
         self.update_alive_status()
@@ -1193,7 +1241,7 @@ class Pawn(Actor):
         self.alive = self.health > 0
 
     @simulated
-    def update_weapon_attatchment(self):
+    def update_weapon_attachment(self):
         if self.flash_count != self.last_flash_count:
             self.weapon_attachment.play_fire_effects()
             self.last_flash_count += 1

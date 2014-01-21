@@ -22,14 +22,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.animation_rate = logic.getAnimationTicRate()
         self.use_animation_rate = logic.getRestrictAnimationUpdates()
 
-        self.last_time = self.get_time()
-        self.last_animation_time = self.get_time()
-
         self.network_scene = logic.getSceneList()[0]
 
         self.network = self.create_network()
         self.physics_system = PhysicsSystem(self.physics_callback,
                                             self.apply_physics)
+
+        self.current_time = 0.0
 
         self._last_sent = 0.0
         self._interval = 1 / 25
@@ -53,45 +52,41 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
     def apply_physics(self):
         _profile = self._profile
         self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-        self.update_scenegraph(self.get_time())
+        self.update_scenegraph(self.current_time)
         self.start_profile(*_profile[0], **_profile[1])
 
     def physics_callback(self, delta_time):
         _profile = self._profile
         self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-        self.update_physics(self.get_time(), delta_time)
+        self.update_physics(self.current_time, delta_time)
         self.start_profile(*_profile[0], **_profile[1])
 
     def update_scene(self, scene, current_time, delta_time):
+        self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
         self.update_logic_bricks(current_time)
 
         if scene == self.network_scene:
-            self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
-
             Signal.update_graph()
 
+            self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
             self.network.receive()
 
-            Replicable.update_graph()
-
             self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
+            Replicable.update_graph()
 
             if WorldInfo.netmode != Netmodes.server:
                 PlayerInputSignal.invoke(delta_time)
 
             UpdateSignal.invoke(delta_time)
-
             Replicable.update_graph()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-
             PhysicsTickSignal.invoke(scene, delta_time)
 
             self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
             self.update_animations(current_time)
 
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
-
             is_full_update = (current_time - self._last_sent) >= self._interval
 
             if is_full_update:
@@ -107,36 +102,52 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.update_scenegraph(current_time)
 
     def update_loop(self):
+        last_time = self.get_time()
+        step_time = 1 / self.tick_rate
 
+        accumulator = 0.0
+
+        # Fixed timestep
         while not self.check_quit():
-            start_time = current_time = self.get_time()
-            delta_time = current_time - self.last_time
+            current_time = self.get_time()
+            delta_time = current_time - last_time
+            last_time = current_time
 
-            # If this is too early, skip frame
-            if self.use_tick_rate and delta_time < (1 / self.tick_rate):
-                self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
-                continue
+            if (delta_time > 0.25):
+                delta_time = 0.25
 
-            # Update IO events from Blender
-            self.update_blender()
+            accumulator += delta_time
 
-            for scene in logic.getSceneList():
-                current_time = self.get_time()
+            # Whilst we have enough time in the buffer
+            while (accumulator >= step_time):
+                # Update IO events from Blender
+                self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
+                self.update_blender()
 
-                self.set_current_scene(scene)
-                self.update_scene(scene, current_time, delta_time)
+                # Update all scenes
+                for scene in logic.getSceneList():
+                    self.set_current_scene(scene)
+                    self.update_scene(scene, current_time, step_time)
 
-            # End of frame updates
-            self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
-            self.update_keyboard()
-            self.update_mouse()
-            self.update_scenes()
+                # End of frame updates
+                self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
+
+                self.update_keyboard()
+                self.update_mouse()
+                self.update_scenes()
+
+                if self.use_tick_rate:
+                    self.update_render()
+
+                self.current_time += step_time
+                accumulator -= step_time
 
             self.start_profile(logic.KX_ENGINE_DEBUG_RASTERIZER)
-            self.update_render()
+
+            if not self.use_tick_rate:
+                self.update_render()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
-            self.last_time = start_time
 
     def clean_up(self):
         GameExitSignal.invoke()

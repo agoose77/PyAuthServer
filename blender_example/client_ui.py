@@ -284,25 +284,12 @@ class Notification(TimerMixins, bgui.Frame):
                          size=self.default_size[:],
                          **kwargs)
 
-        thin_bar_height = 0.05
-        main_bar_width = 0.985
-
         self.fade_time = fade_time
         self.alive_time = alive_time
         self.message = message
 
-        self.upper_bar = bgui.Frame(parent=self, name="upper_bar",
-                                    size=[1.0, thin_bar_height],
-                                    options=CENTERX,
-                                    pos=[0.0, 1 - thin_bar_height])
-
-        self.lower_bar = bgui.Frame(parent=self, name="lower_bar",
-                                    size=[1.0, thin_bar_height],
-                                    options=CENTERX,
-                                    pos=[0.0, 0])
-
         self.middle_bar = bgui.Frame(parent=self, name="middle_bar",
-                                    size=[main_bar_width, 1 - (2 * thin_bar_height)],
+                                    size=[1, 1],
                                     options=CENTERED)
 
         self.message_text = bgui.Label(parent=self,
@@ -310,7 +297,7 @@ class Notification(TimerMixins, bgui.Frame):
                                        text=message.upper(),
                                        options=CENTERED,
                                        pos=[0.0, 0.0],
-                                       pt_size=font_size, color=[0.4, 0.4, 0.4, 1])
+                                       pt_size=font_size, color=[0.1, 0.1, 0.1, 1])
 
         # Determine if overflowing
         width_running = 0
@@ -332,18 +319,15 @@ class Notification(TimerMixins, bgui.Frame):
             status_timer.on_update = partial(self.scroll_message, status_timer)
             self.add_timer(status_timer, "scroll")
 
-        self.upper_bar.colors = [[0, 0, 0, 1]] * 4
-        self.lower_bar.colors = [[0, 0, 0, 1]] * 4
-        self.middle_bar.colors = [[0.93, 0.93, 0.93, 0.75]] * 4
+        self.middle_bar.colors = [[1, 1, 1, 0.6]] * 4
 
         self.initial_position = self._base_pos[:]
         self.initial_height = self._base_size[:]
 
         # Record of components
-        components = [self.upper_bar, self.middle_bar,
-                           self.lower_bar, self.message_text]
+        components = [self.middle_bar, self.message_text]
         component_colors = [copy.deepcopy(self._get_color(c))
-                                 for c in components]
+                            for c in components]
         self.components = dict(zip(components, component_colors))
 
         # Add alive timer

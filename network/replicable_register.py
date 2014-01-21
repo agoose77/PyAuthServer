@@ -18,8 +18,7 @@ class ReplicableRegister(InstanceRegister):
             for name, value in attrs.items():
 
                 # Wrap them with permission
-                if (not isinstance(value, FunctionType) or
-                    isinstance(value, (classmethod, staticmethod))
+                if (self.not_wrappable(value)
                     or self.found_in_parents(name, bases)):
                     continue
 
@@ -49,6 +48,11 @@ class ReplicableRegister(InstanceRegister):
             return False
 
         return return_type in Netmodes
+
+    @classmethod
+    def not_wrappable(cls, value):
+        return (not isinstance(value, FunctionType) or
+                isinstance(value, (classmethod, staticmethod)))
 
     @classmethod
     def found_in_parents(meta, name, parents):

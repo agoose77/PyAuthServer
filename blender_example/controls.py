@@ -112,7 +112,6 @@ class HandleThirdPersonCamera(SignalLeafNode):
         rotation = Vector((0, -1, 0)).rotation_difference(
                           camera.local_position).inverted().to_euler()
         rotation[0] *= -1
-        rotation.rotate(Euler((radians(90), 0, 0)))
 
         camera.local_rotation = rotation
 

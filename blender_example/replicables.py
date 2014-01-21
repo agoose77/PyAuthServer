@@ -43,7 +43,8 @@ class EnemyController(bge_network.AIController):
 
 class LegendController(bge_network.PlayerController):
 
-    input_fields = "forward", "backwards", "left", "right", "shoot", "run", "voice"
+    input_fields = ("forward", "backwards", "left",
+                    "right", "shoot", "run", "voice")
 
     def on_notify(self, name):
         super().on_notify(name)
@@ -112,22 +113,19 @@ class Zombie(bge_network.Pawn):
         self.run_speed = 6
 
 
-class M4A1Weapon(bge_network.Weapon):
+class M4A1Weapon(bge_network.ProjectileWeapon):
 
     def on_initialised(self):
         super().on_initialised()
 
         self.max_ammo = 50
         self.attachment_class = M4A1Attachment
+
         self.shoot_interval = 0.1
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
-        self.shot_type = bge_network.ShotType.projectile
 
-    def projectile_shot(self):
-        projectile = SphereProjectile()
-        projectile.position = self.owner.pawn.position + self.owner.pawn.rotation.to_matrix().col[1] * 3 + Vector((0, 0, 1))
-        projectile.rotation = self.owner.pawn.rotation.copy()
-        projectile.velocity = mathutils.Vector((0, 15, 2))
+        self.projectile_class = SphereProjectile
+        self.projectile_velocity = mathutils.Vector((0, 15, 2))
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
@@ -152,7 +150,7 @@ class SphereProjectile(bge_network.Projectile):
         self.request_unregistration()
 
 
-class ZombieWeapon(bge_network.Weapon):
+class ZombieWeapon(bge_network.TraceWeapon):
 
     def on_initialised(self):
         super().on_initialised()

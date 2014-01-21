@@ -5,17 +5,18 @@ class TypeRegister(type):
     def __new__(self, name, parents, attrs):
         cls = super().__new__(self, name, parents, attrs)
 
-        if not hasattr(cls, "_types"):
-            cls._types = []
+        try:
+            cls._types[name] = cls
 
-            if hasattr(cls, "register_type"):
-                cls.register_type()
+        except AttributeError:
+            cls._types = {}
+            func = getattr(cls, "register_type", None)
 
         else:
-            cls._types.append(cls)
+            func = getattr(cls, "register_subtype", None)
 
-            if hasattr(cls, "register_subtype"):
-                cls.register_subtype()
+        if callable(func):
+            func()
 
         return cls
 
@@ -30,8 +31,7 @@ class TypeRegister(type):
         '''Gets class type from type_name
         @param type_name: name of class type
         @return: class reference'''
-        for cls in self._types:
-            if cls.__name__ == type_name:
-                return cls
-
-        raise LookupError("No class with name {}".format(type_name))
+        try:
+            return self._types[type_name]
+        except KeyError:
+            raise LookupError("No class with name {}".format(type_name))

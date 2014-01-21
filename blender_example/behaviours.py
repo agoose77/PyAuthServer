@@ -435,14 +435,12 @@ class AimAtActor(SignalLeafNode):
 
         target_vector = (target - camera.position).normalized()
         world_z = Vector((0, 0, 1))
-        camera_vector = -world_z.copy()
-        camera_vector.rotate(camera.rotation)
         turn_speed = 0.1
 
-        camera.align_to(-target_vector, axis=Axis.z, time=turn_speed)
-        camera.align_to(-world_z.cross(target_vector),
+        camera.align_to(target_vector, axis=Axis.y, time=turn_speed)
+        camera.align_to(world_z.cross(target_vector),
                              axis=Axis.x, time=turn_speed)
-        pawn.align_to(world_z.cross(-target_vector), axis=Axis.x, time=turn_speed)
+        pawn.align_to(world_z.cross(target_vector), axis=Axis.x, time=turn_speed)
         return EvaluationState.success
 
 

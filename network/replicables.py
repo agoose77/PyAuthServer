@@ -30,6 +30,7 @@ class Replicable(metaclass=ReplicableRegister):
                             ),
                       notify=True,
                       )
+    owner = Attribute(type_of=None, complain=True, notify=True)
 
     # Dictionary of class-owned instances
     _by_types = defaultdict(list)
@@ -158,6 +159,7 @@ class Replicable(metaclass=ReplicableRegister):
         @param is_initial: if this is the first replication for this target '''
         if is_complaint or is_initial:
             yield "roles"
+            yield "owner"
 
     def __description__(self):
         '''Returns a hash-like description for this replicable
@@ -184,20 +186,23 @@ class _WorldInfo(Replicable):
                             Roles.simulated_proxy  # @UndefinedVariable
                             )
                       )
+
     elapsed = Attribute(0.0, complain=False)
+    tick_rate = Attribute(60, complain=False)
 
     def on_initialised(self):
         self._cache = {}
+        self.clock_correction = 0.0
 
     @ReplicableRegisteredSignal.global_listener
-    def _add_replicable(self, target):
+    def _cache_replicable(self, target):
         cache = self._cache
         for cls_type, values in cache.items():
             if isinstance(target, cls_type):
                 values.append(target)
 
     @ReplicableUnregisteredSignal.global_listener
-    def _remove_replicable(self, target):
+    def _uncache_replicable(self, target):
         cache = self._cache
         for values in cache.values():
             if target in values:
@@ -208,6 +213,11 @@ class _WorldInfo(Replicable):
 
         if is_initial:
             yield "elapsed"
+
+    @property
+    def tick(self):
+        return int((self.elapsed - self.clock_correction) * self.tick_rate)
+
 
     @property
     def replicables(self):
@@ -237,4 +247,6 @@ class _WorldInfo(Replicable):
     has_replicable = simulated(Replicable.graph_has_instance)
 
 
+# Circular Reference
+Replicable.owner.type = Replicable
 WorldInfo = _WorldInfo(255, register=True)
