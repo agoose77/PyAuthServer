@@ -18,10 +18,7 @@ class Replicable(metaclass=ReplicableRegister):
     Additional attributes for attribute values (from descriptors)
     And complaining attributes'''
 
-    relevant_to_owner = True
-    always_relevant = False
-    replication_priority = 1.0
-    replication_update_period = 1 / 20
+    _MAXIMUM_REPLICABLES = 255
 
     roles = Attribute(
                       Roles(
@@ -51,6 +48,12 @@ class Replicable(metaclass=ReplicableRegister):
         self.rpc_storage.register_storage_interfaces()
 
         self.owner = None
+
+        self.relevant_to_owner = True
+        self.always_relevant = False
+
+        self.replication_priority = 1.0
+        self.replication_update_period = 1 / 20
 
         # Instantiate parent (this is when the creation callback may be called)
         super().__init__(instance_id=instance_id, register=register,
@@ -177,8 +180,9 @@ class Replicable(metaclass=ReplicableRegister):
 
 class _WorldInfo(Replicable):
     '''Holds info about game state'''
-    netmode = Netmodes.server  # @UndefinedVariable
-    rules = None
+
+    _MAXIMUM_TICK = (2 ** 32 - 1)
+    _ID = 255
 
     roles = Attribute(
                       Roles(
@@ -192,7 +196,11 @@ class _WorldInfo(Replicable):
 
     def on_initialised(self):
         self._cache = {}
+
         self.clock_correction = 0.0
+        self.rules = None
+        self.netmode = Netmodes.server
+        self.always_relevant = True
 
     @ReplicableRegisteredSignal.global_listener
     def _cache_replicable(self, target):
@@ -216,8 +224,7 @@ class _WorldInfo(Replicable):
 
     @property
     def tick(self):
-        return int((self.elapsed - self.clock_correction) * self.tick_rate)
-
+        return int((self.elapsed + self.clock_correction) * self.tick_rate)
 
     @property
     def replicables(self):
@@ -249,4 +256,4 @@ class _WorldInfo(Replicable):
 
 # Circular Reference
 Replicable.owner.type = Replicable
-WorldInfo = _WorldInfo(255, register=True)
+WorldInfo = _WorldInfo(_WorldInfo._ID, register=True)
