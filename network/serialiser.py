@@ -21,7 +21,7 @@ class IStruct(PyStruct):
 
 UInt32 = IStruct("@I")
 UInt16 = IStruct("@H")
-UInt64 = IStruct("@L")
+UInt64 = IStruct("@Q")
 UInt8 = IStruct("@B")
 Float4 = IStruct("@f")
 Float8 = IStruct("@d")
@@ -41,7 +41,11 @@ def handler_from_bit_length(bits):
     for packer in int_packers:
         if packer.size() > bytes_length:
             break
+
         last_packer = packer
+
+    else:
+        raise ValueError("Integer too large to pack")
 
     return last_packer
 
