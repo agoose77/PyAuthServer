@@ -17,7 +17,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
     def __init__(self):
         super().__init__()
 
-        self.tick_rate = logic.getLogicTicRate()
+        WorldInfo.tick_rate = int(logic.getLogicTicRate())
+
         self.use_tick_rate = logic.getUseFrameRate()
 
         self.animation_rate = logic.getAnimationTicRate()
@@ -106,7 +107,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def update_loop(self):
         last_time = self.get_time()
-        step_time = 1 / self.tick_rate
+        step_time = 1 / WorldInfo.tick_rate
 
         accumulator = 0.0
 

@@ -427,6 +427,7 @@ class PlayerController(Controller):
                 lookup_dict.update(inputs_zip)
 
                 apply_move(self.inputs, move.mouse_x, move.mouse_y)
+                print(WorldInfo.tick_rate)
                 signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
                                                          target=self.pawn)
 
@@ -503,15 +504,8 @@ class PlayerController(Controller):
                                 rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
 
         current_tick = WorldInfo.tick
-
-        if tick < current_tick:
-            print("Move was late, correcting...")
-            self.start_clock_correction(current_tick, tick)
-            self.update_buffered_locks(tick)
-
-        else:
-            data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
-            self.buffer.append((tick, data))
+        data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
+        self.buffer.append((tick, data))
 
     @signals.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
@@ -552,8 +546,12 @@ class PlayerController(Controller):
 
             # Ensure we check through to the latest tick
             consume_move()
+
             if self.buffer:
                 self.update(delta_time)
+            else:
+                print("Move was late, correcting...")
+                self.start_clock_correction(current_tick, tick)
 
         # If the tick is early, check how early
         elif tick > current_tick:

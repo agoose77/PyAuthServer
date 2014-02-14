@@ -221,6 +221,7 @@ class _WorldInfo(Replicable):
 
         if is_initial:
             yield "elapsed"
+        yield "tick_rate"
 
     @property
     def tick(self):
