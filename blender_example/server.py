@@ -79,6 +79,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if controller is None:
             controller = self.player_controller_class()
             controller.info = self.player_replication_info_class()
+            print(controller.info)
 
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
@@ -114,7 +115,8 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if isinstance(replicable, (bge_network.Controller,
                                    bge_network.Weapon)):
             return False
-
+        if "info" in replicable.__class__.__name__.lower():
+            print(replicable, "FOUND", replicable.always_relevant)
         return False
 
     @bge_network.ActorKilledSignal.global_listener

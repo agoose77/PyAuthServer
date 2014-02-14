@@ -59,3 +59,7 @@ class GameExitSignal(Signal):
 
 class BroadcastMessage(Signal):
     pass
+
+
+class PostPhysicsSignal(Signal):
+    pass

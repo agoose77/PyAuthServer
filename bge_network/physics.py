@@ -23,7 +23,6 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     def __init__(self, update_func, apply_func):
         super().__init__()
 
-        self._exempt_actors = []
         self._update_func = update_func
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
@@ -110,25 +109,6 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
                 actor.set_parent(found_actors[obj.parent])
             obj.endObject()
 
-    @ReplicableUnregisteredSignal.global_listener
-    def notify_unregistration(self, target):
-        self.remove_exemption(target)
-
-    @PhysicsRoleChangedSignal.global_listener
-    def role_changed(self, target): 
-        if target.roles.local < Roles.autonomous_proxy:
-            self.remove_exemption(target)
-        else:
-            self.add_exemption(target)
-
-    def add_exemption(self, target):
-        if not target in self._exempt_actors:
-            self._exempt_actors.append(target)
-
-    def remove_exemption(self, target):
-        if target in self._exempt_actors:
-            self._exempt_actors.remove(target)
-
     @PhysicsSingleUpdateSignal.global_listener
     def update_for(self, delta_time, target):
         if not target.physics in self._active_physics:
@@ -144,10 +124,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
-        # Restore scheduled objects
-        with self.protect_exemptions(self._exempt_actors):
-            self._update_func(delta_time)
-
+        self._update_func(delta_time)
         self._apply_func()
 
         UpdateCollidersSignal.invoke()
@@ -169,49 +146,46 @@ class ServerPhysics(PhysicsSystem):
         super().__init__(*args, **kwargs)
 
         self._rewind_buffers = defaultdict(deque)
-        self._rewind_length = 1.0
+        self._rewind_length = 1 * WorldInfo.tick_rate
 
     @PhysicsRewindSignal.global_listener
-    def rewind_to(self, timestamp=None):
-        rewind_buffers = self._rewind_buffers
+    def rewind_to(self, target_tick):
+        raise NotImplementedError
 
-        # Reverse rewind
-        if timestamp is None:
-            for pawn, buffer in rewind_buffers.items():
-                try:
-                    rigid_state = buffer[-1]
-                except IndexError:
-                    continue
-                pawn.rigid_body_state.from_tuple(rigid_state)
+        rewind_buffers = self._rewind_buffers
 
         first_pawn, pawn_data = next(rewind_buffers.items().__iter__(), None)
 
         if first_pawn is None:
             return
+
         # Find rewinding
-        for index, (from_timestamp, from_state) in enumerate(
+        for index, (from_tick, from_state) in enumerate(
                                                  reversed(pawn_data)):
-            if from_timestamp <= timestamp:
+            if from_tick <= target_tick:
                 break
-            to_timestamp = from_timestamp
+            target_tick = from_tick
 
         else:
             return
+
         # Apply rewinding
-        if from_timestamp == timestamp:
+        if from_tick == target_tick:
             for pawn, buffer in rewind_buffers.items():
                 try:
                     to_state = buffer[-(index + 1)][1]
                 except IndexError:
                     continue
+
                 rigid_state = RigidBodyState()
                 rigid_state.from_tuple(to_state)
+
                 self.interface_state(rigid_state, pawn)
 
         else:
             for pawn, buffer in rewind_buffers.items():
-                delta_time = to_timestamp - from_timestamp
-                progress = timestamp - from_timestamp
+                delta_time = target_tick - from_timestamp
+                progress = target_tick - from_timestamp
                 factor = progress / delta_time
                 try:
                     from_state = buffer[-(index + 1)][1]
@@ -224,20 +198,20 @@ class ServerPhysics(PhysicsSystem):
                 state_t = RigidBodyState()
                 state_t.from_tuple(to_state)
                 state_f.lerp(state_t, factor)
-                print((state_f.position- state_t.position).length)
+
                 self.interface_state(state_f, pawn)
 
     def store_rewind_data(self):
         buffers = self._rewind_buffers
-        timestamp = WorldInfo.elapsed
+        tick = WorldInfo.tick
 
         for pawn in WorldInfo.subclass_of(Pawn):
             buffer = buffers[pawn]
 
             state = pawn.rigid_body_state.to_tuple()
-            buffer.append((timestamp, state))
+            buffer.append((tick, state))
 
-            if (timestamp - buffer[0][0]) > self._rewind_length:
+            if (tick - buffer[0][0]) > self._rewind_length:
                 buffer.popleft()
 
     @PhysicsTickSignal.global_listener

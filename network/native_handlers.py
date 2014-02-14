@@ -41,13 +41,15 @@ class RolesHandler:
 
     @classmethod
     def pack(cls, roles):
+        pack = cls.packer.pack
         with roles.switched():
-            return cls.packer.pack(roles.local) + cls.packer.pack(roles.remote)
+            return pack(roles.local) + pack(roles.remote)
 
     @classmethod
     def unpack(cls, bytes_):
-        return Roles(cls.packer.unpack_from(bytes_),
-                     cls.packer.unpack_from(bytes_[cls.packer.size():]))
+        packer = cls.packer
+        return Roles(packer.unpack_from(bytes_),
+                     packer.unpack_from(bytes_[packer.size():]))
 
     @classmethod
     def size(cls, bytes_=None):
@@ -61,17 +63,17 @@ class ReplicableBaseHandler:
     Packs replicable references and unpacks to proxy OR reference"""
 
     def __init__(self):
-        self._maximum_replicables = 400
         self._packer = get_handler(TypeFlag(int,
-                                   max_value=self._maximum_replicables))
+                                   max_value=self.maximum_replicables))
 
     @property
     def maximum_replicables(self):
-        return self._maximum_replicables
+        return Replicable._MAXIMUM_REPLICABLES
 
     @maximum_replicables.setter
     def maximum_replicables(self, value):
-        self._maximum_replicables = value
+        Replicable._MAXIMUM_REPLICABLES = value
+
         self._packer = get_handler(TypeFlag(int, max_value=value))
 
     def pack(self, replicable):
@@ -93,6 +95,7 @@ class ReplicableBaseHandler:
             return replicable
 
         except (LookupError):
+            print("Couldn't find replicable", list(Replicable), instance_id)
             return
 
     def size(self, bytes_=None):

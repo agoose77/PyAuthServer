@@ -67,7 +67,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
-        self.buffer = []
+        self.internal_data = []
 
     def on_unregistered(self):
         """Unregistration callback"""
@@ -151,11 +151,11 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             return
 
         # Include any re-send
-        if self.buffer and 0:
-            # Read buffer
-            packet_collection += PacketCollection(self.buffer)
-            # Empty buffer
-            self.buffer.clear()
+        if self.internal_data:
+            # Read internal_data
+            packet_collection += PacketCollection(self.internal_data)
+            # Empty internal_data
+            self.internal_data.clear()
 
         # Create a bitfield using window config
         ack_bitfield = self.ack_bitfield
@@ -217,23 +217,6 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
         bytes_ = bytes_[self.ack_packer.size(bytes_):]
 
-        # Recreate packet collection
-        packet_collection = PacketCollection().from_bytes(bytes_)
-
-        # Store the received time
-        self.last_received = monotonic()
-
-        # If we receive a newer foreign sequence, update our local record
-        if self.sequence_more_recent(sequence, self.remote_sequence):
-            self.remote_sequence = sequence
-
-        # Add packet to received list
-        self.received_window.append(sequence)
-
-        # Limit received size
-        if len(self.received_window) > self.ack_window:
-            self.received_window.popleft()
-
         # Dictionary of packets waiting for acknowledgement
         requested_ack = self.requested_ack
         ack_bitfield = self.ack_bitfield
@@ -253,7 +236,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                 if sequence_ == self.tagged_throttle_sequence:
                     self.stop_throttling()
 
-        # Acknowledge the sequence of this packet about
+        # Acknowledge the sequence of this packet
         if ack_base in self.requested_ack:
             requested_ack.pop(ack_base).on_ack()
 
@@ -263,7 +246,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Dropped locals
         window_size = self.ack_window
-        buffer = self.buffer
+        buffer = self.internal_data
         missed_ack = False
 
         # Find packets we think are dropped and resend them
@@ -276,11 +259,28 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             reliable_collection.on_not_ack()
 
             missed_ack = True
-            buffer.append(reliable_collection)
+            buffer.extend(reliable_collection.members)
 
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
+
+        # Store the received time
+        self.last_received = monotonic()
+
+        # If we receive a newer foreign sequence, update our local record
+        if self.sequence_more_recent(sequence, self.remote_sequence):
+            self.remote_sequence = sequence
+
+        # Recreate packet collection
+        packet_collection = PacketCollection().from_bytes(bytes_)
+
+        # Add packet to received list
+        self.received_window.append(sequence)
+
+        # Limit received size
+        if len(self.received_window) > self.ack_window:
+            self.received_window.popleft()
 
         # Called for handshake protocol
         receive_handshake = self.receive_handshake
@@ -295,8 +295,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                 receive_handshake(member)
 
         else:
-            self.connection.receive(packet_collection.members)
-
+            self.connection.receive(packet_collection)
 
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):

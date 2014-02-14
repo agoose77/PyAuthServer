@@ -26,3 +26,4 @@ from .rpc import *
 from .serialiser import *
 from .signals import *
 from .type_register import *
+from .testing import *

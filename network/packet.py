@@ -78,6 +78,9 @@ class PacketCollection:
     def __add__(self, other):
         return self.__class__(self.members + other.members)
 
+    def __iter__(self):
+        return iter(self.members)
+
     __radd__ = __add__
     __bytes__ = to_bytes
 

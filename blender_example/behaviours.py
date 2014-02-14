@@ -248,14 +248,12 @@ class Delay(SignalLeafNode):
         super().__init__()
 
         self._delay = delay
-        self._timer = ManualTimer(target_value=self._delay)
+        self._timer = Timer(target_value=self._delay)
 
     def on_enter(self, blackboard):
         self._timer.reset()
 
     def evaluate(self, blackboard):
-        self._timer.update(blackboard['delta_time'])
-
         if self._timer.success:
             return EvaluationState.success
         return EvaluationState.running

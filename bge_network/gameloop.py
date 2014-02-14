@@ -1,6 +1,7 @@
 from .replicables import Camera
 from .signals import (PlayerInputSignal, PhysicsTickSignal,
-                      MapLoadedSignal, GameExitSignal)
+                      MapLoadedSignal, GameExitSignal,
+                      PostPhysicsSignal)
 from .physics import PhysicsSystem
 
 from collections import Counter
@@ -83,6 +84,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
             PhysicsTickSignal.invoke(scene, delta_time)
 
+            PostPhysicsSignal.invoke()
+
             self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
             self.update_animations(current_time)
 
@@ -123,6 +126,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 # Update IO events from Blender
                 self.start_profile(logic.KX_ENGINE_DEBUG_SERVICES)
                 self.update_blender()
+
+                WorldInfo.update_clock(step_time)
 
                 # Update all scenes
                 for scene in logic.getSceneList():

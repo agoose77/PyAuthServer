@@ -25,9 +25,7 @@ import functools
 from bge import logic
 from functools import lru_cache
 
-SavedMove = collections.namedtuple("Move", ("position", "rotation", "velocity",
-                                            "angular", "delta_time", "inputs",
-                                            "mouse_x", "mouse_y"))
+Move = collections.namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
 
 
 class Controller(Replicable):
@@ -36,7 +34,7 @@ class Controller(Replicable):
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
     camera = Attribute(type_of=Replicable, complain=True, notify=True)
     weapon = Attribute(type_of=Replicable, complain=True, notify=True)
-    info = Attribute(type_of=Replicable)
+    info = Attribute(type_of=Replicable, complain=True)
 
     replication_priority = 2.0
 
@@ -69,8 +67,11 @@ class Controller(Replicable):
         pass
 
     def possess(self, replicable):
-        self.info.pawn = self.pawn = replicable
+        self.pawn = replicable
         self.pawn.possessed_by(self)
+
+        if WorldInfo.netmode == Netmodes.server:
+            self.info.pawn = replicable
 
         # Register as child for signals
         replicable.register_child(self)
@@ -91,7 +92,7 @@ class Controller(Replicable):
                 continue
 
             controller.hear_sound(self.weapon.shoot_sound,
-                                  self.pawn.position)
+                                self.pawn.position)
 
     def set_camera(self, camera):
         camera.set_parent(self.pawn, "camera")
@@ -192,7 +193,7 @@ class AIController(Controller):
 
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        self.behaviour.update(delta_time)
+        self.behaviour.update()
 
 
 class PlayerController(Controller):
@@ -220,9 +221,9 @@ class PlayerController(Controller):
             mouse_diff_y = screen_center[1] - mouse_position[1]
 
             smooth_x = utilities.lerp(self._mouse_delta[0],
-                                      mouse_diff_x, smooth_factor)
+                                    mouse_diff_x, smooth_factor)
             smooth_y = utilities.lerp(self._mouse_delta[1],
-                                      mouse_diff_y, smooth_factor)
+                                    mouse_diff_y, smooth_factor)
         else:
             smooth_x = smooth_y = 0.0
 
@@ -235,72 +236,16 @@ class PlayerController(Controller):
         self._mouse_delta = smooth_x, smooth_y
         return smooth_x, smooth_y
 
-    def acknowledge_good_move(self, move_id: TypeFlag(int,
-                                    max_value=MarkAttribute("move_id_max"))) -> Netmodes.client:
-        self.last_correction = move_id
-
-        try:
-            self.previous_moves.pop(move_id)
-
-        except KeyError:
-            print("Couldn't find move to acknowledge for move {}"
-                  .format(move_id))
-            return
-
-        additional_keys = [k for k in self.previous_moves if k < move_id]
-
-        for key in additional_keys:
-            self.previous_moves.pop(key)
-
-        return True
-
-    @requires_netmode(Netmodes.server)
-    def calculate_ping(self):
-        self.send_ping_request(WorldInfo.elapsed)
-
-    def correct_bad_move(self, move_id: TypeFlag(int,
-                               max_value=MarkAttribute("move_id_max")),
-                         correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
-        if not self.acknowledge_good_move(move_id):
-            print("No move found")
-            return
-
-        signals.PhysicsCopyState.invoke(correction, self.pawn)
-        print("{}: Correcting prediction for move {}".format(self, move_id))
-
-        lookup_dict = {}
-        with self.inputs.using_interface(lookup_dict.__getitem__):
-
-            for move_id, move in self.previous_moves.items():
-                # Place inputs into input manager
-                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
-                lookup_dict.update(inputs_zip)
-                # (Re) execute move
-                self.execute_move(self.inputs, move.mouse_x,
-                                  move.mouse_y, move.delta_time)
-                self.save_move(move_id, move.delta_time, move.inputs,
-                               move.mouse_x, move.mouse_y)
-
     @requires_netmode(Netmodes.client)
     def destroy_microphone(self):
         del self.microphone
         for key in list(self.sound_channels):
             del self.sound_channels[key]
 
-    def execute_move(self, inputs, mouse_diff_x, mouse_diff_y, delta_time):
-        blackboard = self.behaviour.blackboard
-
-        blackboard['inputs'] = inputs
-        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
-
-        self.behaviour.update(delta_time)
-
-        signals.PhysicsSingleUpdateSignal.invoke(delta_time, target=self.pawn)
-
     def get_corrected_state(self, position, rotation):
         pos_difference = self.pawn.position - position
 
-        if pos_difference.length_squared < self.move_error_limit:
+        if pos_difference.length_squared <= self.move_error_limit:
             return
 
         # Create correction if neccessary
@@ -309,18 +254,15 @@ class PlayerController(Controller):
 
         return correction
 
-    def handle_inputs(self, inputs, mouse_x, mouse_y, delta_time):
-        pass
-
     def hear_sound(self, sound_path: TypeFlag(str),
-                   source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
+                source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
 
         return
         probability = utilities.falloff_fraction(self.pawn.position,
-                                                 self.hear_range, source,
-                                                 self.effective_hear_range)
+                                                self.hear_range, source,
+                                                self.effective_hear_range)
 
         file_path = bge.logic.expandPath("//{}".format(sound_path))
         factory = aud.Factory.file(file_path)
@@ -329,15 +271,10 @@ class PlayerController(Controller):
     def hear_voice(self, info, voice):
         self.send_voice_client(info, voice)
 
-    def increment_move(self):
-        self.current_move_id += 1
-        if self.current_move_id == self.__class__.move_id_max:
-            self.current_move_id = 0
-
     def load_keybindings(self):
         bindings = configuration.load_configuration(self.config_filepath,
-                                      self.__class__.__name__,
-                                      self.input_fields)
+                                    self.__class__.__name__,
+                                    self.input_fields)
         print("Loaded {} keybindings".format(len(bindings)))
         return bindings
 
@@ -349,7 +286,7 @@ class PlayerController(Controller):
 
         self.current_move_id = 0
         self.last_correction = 0
-        self.previous_moves = collections.OrderedDict()
+        self.pending_moves = collections.OrderedDict()
 
         self.camera_setup = False
         self.mouse_smoothing = 0.6
@@ -360,10 +297,18 @@ class PlayerController(Controller):
         self.behaviour = behaviour_tree.BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-        self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
-                                      repeat=True)
-        self.ping_results = collections.deque()
-        self.ping_samples = 3
+        self.locks = set()
+        self.buffered_locks = collections.defaultdict(dict)
+
+        self.buffer = collections.deque()
+
+        self.clock_convergence_factor = 1.0
+        self.maximum_clock_ahead = 15
+
+#         self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
+#                                     repeat=True)
+#         self.ping_results = collections.deque()
+#         self.ping_samples = 3
 
     def on_notify(self, name):
         if name == "pawn":
@@ -387,33 +332,9 @@ class PlayerController(Controller):
         super().on_unregistered()
         self.destroy_microphone()
 
-    @signals.PlayerInputSignal.global_listener
-    def player_update(self, delta_time):
-
-        if not (self.pawn and self.camera):
-            return
-
-        self.increment_move()
-
-        # Control Mouse data
-        mouse_diff_x, mouse_diff_y = self.mouse_delta
-
-        self.execute_move(self.inputs, mouse_diff_x, mouse_diff_y, delta_time)
-
-        self.save_move(self.current_move_id, delta_time,
-                       self.inputs.to_tuple(), mouse_diff_x,
-                       mouse_diff_y)
-
-        self.server_validate(self.current_move_id,
-                             self.last_correction,
-                             self.inputs, mouse_diff_x,
-                             mouse_diff_y, delta_time, self.pawn.position,
-                             self.pawn.rotation)
-        self.store_voice()
-
     def possess(self, replicable):
         super().possess(replicable)
-        signals.PhysicsRoleChangedSignal.invoke(target=self.pawn)
+
         self.reset_corrections(replicable)
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
@@ -423,26 +344,8 @@ class PlayerController(Controller):
         '''Forces the client to be corrected when spawned'''
         self.last_correction = 0
 
-    def save_move(self, move_id, delta_time, input_tuple, mouse_diff_x,
-                  mouse_diff_y):
-        self.previous_moves[move_id] = SavedMove(self.pawn.position.copy(),
-                                                 self.pawn.rotation.copy(),
-                                                  self.pawn.velocity.copy(),
-                                                  self.pawn.angular.copy(),
-                                                  delta_time, input_tuple,
-                                                  mouse_diff_x, mouse_diff_y)
-
-    def send_ping_request(self, timestamp: TypeFlag(float)) -> Netmodes.client:
-        self.send_ping_reply(timestamp)
-
-    def send_ping_reply(self, timestamp: TypeFlag(float)) -> Netmodes.server:
-        if len(self.ping_results) > self.ping_samples:
-            self.ping_results.popleft()
-        self.ping_results.append(WorldInfo.elapsed - timestamp)
-        self.info.ping = sum(self.ping_results) / len(self.ping_results)
-
     def send_voice_server(self, data: TypeFlag(bytes,
-                                               max_length=256)) -> Netmodes.server:
+                                            max_length=256)) -> Netmodes.server:
         info = self.info
         for controller in WorldInfo.subclass_of(Controller):
             if controller is self:
@@ -450,53 +353,263 @@ class PlayerController(Controller):
             controller.hear_voice(info, data)
 
     def send_voice_client(self, info: TypeFlag(Replicable),
-                          data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
+                        data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
         player = self.sound_channels[info]
         player.decode(data)
 
     def server_fire(self):
         print("Rolling back by {:.3f} seconds".format(self.info.ping))
-        signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)
+        #signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)
+
         super().server_fire()
 
-    def server_validate(self, move_id: TypeFlag(int,
-                                 max_value=MarkAttribute("move_id_max")),
-                        last_correction: TypeFlag(int,
-                                 max_value=MarkAttribute("move_id_max")),
-                        inputs: TypeFlag(inputs.InputManager,
-                                 input_fields=MarkAttribute("input_fields")),
-                        mouse_diff_x: TypeFlag(float),
-                        mouse_diff_y: TypeFlag(float),
-                        delta_time: TypeFlag(float),
-                        position: TypeFlag(mathutils.Vector),
-                        rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
+    def validate_move(self):
+        current_tick = WorldInfo.tick
 
+        try:
+            position, rotation = self.pending_moves[current_tick]
+
+        except KeyError:
+            return
+
+        correction = self.get_corrected_state(position, rotation)
+
+        # It was a valid move
+        if correction is None:
+            self.client_acknowledge_move(current_tick)
+
+        # Send the correction
+        else:
+            self.server_add_lock("correction")
+            self.client_apply_correction(current_tick, correction)
+
+    def client_acknowledge_move(self, move_tick: TypeFlag(int,
+                                max_value=MarkAttribute("move_id_max"))) -> Netmodes.client:
+
+        try:
+            self.pending_moves.pop(move_tick)
+
+        except KeyError:
+            print("Couldn't find move to acknowledge for move {}"
+                .format(move_tick))
+            return
+
+        additional_keys = [k for k in self.pending_moves if k < move_tick]
+
+        for key in additional_keys:
+            self.pending_moves.pop(key)
+
+        return True
+
+    def client_apply_correction(self, correction_tick: TypeFlag(int,
+                               max_value=MarkAttribute("move_id_max")),
+                                correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
+
+        # Remove the lock at this network tick on server
+        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
+
+        if not self.client_acknowledge_move(correction_tick):
+            print("No move found")
+            return
+
+        signals.PhysicsCopyState.invoke(correction, self.pawn)
+        print("{}: Correcting prediction for move {}".format(self,
+                                                             correction_tick))
+
+        # Interface inputs with existing ones
+        lookup_dict = {}
+        apply_move = self.apply_move
+
+        with self.inputs.using_interface(lookup_dict.__getitem__):
+            for move in self.pending_moves.values():
+                # Place inputs into input manager
+                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
+                lookup_dict.update(inputs_zip)
+
+                apply_move(self.inputs, move.mouse_x, move.mouse_y)
+                signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
+                                                         target=self.pawn)
+
+    def apply_move(self, inputs, mouse_diff_x, mouse_diff_y):
+        blackboard = self.behaviour.blackboard
+
+        blackboard['inputs'] = inputs
+        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
+
+        self.behaviour.update()
+
+    def client_adjust_tick(self) -> Netmodes.client:
+        self.server_remove_lock("clock")
+        self.client_request_time(WorldInfo.elapsed)
+
+    def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
+        try:
+            self.locks.remove(name)
+        except KeyError:
+            print("{} was not locked".format(name))
+
+    def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
+        self.locks.add(name)
+
+    def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+                                    name: TypeFlag(str)) -> Netmodes.server:
+        '''Remove a server lock with respect for the jitter offset'''
+        self.buffered_locks[tick][name] = False
+
+    def server_add_buffered_lock(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+                                    name: TypeFlag(str)) -> Netmodes.server:
+        '''Add a server lock with respect for the jitter offset'''
+        self.buffered_locks[tick][name] = True
+
+    def update_buffered_locks(self, tick):
+        '''Apply buffered server locks'''
+        if tick in self.buffered_locks:
+            for lock_name, add_lock in self.buffered_locks[tick].items():
+                if add_lock:
+                    self.server_add_lock(lock_name)
+                else:
+                    self.server_remove_lock(lock_name)
+
+            self.buffered_locks.pop(tick)
+
+    def is_locked(self, name):
+        return name in self.locks
+
+    def client_nudge(self, difference:TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+                           forward: TypeFlag(bool)) -> Netmodes.client:
+        # Update clock
+        sign = (-1 + (forward * 2))
+        WorldInfo.elapsed += (difference * sign) / WorldInfo.tick_rate
+
+        # Reply received correction
+        self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
+
+    def get_clock_correction(self, current_tick, command_tick):
+        return int((current_tick - command_tick) * self.clock_convergence_factor)
+
+    def start_clock_correction(self, current_tick, command_tick):
+        if not self.is_locked("clock_synch"):
+            tick_difference = self.get_clock_correction(current_tick, command_tick)
+            nudge_forward = current_tick > command_tick
+            self.client_nudge(abs(tick_difference), forward=nudge_forward)
+            self.server_add_lock("clock_synch")
+
+    def server_store_move(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+                                inputs: TypeFlag(inputs.InputManager,
+                                input_fields=MarkAttribute("input_fields")),
+                                mouse_diff_x: TypeFlag(float),
+                                mouse_diff_y: TypeFlag(float),
+                                position: TypeFlag(mathutils.Vector),
+                                rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
+
+        current_tick = WorldInfo.tick
+
+        if tick < current_tick:
+            print("Move was late, correcting...")
+            self.start_clock_correction(current_tick, tick)
+            self.update_buffered_locks(tick)
+
+        else:
+            data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
+            self.buffer.append((tick, data))
+
+    @signals.PlayerInputSignal.global_listener
+    def player_update(self, delta_time):
         if not (self.pawn and self.camera):
             return
 
-        self.current_move_id = move_id
+        # Control Mouse data
+        mouse_diff_x, mouse_diff_y = self.mouse_delta
+        current_tick = WorldInfo.tick
 
-        self.execute_move(inputs, mouse_diff_x, mouse_diff_y, delta_time)
+        # Apply move inputs
+        self.apply_move(self.inputs, mouse_diff_x, mouse_diff_y)
 
-        self.save_move(move_id, delta_time, inputs.to_tuple(), mouse_diff_x,
-                       mouse_diff_y)
+        # Remember move for corrections
+        self.pending_moves[current_tick] = Move(current_tick,
+                 self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
+        self.store_voice()
 
-        # If this is an old move
-        if (last_correction < self.last_correction):
-            self.acknowledge_good_move(move_id)
+    @requires_netmode(Netmodes.server)
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        current_tick = WorldInfo.tick
+        consume_move = self.buffer.popleft
 
-        # Otherwise find if it needs correcting
+        try:
+            tick, (inputs, mouse_diff_x, mouse_diff_y,
+                   position, rotation) = self.buffer[0]
+
+        except IndexError:
+            print("No moves found...")
+            return
+
+        # Unlock clock synch
+        self.update_buffered_locks(tick)
+
+        # The tick is late, try and run a newer command
+        if tick < current_tick:
+
+            # Ensure we check through to the latest tick
+            consume_move()
+            if self.buffer:
+                self.update(delta_time)
+
+        # If the tick is early, check how early
+        elif tick > current_tick:
+            # If too early, remove it and force correction
+            if (current_tick - tick) > self.maximum_clock_ahead:
+                self.start_clock_correction(current_tick, tick)
+                consume_move()
+
+            return
+
+        # Else run the move
         else:
-            correction = self.get_corrected_state(position, rotation)
+            consume_move()
 
-            # It was a valid move
-            if correction is None:
-                self.acknowledge_good_move(move_id)
+            if not (self.pawn and self.camera):
+                return
 
-            # Send the correction
-            else:
-                self.correct_bad_move(move_id, correction)
-                self.last_correction = move_id
+            # Apply move inputs
+            self.apply_move(inputs, mouse_diff_x, mouse_diff_y)
+            # Save expected move results
+            self.pending_moves[current_tick] = position, rotation
+
+    @requires_netmode(Netmodes.client)
+    def client_send_move(self):
+        # Get move information
+        current_tick = WorldInfo.tick
+        try:
+            move = self.pending_moves[current_tick]
+        except KeyError:
+            return
+
+        self.server_store_move(current_tick, self.inputs,
+                               move.mouse_x,
+                               move.mouse_y,
+                               self.pawn.position,
+                               self.pawn.rotation)
+
+    @requires_netmode(Netmodes.server)
+    def server_check_move(self):
+        """Check result of movement operation"""
+        # Get move information
+        current_tick = WorldInfo.tick
+
+        # We are forced to acknowledge moves whose base we've already corrected
+        if self.is_locked("correction"):
+            self.client_acknowledge_move(current_tick)
+            return
+
+        # Validate move
+        self.validate_move()
+
+    @signals.PostPhysicsSignal.global_listener
+    def post_physics(self):
+        '''Post move to server and receive corrections'''        
+        self.client_send_move()
+        self.server_check_move()
 
     @requires_netmode(Netmodes.client)
     def setup_input(self):
@@ -532,16 +645,12 @@ class PlayerController(Controller):
         if data:
             self.send_voice_server(data)
 
-    def unpossessed(self):
-        super().unpossessed()
-        signals.PhysicsRoleChangedSignal.invoke(target=self.pawn)
-
 
 class Actor(Replicable):
 
     rigid_body_state = Attribute(structs.RigidBodyState(), notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
-                      notify=True)
+                    notify=True)
 
     entity_name = ""
     entity_class = bge_data.GameObject
@@ -634,17 +743,16 @@ class Actor(Replicable):
 
         # If we have a stored collision
         difference = self._old_colliders.difference(self._new_colliders)
-
-        self._old_colliders = self._new_colliders
-        self._new_colliders = set()
+        self._old_colliders, self._new_colliders = self._new_colliders, set()
 
         if not difference:
             return
 
+        callback = signals.CollisionSignal.invoke
         for obj in difference:
             self._registered.remove(obj)
 
-            signals.CollisionSignal.invoke(obj, False, None, target=self)
+            callback(obj, False, None, target=self)
 
     def on_unregistered(self):
         # Unregister any actor children
@@ -657,6 +765,7 @@ class Actor(Replicable):
 
         self.children.clear()
         self.child_entities.clear()
+
         self.object.endObject()
 
         super().on_unregistered()
@@ -700,7 +809,7 @@ class Actor(Replicable):
             parent_obj = actor.sockets[socket_name]
 
         else:
-            raise TypeError("Parent: {} does not have socket named {}".
+            raise LookupError("Parent: {} does not have socket named {}".
                             format(actor, socket_name))
 
         self.object.setParent(parent_obj)
@@ -736,7 +845,7 @@ class Actor(Replicable):
     def visible(self):
         obj = self.object
         return (obj.visible and obj.meshes) or any(o.visible and o.meshes
-                   for o in obj.childrenRecursive)
+                for o in obj.childrenRecursive)
 
     @property
     @lru_cache()
@@ -923,7 +1032,7 @@ class TraceWeapon(Weapon):
         momentum = self.momentum * hit_vector.normalized() * falloff
 
         signals.ActorDamagedSignal.invoke(damage, self.owner, hit_position,
-                                 momentum, target=replicable)
+                                momentum, target=replicable)
 
 
 class ProjectileWeapon(Weapon):
@@ -937,7 +1046,7 @@ class ProjectileWeapon(Weapon):
     def fire(self, camera):
         super().fire(camera)
 
-        self.projectiole_shot(camera)
+        self.projectile_shot(camera)
 
     @requires_netmode(Netmodes.server)
     def projectile_shot(self, camera):
@@ -983,7 +1092,7 @@ class Camera(Actor):
     entity_name = "Camera"
 
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
-                      notify=True)
+                    notify=True)
 
     @property
     def active(self):
@@ -1047,7 +1156,7 @@ class Camera(Actor):
 
     def draw(self):
         orientation = self.rotation.to_matrix() * mathutils.Matrix.Rotation(-math.radians(90),
-                                                                  3, "X")
+                                                                3, "X")
 
         circle_size = 0.20
 
@@ -1056,15 +1165,15 @@ class Camera(Actor):
         upwards_vector = mathutils.Vector(upwards_orientation.col[1])
 
         sideways_orientation = orientation * mathutils.Matrix.Rotation(math.radians(-90),
-                                                             3, "Z")
+                                                            3, "Z")
         sideways_vector = (mathutils.Vector(sideways_orientation.col[1]))
         forwards_vector = mathutils.Vector(orientation.col[1])
 
         draw_tools.draw_arrow(self.position, orientation, colour=[0, 1, 0])
         draw_tools.draw_arrow(self.position + upwards_vector * circle_size,
-                   upwards_orientation, colour=[0, 0, 1])
+                upwards_orientation, colour=[0, 0, 1])
         draw_tools.draw_arrow(self.position + sideways_vector * circle_size,
-                   sideways_orientation, colour=[1, 0, 0])
+                sideways_orientation, colour=[1, 0, 0])
         draw_tools.draw_circle(self.position, orientation, circle_size)
         draw_tools.draw_box(self.position, orientation)
         draw_tools.draw_square_pyramid(self.position + forwards_vector * 0.4, orientation,
@@ -1124,7 +1233,7 @@ class Pawn(Actor):
     health = Attribute(100, notify=True, complain=True)
     alive = Attribute(True, notify=True, complain=True)
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
-                      notify=True)
+                    notify=True)
 
     replication_update_period = 1 / 60
 
@@ -1192,20 +1301,20 @@ class Pawn(Actor):
 
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,
-                       mode=enums.AnimationMode.play, weight=0.0, speed=1.0,
-                       blend_mode=enums.AnimationBlend.interpolate):
+                    mode=enums.AnimationMode.play, weight=0.0, speed=1.0,
+                    blend_mode=enums.AnimationBlend.interpolate):
 
         # Define conversions from Blender animations to Network animation enum
         ge_mode = {enums.AnimationMode.play: bge.logic.KX_ACTION_MODE_PLAY,
-                   enums.AnimationMode.loop: bge.logic.KX_ACTION_MODE_LOOP,
-                   enums.AnimationMode.ping_pong: bge.logic.KX_ACTION_MODE_PING_PONG
-                   }[mode]
+                enums.AnimationMode.loop: bge.logic.KX_ACTION_MODE_LOOP,
+                enums.AnimationMode.ping_pong: bge.logic.KX_ACTION_MODE_PING_PONG
+                }[mode]
         ge_blend_mode = {enums.AnimationBlend.interpolate: bge.logic.KX_ACTION_BLEND_BLEND,
-                         enums.AnimationBlend.add: bge.logic.KX_ACTION_BLEND_ADD}[blend_mode]
+                        enums.AnimationBlend.add: bge.logic.KX_ACTION_BLEND_ADD}[blend_mode]
 
         self.skeleton.playAction(name, start, end, layer, priority, blend,
-                                 ge_mode, weight, speed=speed,
-                                 blend_mode=ge_blend_mode)
+                                ge_mode, weight, speed=speed,
+                                blend_mode=ge_blend_mode)
 
     @simulated
     def is_playing_animation(self, layer=0):
@@ -1233,7 +1342,7 @@ class Pawn(Actor):
 
         # Allow remote players to determine if we are alive without seeing health
         self.update_alive_status()
-        self.animations.update(delta_time)
+        self.animations.update()
 
     def update_alive_status(self):
         '''Update health boolean
@@ -1248,7 +1357,7 @@ class Pawn(Actor):
 
         self.weapon_attachment.local_rotation = mathutils.Euler(
                                                         (self.view_pitch, 0, 0)
-                                                          )
+                                                        )
 
 
 class Lamp(Actor):

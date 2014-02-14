@@ -41,6 +41,10 @@ class EnemyController(bge_network.AIController):
         self.behaviour.root = behaviour
 
 
+class Cone(bge_network.Actor):
+    entity_name = "Cone"
+
+
 class LegendController(bge_network.PlayerController):
 
     input_fields = ("forward", "backwards", "left",
@@ -145,9 +149,9 @@ class SphereProjectile(bge_network.Projectile):
 
         super().on_initialised()
 
-    @bge_network.CollisionSignal.listener
-    def on_collision(self, other, is_new, data):
-        self.request_unregistration()
+#     @bge_network.CollisionSignal.listener
+#     def on_collision(self, other, is_new, data):
+#         self.request_unregistration()
 
 
 class ZombieWeapon(bge_network.TraceWeapon):

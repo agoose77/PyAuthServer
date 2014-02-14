@@ -35,9 +35,9 @@ class BehaviourTree:
     def debug(self):
         self._root.print_tree()
 
-    def update(self, delta_time):
+    def update(self):
         blackboard = self.blackboard
-        blackboard['delta_time'] = delta_time
+
         self.reset_visited(blackboard)
         self._root.update(blackboard)
 

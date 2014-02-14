@@ -107,10 +107,10 @@ class Animation:
 				self.on_target()
 			return False
 
-		dt = (time.time() - self.last_update) * 1000
+		delta_time = (time.time() - self.last_update) * 1000
 		self.last_update = time.time()
 
-		dv = ((self.next_value - self.prev_value) / self.time) * dt
+		dv = ((self.next_value - self.prev_value) / self.time) * delta_time
 
 		setattr(self.widget, self.attrib, getattr(self.widget, self.attrib) + dv)
 
@@ -134,7 +134,7 @@ class ArrayAnimation(Animation):
 				self.on_target()
 			return False
 
-		dt = (time.time() - self.last_update) * 1000
+		delta_time = (time.time() - self.last_update) * 1000
 		self.last_update = time.time()
 
 		new_value = getattr(self.widget, self.attrib)[:]
@@ -143,7 +143,7 @@ class ArrayAnimation(Animation):
 			new_value[1] /= self.widget.parent.size[1]
 
 		for i in range(len(self.prev_value)):
-			dv = ((self.next_value[i] - self.prev_value[i]) / self.time) * dt
+			dv = ((self.next_value[i] - self.prev_value[i]) / self.time) * delta_time
 
 			new_value[i] += dv
 		setattr(self.widget, self.attrib, new_value)

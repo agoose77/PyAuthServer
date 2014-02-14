@@ -242,8 +242,7 @@ class _WorldInfo(Replicable):
             return values
 
     @simulated
-    @UpdateSignal.global_listener
-    def update(self, delta):
+    def update_clock(self, delta):
         self.elapsed += delta
 
     @simulated

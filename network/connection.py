@@ -386,15 +386,17 @@ class ServerConnection(Connection):
         @return: PacketCollection instance'''
 
         collection = PacketCollection()
-        replicables = self.get_method_replication(
-                                          self.prioritised_replication_data,
-                                          collection,
-                                          available_bandwidth)
+        replicables = self.prioritised_replication_data
 
         if network_tick:
             replicables = self.get_attribute_replication(replicables,
                                                          collection,
                                                          available_bandwidth)
+
+        replicables = self.get_method_replication(
+                                          replicables,
+                                          collection,
+                                          available_bandwidth)
 
         # Consume iterable
         consume(replicables)
