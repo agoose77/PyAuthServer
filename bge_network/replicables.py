@@ -201,7 +201,6 @@ class PlayerController(Controller):
     input_fields = []
 
     move_error_limit = 0.15 ** 2
-    move_id_max = 2 ** 16
     config_filepath = "inputs.conf"
 
     @property
@@ -236,11 +235,97 @@ class PlayerController(Controller):
         self._mouse_delta = smooth_x, smooth_y
         return smooth_x, smooth_y
 
+    def apply_move(self, inputs, mouse_diff_x, mouse_diff_y):
+        blackboard = self.behaviour.blackboard
+
+        blackboard['inputs'] = inputs
+        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
+
+        self.behaviour.update()
+
+    def client_adjust_tick(self) -> Netmodes.client:
+        self.server_remove_lock("clock")
+        self.client_request_time(WorldInfo.elapsed)
+
+    def client_acknowledge_move(self, move_tick: TypeFlag(int,
+                                max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
+
+        try:
+            self.pending_moves.pop(move_tick)
+
+        except KeyError:
+            print("Couldn't find move to acknowledge for move {}"
+                .format(move_tick))
+            return
+
+        additional_keys = [k for k in self.pending_moves if k < move_tick]
+
+        for key in additional_keys:
+            self.pending_moves.pop(key)
+
+        return True
+
+    def client_apply_correction(self, correction_tick: TypeFlag(int,
+                               max_value=WorldInfo._MAXIMUM_TICK),
+                                correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
+
+        # Remove the lock at this network tick on server
+        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
+
+        if not self.client_acknowledge_move(correction_tick):
+            print("No move found")
+            return
+
+        signals.PhysicsCopyState.invoke(correction, self.pawn)
+        print("{}: Correcting prediction for move {}".format(self,
+                                                             correction_tick))
+
+        # Interface inputs with existing ones
+        lookup_dict = {}
+        apply_move = self.apply_move
+
+        with self.inputs.using_interface(lookup_dict.__getitem__):
+            for move in self.pending_moves.values():
+                # Place inputs into input manager
+                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
+                lookup_dict.update(inputs_zip)
+
+                apply_move(self.inputs, move.mouse_x, move.mouse_y)
+                signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
+                                                         target=self.pawn)
+
+    def client_nudge(self, difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+                           forward: TypeFlag(bool)) -> Netmodes.client:
+        # Update clock
+        sign = (-1 + (forward * 2))
+        WorldInfo.elapsed += (difference * sign) / WorldInfo.tick_rate
+
+        # Reply received correction
+        self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
+
+    @requires_netmode(Netmodes.client)
+    def client_send_move(self):
+        # Get move information
+        current_tick = WorldInfo.tick
+        try:
+            move = self.pending_moves[current_tick]
+        except KeyError:
+            return
+
+        self.server_store_move(current_tick, self.inputs,
+                               move.mouse_x,
+                               move.mouse_y,
+                               self.pawn.position,
+                               self.pawn.rotation)
+
     @requires_netmode(Netmodes.client)
     def destroy_microphone(self):
         del self.microphone
         for key in list(self.sound_channels):
             del self.sound_channels[key]
+
+    def get_clock_correction(self, current_tick, command_tick):
+        return int((current_tick - command_tick) * self.clock_convergence_factor)
 
     def get_corrected_state(self, position, rotation):
         pos_difference = self.pawn.position - position
@@ -270,6 +355,9 @@ class PlayerController(Controller):
 
     def hear_voice(self, info, voice):
         self.send_voice_client(info, voice)
+
+    def is_locked(self, name):
+        return name in self.locks
 
     def load_keybindings(self):
         bindings = configuration.load_configuration(self.config_filepath,
@@ -303,7 +391,7 @@ class PlayerController(Controller):
         self.buffer = collections.deque()
 
         self.clock_convergence_factor = 1.0
-        self.maximum_clock_ahead = 15
+        self.maximum_clock_ahead = int(0.1 * WorldInfo.tick_rate)
 
 #         self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
 #                                     repeat=True)
@@ -332,10 +420,33 @@ class PlayerController(Controller):
         super().on_unregistered()
         self.destroy_microphone()
 
+    @signals.PlayerInputSignal.global_listener
+    def player_update(self, delta_time):
+        if not (self.pawn and self.camera):
+            return
+
+        # Control Mouse data
+        mouse_diff_x, mouse_diff_y = self.mouse_delta
+        current_tick = WorldInfo.tick
+
+        # Apply move inputs
+        self.apply_move(self.inputs, mouse_diff_x, mouse_diff_y)
+
+        # Remember move for corrections
+        self.pending_moves[current_tick] = Move(current_tick,
+                 self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
+        self.store_voice()
+
     def possess(self, replicable):
         super().possess(replicable)
 
         self.reset_corrections(replicable)
+
+    @signals.PostPhysicsSignal.global_listener
+    def post_physics(self):
+        '''Post move to server and receive corrections'''        
+        self.client_send_move()
+        self.server_check_move()
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         BroadcastMessage.invoke(message_string)
@@ -363,86 +474,6 @@ class PlayerController(Controller):
 
         super().server_fire()
 
-    def validate_move(self):
-        current_tick = WorldInfo.tick
-
-        try:
-            position, rotation = self.pending_moves[current_tick]
-
-        except KeyError:
-            return
-
-        correction = self.get_corrected_state(position, rotation)
-
-        # It was a valid move
-        if correction is None:
-            self.client_acknowledge_move(current_tick)
-
-        # Send the correction
-        else:
-            self.server_add_lock("correction")
-            self.client_apply_correction(current_tick, correction)
-
-    def client_acknowledge_move(self, move_tick: TypeFlag(int,
-                                max_value=MarkAttribute("move_id_max"))) -> Netmodes.client:
-
-        try:
-            self.pending_moves.pop(move_tick)
-
-        except KeyError:
-            print("Couldn't find move to acknowledge for move {}"
-                .format(move_tick))
-            return
-
-        additional_keys = [k for k in self.pending_moves if k < move_tick]
-
-        for key in additional_keys:
-            self.pending_moves.pop(key)
-
-        return True
-
-    def client_apply_correction(self, correction_tick: TypeFlag(int,
-                               max_value=MarkAttribute("move_id_max")),
-                                correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
-
-        # Remove the lock at this network tick on server
-        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
-
-        if not self.client_acknowledge_move(correction_tick):
-            print("No move found")
-            return
-
-        signals.PhysicsCopyState.invoke(correction, self.pawn)
-        print("{}: Correcting prediction for move {}".format(self,
-                                                             correction_tick))
-
-        # Interface inputs with existing ones
-        lookup_dict = {}
-        apply_move = self.apply_move
-
-        with self.inputs.using_interface(lookup_dict.__getitem__):
-            for move in self.pending_moves.values():
-                # Place inputs into input manager
-                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
-                lookup_dict.update(inputs_zip)
-
-                apply_move(self.inputs, move.mouse_x, move.mouse_y)
-                print(WorldInfo.tick_rate)
-                signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
-                                                         target=self.pawn)
-
-    def apply_move(self, inputs, mouse_diff_x, mouse_diff_y):
-        blackboard = self.behaviour.blackboard
-
-        blackboard['inputs'] = inputs
-        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
-
-        self.behaviour.update()
-
-    def client_adjust_tick(self) -> Netmodes.client:
-        self.server_remove_lock("clock")
-        self.client_request_time(WorldInfo.elapsed)
-
     def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
         try:
             self.locks.remove(name)
@@ -452,50 +483,17 @@ class PlayerController(Controller):
     def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
         self.locks.add(name)
 
-    def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+    def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                                     name: TypeFlag(str)) -> Netmodes.server:
         '''Remove a server lock with respect for the jitter offset'''
         self.buffered_locks[tick][name] = False
 
-    def server_add_buffered_lock(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+    def server_add_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                                     name: TypeFlag(str)) -> Netmodes.server:
         '''Add a server lock with respect for the jitter offset'''
         self.buffered_locks[tick][name] = True
 
-    def update_buffered_locks(self, tick):
-        '''Apply buffered server locks'''
-        if tick in self.buffered_locks:
-            for lock_name, add_lock in self.buffered_locks[tick].items():
-                if add_lock:
-                    self.server_add_lock(lock_name)
-                else:
-                    self.server_remove_lock(lock_name)
-
-            self.buffered_locks.pop(tick)
-
-    def is_locked(self, name):
-        return name in self.locks
-
-    def client_nudge(self, difference:TypeFlag(int, max_value=MarkAttribute("move_id_max")),
-                           forward: TypeFlag(bool)) -> Netmodes.client:
-        # Update clock
-        sign = (-1 + (forward * 2))
-        WorldInfo.elapsed += (difference * sign) / WorldInfo.tick_rate
-
-        # Reply received correction
-        self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
-
-    def get_clock_correction(self, current_tick, command_tick):
-        return int((current_tick - command_tick) * self.clock_convergence_factor)
-
-    def start_clock_correction(self, current_tick, command_tick):
-        if not self.is_locked("clock_synch"):
-            tick_difference = self.get_clock_correction(current_tick, command_tick)
-            nudge_forward = current_tick > command_tick
-            self.client_nudge(abs(tick_difference), forward=nudge_forward)
-            self.server_add_lock("clock_synch")
-
-    def server_store_move(self, tick: TypeFlag(int, max_value=MarkAttribute("move_id_max")),
+    def server_store_move(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                                 inputs: TypeFlag(inputs.InputManager,
                                 input_fields=MarkAttribute("input_fields")),
                                 mouse_diff_x: TypeFlag(float),
@@ -507,27 +505,68 @@ class PlayerController(Controller):
         data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
         self.buffer.append((tick, data))
 
-    @signals.PlayerInputSignal.global_listener
-    def player_update(self, delta_time):
-        if not (self.pawn and self.camera):
-            return
-
-        # Control Mouse data
-        mouse_diff_x, mouse_diff_y = self.mouse_delta
+    @requires_netmode(Netmodes.server)
+    def server_check_move(self):
+        """Check result of movement operation"""
+        # Get move information
         current_tick = WorldInfo.tick
 
-        # Apply move inputs
-        self.apply_move(self.inputs, mouse_diff_x, mouse_diff_y)
+        # We are forced to acknowledge moves whose base we've already corrected
+        if self.is_locked("correction"):
+            self.client_acknowledge_move(current_tick)
+            return
 
-        # Remember move for corrections
-        self.pending_moves[current_tick] = Move(current_tick,
-                 self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
-        self.store_voice()
+        # Validate move
+        self.validate_move()
+
+    @requires_netmode(Netmodes.client)
+    def setup_input(self):
+        keybindings = self.load_keybindings()
+
+        self.inputs = inputs.InputManager(keybindings)
+        print("Created input manager")
+
+    @requires_netmode(Netmodes.client)
+    def setup_microphone(self):
+        self.microphone = stream.MicrophoneStream()
+        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
+
+    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
+        self.info.name = name
+
+    def start_client_fire(self):
+        if not self.weapon.can_fire or not self.camera:
+            return
+
+        self.pawn.weapon_attachment.play_fire_effects()
+        self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
+
+    def start_clock_correction(self, current_tick, command_tick):
+        if not self.is_locked("clock_synch"):
+            tick_difference = self.get_clock_correction(current_tick, command_tick)
+            nudge_forward = current_tick > command_tick
+            self.client_nudge(abs(tick_difference), forward=nudge_forward)
+            self.server_add_lock("clock_synch")
+
+    def start_fire(self):
+        if not self.weapon:
+            return
+
+        self.start_server_fire()
+        self.start_client_fire()
+
+    def store_voice(self):
+        data = self.microphone.encode()
+        if data:
+            self.send_voice_server(data)
 
     @requires_netmode(Netmodes.server)
     @UpdateSignal.global_listener
     def update(self, delta_time):
         current_tick = WorldInfo.tick
+        # Aim ahead by the jitter buffer size
+        target_tick = self.maximum_clock_ahead + current_tick
+
         consume_move = self.buffer.popleft
 
         try:
@@ -551,13 +590,13 @@ class PlayerController(Controller):
                 self.update(delta_time)
             else:
                 print("Move was late, correcting...")
-                self.start_clock_correction(current_tick, tick)
+                self.start_clock_correction(target_tick, tick)
 
         # If the tick is early, check how early
         elif tick > current_tick:
             # If too early, remove it and force correction
-            if (current_tick - tick) > self.maximum_clock_ahead:
-                self.start_clock_correction(current_tick, tick)
+            if tick > target_tick:
+                self.start_clock_correction(target_tick, tick)
                 consume_move()
 
             return
@@ -574,74 +613,36 @@ class PlayerController(Controller):
             # Save expected move results
             self.pending_moves[current_tick] = position, rotation
 
-    @requires_netmode(Netmodes.client)
-    def client_send_move(self):
-        # Get move information
+    def update_buffered_locks(self, tick):
+        '''Apply buffered server locks'''
+        if tick in self.buffered_locks:
+            for lock_name, add_lock in self.buffered_locks[tick].items():
+                if add_lock:
+                    self.server_add_lock(lock_name)
+                else:
+                    self.server_remove_lock(lock_name)
+
+            self.buffered_locks.pop(tick)
+
+    def validate_move(self):
         current_tick = WorldInfo.tick
+
         try:
-            move = self.pending_moves[current_tick]
+            position, rotation = self.pending_moves[current_tick]
+
         except KeyError:
             return
 
-        self.server_store_move(current_tick, self.inputs,
-                               move.mouse_x,
-                               move.mouse_y,
-                               self.pawn.position,
-                               self.pawn.rotation)
+        correction = self.get_corrected_state(position, rotation)
 
-    @requires_netmode(Netmodes.server)
-    def server_check_move(self):
-        """Check result of movement operation"""
-        # Get move information
-        current_tick = WorldInfo.tick
-
-        # We are forced to acknowledge moves whose base we've already corrected
-        if self.is_locked("correction"):
+        # It was a valid move
+        if correction is None:
             self.client_acknowledge_move(current_tick)
-            return
 
-        # Validate move
-        self.validate_move()
-
-    @signals.PostPhysicsSignal.global_listener
-    def post_physics(self):
-        '''Post move to server and receive corrections'''        
-        self.client_send_move()
-        self.server_check_move()
-
-    @requires_netmode(Netmodes.client)
-    def setup_input(self):
-        keybindings = self.load_keybindings()
-
-        self.inputs = inputs.InputManager(keybindings)
-        print("Created input manager")
-
-    @requires_netmode(Netmodes.client)
-    def setup_microphone(self):
-        self.microphone = stream.MicrophoneStream()
-        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
-
-    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
-        self.info.name = name
-
-    def start_fire(self):
-        if not self.weapon:
-            return
-
-        self.start_server_fire()
-        self.start_client_fire()
-
-    def start_client_fire(self):
-        if not self.weapon.can_fire or not self.camera:
-            return
-
-        self.pawn.weapon_attachment.play_fire_effects()
-        self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
-
-    def store_voice(self):
-        data = self.microphone.encode()
-        if data:
-            self.send_voice_server(data)
+        # Send the correction
+        else:
+            self.server_add_lock("correction")
+            self.client_apply_correction(current_tick, correction)
 
 
 class Actor(Replicable):
