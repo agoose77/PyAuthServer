@@ -378,21 +378,6 @@ class TargetIsAlive(ConditionNode):
         return blackboard['actor'].health != 0
 
 
-class CheckTimer(ConditionNode):
-
-    def condition(self, blackboard):
-        weapon = blackboard['weapon']
-        return (WorldInfo.elapsed - weapon.last_fired_time
-                ) >= weapon.shoot_interval
-
-
-class SetTimer(SignalLeafNode):
-
-    def evaluate(self, blackboard):
-        blackboard['weapon'].last_fired_time = WorldInfo.elapsed
-        return (EvaluationState.success)
-
-
 class ConvertState(StateModifier):
 
     def __init__(self, st_from, st_to, *children):

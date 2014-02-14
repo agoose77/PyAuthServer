@@ -71,15 +71,11 @@ class SignalListener:
         for _, callback in self.signal_callbacks:
             Signal.subscribe(self, callback)
 
-        Signal.update_graph()
-
     def unregister_signals(self):
         """Unregister signals from observer
         """
         for _, callback in self.signal_callbacks:
             Signal.unsubscribe(self, callback)
-
-        Signal.update_graph()
 
 
 class Signal(metaclass=TypeRegister):
@@ -209,6 +205,7 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_graph(cls):
+
         for cls in cls._types.values():
             cls.update_state()
 

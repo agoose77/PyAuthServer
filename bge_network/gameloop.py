@@ -37,6 +37,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self._profile = None
 
         self.register_signals()
+        Signal.update_graph()
 
         MapLoadedSignal.invoke()
 
@@ -72,15 +73,19 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
             self.network.receive()
+            Signal.update_graph()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
             Replicable.update_graph()
+            Signal.update_graph()
 
             if WorldInfo.netmode != Netmodes.server:
                 PlayerInputSignal.invoke(delta_time)
 
             UpdateSignal.invoke(delta_time)
+
             Replicable.update_graph()
+            Signal.update_graph()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
             PhysicsTickSignal.invoke(scene, delta_time)

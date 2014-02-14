@@ -140,6 +140,7 @@ class Replicable(metaclass=ReplicableRegister):
         '''Called on registration of replicable
         Registers instance to type list'''
         self.__class__._by_types[type(self)].append(self)
+
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):

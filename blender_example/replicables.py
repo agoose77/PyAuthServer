@@ -55,7 +55,6 @@ class LegendController(bge_network.PlayerController):
 
         if name == "weapon":
             signals.UIWeaponChangedSignal.invoke(self.weapon)
-            signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
 
     def receive_broadcast(self, message_string: bge_network.TypeFlag(str)) -> bge_network.Netmodes.client:
         signals.ConsoleMessage.invoke(message_string)
@@ -75,15 +74,9 @@ class LegendController(bge_network.PlayerController):
     def player_update(self, delta_time):
         super().player_update(delta_time)
 
-        if self.inputs.shoot:
-            self.start_fire()
-
         # Only record when we need to
         if self.inputs.voice != self.microphone.active:
             self.microphone.active = self.inputs.voice
-
-        if self.weapon:
-            signals.UIUpdateSignal.invoke("ammo", self.weapon.ammo)
 
 
 class RobertNeville(bge_network.Pawn):
@@ -118,6 +111,13 @@ class Zombie(bge_network.Pawn):
 
 
 class M4A1Weapon(bge_network.ProjectileWeapon):
+
+    def on_notify(self, name):
+        # This way ammo is still updated locally
+        if name == "ammo":
+            signals.UIUpdateSignal.invoke("ammo", self.ammo)
+        else:
+            super().on_notify(name)
 
     def on_initialised(self):
         super().on_initialised()

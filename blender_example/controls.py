@@ -123,6 +123,7 @@ class HandleInputs(SignalLeafNode):
     def evaluate(self, blackboard):
         inputs = blackboard['inputs']
         pawn = blackboard['pawn']
+        controller = blackboard['controller']
 
         y_plane = inputs.forward - inputs.backwards
         x_plane = inputs.right - inputs.left
@@ -134,6 +135,9 @@ class HandleInputs(SignalLeafNode):
 
         elif movement_mode == MovementState.run:
             forward_speed = pawn.run_speed
+
+        if inputs.shoot:
+            controller.start_fire()
 
         velocity = Vector((x_plane, y_plane, 0.0))
         velocity.length = forward_speed

@@ -108,12 +108,6 @@ class Controller(Replicable):
         self.set_weapon(weapon)
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
-    def start_server_fire(self) -> Netmodes.server:
-        if not self.weapon.can_fire:
-            return
-
-        self.server_fire()
-
     def unpossess(self):
         self.pawn.unpossessed()
         self.info.pawn = self.pawn = None
@@ -372,8 +366,6 @@ class PlayerController(Controller):
         self.setup_input()
         self.setup_microphone()
 
-        self.current_move_id = 0
-        self.last_correction = 0
         self.pending_moves = collections.OrderedDict()
 
         self.camera_setup = False
@@ -392,11 +384,6 @@ class PlayerController(Controller):
 
         self.clock_convergence_factor = 1.0
         self.maximum_clock_ahead = int(0.1 * WorldInfo.tick_rate)
-
-#         self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
-#                                     repeat=True)
-#         self.ping_results = collections.deque()
-#         self.ping_samples = 3
 
     def on_notify(self, name):
         if name == "pawn":
@@ -437,23 +424,14 @@ class PlayerController(Controller):
                  self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
         self.store_voice()
 
-    def possess(self, replicable):
-        super().possess(replicable)
-
-        self.reset_corrections(replicable)
-
     @signals.PostPhysicsSignal.global_listener
     def post_physics(self):
-        '''Post move to server and receive corrections'''        
+        '''Post move to server and receive corrections'''
         self.client_send_move()
         self.server_check_move()
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         BroadcastMessage.invoke(message_string)
-
-    def reset_corrections(self, replicable):
-        '''Forces the client to be corrected when spawned'''
-        self.last_correction = 0
 
     def send_voice_server(self, data: TypeFlag(bytes,
                                             max_length=256)) -> Netmodes.server:
@@ -468,6 +446,7 @@ class PlayerController(Controller):
         player = self.sound_channels[info]
         player.decode(data)
 
+    @requires_netmode(Netmodes.server)
     def server_fire(self):
         print("Rolling back by {:.3f} seconds".format(self.info.ping))
         #signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)
@@ -534,12 +513,11 @@ class PlayerController(Controller):
     def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
 
-    def start_client_fire(self):
-        if not self.weapon.can_fire or not self.camera:
-            return
-
+    @requires_netmode(Netmodes.client)
+    def client_fire(self):
         self.pawn.weapon_attachment.play_fire_effects()
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
+        self.weapon.fire(self.camera)
 
     def start_clock_correction(self, current_tick, command_tick):
         if not self.is_locked("clock_synch"):
@@ -552,8 +530,11 @@ class PlayerController(Controller):
         if not self.weapon:
             return
 
-        self.start_server_fire()
-        self.start_client_fire()
+        if not self.weapon.can_fire or not self.camera:
+            return
+        print(self.weapon.can_fire, "FUIRE", WorldInfo.tick, self.weapon.ammo)
+        self.server_fire()
+        self.client_fire()
 
     def store_voice(self):
         data = self.microphone.encode()
@@ -954,12 +935,12 @@ class Projectile(Actor):
 
 class Weapon(Replicable):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
-    ammo = Attribute(70)
+    ammo = Attribute(70, notify=True)
 
     @property
     def can_fire(self):
         return bool(self.ammo) and \
-            (WorldInfo.elapsed - self.last_fired_time) >= self.shoot_interval
+            (WorldInfo.tick - self.last_fired_tick) >= (self.shoot_interval * WorldInfo.tick_rate)
 
     @property
     def data_path(self):
@@ -978,7 +959,7 @@ class Weapon(Replicable):
 
     def fire(self, camera):
         self.consume_ammo()
-        self.last_fired_time = WorldInfo.elapsed
+        self.last_fired_tick = WorldInfo.tick
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -990,7 +971,7 @@ class Weapon(Replicable):
 
         self._data_path = logic.expandPath("//data")
         self.shoot_interval = 0.5
-        self.last_fired_time = 0.0
+        self.last_fired_tick = 0
         self.max_ammo = 70
 
         self.momentum = 1
@@ -1224,7 +1205,7 @@ class Camera(Actor):
 
 class Pawn(Actor):
     view_pitch = Attribute(0.0)
-    flash_count = Attribute(0, notify=True, complain=True)
+    flash_count = Attribute(0, complain=True)
     weapon_attachment_class = Attribute(type_of=type(Replicable),
                                         notify=True,
                                         complain=True)
@@ -1287,8 +1268,6 @@ class Pawn(Actor):
         # play weapon effects
         if name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
-        elif name == "flash_count":
-            pass
         else:
             super().on_notify(name)
 
