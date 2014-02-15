@@ -6,7 +6,9 @@ from .enums import *
 from .errors import *
 from .finite_state_machine import *
 from .gameloop import *
+from .particles import *
 from .physics import *
+from .physics_object import *
 from .replicables import *
 from .signals import *
 from .structs import *

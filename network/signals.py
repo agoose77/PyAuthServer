@@ -16,6 +16,11 @@ class SignalListener:
     Optional greedy binding (binds the events supported by both classes)
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.register_signals()
+
     @property
     def signal_callbacks(self):
         """Property

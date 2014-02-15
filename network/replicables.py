@@ -101,6 +101,9 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
+    def validate_id(self, instance_id):
+        return instance_id <= self._MAXIMUM_REPLICABLES
+
     def request_registration(self, instance_id):
         '''Handles registration of instances
         Modifies behaviour to allow network priority over local instances
@@ -139,13 +142,16 @@ class Replicable(metaclass=ReplicableRegister):
     def on_registered(self):
         '''Called on registration of replicable
         Registers instance to type list'''
-        self.__class__._by_types[type(self)].append(self)
+        super().on_registered()
 
+        self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
+        super().on_unregistered()
+
         self.__class__._by_types[type(self)].remove(self)
         ReplicableUnregisteredSignal.invoke(target=self)
 
@@ -204,6 +210,7 @@ class _WorldInfo(Replicable):
         self.always_relevant = True
 
     @ReplicableRegisteredSignal.global_listener
+    @simulated
     def _cache_replicable(self, target):
         cache = self._cache
         for cls_type, values in cache.items():
@@ -211,6 +218,7 @@ class _WorldInfo(Replicable):
                 values.append(target)
 
     @ReplicableUnregisteredSignal.global_listener
+    @simulated
     def _uncache_replicable(self, target):
         cache = self._cache
         for values in cache.values():

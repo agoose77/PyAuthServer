@@ -30,7 +30,8 @@ def json_decoded(callback, data):
 class Matchmaker(SignalListener):
 
     def __init__(self, url):
-        self.register_signals()
+        super().__init__()
+
         self.url = url
         self.thread = URLThread()
         self.thread.start()

@@ -55,6 +55,16 @@ class LegendController(bge_network.PlayerController):
 
         if name == "weapon":
             signals.UIWeaponChangedSignal.invoke(self.weapon)
+            signals.UIWeaponDataChangedSignal.invoke("ammo", self.weapon.ammo)
+           #signals.UIWeaponDataChangedSignal.invoke("clips", self.weapon.clips)
+
+        if name == "pawn":
+            signals.UIHealthChangedSignal.invoke(self.pawn.health)
+
+    @bge_network.ActorDamagedSignal.listener
+    def take_damage(self, damage, instigator, hit_position, momentum):
+        if self.pawn.health == 0:
+            bge_network.ActorKilledSignal.invoke(instigator, target=self.pawn)
 
     def receive_broadcast(self, message_string: bge_network.TypeFlag(str)) -> bge_network.Netmodes.client:
         signals.ConsoleMessage.invoke(message_string)
@@ -81,6 +91,14 @@ class LegendController(bge_network.PlayerController):
 
 class RobertNeville(bge_network.Pawn):
     entity_name = "Suzanne_Physics"
+
+    @bge_network.simulated
+    def on_notify(self, name):
+        # play weapon effects
+        if name == "health":
+            signals.UIHealthChangedSignal.invoke(self.health)
+        else:
+            super().on_notify(name)
 
     def on_initialised(self):
         super().on_initialised()
@@ -115,7 +133,7 @@ class M4A1Weapon(bge_network.ProjectileWeapon):
     def on_notify(self, name):
         # This way ammo is still updated locally
         if name == "ammo":
-            signals.UIUpdateSignal.invoke("ammo", self.ammo)
+            signals.UIWeaponDataChangedSignal.invoke("ammo", self.ammo)
         else:
             super().on_notify(name)
 
@@ -125,11 +143,11 @@ class M4A1Weapon(bge_network.ProjectileWeapon):
         self.max_ammo = 50
         self.attachment_class = M4A1Attachment
 
-        self.shoot_interval = 0.1
+        self.shoot_interval = 0.3
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
 
         self.projectile_class = SphereProjectile
-        self.projectile_velocity = mathutils.Vector((0, 15, 2))
+        self.projectile_velocity = mathutils.Vector((0, 15, 3))
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
@@ -141,17 +159,52 @@ class ZombieAttachment(bge_network.WeaponAttachment):
         self.owner.play_animation("Attack", 0, 60)
 
 
-class SphereProjectile(bge_network.Projectile):
-    entity_name = "Sphere"
+class TracerParticle(bge_network.Particle):
+    entity_name = "Trace"
+    lifespan = 0.5
 
     def on_initialised(self):
-        self.lifespan = 10
-
         super().on_initialised()
 
-#     @bge_network.CollisionSignal.listener
-#     def on_collision(self, other, is_new, data):
-#         self.request_unregistration()
+        self.scale = self.object.localScale.copy()
+
+    @UpdateSignal.global_listener
+    def update(self, delta_time):
+        self.object.localScale = self.scale * (1 - self._timer.progress)
+
+
+class SphereProjectile(bge_network.Actor):
+    entity_name = "Sphere"
+
+    lifespan = 3
+    damage = 10
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.update_simulated_physics = False
+
+    @UpdateSignal.global_listener
+    @simulated
+    @requires_netmode(Netmodes.client)
+    def update(self, delta_time):
+        particle = TracerParticle()
+        particle.position = self.position
+
+    @bge_network.CollisionSignal.listener
+    def on_collision(self, other, is_new, data):
+        target = self.from_object(other)
+        if target is not None and data:
+            bge_network.ActorDamagedSignal.invoke()
+
+            hit_vector = sum((c.hitNormal for c in data), Vector())
+            hit_position = sum((c.hitPosition for c in data), Vector())
+            momentum = self.mass * self.velocity.length * hit_vector.normalized()
+
+            bge_network.ActorDamagedSignal.invoke(self.damage, self.owner,
+                                                  hit_position, momentum,
+                                                  target=target)
+        self.request_unregistration()
 
 
 class ZombieWeapon(bge_network.TraceWeapon):

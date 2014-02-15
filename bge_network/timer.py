@@ -8,6 +8,7 @@ class ManualTimer:
     def __init__(self, target_value=0.0, initial_value=0.0,
                  count_down=False, on_target=None, on_update=None,
                  on_stop=None, on_reset=None, repeat=False, active=True):
+        super().__init__()
 
         self.target = target_value
         self.initial = self.value = initial_value
@@ -73,11 +74,6 @@ class ManualTimer:
 
 
 class Timer(ManualTimer, SignalListener):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.register_signals()
 
     def delete(self):
         self.unregister_signals()

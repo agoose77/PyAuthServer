@@ -95,7 +95,7 @@ class ReplicableBaseHandler:
             return replicable
 
         except (LookupError):
-            print("Couldn't find replicable", list(Replicable), instance_id)
+            print("Couldn't find replicable", instance_id)
             return
 
     def size(self, bytes_=None):

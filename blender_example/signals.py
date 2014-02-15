@@ -9,9 +9,13 @@ class ConnectToSignal(Signal):
     pass
 
 
-class UIUpdateSignal(Signal):
+class UIWeaponDataChangedSignal(Signal):
     pass
 
 
 class UIWeaponChangedSignal(Signal):
+    pass
+
+
+class UIHealthChangedSignal(Signal):
     pass

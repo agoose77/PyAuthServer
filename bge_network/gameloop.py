@@ -36,7 +36,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self._interval = 1 / 25
         self._profile = None
 
-        self.register_signals()
         Signal.update_graph()
 
         MapLoadedSignal.invoke()
@@ -92,6 +91,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             PostPhysicsSignal.invoke()
 
+            Replicable.update_graph()
+            Signal.update_graph()
+            
             self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
             self.update_animations(current_time)
 
@@ -161,6 +163,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
 
     def clean_up(self):
+        print("QUIT")
         GameExitSignal.invoke()
 
         for replicable in Replicable:

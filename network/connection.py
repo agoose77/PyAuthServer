@@ -24,6 +24,8 @@ class Connection(SignalListener):
     channel_class = None
 
     def __init__(self, netmode):
+        super().__init__()
+
         self.netmode = netmode
         self.replicable = None
 
@@ -32,8 +34,6 @@ class Connection(SignalListener):
         self.string_packer = get_handler(TypeFlag(str))
         self.int_packer = get_handler(TypeFlag(int))
         self.replicable_packer = get_handler(TypeFlag(Replicable))
-
-        self.register_signals()
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
@@ -171,7 +171,6 @@ class ClientConnection(Connection):
 
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:  # @UndefinedVariable @IgnorePep8
-
             id_size = self.replicable_packer.size()
 
             type_name = self.string_packer.unpack_from(
@@ -198,7 +197,6 @@ class ClientConnection(Connection):
 
         # If it is the deletion request
         elif packet.protocol == Protocols.replication_del:  # @UndefinedVariable @IgnorePep8
-
             # If the replicable exists
             try:
                 replicable = Replicable.get_from_graph(instance_id)  # @UndefinedVariable @IgnorePep8
@@ -227,6 +225,7 @@ class ClientConnection(Connection):
     def receive(self, packets):
         '''Handles incoming PacketCollection instance
         @param packets: PacketCollection instance'''
+
         for packet in packets:
             protocol = packet.protocol
 
@@ -260,6 +259,7 @@ class ServerConnection(Connection):
         @param replicable: replicable that died'''
         # Send delete packet
         channel = self.channels[target.instance_id]
+
         self.cached_packets.add(Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
                                     payload=channel.packed_id, reliable=True))
 
@@ -330,6 +330,7 @@ class ServerConnection(Connection):
                     # Insert the packet at the front (to ensure attribute
                     # references are valid to newly created replicables
                     insert_packet(0, packet)
+                    print("CREATE PACKET", replicable.instance_id, replicable)
                     used_bandwidth += packet.size
 
                 # Send changed attributes

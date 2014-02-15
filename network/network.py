@@ -33,7 +33,6 @@ class UnreliableSocket(UDPSocket, signals.SignalListener):
 
         self._buffer_out = deque()
         self._buffer_in = deque()
-        self.register_signals()
 
     @signals.UpdateSignal.global_listener
     def cb(self, dt):

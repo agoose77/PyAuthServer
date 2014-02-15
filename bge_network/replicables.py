@@ -11,6 +11,7 @@ from . import utilities
 from . import timer
 from . import draw_tools
 from . import stream
+from . import physics_object
 
 import aud
 import bge
@@ -110,6 +111,7 @@ class Controller(Replicable):
 
     def unpossess(self):
         self.pawn.unpossessed()
+        print("unpossess pawn")
         self.info.pawn = self.pawn = None
 
 
@@ -194,7 +196,7 @@ class PlayerController(Controller):
 
     input_fields = []
 
-    move_error_limit = 0.15 ** 2
+    move_error_limit = 0.1 ** 2
     config_filepath = "inputs.conf"
 
     @property
@@ -237,12 +239,20 @@ class PlayerController(Controller):
 
         self.behaviour.update()
 
+    def calculate_ping(self):
+        if not self.is_locked("ping"):
+            self.client_reply_ping(WorldInfo.tick)
+            self.server_add_lock("ping")
+
     def client_adjust_tick(self) -> Netmodes.client:
         self.server_remove_lock("clock")
         self.client_request_time(WorldInfo.elapsed)
 
     def client_acknowledge_move(self, move_tick: TypeFlag(int,
                                 max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
+        if not self.pawn:
+            print("Could not find Pawn for {}".format(self))
+            return
 
         try:
             self.pending_moves.pop(move_tick)
@@ -262,6 +272,9 @@ class PlayerController(Controller):
     def client_apply_correction(self, correction_tick: TypeFlag(int,
                                max_value=WorldInfo._MAXIMUM_TICK),
                                 correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
+        if not self.pawn:
+            print("Could not find Pawn for {}".format(self))
+            return
 
         # Remove the lock at this network tick on server
         self.server_remove_buffered_lock(WorldInfo.tick, "correction")
@@ -288,6 +301,12 @@ class PlayerController(Controller):
                 signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
                                                          target=self.pawn)
 
+    @requires_netmode(Netmodes.client)
+    def client_fire(self):
+        self.pawn.weapon_attachment.play_fire_effects()
+        self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
+        self.weapon.fire(self.camera)
+
     def client_nudge(self, difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                            forward: TypeFlag(bool)) -> Netmodes.client:
         # Update clock
@@ -296,6 +315,9 @@ class PlayerController(Controller):
 
         # Reply received correction
         self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
+
+    def client_reply_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
+        self.server_deduce_ping(tick)
 
     @requires_netmode(Netmodes.client)
     def client_send_move(self):
@@ -383,17 +405,28 @@ class PlayerController(Controller):
         self.buffer = collections.deque()
 
         self.clock_convergence_factor = 1.0
-        self.maximum_clock_ahead = int(0.1 * WorldInfo.tick_rate)
+        self.maximum_clock_ahead = int(0.05 * WorldInfo.tick_rate)
+
+        self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
+                                    repeat=True)
+        self.ping_results = collections.deque()
+        self.ping_samples = 3
+
+        self._last_pawn = None
 
     def on_notify(self, name):
         if name == "pawn":
             if self.pawn:
+                if self._last_pawn is not None:
+                    self._last_pawn.unpossessed()
+
                 self.possess(self.pawn)
+                self._last_pawn = self.pawn
             else:
                 self.unpossess()
 
         elif name == "camera":
-            assert self.pawn
+            #assert self.pawn
             self.set_camera(self.camera)
             self.camera.active = True
 
@@ -445,6 +478,11 @@ class PlayerController(Controller):
                         data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
         player = self.sound_channels[info]
         player.decode(data)
+
+    def server_deduce_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)):
+        round_trip_tick = WorldInfo.tick - tick
+        self.info.ping = round_trip_tick / WorldInfo.tick_rate
+        self.server_remove_lock("ping")
 
     @requires_netmode(Netmodes.server)
     def server_fire(self):
@@ -513,12 +551,6 @@ class PlayerController(Controller):
     def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
 
-    @requires_netmode(Netmodes.client)
-    def client_fire(self):
-        self.pawn.weapon_attachment.play_fire_effects()
-        self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
-        self.weapon.fire(self.camera)
-
     def start_clock_correction(self, current_tick, command_tick):
         if not self.is_locked("clock_synch"):
             tick_difference = self.get_clock_correction(current_tick, command_tick)
@@ -532,7 +564,7 @@ class PlayerController(Controller):
 
         if not self.weapon.can_fire or not self.camera:
             return
-        print(self.weapon.can_fire, "FUIRE", WorldInfo.tick, self.weapon.ammo)
+       
         self.server_fire()
         self.client_fire()
 
@@ -545,6 +577,7 @@ class PlayerController(Controller):
     @UpdateSignal.global_listener
     def update(self, delta_time):
         current_tick = WorldInfo.tick
+
         # Aim ahead by the jitter buffer size
         target_tick = self.maximum_clock_ahead + current_tick
 
@@ -557,7 +590,6 @@ class PlayerController(Controller):
         except IndexError:
             print("No moves found...")
             return
-
         # Unlock clock synch
         self.update_buffered_locks(tick)
 
@@ -626,14 +658,11 @@ class PlayerController(Controller):
             self.client_apply_correction(current_tick, correction)
 
 
-class Actor(Replicable):
+class Actor(Replicable, physics_object.PhysicsObject):
 
     rigid_body_state = Attribute(structs.RigidBodyState(), notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
                     notify=True)
-
-    entity_name = ""
-    entity_class = bge_data.GameObject
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -650,103 +679,15 @@ class Actor(Replicable):
     def on_initialised(self):
         super().on_initialised()
 
-        self.object = self.entity_class(self.entity_name)
-
         self.camera_radius = 1
 
         self.update_simulated_physics = True
         self.always_relevant = False
 
-        self.parent = None
-        self.children = set()
-        self.child_entities = set()
-
-        self._suspended = False
-        self._new_colliders = set()
-        self._old_colliders = set()
-        self._registered = set()
-
-        self._register_callback()
-        self._establish_relationship()
-
-    @staticmethod
-    def from_object(obj):
-        return obj.get("owner")
-
-    @simulated
-    def _establish_relationship(self):
-        self.object['owner'] = self
-
-    @property
-    def suspended(self):
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
-            return
-        return not self.object.useDynamics
-
-    @suspended.setter
-    def suspended(self, value):
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
-            return
-        self.object.useDynamics = not value
-
-    @property
-    def colliding(self):
-        return bool(self._registered)
-
-    @simulated
-    def _register_callback(self):
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
-            return
-        callbacks = self.object.collisionCallbacks
-        callbacks.append(self._on_collide)
-
-    @simulated
-    def _on_collide(self, other, data):
-        if self.suspended:
-            return
-
-        # If we haven't already stored the collision
-        self._new_colliders.add(other)
-
-        if not other in self._registered:
-            self._registered.add(other)
-            signals.CollisionSignal.invoke(other, True, data, target=self)
-
-    @signals.UpdateCollidersSignal.global_listener
-    @simulated
-    def _update_colliders(self):
-        if self.suspended:
-            return
-
-        # If we have a stored collision
-        difference = self._old_colliders.difference(self._new_colliders)
-        self._old_colliders, self._new_colliders = self._new_colliders, set()
-
-        if not difference:
-            return
-
-        callback = signals.CollisionSignal.invoke
-        for obj in difference:
-            self._registered.remove(obj)
-
-            callback(obj, False, None, target=self)
-
     def on_unregistered(self):
         # Unregister any actor children
         for child in self.children:
             child.request_unregistration()
-
-        # Unregister from parent
-        if self.parent:
-            self.parent.remove_child(self)
-
-        self.children.clear()
-        self.child_entities.clear()
-
-        self.object.endObject()
 
         super().on_unregistered()
 
@@ -769,168 +710,6 @@ class Actor(Replicable):
     @simulated
     def align_to(self, vector, time=1, axis=enums.Axis.y):
         self.object.alignAxisToVect(vector, axis, time)
-
-    @simulated
-    def add_child(self, actor):
-        self.children.add(actor)
-        self.child_entities.add(actor.object)
-
-    @simulated
-    def remove_child(self, actor):
-        self.children.remove(actor)
-        self.child_entities.remove(actor.object)
-
-    @simulated
-    def set_parent(self, actor, socket_name=None):
-        if socket_name is None:
-            parent_obj = actor.object
-
-        elif socket_name in actor.sockets:
-            parent_obj = actor.sockets[socket_name]
-
-        else:
-            raise LookupError("Parent: {} does not have socket named {}".
-                            format(actor, socket_name))
-
-        self.object.setParent(parent_obj)
-        self.parent = actor
-        actor.add_child(self)
-
-    @simulated
-    def remove_parent(self):
-        self.parent.remove_child(self)
-        self.object.setParent(None)
-
-    @property
-    def collision_group(self):
-        return self.object.collisionGroup
-
-    @collision_group.setter
-    def collision_group(self, group):
-        if self.object.collisionGroup == group:
-            return
-        self.object.collisionGroup = group
-
-    @property
-    def collision_mask(self):
-        return self.object.collisionMask
-
-    @collision_mask.setter
-    def collision_mask(self, mask):
-        if self.object.collisionMask == mask:
-            return
-        self.object.collisionMask = mask
-
-    @property
-    def visible(self):
-        obj = self.object
-        return (obj.visible and obj.meshes) or any(o.visible and o.meshes
-                for o in obj.childrenRecursive)
-
-    @property
-    @lru_cache()
-    def physics(self):
-        physics_type = self.object.physicsType
-        if not getattr(self.object, "meshes", []):
-            return logic.KX_PHYSICS_NO_COLLISION
-        return physics_type
-
-    @property
-    def sockets(self):
-        return {s['socket']: s for s in
-                self.object.childrenRecursive if "socket" in s}
-
-    @property
-    def has_dynamics(self):
-        return self.physics in (enums.PhysicsType.rigid_body, enums.PhysicsType.dynamic)
-
-    @property
-    def transform(self):
-        return self.object.worldTransform
-
-    @transform.setter
-    def transform(self, val):
-        self.object.worldTransform = val
-
-    @property
-    def rotation(self):
-        return self.object.worldOrientation.to_euler()
-
-    @rotation.setter
-    def rotation(self, rot):
-        self.object.worldOrientation = rot
-
-    @property
-    def position(self):
-        return self.object.worldPosition
-
-    @position.setter
-    def position(self, pos):
-        self.object.worldPosition = pos
-
-    @property
-    def local_position(self):
-        return self.object.localPosition
-
-    @local_position.setter
-    def local_position(self, pos):
-        self.object.localPosition = pos
-
-    @property
-    def local_rotation(self):
-        return self.object.localOrientation.to_euler()
-
-    @local_rotation.setter
-    def local_rotation(self, ori):
-        self.object.localOrientation = ori
-
-    @property
-    def velocity(self):
-        if not self.has_dynamics:
-            return mathutils.Vector()
-
-        return self.object.localLinearVelocity
-
-    @velocity.setter
-    def velocity(self, vel):
-        if not self.has_dynamics:
-            return
-
-        self.object.localLinearVelocity = vel
-
-    @property
-    def angular(self):
-        if not self.has_dynamics:
-            return mathutils.Vector()
-
-        return self.object.localAngularVelocity
-
-    @angular.setter
-    def angular(self, vel):
-        if not self.has_dynamics:
-            return
-
-        self.object.localAngularVelocity = vel
-
-
-class Projectile(Actor):
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.update_simulated_physics = False
-        self.lifespan = 10
-
-        self.create_timer()
-
-    def create_timer(self):
-        self._timer = timer.Timer(self.lifespan, on_target=self.request_unregistration)
-
-    def on_unregistered(self):
-        super().on_unregistered()
-
-        self._timer.stop()
-        self._timer.delete()
 
 
 class Weapon(Replicable):
@@ -1033,9 +812,10 @@ class ProjectileWeapon(Weapon):
         projectile = self.projectile_class()
         forward_vector = mathutils.Vector((0, 1, 0))
         forward_vector.rotate(camera.rotation)
-        projectile.position = camera.position + forward_vector * 3.0
+        projectile.position = camera.position + forward_vector * 4.0
         projectile.rotation = camera.rotation.copy()
         projectile.velocity = self.projectile_velocity
+        projectile.owner = self.owner
 
 
 class EmptyWeapon(Weapon):
@@ -1268,6 +1048,7 @@ class Pawn(Actor):
         # play weapon effects
         if name == "weapon_attachment_class":
             self.create_weapon_attachment(self.weapon_attachment_class)
+
         else:
             super().on_notify(name)
 

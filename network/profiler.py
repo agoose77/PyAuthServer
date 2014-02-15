@@ -13,8 +13,6 @@ class ProfileManager(SignalListener):
 
         self._profiles = defaultdict(Profile)
 
-        self.register_signals()
-
     @ProfileSignal.global_listener
     def update_profiler(self, profile_id, start, dump=True):
         profile = self._profiles[profile_id]

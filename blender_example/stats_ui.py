@@ -158,7 +158,6 @@ class StatsPanel(Panel, SignalListener):
 
         self.uses_mouse = True
 
-        self.register_signals()
 
 class BGESystem(System):
 

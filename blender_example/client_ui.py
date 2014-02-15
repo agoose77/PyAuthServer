@@ -5,8 +5,8 @@ from matchmaker import Matchmaker
 from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
                      SignalListener, WorldInfo, ManualTimer, Timer,
                      BroadcastMessage)
-from signals import (ConsoleMessage, ConnectToSignal, UIUpdateSignal,
-                     UIWeaponChangedSignal)
+from signals import (ConsoleMessage, ConnectToSignal, UIWeaponDataChangedSignal,
+                     UIWeaponChangedSignal, UIHealthChangedSignal)
 from functools import partial
 
 import bge
@@ -624,7 +624,13 @@ class UIPanel(TimerMixins, Panel):
                          "flashbangs": (self.flashbang_box, self.flashbang_label)}
         self.handled_concerns = {}
 
-    @UIUpdateSignal.global_listener
+        self.health_indicator = bgui.Image(self, "health",
+                                        "ui/health_overlay.tga",
+                                        size=[1.0, 1.0],
+                                        pos=[0.0, 0.0], options=CENTERED)
+        self.health_indicator.color[-1] = 0.0
+
+    @UIWeaponDataChangedSignal.global_listener
     def update_entry(self, name, value):
         value_field = self.entries[name][1]
         value_field.text = str(value)
@@ -646,6 +652,10 @@ class UIPanel(TimerMixins, Panel):
     @ConnectionSuccessSignal.global_listener
     def on_connect(self, target):
         self.visible = True
+
+    @UIHealthChangedSignal.global_listener
+    def health_changed(self, health):
+        self.health_indicator.color[-1] = 1 - (health/100)
 
     @UIWeaponChangedSignal.global_listener
     def weapon_changed(self, weapon):

@@ -16,7 +16,7 @@ class Channel:
         self.replicable = replicable
         self.connection = connection
         # Set initial (replication status) to True
-        self.last_replication_time = WorldInfo.elapsed
+        self.last_replication_time = 0.0
         self.is_initial = True
         # Get network attributes
         self.attribute_storage = replicable.attribute_storage
@@ -151,7 +151,8 @@ class ServerChannel(Channel):
             # If values match, don't update
             if last_hash == new_hash:
                 continue
-
+            if name == "pawn":
+                print("Sending pawn", self.replicable, self.replicable.instance_id)
             # Add value to data dict
             to_serialise[name] = value
 

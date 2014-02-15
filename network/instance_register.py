@@ -1,6 +1,8 @@
 from .signals import SignalListener
 from .type_register import TypeRegister
 
+
+from random import choice
 from itertools import chain
 
 __all__ = ['InstanceRegister', 'InstanceMixins']
@@ -10,6 +12,8 @@ class InstanceMixins(SignalListener):
 
     def __init__(self, instance_id=None, register=False,
                  allow_random_key=False, **kwargs):
+        super().__init__()
+
         self.allow_random_key = allow_random_key
 
         # Add to register queue
@@ -21,6 +25,9 @@ class InstanceMixins(SignalListener):
         # Update graph
         if register:
             self.__class__.update_graph()
+
+    def validate_id(self, instance_id):
+        return True
 
     def on_initialised(self):
         pass
@@ -44,6 +51,9 @@ class InstanceMixins(SignalListener):
         if instance_id is None:
             assert self.allow_random_key, "No key specified"
             instance_id = self.__class__.get_random_id()
+
+        if not self.validate_id(instance_id):
+            raise IndexError("Instance ID requested is not available")
 
         self.instance_id = instance_id
         self.__class__._to_register.add(self)
@@ -147,8 +157,6 @@ class InstanceRegister(TypeRegister):
 
         cls._instances[instance.instance_id] = instance
         cls._to_register.remove(instance)
-
-        instance.register_signals()
 
         try:
             instance.on_registered()

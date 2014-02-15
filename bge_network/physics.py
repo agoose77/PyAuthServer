@@ -27,8 +27,6 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
-        self.register_signals()
-
     def on_conversion_error(self, lookup, err):
         print("Unable to convert {}: {}".format(lookup, err))
 
@@ -116,7 +114,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
         # Make a list of actors which aren't us
         other_actors = [a for a in WorldInfo.subclass_of(Actor) if a != target]
-
+        for o in other_actors:
+            if not o:
+                print(o, o.instance_id)
+            return
         with self.protect_exemptions(other_actors):
             self._update_func(delta_time)
 
@@ -219,6 +220,7 @@ class ServerPhysics(PhysicsSystem):
         """Send state with unset data so velocities"""
         """reflect results of behaviour"""
         for replicable in WorldInfo.subclass_of(Actor):
+            assert replicable.registered
             self.interface_state(replicable,
                                  replicable.rigid_body_state)
 

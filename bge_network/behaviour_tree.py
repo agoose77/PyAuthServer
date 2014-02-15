@@ -72,7 +72,6 @@ class LeafNode(SignalListener):
     def __init__(self):
         super().__init__()
 
-        self.register_signals()
         self._signal_parent = self
 
         self.state = EvaluationState.ready

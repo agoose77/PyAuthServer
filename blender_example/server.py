@@ -88,7 +88,8 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
-
+        for x in [pawn, camera, weapon]:
+            print(x.instance_id, x)
         pawn.position = Vector((random.randint(-10, 10),
                                 random.randint(-10, 10), 3))
         return controller
@@ -115,15 +116,14 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if isinstance(replicable, (bge_network.Controller,
                                    bge_network.Weapon)):
             return False
-        if "info" in replicable.__class__.__name__.lower():
-            print(replicable, "FOUND", replicable.always_relevant)
+
         return False
 
     @bge_network.ActorKilledSignal.global_listener
     def killed(self, attacker, target):
         message = "{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn)
-
+        print("KILLED")
         self.broadcast(attacker, message)
 
         target.owner.unpossess()

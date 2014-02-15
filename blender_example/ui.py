@@ -84,7 +84,6 @@ class System(bgui.System, SignalListener):
                                val.startswith('PAD')) and hasattr(bgui, val)}
 
         self.scene.post_draw.append(self.render)
-        self.register_signals()
 
     def update(self, delta_time):
         # Handle the mouse
@@ -206,14 +205,13 @@ class ImageSequence(SpriteSequence):
         self.update_image(source)
 
 
-class Panel(bgui.Frame, SignalListener):
+class Panel(SignalListener, bgui.Frame):
 
     def __init__(self, system, name):
         super().__init__(parent=system, name=name,
                          size=[1, 1], options=CENTERED)
 
         self.uses_mouse = False
-        self.register_signals()
 
     def update(self, delta_time):
         pass
