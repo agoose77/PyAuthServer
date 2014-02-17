@@ -1,11 +1,15 @@
-from collections import defaultdict
-
 __all__ = ['FactoryDict']
 
 
-class FactoryDict(defaultdict):
-    '''Dictionary with factory for missing keys
-    Provides key to factory function provided to initialiser'''
-    def __missing__(self, key):
-        value = self[key] = self.default_factory(key)
+def FactoryDict(factory_func, dict_type=dict, provide_key=True):
+    def missing_key(self, key):
+        value = self[key] = factory_func(key)
         return value
+
+    def missing(self, key):
+        value = self[key] = factory_func()
+        return value
+
+    callback = missing_key if provide_key else missing
+
+    return type("FactoryDict", (dict_type,), {"__missing__": callback})()

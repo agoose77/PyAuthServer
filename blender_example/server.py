@@ -79,7 +79,6 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         if controller is None:
             controller = self.player_controller_class()
             controller.info = self.player_replication_info_class()
-            print(controller.info)
 
         pawn = self.player_pawn_class()
         camera = self.player_camera_class()
@@ -88,8 +87,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.possess(pawn)
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
-        for x in [pawn, camera, weapon]:
-            print(x.instance_id, x)
+
         pawn.position = Vector((random.randint(-10, 10),
                                 random.randint(-10, 10), 3))
         return controller
@@ -123,7 +121,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     def killed(self, attacker, target):
         message = "{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn)
-        print("KILLED")
+
         self.broadcast(attacker, message)
 
         target.owner.unpossess()

@@ -117,7 +117,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         for o in other_actors:
             if not o:
                 print(o, o.instance_id)
-            return
+                return
         with self.protect_exemptions(other_actors):
             self._update_func(delta_time)
 

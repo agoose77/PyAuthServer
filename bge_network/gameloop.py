@@ -18,6 +18,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         super().__init__()
 
         WorldInfo.tick_rate = int(logic.getLogicTicRate())
+        print("Set tick rate", WorldInfo.tick_rate)
 
         self.use_tick_rate = logic.getUseFrameRate()
 
@@ -93,7 +94,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             Replicable.update_graph()
             Signal.update_graph()
-            
+
             self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
             self.update_animations(current_time)
 
@@ -114,13 +115,15 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def update_loop(self):
         last_time = self.get_time()
-        step_time = 1 / WorldInfo.tick_rate
 
         accumulator = 0.0
 
         # Fixed timestep
         while not self.check_quit():
             current_time = self.get_time()
+
+            step_time = 1 / WorldInfo.tick_rate
+
             delta_time = current_time - last_time
             last_time = current_time
 
@@ -163,7 +166,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_OUTSIDE)
 
     def clean_up(self):
-        print("QUIT")
         GameExitSignal.invoke()
 
         for replicable in Replicable:

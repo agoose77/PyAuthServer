@@ -135,7 +135,6 @@ class ServerChannel(Channel):
 
         # Iterate over attributes
         for name in can_replicate:
-
             # Get current value
             attribute = get_attribute(name)
             value = attribute_data[attribute]
@@ -151,8 +150,7 @@ class ServerChannel(Channel):
             # If values match, don't update
             if last_hash == new_hash:
                 continue
-            if name == "pawn":
-                print("Sending pawn", self.replicable, self.replicable.instance_id)
+
             # Add value to data dict
             to_serialise[name] = value
 

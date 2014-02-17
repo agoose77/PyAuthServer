@@ -111,7 +111,7 @@ class Controller(Replicable):
 
     def unpossess(self):
         self.pawn.unpossessed()
-        print("unpossess pawn")
+
         self.info.pawn = self.pawn = None
 
 
@@ -239,6 +239,7 @@ class PlayerController(Controller):
 
         self.behaviour.update()
 
+    @requires_netmode(Netmodes.server)
     def calculate_ping(self):
         if not self.is_locked("ping"):
             self.client_reply_ping(WorldInfo.tick)
@@ -304,10 +305,11 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def client_fire(self):
         self.pawn.weapon_attachment.play_fire_effects()
+        print(self.weapon.shoot_sound)
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
         self.weapon.fire(self.camera)
 
-    def client_nudge(self, difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+    def client_nudge_clock(self, difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                            forward: TypeFlag(bool)) -> Netmodes.client:
         # Update clock
         sign = (-1 + (forward * 2))
@@ -356,21 +358,21 @@ class PlayerController(Controller):
         return correction
 
     def hear_sound(self, sound_path: TypeFlag(str),
-                source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
+                   source: TypeFlag(mathutils.Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
 
-        return
         probability = utilities.falloff_fraction(self.pawn.position,
                                                 self.hear_range, source,
                                                 self.effective_hear_range)
-
-        file_path = bge.logic.expandPath("//{}".format(sound_path))
-        factory = aud.Factory.file(file_path)
+        return
+        factory = aud.Factory.file(sound_path)
         return aud.device().play(factory)
 
-    def hear_voice(self, info, voice):
-        self.send_voice_client(info, voice)
+    def hear_voice(self, info: TypeFlag(Replicable),
+                        data: TypeFlag(bytes, max_length=2**32 - 1)) -> Netmodes.client:
+        player = self.sound_channels[info]
+        player.decode(data)
 
     def is_locked(self, name):
         return name in self.locks
@@ -400,17 +402,18 @@ class PlayerController(Controller):
         self.behaviour.blackboard['controller'] = self
 
         self.locks = set()
-        self.buffered_locks = collections.defaultdict(dict)
+        self.buffered_locks = FactoryDict(dict,
+                                          dict_type=collections.OrderedDict,
+                                          provide_key=False)
 
         self.buffer = collections.deque()
 
         self.clock_convergence_factor = 1.0
-        self.maximum_clock_ahead = int(0.05 * WorldInfo.tick_rate)
+        self.maximum_clock_ahead = int(0.1 * WorldInfo.tick_rate)
 
-        self.ping_timer = timer.Timer(0.5, on_target=self.calculate_ping,
+        self.ping_timer = timer.Timer(1.0, on_target=self.calculate_ping,
                                     repeat=True)
-        self.ping_results = collections.deque()
-        self.ping_samples = 3
+        self.ping_influence_factor = 0.8
 
         self._last_pawn = None
 
@@ -455,7 +458,7 @@ class PlayerController(Controller):
         # Remember move for corrections
         self.pending_moves[current_tick] = Move(current_tick,
                  self.inputs.to_tuple(), mouse_diff_x, mouse_diff_y)
-        self.store_voice()
+        self.broadcast_voice()
 
     @signals.PostPhysicsSignal.global_listener
     def post_physics(self):
@@ -467,21 +470,19 @@ class PlayerController(Controller):
         BroadcastMessage.invoke(message_string)
 
     def send_voice_server(self, data: TypeFlag(bytes,
-                                            max_length=256)) -> Netmodes.server:
+                                            max_length=2**32 - 1)) -> Netmodes.server:
         info = self.info
         for controller in WorldInfo.subclass_of(Controller):
             if controller is self:
                 continue
+
             controller.hear_voice(info, data)
 
-    def send_voice_client(self, info: TypeFlag(Replicable),
-                        data: TypeFlag(bytes, max_length=256)) -> Netmodes.client:
-        player = self.sound_channels[info]
-        player.decode(data)
-
-    def server_deduce_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)):
+    def server_deduce_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.server:
         round_trip_tick = WorldInfo.tick - tick
-        self.info.ping = round_trip_tick / WorldInfo.tick_rate
+        round_trip_time = round_trip_tick / WorldInfo.tick_rate
+        self.info.ping = (((1 - self.ping_influence_factor) * self.info.ping)
+                          + (self.ping_influence_factor * round_trip_time))
         self.server_remove_lock("ping")
 
     @requires_netmode(Netmodes.server)
@@ -519,6 +520,14 @@ class PlayerController(Controller):
                                 rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
 
         current_tick = WorldInfo.tick
+        target_tick = self.maximum_clock_ahead + current_tick
+
+        # If the move is too early, correct clock
+        if tick > target_tick:
+            self.update_buffered_locks(tick)
+            self.start_clock_correction(target_tick, tick)
+            return
+
         data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
         self.buffer.append((tick, data))
 
@@ -534,7 +543,22 @@ class PlayerController(Controller):
             return
 
         # Validate move
-        self.validate_move()
+        try:
+            position, rotation = self.pending_moves[current_tick]
+
+        except KeyError:
+            return
+
+        correction = self.get_corrected_state(position, rotation)
+
+        # It was a valid move
+        if correction is None:
+            self.client_acknowledge_move(current_tick)
+
+        # Send the correction
+        else:
+            self.server_add_lock("correction")
+            self.client_apply_correction(current_tick, correction)
 
     @requires_netmode(Netmodes.client)
     def setup_input(self):
@@ -555,7 +579,7 @@ class PlayerController(Controller):
         if not self.is_locked("clock_synch"):
             tick_difference = self.get_clock_correction(current_tick, command_tick)
             nudge_forward = current_tick > command_tick
-            self.client_nudge(abs(tick_difference), forward=nudge_forward)
+            self.client_nudge_clock(abs(tick_difference), forward=nudge_forward)
             self.server_add_lock("clock_synch")
 
     def start_fire(self):
@@ -564,11 +588,11 @@ class PlayerController(Controller):
 
         if not self.weapon.can_fire or not self.camera:
             return
-       
+
         self.server_fire()
         self.client_fire()
 
-    def store_voice(self):
+    def broadcast_voice(self):
         data = self.microphone.encode()
         if data:
             self.send_voice_server(data)
@@ -576,11 +600,9 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.server)
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        current_tick = WorldInfo.tick
-
         # Aim ahead by the jitter buffer size
+        current_tick = WorldInfo.tick
         target_tick = self.maximum_clock_ahead + current_tick
-
         consume_move = self.buffer.popleft
 
         try:
@@ -588,33 +610,27 @@ class PlayerController(Controller):
                    position, rotation) = self.buffer[0]
 
         except IndexError:
-            print("No moves found...")
             return
-        # Unlock clock synch
+
+        # Process any buffered locks
         self.update_buffered_locks(tick)
 
         # The tick is late, try and run a newer command
         if tick < current_tick:
-
             # Ensure we check through to the latest tick
             consume_move()
 
             if self.buffer:
                 self.update(delta_time)
+
             else:
-                print("Move was late, correcting...")
                 self.start_clock_correction(target_tick, tick)
 
-        # If the tick is early, check how early
+        # If the tick is early, wait for it to become valid
         elif tick > current_tick:
-            # If too early, remove it and force correction
-            if tick > target_tick:
-                self.start_clock_correction(target_tick, tick)
-                consume_move()
-
             return
 
-        # Else run the move
+        # Else run the move at the present time (it's valid)
         else:
             consume_move()
 
@@ -628,34 +644,21 @@ class PlayerController(Controller):
 
     def update_buffered_locks(self, tick):
         '''Apply buffered server locks'''
-        if tick in self.buffered_locks:
-            for lock_name, add_lock in self.buffered_locks[tick].items():
+        removed_keys = []
+        for tick_, locks in self.buffered_locks.items():
+            if tick_ > tick:
+                break
+
+            for lock_name, add_lock in locks.items():
                 if add_lock:
                     self.server_add_lock(lock_name)
                 else:
                     self.server_remove_lock(lock_name)
 
-            self.buffered_locks.pop(tick)
+            removed_keys.append(tick_)
 
-    def validate_move(self):
-        current_tick = WorldInfo.tick
-
-        try:
-            position, rotation = self.pending_moves[current_tick]
-
-        except KeyError:
-            return
-
-        correction = self.get_corrected_state(position, rotation)
-
-        # It was a valid move
-        if correction is None:
-            self.client_acknowledge_move(current_tick)
-
-        # Send the correction
-        else:
-            self.server_add_lock("correction")
-            self.client_apply_correction(current_tick, correction)
+        for key in removed_keys:
+            self.buffered_locks.pop(key)
 
 
 class Actor(Replicable, physics_object.PhysicsObject):
@@ -697,10 +700,6 @@ class Actor(Replicable, physics_object.PhysicsObject):
         else:
             super().on_notify(name)
 
-    @signals.ActorDamagedSignal.listener
-    def take_damage(self, damage, instigator, hit_position, momentum):
-        self.health = int(max(self.health - damage, 0))
-
     @simulated
     def trace_ray(self, local_vector):
         target = self.transform * local_vector
@@ -718,8 +717,8 @@ class Weapon(Replicable):
 
     @property
     def can_fire(self):
-        return bool(self.ammo) and \
-            (WorldInfo.tick - self.last_fired_tick) >= (self.shoot_interval * WorldInfo.tick_rate)
+        return (bool(self.ammo) and (WorldInfo.tick - self.last_fired_tick)
+                >= (self.shoot_interval * WorldInfo.tick_rate))
 
     @property
     def data_path(self):
@@ -772,7 +771,6 @@ class TraceWeapon(Weapon):
     def trace_shot(self, camera):
         hit_object, hit_position, hit_normal = camera.trace_ray(
                                                 self.maximum_range)
-
         if not hit_object:
             return
 
@@ -782,11 +780,9 @@ class TraceWeapon(Weapon):
             return
 
         hit_vector = (hit_position - camera.position)
-
         falloff = utilities.falloff_fraction(camera.position,
                                     self.maximum_range,
                                     hit_position, self.effective_range)
-
         damage = self.base_damage * falloff
         momentum = self.momentum * hit_vector.normalized() * falloff
 
@@ -1092,6 +1088,10 @@ class Pawn(Actor):
         for child in self.object.childrenRecursive:
             if isinstance(child, bge.types.BL_ArmatureObject):
                 return child
+
+    @signals.ActorDamagedSignal.listener
+    def take_damage(self, damage, instigator, hit_position, momentum):
+        self.health = int(max(self.health - damage, 0))
 
     @simulated
     @UpdateSignal.global_listener

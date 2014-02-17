@@ -5,6 +5,7 @@ from bge import logic
 import signals
 import aud
 import controls
+import math
 import mathutils
 
 
@@ -147,7 +148,7 @@ class M4A1Weapon(bge_network.ProjectileWeapon):
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
 
         self.projectile_class = SphereProjectile
-        self.projectile_velocity = mathutils.Vector((0, 15, 3))
+        self.projectile_velocity = mathutils.Vector((0, 15, 10))
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
@@ -179,32 +180,51 @@ class SphereProjectile(bge_network.Actor):
     lifespan = 3
     damage = 10
 
-    def on_initialised(self):
-        super().on_initialised()
+    def on_registered(self):
+        super().on_registered()
 
+        self.i_vel = self.velocity.copy()
+        self.start_colour = mathutils.Vector(self.object.color)
         self.update_simulated_physics = False
 
     @UpdateSignal.global_listener
-    @simulated
     @requires_netmode(Netmodes.client)
+    @simulated
     def update(self, delta_time):
         particle = TracerParticle()
         particle.position = self.position
 
+        global_vel = self.velocity.copy()
+        global_vel.rotate(self.rotation)
+        global_rotation = mathutils.Vector().rotation_difference(global_vel)
+
+        axis_spin = mathutils.Euler((0, (math.pi) * self._timer.progress, 0))
+        axis_spin.rotate(global_rotation)
+        particle.rotation = axis_spin
+
+        self.object.color = bge_network.utilities.lerp(self.start_colour,
+                                            mathutils.Vector((1, 0, 0, 1)),
+                                            self._timer.progress)
+        particle.object.color = self.object.color
+
     @bge_network.CollisionSignal.listener
     def on_collision(self, other, is_new, data):
         target = self.from_object(other)
-        if target is not None and data:
-            bge_network.ActorDamagedSignal.invoke()
+        if not data or not is_new:
+            return
 
-            hit_vector = sum((c.hitNormal for c in data), Vector())
-            hit_position = sum((c.hitPosition for c in data), Vector())
-            momentum = self.mass * self.velocity.length * hit_vector.normalized()
+        hit_normal = sum((c.hitNormal for c in data), Vector()) / len(data)
+        hit_position = sum((c.hitPosition for c in data), Vector()) / len(data)
+
+        if target is not None:
+            bge_network.ActorDamagedSignal.invoke()
+            momentum = self.mass * self.velocity.length * hit_normal
 
             bge_network.ActorDamagedSignal.invoke(self.damage, self.owner,
                                                   hit_position, momentum,
                                                   target=target)
-        self.request_unregistration()
+
+            self.request_unregistration()
 
 
 class ZombieWeapon(bge_network.TraceWeapon):

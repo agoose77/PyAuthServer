@@ -330,7 +330,6 @@ class ServerConnection(Connection):
                     # Insert the packet at the front (to ensure attribute
                     # references are valid to newly created replicables
                     insert_packet(0, packet)
-                    print("CREATE PACKET", replicable.instance_id, replicable)
                     used_bandwidth += packet.size
 
                 # Send changed attributes

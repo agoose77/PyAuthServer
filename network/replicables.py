@@ -158,7 +158,7 @@ class Replicable(metaclass=ReplicableRegister):
     def on_notify(self, name):
         '''Called on notifier attribute change
         @param name: name of attribute that has changed'''
-        print("{} attribute of {} was changed by the network".format(name,
+        if 0:print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 
     def conditions(self, is_owner, is_complaint, is_initial):
@@ -199,7 +199,7 @@ class _WorldInfo(Replicable):
                       )
 
     elapsed = Attribute(0.0, complain=False)
-    tick_rate = Attribute(60, complain=False)
+    tick_rate = Attribute(1000, complain=True, notify=True)
 
     def on_initialised(self):
         self._cache = {}
@@ -211,17 +211,15 @@ class _WorldInfo(Replicable):
 
     @ReplicableRegisteredSignal.global_listener
     @simulated
-    def _cache_replicable(self, target):
-        cache = self._cache
-        for cls_type, values in cache.items():
+    def cache_replicable(self, target):
+        for cls_type, values in self._cache.items():
             if isinstance(target, cls_type):
                 values.append(target)
 
     @ReplicableUnregisteredSignal.global_listener
     @simulated
-    def _uncache_replicable(self, target):
-        cache = self._cache
-        for values in cache.values():
+    def uncache_replicable(self, target):
+        for values in self._cache.values():
             if target in values:
                 values.remove(target)
 
@@ -230,15 +228,13 @@ class _WorldInfo(Replicable):
 
         if is_initial:
             yield "elapsed"
-        yield "tick_rate"
+
+        if is_complain:
+            yield "tick_rate"
 
     @property
     def tick(self):
         return int((self.elapsed + self.clock_correction) * self.tick_rate)
-
-    @property
-    def replicables(self):
-        return Replicable.get_graph_instances()
 
     @simulated
     def subclass_of(self, actor_type):
@@ -246,6 +242,7 @@ class _WorldInfo(Replicable):
         @param actor_type: type to compare against'''
         try:
             return self._cache[actor_type]
+
         except KeyError:
             values = self._cache[actor_type] = [a for a in Replicable if
                                                 isinstance(a, actor_type)]
@@ -259,10 +256,12 @@ class _WorldInfo(Replicable):
     def type_is(self, name):
         return Replicable._by_types.get(name)
 
+    replicables = property(Replicable.get_graph_instances)
     get_replicable = simulated(Replicable.get_from_graph)
     has_replicable = simulated(Replicable.graph_has_instance)
 
 
-# Circular Reference
+# Circular Reference on attribute
 Replicable.owner.type = Replicable
+
 WorldInfo = _WorldInfo(_WorldInfo._ID, register=True)

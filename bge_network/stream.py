@@ -14,8 +14,8 @@ class GenericStream(threads.SafeThread):
         self.format = pyaudio.paInt16
         self.channels = 1
         self.bitrate = 12000
-        assert not self.bitrate % 50, "Bitrate must be divisible by 50"
-        self.chunk = self.bitrate // 50
+  #      assert not self.bitrate % 50, "Bitrate must be divisible by 50"
+        self.chunk = self.bitrate // 25
 
         self.pyaudio = pyaudio.PyAudio()
         self.compress = False
@@ -121,7 +121,7 @@ class SpeakerStream(GenericStream):
             with queue.mutex:
                 queue.queue.clear()
 
-    def decode(self, data, clear=True):
+    def decode(self, data, clear=False):
         if clear:
             with self.in_queue.mutex:
                 self.in_queue.queue.clear()
