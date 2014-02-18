@@ -7,6 +7,7 @@ import aud
 import controls
 import math
 import mathutils
+import bge
 
 
 class GameReplicationInfo(bge_network.ReplicableInfo):
@@ -147,7 +148,7 @@ class M4A1Weapon(bge_network.ProjectileWeapon):
         self.shoot_interval = 0.3
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
 
-        self.projectile_class = SphereProjectile
+        self.projectile_class = ArrowProjectile
         self.projectile_velocity = mathutils.Vector((0, 15, 10))
 
 
@@ -162,23 +163,20 @@ class ZombieAttachment(bge_network.WeaponAttachment):
 
 class TracerParticle(bge_network.Particle):
     entity_name = "Trace"
-    lifespan = 0.5
 
     def on_initialised(self):
         super().on_initialised()
 
+        self.lifespan = 0.5
         self.scale = self.object.localScale.copy()
 
     @UpdateSignal.global_listener
     def update(self, delta_time):
-        self.object.localScale = self.scale * (1 - self._timer.progress)
+        self.object.localScale = self.scale * (1 - self._timer.progress) ** 2
 
 
 class SphereProjectile(bge_network.Actor):
     entity_name = "Sphere"
-
-    lifespan = 3
-    damage = 10
 
     def on_registered(self):
         super().on_registered()
@@ -186,6 +184,7 @@ class SphereProjectile(bge_network.Actor):
         self.i_vel = self.velocity.copy()
         self.start_colour = mathutils.Vector(self.object.color)
         self.update_simulated_physics = False
+        self.lifespan = 10
 
     @UpdateSignal.global_listener
     @requires_netmode(Netmodes.client)
@@ -217,14 +216,60 @@ class SphereProjectile(bge_network.Actor):
         hit_position = sum((c.hitPosition for c in data), Vector()) / len(data)
 
         if target is not None:
-            bge_network.ActorDamagedSignal.invoke()
             momentum = self.mass * self.velocity.length * hit_normal
 
-            bge_network.ActorDamagedSignal.invoke(self.damage, self.owner,
+            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage, self.owner.owner,
                                                   hit_position, momentum,
                                                   target=target)
 
             self.request_unregistration()
+
+
+class ArrowProjectile(bge_network.Actor):
+    entity_name = "Arrow"
+
+    def on_registered(self):
+        super().on_registered()
+
+        self.update_simulated_physics = False
+        self.in_flight = True
+
+    @UpdateSignal.global_listener
+    @simulated
+    def update(self, delta_time):
+        global_vel = self.velocity.copy()
+        global_vel.rotate(self.rotation)
+
+        if self.in_flight:
+            self.align_to(global_vel, 0.3)
+
+    @bge_network.CollisionSignal.listener
+    @simulated
+    def on_collision(self, other, is_new, data):
+        target = self.from_object(other)
+
+        if not data or not is_new or not self.in_flight:
+            return
+
+        hit_normal = sum((c.hitNormal for c in data), Vector()) / len(data)
+        hit_position = sum((c.hitPosition for c in data), Vector()) / len(data)
+
+        if isinstance(target, bge_network.Pawn):
+            momentum = self.mass * self.velocity.length * hit_normal
+
+            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage, self.owner.owner,
+                                              hit_position, momentum,
+                                              target=target)
+
+            self.request_unregistration()
+
+        elif self.in_flight:
+            if other.name != self.object.name:
+                self.object.setParent(other)
+
+            self.lifespan = 5
+
+        self.in_flight = False
 
 
 class ZombieWeapon(bge_network.TraceWeapon):

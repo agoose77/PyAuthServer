@@ -19,6 +19,7 @@ __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics"]
 
 
 class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
+    subclasses = {}
 
     def __init__(self, update_func, apply_func):
         super().__init__()
@@ -72,9 +73,12 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     @contextmanager
     def protect_exemptions(self, exemptions):
         # Suspend exempted objects
+
         for actor in exemptions:
             actor.suspended = True
+
         yield
+
         # Restore scheduled objects
         for actor in exemptions:
             actor.suspended = False
@@ -113,14 +117,11 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
             return
 
         # Make a list of actors which aren't us
-        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a != target]
-        for o in other_actors:
-            if not o:
-                print(o, o.instance_id)
-                return
+        other_actors = [a for a in WorldInfo.subclass_of(Actor)
+                        if a != target and a]
+
         with self.protect_exemptions(other_actors):
             self._update_func(delta_time)
-
         self._apply_func()
 
     @PhysicsTickSignal.global_listener

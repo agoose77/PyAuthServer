@@ -305,7 +305,6 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def client_fire(self):
         self.pawn.weapon_attachment.play_fire_effects()
-        print(self.weapon.shoot_sound)
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
         self.weapon.fire(self.camera)
 
@@ -808,10 +807,10 @@ class ProjectileWeapon(Weapon):
         projectile = self.projectile_class()
         forward_vector = mathutils.Vector((0, 1, 0))
         forward_vector.rotate(camera.rotation)
-        projectile.position = camera.position + forward_vector * 4.0
+        projectile.position = camera.position + forward_vector * 6.0
         projectile.rotation = camera.rotation.copy()
         projectile.velocity = self.projectile_velocity
-        projectile.owner = self.owner
+        projectile.owner = self
 
 
 class EmptyWeapon(Weapon):
@@ -981,7 +980,7 @@ class Camera(Actor):
 
 class Pawn(Actor):
     view_pitch = Attribute(0.0)
-    flash_count = Attribute(0, complain=True)
+    flash_count = Attribute(0)
     weapon_attachment_class = Attribute(type_of=type(Replicable),
                                         notify=True,
                                         complain=True)

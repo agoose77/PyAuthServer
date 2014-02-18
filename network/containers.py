@@ -1,6 +1,7 @@
 from .handler_interfaces import static_description
 from .descriptors import Attribute
 from .rpc import RPCInterfaceFactory
+from .factory_dict import FactoryDict
 
 from functools import partial
 from collections import OrderedDict, deque
@@ -77,14 +78,16 @@ class AbstractStorageContainer:
     def get_default_value(self, member):
         raise NotImplementedError
 
-    def check_is_supported(self, member):
+    @classmethod
+    def check_is_supported(cls, member):
         raise NotImplementedError
 
-    def get_member_instances(self, instance):
-        is_supported = self.check_is_supported
+    @classmethod
+    def get_member_instances(cls, instance):
+        is_supported = cls.check_is_supported
 
-        return {name: value for name, value in getmembers(instance.__class__)
-                if is_supported(value)}
+        return {name: value for name, value in getmembers(instance.__class__,
+                                                          is_supported)}
 
     def get_default_data(self):
         initial_data = self.get_default_value
@@ -127,15 +130,37 @@ class AbstractStorageContainer:
         return self._storage_interfaces[member]
 
 
-class RPCStorageContainer(AbstractStorageContainer):
+def cache_rpc_calls(cls):
+    is_supported = RPCStorageContainer.check_is_supported
+    data = RPCStorageContainer.lookup_dict[cls] = getmembers(cls, is_supported)
+    return data
+
+
+def cache_attributes(cls):
+    is_supported = AttributeStorageContainer.check_is_supported
+    data = AttributeStorageContainer.lookup_dict[cls] = getmembers(cls, is_supported)
+    return data
+
+
+class TypeCachedStorageContainer(AbstractStorageContainer):
+
+    def get_member_instances(self, instance):
+        return dict(self.lookup_dict[instance.__class__])
+
+
+class RPCStorageContainer(TypeCachedStorageContainer):
     """Storage container for RPC calls
     Handles stored data only"""
+
+    lookup_dict = FactoryDict(cache_rpc_calls)
+
     def __init__(self, instance):
         super().__init__(instance)
 
         self.functions = []
 
-    def check_is_supported(self, member):
+    @classmethod
+    def check_is_supported(cls, member):
         return isinstance(member, RPCInterfaceFactory)
 
     def get_default_data(self):
@@ -163,11 +188,13 @@ class RPCStorageContainer(AbstractStorageContainer):
         return interface
 
 
-class AttributeStorageContainer(AbstractStorageContainer):
+class AttributeStorageContainer(TypeCachedStorageContainer):
     """Storage container for Attributes
     Handles data storage, access and complaints"""
 
-    def __init__(self, instance):
+    lookup_dict = FactoryDict(cache_attributes)
+
+    def __init__(self, instance, cache_func=None):
         super().__init__(instance)
 
         self.complaints = self.get_default_complaints()
@@ -192,7 +219,8 @@ class AttributeStorageContainer(AbstractStorageContainer):
         default_descriptions = self.get_default_descriptions()
         return {a: v for a, v in default_descriptions.items() if a.complain}
 
-    def check_is_supported(self, member):
+    @classmethod
+    def check_is_supported(cls, member):
         return isinstance(member, Attribute)
 
     def get_default_value(self, attribute):

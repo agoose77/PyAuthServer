@@ -30,6 +30,8 @@ class ManualTimer:
         del self.on_stop
         del self.on_reset
 
+        self.active = False
+
     @property
     def progress(self):
         total = self.target - self.initial

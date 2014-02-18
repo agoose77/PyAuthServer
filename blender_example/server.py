@@ -160,9 +160,9 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         self.update_matchmaker()
 
     def post_initialise(self, connection):
-        # This is allowed here because player count
-        # comes from connections that aren't disconnected
-        return self.create_new_player()
+        replicable = self.create_new_player()
+        self.broadcast(replicable, "{} connected".format(replicable))
+        return replicable
 
     def pre_initialise(self, address_tuple, netmode):
         if netmode == bge_network.Netmodes.server:

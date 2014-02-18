@@ -20,6 +20,7 @@ class Replicable(metaclass=ReplicableRegister):
 
     _MAXIMUM_REPLICABLES = 255
 
+    subclasses = {}
     roles = Attribute(
                       Roles(
                             Roles.authority,  # @UndefinedVariable

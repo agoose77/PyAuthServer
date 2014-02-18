@@ -4,7 +4,7 @@ __all__ = ['NetworkError', 'ConnectionTimeoutError', 'ReplicableAccessError']
 
 
 class NetworkError(Exception, metaclass=TypeRegister):
-    pass
+    subclasses = {}
 
 
 class ConnectionTimeoutError(NetworkError):

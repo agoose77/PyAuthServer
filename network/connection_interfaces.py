@@ -23,6 +23,8 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     """Interface for remote peer
     Mediates a connection instance between local and remote peer"""
 
+    subclasses = {}
+
     def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
@@ -108,7 +110,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         return (((base > sequence) and (base - sequence) <= half_seq)
             or ((sequence > base) and (sequence - base) > half_seq))
 
-    def delete(self):
+    def delete(self, *args, **kwargs):
         """Sets connection state to deleted"""
         self.status = ConnectionStatus.deleted  # @UndefinedVariable
 
@@ -322,7 +324,7 @@ class ServerInterface(ConnectionInterface):
             if self._auth_error:
                 # Send the error code
                 err_name = self.error_packer.pack(
-                                          type(self.auth_error).type_name)
+                                          type(self._auth_error).type_name)
                 err_body = self.error_packer.pack(
                                           self._auth_error.args[0])
 

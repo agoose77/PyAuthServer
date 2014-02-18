@@ -1,6 +1,7 @@
 from .type_register import TypeRegister
 from .conditions import is_signal_listener
 from .decorators import signal_listener
+from .factory_dict import FactoryDict
 
 from collections import defaultdict
 from inspect import getmembers, signature
@@ -10,11 +11,24 @@ __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal',
            'ConnectionSuccessSignal', 'UpdateSignal', 'ProfileSignal']
 
 
+def members_predicate(member):
+    return (hasattr(member, "__annotations__") and
+                (is_signal_listener(member) and callable(member)))
+
+
+def cache_signals(cls):
+    data = cls.lookup_dict[cls] = [name for name, val in
+                                   getmembers(cls, members_predicate)]
+    return data
+
+
 class SignalListener:
     """Provides interface for class based signal listeners
     Uses class instance as target for signal binding
-    Optional greedy binding (binds the events supported by both classes)
+    Optional greedy binding (binds the events supported by either class)
     """
+
+    lookup_dict = FactoryDict(cache_signals)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -26,15 +40,8 @@ class SignalListener:
         """Property
         Gets the marked signal callbacks
         @return: generator of (name, attribute) pairs"""
-        for name, val in getmembers(self.__class__):
-
-            if not hasattr(val, "__annotations__"):
-                continue
-
-            if not (callable(val) and is_signal_listener(val)):
-                continue
-
-            yield (name, getattr(self, name))
+        for name in self.lookup_dict[self.__class__]:
+            yield name, getattr(self, name)
 
     def register_child(self, child, signal_store=None, greedy=False):
         """Subscribes child to parent for signals
@@ -86,6 +93,7 @@ class SignalListener:
 class Signal(metaclass=TypeRegister):
     """Observer class for signal-like invocation
     """
+    subclasses = {}
 
     @classmethod
     def register_subtype(cls):
@@ -211,7 +219,7 @@ class Signal(metaclass=TypeRegister):
     @classmethod
     def update_graph(cls):
 
-        for cls in cls._types.values():
+        for cls in cls.subclasses.values():
             cls.update_state()
 
     @classmethod

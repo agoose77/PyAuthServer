@@ -64,36 +64,38 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.update_physics(self.current_time, delta_time)
         self.start_profile(*_profile[0], **_profile[1])
 
+    def update_graphs(self):
+        self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)
+        Replicable.update_graph()
+        Signal.update_graph()
+
     def update_scene(self, scene, current_time, delta_time):
         self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
         self.update_logic_bricks(current_time)
 
         if scene == self.network_scene:
-            Signal.update_graph()
+            self.update_graphs()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_MESSAGES)
             self.network.receive()
-            Signal.update_graph()
+            self.update_graphs()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
-            Replicable.update_graph()
-            Signal.update_graph()
-
             if WorldInfo.netmode != Netmodes.server:
                 PlayerInputSignal.invoke(delta_time)
+                self.update_graphs()
 
+            self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
             UpdateSignal.invoke(delta_time)
-
-            Replicable.update_graph()
-            Signal.update_graph()
+            self.update_graphs()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
             PhysicsTickSignal.invoke(scene, delta_time)
+            self.update_graphs()
 
+            self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
             PostPhysicsSignal.invoke()
-
-            Replicable.update_graph()
-            Signal.update_graph()
+            self.update_graphs()
 
             self.start_profile(logic.KX_ENGINE_DEBUG_ANIMATIONS)
             self.update_animations(current_time)
@@ -105,6 +107,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 self._last_sent = current_time
 
             self.network.send(is_full_update)
+            self.update_graphs()
 
         else:
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
@@ -167,10 +170,12 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def clean_up(self):
         GameExitSignal.invoke()
-
-        for replicable in Replicable:
-            replicable.request_unregistration()
-        Replicable.update_graph()
+        try:
+            for replicable in Replicable:
+                replicable.request_unregistration()
+            Replicable.update_graph()
+        except Exception as e:
+            print(e)
 
     def main(self):
         self.__init__()

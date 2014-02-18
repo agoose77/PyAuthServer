@@ -10,8 +10,6 @@ class PhysicsObject:
     entity_name = ""
     entity_class = bge_data.GameObject
 
-    lifespan = 0
-
     def on_initialised(self):
         self.object = self.entity_class(self.entity_name)
 
@@ -19,19 +17,13 @@ class PhysicsObject:
         self.children = set()
         self.child_entities = set()
 
-        self._suspended = False
+        self._suspended_parent = None
         self._new_colliders = set()
         self._old_colliders = set()
         self._registered = set()
 
         self._register_callback()
         self._establish_relationship()
-
-        if self.lifespan > 0:
-            self._timer = timer.Timer(self.lifespan,
-                            on_target=self.request_unregistration)
-        else:
-            self._timer = None
 
     @staticmethod
     def from_object(obj):
@@ -42,16 +34,34 @@ class PhysicsObject:
         self.object['owner'] = self
 
     @property
+    def lifespan(self):
+        if hasattr(self, "_timer"):
+            return self._timer.target
+        return 0
+
+    @lifespan.setter
+    def lifespan(self, value):
+        if hasattr(self, "_timer"):
+            self._timer.delete()
+            del self._timer
+        if value > 0:
+            self._timer = timer.Timer(value,
+                            on_target=self.request_unregistration)
+
+    @property
     def suspended(self):
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
-            return
+            return True
         return not self.object.useDynamics
 
     @suspended.setter
     def suspended(self, value):
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
+            return
+
+        if self.object.parent:
             return
         self.object.useDynamics = not value
 
@@ -68,12 +78,13 @@ class PhysicsObject:
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
             return
+
         callbacks = self.object.collisionCallbacks
         callbacks.append(self._on_collide)
 
     @simulated
     def _on_collide(self, other, data):
-        if self.suspended:
+        if not self or self.suspended:
             return
 
         # If we haven't already stored the collision
@@ -86,7 +97,7 @@ class PhysicsObject:
     @signals.UpdateCollidersSignal.global_listener
     @simulated
     def _update_colliders(self):
-        if self.suspended:
+        if not self or self.suspended:
             return
 
         # If we have a stored collision
@@ -99,21 +110,20 @@ class PhysicsObject:
         callback = signals.CollisionSignal.invoke
         for obj in difference:
             self._registered.remove(obj)
-
-            callback(obj, False, None, target=self)
+            if not obj.invalid:
+                callback(obj, False, None, target=self)
 
     def on_unregistered(self):
         # Unregister from parent
         if self.parent:
             self.parent.remove_child(self)
 
+        if hasattr(self, "_timer"):
+            self._timer.delete()
+
         self.children.clear()
         self.child_entities.clear()
         self.object.endObject()
-
-        if self._timer is not None:
-            self._timer.stop()
-            self._timer.delete()
 
     @simulated
     def add_child(self, actor):
