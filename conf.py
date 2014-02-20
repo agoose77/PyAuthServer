@@ -35,7 +35,7 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['bge', 'mathutils', 'pyaudio', 'bgui', 'opus']
+MOCK_MODULES = ['bge', 'mathutils', 'pyaudio', 'bgui', 'opus', 'aud']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
