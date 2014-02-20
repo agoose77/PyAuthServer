@@ -54,6 +54,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         '''This function can be called without a controller,
         in which case it establishes one.
         Used to respawn AI character pawns
+
         :param controller: options, controller instance'''
         if controller is None:
             controller = self.ai_controller_class()
@@ -75,6 +76,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         '''This function can be called without a controller,
         in which case it establishes one.
         Used to respawn player character pawns
+
         :param controller: options, controller instance'''
         if controller is None:
             controller = self.player_controller_class()

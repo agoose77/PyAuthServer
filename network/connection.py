@@ -13,6 +13,7 @@ __all__ = ['Connection', 'ServerConnection', 'ClientConnection']
 def consume(iterable):
     """Consumes an iterable
     Iterates over iterable until StopIteration is raised
+
     :param iterable: Iterable object"""
     for _ in iterable:
         pass
@@ -39,6 +40,7 @@ class Connection(SignalListener):
     def notify_unregistration(self, target):
         """Handles un-registration of a replicable instance
         Deletes channel for replicable instance
+
         :param target: replicable that was unregistered"""
         self.channels.pop(target.instance_id)
 
@@ -46,6 +48,7 @@ class Connection(SignalListener):
     def notify_registration(self, target):
         """Handles registration of a replicable instance
         Create channel for replicable instance
+
         :param target: replicable that was registered"""
         self.channels[target.instance_id] = self.channel_class(self, target)
 
@@ -56,6 +59,7 @@ class Connection(SignalListener):
     def is_owner(self, replicable):
         """Determines if a replicable is belongs to this connection
         Compares uppermost parent of replicable with connection's replicable
+
         :param replicable: replicable instance
         :return: condition status"""
         # Determine if parent is our controller
@@ -70,6 +74,7 @@ class Connection(SignalListener):
     @staticmethod
     def get_replication_priority(entry):
         """Gets the replication priority for a replicable
+
         :param entry: replicable instance
         :return: replication priority"""
         return entry[0].replication_priority
@@ -78,7 +83,8 @@ class Connection(SignalListener):
     def replication_data(self, Replicable=Replicable):
         """Returns a generator for replicables
         with a remote role != Roles.none
-        @yield: replicable, (is_owner and relevant_to_owner), channel"""
+
+        :yield: replicable, (is_owner and relevant_to_owner), channel"""
         check_is_owner = self.is_owner
         channels = self.channels
         no_role = Roles.none  # @UndefinedVariable
@@ -105,10 +111,11 @@ class Connection(SignalListener):
 
     def get_method_replication(self, replicables, collection, bandwidth):
         """Writes replicated function calls to packet collection
+
         :param replicables: iterable of replicables to consider replication
         :param collection: PacketCollection instance
         :param bandwidth: available bandwidth
-        @yield: each entry in replicables"""
+        :yield: each entry in replicables"""
         method_invoke = Protocols.method_invoke  # @UndefinedVariable
         make_packet = Packet
         store_packet = collection.members.append
@@ -138,6 +145,7 @@ class ClientConnection(Connection):
     def set_replication(self, packet):
         '''Replication function
         Accepts replication packets and responds to protocol
+
         :param packet: replication packet'''
 
         instance_id = self.replicable_packer.unpack_id(packet.payload)
@@ -209,6 +217,7 @@ class ClientConnection(Connection):
 
     def send(self, network_tick, available_bandwidth):
         '''Creates a packet collection of replicated function calls
+
         :param network_tick: unused argument
         :param available_bandwidth: estimated available bandwidth
         :return: PacketCollection instance'''
@@ -224,6 +233,7 @@ class ClientConnection(Connection):
 
     def receive(self, packets):
         '''Handles incoming PacketCollection instance
+
         :param packets: PacketCollection instance'''
 
         for packet in packets:
@@ -256,6 +266,7 @@ class ServerConnection(Connection):
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         '''Called when replicable dies
+
         :param replicable: replicable that died'''
         # Send delete packet
         channel = self.channels[target.instance_id]
@@ -270,6 +281,7 @@ class ServerConnection(Connection):
         """Gets the replication priority for a replicable
         Utilises replication interval to increment priority
         of neglected replicables
+
         :param entry: replicable instance
         :return: replication priority"""
         replicable, _, channel = entry
@@ -281,10 +293,11 @@ class ServerConnection(Connection):
         """Generator
         Writes to packet collection, respecting bandwidth for attribute
         replication
+
         :param replicables: iterable of replicables to consider replication
         :param collection: PacketCollection instance
         :param bandwidth: available bandwidth
-        @yield: each entry in replicables"""
+        :yield: each entry in replicables"""
 
         make_packet = Packet
         store_packet = collection.members.append
@@ -356,6 +369,7 @@ class ServerConnection(Connection):
 
     def receive(self, packets):
         '''Handles incoming PacketCollection instance
+
         :param packets: PacketCollection instance'''
         # Local space variables
         is_owner = self.is_owner
@@ -381,6 +395,7 @@ class ServerConnection(Connection):
 
     def send(self, network_tick, available_bandwidth):
         '''Creates a packet collection of replicated function calls
+
         :param network_tick: non urgent data is included in collection
         :param available_bandwidth: estimated available bandwidth
         :return: PacketCollection instance'''

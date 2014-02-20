@@ -45,7 +45,8 @@ class SignalListener:
 
     def register_child(self, child, signal_store=None, greedy=False):
         """Subscribes child to parent for signals
-        :param child: Child to subscribe for 
+
+        :param child: Child to subscribe for
         :param signal_store: SignalListener subclass instance, default=None
         :param greedy: Determines if child should bind its own events, default=False
         """
@@ -62,9 +63,11 @@ class SignalListener:
 
     def unregister_child(self, child, signal_store=None, greedy=False):
         """Unsubscribe the child to parent for signals
-        :param child: Child to un-subscribe for
+
+        :param child: Child to be unsubscribed
         :param signal_store: SignalListener subclass instance, default=None
-        :param greedy: Determines if child should un-bind its own events, default=False
+        :param greedy: Determines if child should un-bind its own events,
+        default=False
         """
         # Mirror own signals by default
         if signal_store is None:

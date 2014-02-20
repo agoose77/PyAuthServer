@@ -33,6 +33,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     def get_actor(self, lookup, name, type_of):
         '''Create an Actor instance from a BGE proxy object
+
         :param lookup: BGE proxy object
         :param name: Name of Actor class
         :param type_of: Required subclass that the Actor must inherit from'''
@@ -52,6 +53,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     def create_pawn_controller(self, pawn, obj):
         '''Setup a controller for given pawn object
+
         :param pawn: Pawn object
         :param obj: BGE proxy object'''
         controller = self.get_actor(obj, "controller", Controller)
@@ -80,7 +82,8 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     @contextmanager
     def protect_exemptions(self, exemptions):
         '''Suspend and restore state of exempted actors around an operation
-        :param exemptions: Iterable of exempt Actor instances''' 
+
+        :param exemptions: Iterable of exempt Actor instances'''
         # Suspend exempted objects
         for actor in exemptions:
             actor.suspended = True
@@ -125,6 +128,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     def update_for(self, delta_time, target):
         '''Listener for PhysicsSingleUpdateSignal
         Attempts to update physics simulation for single actor
+
         :param delta_time: Time to progress simulation
         :param target: Actor instance to update state'''
         if not target.physics in self._active_physics:
@@ -142,6 +146,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     def update(self, scene, delta_time):
         '''Listener for PhysicsTickSignal
         Updates Physics simulation for entire world
+
         :param scene: BGE scene reference
         :param delta_time: Time to progress simulation'''
         self._update_func(delta_time)
@@ -152,6 +157,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     @PhysicsCopyState.global_listener
     def interface_state(self, source_state, target_state):
         '''Copy state information from source to target
+
         :param source_state: State to copy from
         :param target_state: State to copy to'''
         target_state.position = source_state.position.copy()
@@ -267,6 +273,7 @@ class ClientPhysics(PhysicsSystem):
         '''Listener for PhysicsReplicatedSignal
         Callback for physics state replication.
         Applies physics struct data to physics state.
+
         :param target_physics: Physics struct of target
         :param target: Actor instance'''
         difference = target_physics.position - target.position

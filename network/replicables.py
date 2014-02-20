@@ -81,6 +81,7 @@ class Replicable(metaclass=ReplicableRegister):
     def create_or_return(cls, base_cls, instance_id, register=True):
         '''Called by the replication system, assumes non static if creating
         Creates a replicable if it is not already instantiated
+
         :param base_cls: base class of replicable to instantiate
         :param register: if registration should occur immediately'''
         # Try and match an existing instance
@@ -109,6 +110,7 @@ class Replicable(metaclass=ReplicableRegister):
         '''Handles registration of instances
         Modifies behaviour to allow network priority over local instances
         Handles edge cases such as static replicables
+
         :param instance_id: instance id to register with
         :param verbose: if verbose debugging should occur'''
         # This is not static or replicated then it's local
@@ -132,6 +134,7 @@ class Replicable(metaclass=ReplicableRegister):
 
     def possessed_by(self, other):
         '''Called on possession by other replicable
+
         :param other: other replicable (owner)'''
         self.owner = other
 
@@ -158,6 +161,7 @@ class Replicable(metaclass=ReplicableRegister):
 
     def on_notify(self, name):
         '''Called on notifier attribute change
+
         :param name: name of attribute that has changed'''
         if 0:print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
@@ -165,6 +169,7 @@ class Replicable(metaclass=ReplicableRegister):
     def conditions(self, is_owner, is_complaint, is_initial):
         '''Condition generator that determines replicated attributes
         Attributes yielded are still subject to conditions before sending
+
         :param is_owner: if the current replicator is the owner
         :param is_complaint: if any complaining variables have been changed
         :param is_initial: if this is the first replication for this target '''
@@ -240,6 +245,7 @@ class _WorldInfo(Replicable):
     @simulated
     def subclass_of(self, actor_type):
         '''Returns registered actors that are subclasses of a given type
+
         :param actor_type: type to compare against'''
         try:
             return self._cache[actor_type]

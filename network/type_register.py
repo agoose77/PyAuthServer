@@ -34,11 +34,13 @@ class TypeRegister(type):
     def type_name(self):
         '''Property
         Gets the class type name
+
         :return: name of class type'''
         return self.__name__
 
     def from_type_name(self, type_name):
         '''Gets class type from type_name
+
         :param type_name: name of class type
         :return: class reference'''
         try:

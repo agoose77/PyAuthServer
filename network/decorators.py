@@ -24,8 +24,9 @@ def signal_listener(signal_type, global_listener):
 
 def requires_netmode(netmode):
     """Decorator
+
     :param netmode: netmode required to execute function
-    @requires: netmode context for execution of function
+    :requires: netmode context for execution of function
     :return: decorator that prohibits function execution
     for incorrect netmodes"""
 

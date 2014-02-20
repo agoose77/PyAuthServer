@@ -79,6 +79,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
         """Filter connections by status
+
         :param status: status query
         :param comparator: comparison callback for filter"""
         count = 0
@@ -90,6 +91,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     @property
     def next_local_sequence(self):
         """Property
+
         :return next local sequence identifier"""
         current_sequence = self.local_sequence
         self.local_sequence = (current_sequence + 1) if (current_sequence <
@@ -98,12 +100,14 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     def set_time_out(self, delay):
         """Sets the time out for peer
+
         :param delay: delay until interface is timed out"""
         self.time_out = delay
 
     def sequence_more_recent(self, base, sequence):
         """Compares two sequence identifiers
         determines if one is greater than the other
+
         :param base: base sequence to compare against
         :param sequence: sequence tested against base"""
         half_seq = (self.sequence_max_size / 2)
@@ -116,6 +120,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     def connected(self, *args, **kwargs):
         """Sets connection state to connected
+
         :param args: additional positional arguments
         :param kwargs: additional keyword arguments"""
         self.status = ConnectionStatus.connected  # @UndefinedVariable
@@ -123,6 +128,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     def send(self, network_tick):
         """Pulls data from connection interfaces to send
+
         :param network_tick: if this is a network tick"""
         # Check for timeout
         if (monotonic() - self.last_received) > self.time_out:
@@ -206,6 +212,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     def receive(self, bytes_):
         """Handles received bytes from peer
+
         :param bytes_: data from peer"""
         # Get the sequence id
         sequence = self.sequence_handler.unpack_from(bytes_)
