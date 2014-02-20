@@ -6,7 +6,6 @@ trunk
 
    bge_network
    bindings
-   bitarray
    blender_example
    cleanup
    network

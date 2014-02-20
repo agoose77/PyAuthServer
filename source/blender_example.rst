@@ -4,103 +4,52 @@ blender_example Package
 :mod:`behaviours` Module
 ------------------------
 
-.. automodule:: blender_example.behaviours
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`client` Module
 --------------------
 
-.. automodule:: blender_example.client
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`client_ui` Module
 -----------------------
 
-.. automodule:: blender_example.client_ui
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`controls` Module
 ----------------------
 
-.. automodule:: blender_example.controls
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`examples` Module
 ----------------------
 
-.. automodule:: blender_example.examples
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`matchmaker` Module
 ------------------------
 
-.. automodule:: blender_example.matchmaker
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`references` Module
 ------------------------
 
-.. automodule:: blender_example.references
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`replicables` Module
 -------------------------
 
-.. automodule:: blender_example.replicables
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`server` Module
 --------------------
 
-.. automodule:: blender_example.server
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`signals` Module
 ---------------------
 
-.. automodule:: blender_example.signals
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`stats_ui` Module
 ----------------------
 
-.. automodule:: blender_example.stats_ui
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 :mod:`ui` Module
 ----------------
 
-.. automodule:: blender_example.ui
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Subpackages
 -----------
 
-.. toctree::
-
-    blender_example.bgui
 
