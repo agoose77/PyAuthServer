@@ -1,0 +1,230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cleanup &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for cleanup</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+
+<div class="viewcode-block" id="Quit"><a class="viewcode-back" href="../cleanup.html#cleanup.Quit">[docs]</a><span class="k">class</span> <span class="nc">Quit</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="all_indices_of"><a class="viewcode-back" href="../cleanup.html#cleanup.all_indices_of">[docs]</a><span class="k">def</span> <span class="nf">all_indices_of</span><span class="p">(</span><span class="n">needle</span><span class="p">,</span> <span class="n">haystack</span><span class="p">):</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">new_index</span> <span class="o">=</span> <span class="n">haystack</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">needle</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">shifted_index</span> <span class="o">=</span> <span class="n">new_index</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">needle</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">index</span> <span class="o">+</span> <span class="n">new_index</span>
+
+        <span class="n">haystack</span> <span class="o">=</span> <span class="n">haystack</span><span class="p">[</span><span class="n">shifted_index</span><span class="p">:]</span>
+        <span class="n">index</span> <span class="o">+=</span> <span class="n">shifted_index</span>
+
+</div>
+<div class="viewcode-block" id="format_sequence"><a class="viewcode-back" href="../cleanup.html#cleanup.format_sequence">[docs]</a><span class="k">def</span> <span class="nf">format_sequence</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="attribute_import"><a class="viewcode-back" href="../cleanup.html#cleanup.attribute_import">[docs]</a><span class="k">def</span> <span class="nf">attribute_import</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&quot;{}.{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">attribute</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="get_modules"><a class="viewcode-back" href="../cleanup.html#cleanup.get_modules">[docs]</a><span class="k">def</span> <span class="nf">get_modules</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;,&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+
+</div>
+<div class="viewcode-block" id="parser"><a class="viewcode-back" href="../cleanup.html#cleanup.parser">[docs]</a><span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+           <span class="n">conversions</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">removed</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">imports</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">conversions</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">conversions</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">removed</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">imports</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">conversions</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">imports</span>
+
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parser</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">iterable</span><span class="p">))</span>
+
+    <span class="c"># Ensure we have valid imports</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="p">(</span><span class="s">&quot;from&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">or</span> <span class="s">&quot;import&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="n">key</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()):</span>
+        <span class="k">return</span> <span class="n">conversions</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">imports</span>
+
+    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="s">&quot;*&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&quot;as&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Warning, import rename not handled: &#39;{}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="p">))</span>
+            <span class="k">if</span> <span class="s">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">shifted</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">shifted</span><span class="p">[:</span><span class="n">shifted</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">)]</span>
+                <span class="n">relative</span> <span class="o">=</span> <span class="bp">True</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">shifted</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;from&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="s">&quot;from&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">shifted</span><span class="p">[:</span><span class="n">shifted</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">)]</span>
+                <span class="n">relative</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="n">removed</span><span class="p">[</span><span class="n">line</span><span class="p">]</span> <span class="o">=</span> <span class="n">name</span>
+            <span class="n">imports</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">relative</span>
+
+            <span class="n">following</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;import&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="s">&quot;import&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
+
+            <span class="k">if</span> <span class="s">&quot;(&quot;</span> <span class="ow">in</span> <span class="n">following</span><span class="p">:</span>
+                <span class="n">following</span> <span class="o">=</span> <span class="n">following</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">name</span>
+                <span class="k">if</span> <span class="s">&quot;)&quot;</span> <span class="ow">in</span> <span class="n">following</span><span class="p">:</span>
+                    <span class="n">key</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="n">following</span> <span class="o">=</span> <span class="n">following</span><span class="p">[:</span><span class="n">following</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;)&quot;</span><span class="p">)]</span>
+                    <span class="n">conversions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_modules</span><span class="p">(</span><span class="n">following</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="p">[</span><span class="n">format_sequence</span><span class="p">(</span><span class="n">following</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">conversions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_modules</span><span class="p">(</span><span class="n">following</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&quot;)&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">until</span> <span class="o">=</span> <span class="n">line</span><span class="p">[:</span><span class="n">line</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;)&quot;</span><span class="p">)]</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">format_sequence</span><span class="p">(</span><span class="n">until</span><span class="p">))</span>
+                <span class="n">import_list</span> <span class="o">=</span> <span class="n">get_modules</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+                <span class="n">conversions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">import_list</span>
+                <span class="n">removed</span><span class="p">[</span><span class="n">line</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">format_sequence</span><span class="p">(</span><span class="n">line</span><span class="p">))</span>
+                <span class="n">removed</span><span class="p">[</span><span class="n">line</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+
+    <span class="k">return</span> <span class="n">parser</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span>
+        <span class="n">relative</span><span class="p">,</span> <span class="n">conversions</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">imports</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="finder"><a class="viewcode-back" href="../cleanup.html#cleanup.finder">[docs]</a><span class="k">def</span> <span class="nf">finder</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;{0}{1}{0}|(?&lt;=\(){1}\)|{1}\(\)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\\</span><span class="s">b&quot;</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+    <span class="n">finder</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fmt</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">match</span><span class="o">.</span><span class="n">span</span><span class="p">()</span> <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">finder</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">line</span><span class="p">)]</span>
+
+</div>
+<div class="viewcode-block" id="create_newlines"><a class="viewcode-back" href="../cleanup.html#cleanup.create_newlines">[docs]</a><span class="k">def</span> <span class="nf">create_newlines</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="n">conversions</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">imports</span> <span class="o">=</span> <span class="n">parser</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">imported</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">removed</span><span class="p">:</span>
+            <span class="n">module</span> <span class="o">=</span> <span class="n">removed</span><span class="p">[</span><span class="n">line</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">imported</span><span class="p">:</span>
+                <span class="n">relative</span> <span class="o">=</span> <span class="n">imports</span><span class="p">[</span><span class="n">module</span><span class="p">]</span>
+                <span class="n">imported</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="p">(</span><span class="s">&quot;from . &quot;</span> <span class="k">if</span> <span class="n">relative</span> <span class="k">else</span> <span class="s">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;import {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">key_data</span> <span class="ow">in</span> <span class="n">conversions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">key_data</span><span class="p">:</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="n">finder</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">found</span><span class="p">)):</span>
+                    <span class="n">change</span> <span class="o">=</span> <span class="n">attribute_import</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+                    <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">found</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                    <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="p">[:</span><span class="n">start</span><span class="p">]</span> <span class="o">+</span> <span class="n">change</span> <span class="o">+</span> <span class="n">line</span><span class="p">[</span><span class="n">end</span><span class="p">:]</span>
+                    <span class="c"># Recalculate matches (as we have modified line)</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="n">finder</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+
+        <span class="k">yield</span> <span class="n">line</span>
+
+</div>
+<div class="viewcode-block" id="test"><a class="viewcode-back" href="../cleanup.html#cleanup.test">[docs]</a><span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">setrecursionlimit</span><span class="p">(</span><span class="mi">10000</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;r+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="nb">file</span><span class="p">:</span>
+        <span class="nb">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">create_newlines</span><span class="p">(</span><span class="nb">file</span><span class="o">.</span><span class="n">readlines</span><span class="p">())))</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

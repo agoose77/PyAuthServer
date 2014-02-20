@@ -1,0 +1,496 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.connection &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.connection</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.packet</span> <span class="kn">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">PacketCollection</span>
+<span class="kn">from</span> <span class="nn">.handler_interfaces</span> <span class="kn">import</span> <span class="n">get_handler</span>
+<span class="kn">from</span> <span class="nn">.descriptors</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">.replicables</span> <span class="kn">import</span> <span class="n">Replicable</span><span class="p">,</span> <span class="n">WorldInfo</span>
+<span class="kn">from</span> <span class="nn">.signals</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ReplicableUnregisteredSignal</span><span class="p">,</span> <span class="n">ReplicableRegisteredSignal</span><span class="p">,</span>
+                      <span class="n">SignalListener</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">Roles</span><span class="p">,</span> <span class="n">Protocols</span>
+<span class="kn">from</span> <span class="nn">.channel</span> <span class="kn">import</span> <span class="n">ClientChannel</span><span class="p">,</span> <span class="n">ServerChannel</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Connection&#39;</span><span class="p">,</span> <span class="s">&#39;ServerConnection&#39;</span><span class="p">,</span> <span class="s">&#39;ClientConnection&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">consume</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Consumes an iterable</span>
+<span class="sd">    Iterates over iterable until StopIteration is raised</span>
+<span class="sd">    :param iterable: Iterable object&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="Connection"><a class="viewcode-back" href="../../network.html#network.connection.Connection">[docs]</a><span class="k">class</span> <span class="nc">Connection</span><span class="p">(</span><span class="n">SignalListener</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Connection between loacl host and remote peer</span>
+<span class="sd">    Represents a successful connection&quot;&quot;&quot;</span>
+    <span class="n">channel_class</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">netmode</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">netmode</span> <span class="o">=</span> <span class="n">netmode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">int_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="n">Replicable</span><span class="p">))</span>
+
+    <span class="nd">@ReplicableUnregisteredSignal.global_listener</span>
+<div class="viewcode-block" id="Connection.notify_unregistration"><a class="viewcode-back" href="../../network.html#network.connection.Connection.notify_unregistration">[docs]</a>    <span class="k">def</span> <span class="nf">notify_unregistration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handles un-registration of a replicable instance</span>
+<span class="sd">        Deletes channel for replicable instance</span>
+<span class="sd">        :param target: replicable that was unregistered&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+</div>
+    <span class="nd">@ReplicableRegisteredSignal.global_listener</span>
+<div class="viewcode-block" id="Connection.notify_registration"><a class="viewcode-back" href="../../network.html#network.connection.Connection.notify_registration">[docs]</a>    <span class="k">def</span> <span class="nf">notify_registration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handles registration of a replicable instance</span>
+<span class="sd">        Create channel for replicable instance</span>
+<span class="sd">        :param target: replicable that was registered&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_class</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Connection.on_delete"><a class="viewcode-back" href="../../network.html#network.connection.Connection.on_delete">[docs]</a>    <span class="k">def</span> <span class="nf">on_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete callback&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Connection.is_owner"><a class="viewcode-back" href="../../network.html#network.connection.Connection.is_owner">[docs]</a>    <span class="k">def</span> <span class="nf">is_owner</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicable</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines if a replicable is belongs to this connection</span>
+<span class="sd">        Compares uppermost parent of replicable with connection&#39;s replicable</span>
+<span class="sd">        :param replicable: replicable instance</span>
+<span class="sd">        @return: condition status&quot;&quot;&quot;</span>
+        <span class="c"># Determine if parent is our controller</span>
+        <span class="n">parent</span> <span class="o">=</span> <span class="n">replicable</span><span class="o">.</span><span class="n">uppermost</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">parent</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">==</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="o">.</span><span class="n">instance_id</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Connection.get_replication_priority"><a class="viewcode-back" href="../../network.html#network.connection.Connection.get_replication_priority">[docs]</a>    <span class="k">def</span> <span class="nf">get_replication_priority</span><span class="p">(</span><span class="n">entry</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the replication priority for a replicable</span>
+<span class="sd">        :param entry: replicable instance</span>
+<span class="sd">        @return: replication priority&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replication_priority</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.replication_data"><a class="viewcode-back" href="../../network.html#network.connection.Connection.replication_data">[docs]</a>    <span class="k">def</span> <span class="nf">replication_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Replicable</span><span class="o">=</span><span class="n">Replicable</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a generator for replicables</span>
+<span class="sd">        with a remote role != Roles.none</span>
+<span class="sd">        @yield: replicable, (is_owner and relevant_to_owner), channel&quot;&quot;&quot;</span>
+        <span class="n">check_is_owner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_owner</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span>
+        <span class="n">no_role</span> <span class="o">=</span> <span class="n">Roles</span><span class="o">.</span><span class="n">none</span>  <span class="c"># @UndefinedVariable</span>
+
+        <span class="k">for</span> <span class="n">replicable</span> <span class="ow">in</span> <span class="n">Replicable</span><span class="p">:</span>
+            <span class="c"># Check if remote role is permitted</span>
+            <span class="k">if</span> <span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span> <span class="o">==</span> <span class="n">no_role</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">channels</span><span class="p">[</span><span class="n">replicable</span><span class="o">.</span><span class="n">instance_id</span><span class="p">]</span>
+
+            <span class="c"># Now check if we are an owner</span>
+            <span class="n">is_owner</span> <span class="o">=</span> <span class="n">check_is_owner</span><span class="p">(</span><span class="n">replicable</span><span class="p">)</span>
+            <span class="n">relevant_to_owner</span> <span class="o">=</span> <span class="n">replicable</span><span class="o">.</span><span class="n">relevant_to_owner</span>
+
+            <span class="k">yield</span> <span class="p">(</span><span class="n">replicable</span><span class="p">,</span> <span class="n">is_owner</span> <span class="ow">and</span> <span class="n">relevant_to_owner</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Connection.prioritised_replication_data"><a class="viewcode-back" href="../../network.html#network.connection.Connection.prioritised_replication_data">[docs]</a>    <span class="k">def</span> <span class="nf">prioritised_replication_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns an iterator of priorised replicable data</span>
+<span class="sd">        @return: iterator of prioritised list of replication data&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">replication_data</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                      <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_replication_priority</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Connection.get_method_replication"><a class="viewcode-back" href="../../network.html#network.connection.Connection.get_method_replication">[docs]</a>    <span class="k">def</span> <span class="nf">get_method_replication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicables</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes replicated function calls to packet collection</span>
+<span class="sd">        :param replicables: iterable of replicables to consider replication</span>
+<span class="sd">        :param collection: PacketCollection instance</span>
+<span class="sd">        :param bandwidth: available bandwidth</span>
+<span class="sd">        @yield: each entry in replicables&quot;&quot;&quot;</span>
+        <span class="n">method_invoke</span> <span class="o">=</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">method_invoke</span>  <span class="c"># @UndefinedVariable</span>
+        <span class="n">make_packet</span> <span class="o">=</span> <span class="n">Packet</span>
+        <span class="n">store_packet</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">replicables</span><span class="p">:</span>
+            <span class="n">is_owner</span><span class="p">,</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+            <span class="c"># Send RPC calls if we are the owner</span>
+            <span class="k">if</span> <span class="n">is_owner</span> <span class="ow">and</span> <span class="n">channel</span><span class="o">.</span><span class="n">has_rpc_calls</span><span class="p">:</span>
+                <span class="n">packed_id</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span>
+
+                <span class="k">for</span> <span class="n">rpc_call</span><span class="p">,</span> <span class="n">reliable</span> <span class="ow">in</span> <span class="n">channel</span><span class="o">.</span><span class="n">take_rpc_calls</span><span class="p">():</span>
+                    <span class="n">rpc_data</span> <span class="o">=</span> <span class="n">packed_id</span> <span class="o">+</span> <span class="n">rpc_call</span>
+
+                    <span class="n">store_packet</span><span class="p">(</span>
+                            <span class="n">make_packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">method_invoke</span><span class="p">,</span>
+                                      <span class="n">payload</span><span class="o">=</span><span class="n">rpc_data</span><span class="p">,</span>
+                                      <span class="n">reliable</span><span class="o">=</span><span class="n">reliable</span><span class="p">)</span>
+                                <span class="p">)</span>
+            <span class="k">yield</span> <span class="n">item</span>
+
+</div></div>
+<div class="viewcode-block" id="ClientConnection"><a class="viewcode-back" href="../../network.html#network.connection.ClientConnection">[docs]</a><span class="k">class</span> <span class="nc">ClientConnection</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+
+    <span class="n">channel_class</span> <span class="o">=</span> <span class="n">ClientChannel</span>
+
+<div class="viewcode-block" id="ClientConnection.set_replication"><a class="viewcode-back" href="../../network.html#network.connection.ClientConnection.set_replication">[docs]</a>    <span class="k">def</span> <span class="nf">set_replication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Replication function</span>
+<span class="sd">        Accepts replication packets and responds to protocol</span>
+<span class="sd">        :param packet: replication packet&#39;&#39;&#39;</span>
+
+        <span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+
+        <span class="c"># If an update for a replicable</span>
+        <span class="k">if</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">replication_update</span><span class="p">:</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Unable to find network object with id {}&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">instance_id</span><span class="p">))</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">channel</span><span class="o">.</span><span class="n">set_attributes</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">size</span><span class="p">():])</span>
+
+        <span class="c"># If it is an RPC call</span>
+        <span class="k">elif</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">method_invoke</span><span class="p">:</span>  <span class="c"># @UndefinedVariable</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Unable to find network object with id {}&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">instance_id</span><span class="p">))</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_owner</span><span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">replicable</span><span class="p">):</span>
+                    <span class="n">channel</span><span class="o">.</span><span class="n">invoke_rpc_call</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">size</span><span class="p">():])</span>
+
+        <span class="c"># If construction for replicable</span>
+        <span class="k">elif</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">replication_init</span><span class="p">:</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+            <span class="n">id_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+            <span class="n">type_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span>
+                       <span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="n">id_size</span><span class="p">:])</span>
+
+            <span class="n">type_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">size</span><span class="p">(</span>
+                        <span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="n">id_size</span><span class="p">:])</span>
+
+            <span class="n">is_connection_host</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span>
+                       <span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="n">id_size</span> <span class="o">+</span> <span class="n">type_size</span><span class="p">:]))</span>
+
+            <span class="c"># Create replicable of same type</span>
+            <span class="n">replicable_cls</span> <span class="o">=</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">from_type_name</span><span class="p">(</span><span class="n">type_name</span><span class="p">)</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+            <span class="n">replicable</span> <span class="o">=</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">create_or_return</span><span class="p">(</span><span class="n">replicable_cls</span><span class="p">,</span>
+                                          <span class="n">instance_id</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="c"># Perform incomplete role switch</span>
+            <span class="p">(</span><span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">local</span><span class="p">,</span>
+             <span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span><span class="p">,</span>
+                                         <span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">local</span><span class="p">)</span>
+            <span class="c"># If replicable is parent (top owner)</span>
+            <span class="k">if</span> <span class="n">is_connection_host</span><span class="p">:</span>
+                <span class="c"># Register as own replicable</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="n">replicable</span>
+
+        <span class="c"># If it is the deletion request</span>
+        <span class="k">elif</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">replication_del</span><span class="p">:</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+            <span class="c"># If the replicable exists</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">replicable</span> <span class="o">=</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">get_from_graph</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+
+            <span class="k">except</span> <span class="ne">LookupError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">replicable</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ClientConnection.send"><a class="viewcode-back" href="../../network.html#network.connection.ClientConnection.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">available_bandwidth</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Creates a packet collection of replicated function calls</span>
+<span class="sd">        :param network_tick: unused argument</span>
+<span class="sd">        :param available_bandwidth: estimated available bandwidth</span>
+<span class="sd">        @return: PacketCollection instance&#39;&#39;&#39;</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span>
+        <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_method_replication</span><span class="p">(</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">prioritised_replication_data</span><span class="p">,</span>
+                                          <span class="n">collection</span><span class="p">,</span>
+                                          <span class="n">available_bandwidth</span><span class="p">)</span>
+
+        <span class="c"># Consume iterable</span>
+        <span class="n">consume</span><span class="p">(</span><span class="n">replicables</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">collection</span>
+</div>
+<div class="viewcode-block" id="ClientConnection.receive"><a class="viewcode-back" href="../../network.html#network.connection.ClientConnection.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packets</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Handles incoming PacketCollection instance</span>
+<span class="sd">        :param packets: PacketCollection instance&#39;&#39;&#39;</span>
+
+        <span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">packets</span><span class="p">:</span>
+            <span class="n">protocol</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span>
+
+            <span class="k">if</span> <span class="n">protocol</span> <span class="ow">in</span> <span class="n">Protocols</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_replication</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="ServerConnection"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection">[docs]</a><span class="k">class</span> <span class="nc">ServerConnection</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+
+    <span class="n">channel_class</span> <span class="o">=</span> <span class="n">ServerChannel</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">netmode</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">netmode</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cached_packets</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ServerConnection.on_delete"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.on_delete">[docs]</a>    <span class="k">def</span> <span class="nf">on_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Callback for connection deletion</span>
+<span class="sd">        Called by ConnectionStatus when deleted&#39;&#39;&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_delete</span><span class="p">()</span>
+
+        <span class="c"># If we own a controller destroy it</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">:</span>
+            <span class="c"># We must be connected to have a controller</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;{} disconnected!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+</div>
+    <span class="nd">@ReplicableUnregisteredSignal.global_listener</span>
+<div class="viewcode-block" id="ServerConnection.notify_unregistration"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.notify_unregistration">[docs]</a>    <span class="k">def</span> <span class="nf">notify_unregistration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Called when replicable dies</span>
+<span class="sd">        :param replicable: replicable that died&#39;&#39;&#39;</span>
+        <span class="c"># Send delete packet</span>
+        <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cached_packets</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">Protocols</span><span class="o">.</span><span class="n">replication_del</span><span class="p">,</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+                                    <span class="n">payload</span><span class="o">=</span><span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">notify_unregistration</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="ServerConnection.get_replication_priority"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.get_replication_priority">[docs]</a>    <span class="k">def</span> <span class="nf">get_replication_priority</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">WorldInfo</span><span class="o">=</span><span class="n">WorldInfo</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the replication priority for a replicable</span>
+<span class="sd">        Utilises replication interval to increment priority</span>
+<span class="sd">        of neglected replicables</span>
+<span class="sd">        :param entry: replicable instance</span>
+<span class="sd">        @return: replication priority&quot;&quot;&quot;</span>
+        <span class="n">replicable</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">entry</span>
+        <span class="n">interval</span> <span class="o">=</span> <span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">-</span> <span class="n">channel</span><span class="o">.</span><span class="n">last_replication_time</span><span class="p">)</span>
+        <span class="n">elapsed_fraction</span> <span class="o">=</span> <span class="p">(</span><span class="n">interval</span> <span class="o">/</span> <span class="n">replicable</span><span class="o">.</span><span class="n">replication_update_period</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">replicable</span><span class="o">.</span><span class="n">replication_priority</span> <span class="o">+</span> <span class="p">(</span><span class="n">elapsed_fraction</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ServerConnection.get_attribute_replication"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.get_attribute_replication">[docs]</a>    <span class="k">def</span> <span class="nf">get_attribute_replication</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicables</span><span class="p">,</span> <span class="n">collection</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generator</span>
+<span class="sd">        Writes to packet collection, respecting bandwidth for attribute</span>
+<span class="sd">        replication</span>
+<span class="sd">        :param replicables: iterable of replicables to consider replication</span>
+<span class="sd">        :param collection: PacketCollection instance</span>
+<span class="sd">        :param bandwidth: available bandwidth</span>
+<span class="sd">        @yield: each entry in replicables&quot;&quot;&quot;</span>
+
+        <span class="n">make_packet</span> <span class="o">=</span> <span class="n">Packet</span>
+        <span class="n">store_packet</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span>
+        <span class="n">insert_packet</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">insert</span>
+        <span class="n">extend_packets</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">extend</span>
+
+        <span class="n">replication_init</span> <span class="o">=</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">replication_init</span>  <span class="c"># @UndefinedVariable</span>
+        <span class="n">replication_update</span> <span class="o">=</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">replication_update</span>  <span class="c"># @UndefinedVariable</span>
+
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">elapsed</span>
+        <span class="n">is_relevant</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">is_relevant</span>
+        <span class="n">replicator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span>
+
+        <span class="n">used_bandwidth</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">free_bandwidth</span> <span class="o">=</span> <span class="n">bandwidth</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">replicables</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="n">free_bandwidth</span><span class="p">:</span>
+                <span class="n">replicable</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">channel</span> <span class="o">=</span> <span class="n">item</span>
+                <span class="c"># Get network ID</span>
+                <span class="n">packed_id</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span>
+
+                <span class="c"># Check whether enough time has elapsed</span>
+                <span class="n">interval</span> <span class="o">=</span> <span class="p">(</span><span class="n">timestamp</span> <span class="o">-</span> <span class="n">channel</span><span class="o">.</span><span class="n">last_replication_time</span><span class="p">)</span>
+
+                <span class="c"># Only send attributes if relevant</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">interval</span> <span class="o">&lt;</span> <span class="n">replicable</span><span class="o">.</span><span class="n">replication_update_period</span> <span class="ow">or</span>
+                    <span class="ow">not</span> <span class="p">(</span><span class="n">is_owner</span> <span class="ow">or</span> <span class="n">is_relevant</span><span class="p">(</span><span class="n">replicator</span><span class="p">,</span> <span class="n">replicable</span><span class="p">))):</span>
+                    <span class="k">continue</span>
+
+                <span class="c"># If we&#39;ve never replicated to this channel</span>
+                <span class="k">if</span> <span class="n">channel</span><span class="o">.</span><span class="n">is_initial</span><span class="p">:</span>
+                    <span class="c"># Pack the class name</span>
+                    <span class="n">packed_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span>
+                                   <span class="n">replicable</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">type_name</span><span class="p">)</span>
+                    <span class="n">packed_is_host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span>
+                                  <span class="n">replicable</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">)</span>
+                    <span class="c"># Send the protocol, class name and owner status to client</span>
+                    <span class="n">packet</span> <span class="o">=</span> <span class="n">make_packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">replication_init</span><span class="p">,</span>
+                                  <span class="n">payload</span><span class="o">=</span><span class="n">packed_id</span> <span class="o">+</span> <span class="n">packed_class</span> <span class="o">+</span>\
+                                  <span class="n">packed_is_host</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                    <span class="c"># Insert the packet at the front (to ensure attribute</span>
+                    <span class="c"># references are valid to newly created replicables</span>
+                    <span class="n">insert_packet</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">packet</span><span class="p">)</span>
+                    <span class="n">used_bandwidth</span> <span class="o">+=</span> <span class="n">packet</span><span class="o">.</span><span class="n">size</span>
+
+                <span class="c"># Send changed attributes</span>
+                <span class="n">attributes</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">get_attributes</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+
+                <span class="c"># If they have changed</span>
+                <span class="k">if</span> <span class="n">attributes</span><span class="p">:</span>
+                    <span class="c"># This ensures references exist</span>
+                    <span class="c"># By calling it after all creation packets are yielded</span>
+                    <span class="n">update_payload</span> <span class="o">=</span> <span class="n">packed_id</span> <span class="o">+</span> <span class="n">attributes</span>
+                    <span class="n">packet</span> <span class="o">=</span> <span class="n">make_packet</span><span class="p">(</span>
+                                        <span class="n">protocol</span><span class="o">=</span><span class="n">replication_update</span><span class="p">,</span>
+                                        <span class="n">payload</span><span class="o">=</span><span class="n">update_payload</span><span class="p">,</span>
+                                        <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+                    <span class="n">store_packet</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+                    <span class="n">used_bandwidth</span> <span class="o">+=</span> <span class="n">packet</span><span class="o">.</span><span class="n">size</span>
+
+            <span class="k">yield</span> <span class="n">item</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cached_packets</span><span class="p">:</span>
+            <span class="n">extend_packets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cached_packets</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cached_packets</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ServerConnection.receive"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packets</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Handles incoming PacketCollection instance</span>
+<span class="sd">        :param packets: PacketCollection instance&#39;&#39;&#39;</span>
+        <span class="c"># Local space variables</span>
+        <span class="n">is_owner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_owner</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span>
+
+        <span class="n">unpacker</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span>
+        <span class="n">id_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+        <span class="n">method_invoke</span> <span class="o">=</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">method_invoke</span>  <span class="c"># @UndefinedVariable</span>
+
+        <span class="c"># Run RPC invoke for each packet</span>
+        <span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">packets</span><span class="p">:</span>
+
+            <span class="c"># If it is an RPC packet</span>
+            <span class="k">if</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span> <span class="o">==</span> <span class="n">method_invoke</span><span class="p">:</span>
+                <span class="c"># Unpack data</span>
+                <span class="n">instance_id</span> <span class="o">=</span> <span class="n">unpacker</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+                <span class="n">channel</span> <span class="o">=</span> <span class="n">channels</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+                <span class="c"># If we have permission to execute</span>
+                <span class="k">if</span> <span class="n">is_owner</span><span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">replicable</span><span class="p">):</span>
+                    <span class="n">channel</span><span class="o">.</span><span class="n">invoke_rpc_call</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="n">id_size</span><span class="p">:])</span>
+</div>
+<div class="viewcode-block" id="ServerConnection.send"><a class="viewcode-back" href="../../network.html#network.connection.ServerConnection.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">available_bandwidth</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Creates a packet collection of replicated function calls</span>
+<span class="sd">        :param network_tick: non urgent data is included in collection</span>
+<span class="sd">        :param available_bandwidth: estimated available bandwidth</span>
+<span class="sd">        @return: PacketCollection instance&#39;&#39;&#39;</span>
+
+        <span class="n">collection</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span>
+        <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prioritised_replication_data</span>
+
+        <span class="k">if</span> <span class="n">network_tick</span><span class="p">:</span>
+            <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_attribute_replication</span><span class="p">(</span><span class="n">replicables</span><span class="p">,</span>
+                                                         <span class="n">collection</span><span class="p">,</span>
+                                                         <span class="n">available_bandwidth</span><span class="p">)</span>
+
+        <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_method_replication</span><span class="p">(</span>
+                                          <span class="n">replicables</span><span class="p">,</span>
+                                          <span class="n">collection</span><span class="p">,</span>
+                                          <span class="n">available_bandwidth</span><span class="p">)</span>
+
+        <span class="c"># Consume iterable</span>
+        <span class="n">consume</span><span class="p">(</span><span class="n">replicables</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">collection</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -47,9 +47,3 @@ blender_example Package
 
 :mod:`ui` Module
 ----------------
-
-
-Subpackages
------------
-
-

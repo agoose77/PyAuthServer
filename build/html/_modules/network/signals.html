@@ -1,0 +1,453 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.signals &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.signals</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.type_register</span> <span class="kn">import</span> <span class="n">TypeRegister</span>
+<span class="kn">from</span> <span class="nn">.conditions</span> <span class="kn">import</span> <span class="n">is_signal_listener</span>
+<span class="kn">from</span> <span class="nn">.decorators</span> <span class="kn">import</span> <span class="n">signal_listener</span>
+<span class="kn">from</span> <span class="nn">.factory_dict</span> <span class="kn">import</span> <span class="n">FactoryDict</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span><span class="p">,</span> <span class="n">signature</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;SignalListener&#39;</span><span class="p">,</span> <span class="s">&#39;Signal&#39;</span><span class="p">,</span> <span class="s">&#39;ReplicableRegisteredSignal&#39;</span><span class="p">,</span>
+           <span class="s">&#39;ReplicableUnregisteredSignal&#39;</span><span class="p">,</span> <span class="s">&#39;ConnectionErrorSignal&#39;</span><span class="p">,</span>
+           <span class="s">&#39;ConnectionSuccessSignal&#39;</span><span class="p">,</span> <span class="s">&#39;UpdateSignal&#39;</span><span class="p">,</span> <span class="s">&#39;ProfileSignal&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">members_predicate</span><span class="p">(</span><span class="n">member</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="s">&quot;__annotations__&quot;</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="p">(</span><span class="n">is_signal_listener</span><span class="p">(</span><span class="n">member</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">member</span><span class="p">)))</span>
+
+
+<span class="k">def</span> <span class="nf">cache_signals</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">lookup_dict</span><span class="p">[</span><span class="n">cls</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span>
+                                   <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">members_predicate</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<div class="viewcode-block" id="SignalListener"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener">[docs]</a><span class="k">class</span> <span class="nc">SignalListener</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Provides interface for class based signal listeners</span>
+<span class="sd">    Uses class instance as target for signal binding</span>
+<span class="sd">    Optional greedy binding (binds the events supported by either class)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">lookup_dict</span> <span class="o">=</span> <span class="n">FactoryDict</span><span class="p">(</span><span class="n">cache_signals</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_signals</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SignalListener.signal_callbacks"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener.signal_callbacks">[docs]</a>    <span class="k">def</span> <span class="nf">signal_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Property</span>
+<span class="sd">        Gets the marked signal callbacks</span>
+<span class="sd">        :return: generator of (name, attribute) pairs&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lookup_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">]:</span>
+            <span class="k">yield</span> <span class="n">name</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SignalListener.register_child"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener.register_child">[docs]</a>    <span class="k">def</span> <span class="nf">register_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">signal_store</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">greedy</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Subscribes child to parent for signals</span>
+<span class="sd">        :param child: Child to subscribe for </span>
+<span class="sd">        :param signal_store: SignalListener subclass instance, default=None</span>
+<span class="sd">        :param greedy: Determines if child should bind its own events, default=False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Mirror own signals by default</span>
+        <span class="k">if</span> <span class="n">signal_store</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">signal_store</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="n">signal_store</span><span class="o">.</span><span class="n">signal_callbacks</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">signal</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="ow">in</span> <span class="n">Signal</span><span class="o">.</span><span class="n">get_signals</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+                <span class="n">signal</span><span class="o">.</span><span class="n">set_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">greedy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_child</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">child</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SignalListener.unregister_child"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener.unregister_child">[docs]</a>    <span class="k">def</span> <span class="nf">unregister_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">child</span><span class="p">,</span> <span class="n">signal_store</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">greedy</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unsubscribe the child to parent for signals</span>
+<span class="sd">        :param child: Child to un-subscribe for</span>
+<span class="sd">        :param signal_store: SignalListener subclass instance, default=None</span>
+<span class="sd">        :param greedy: Determines if child should un-bind its own events, default=False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Mirror own signals by default</span>
+        <span class="k">if</span> <span class="n">signal_store</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">signal_store</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="n">signal_store</span><span class="o">.</span><span class="n">signal_callbacks</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">signal</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="ow">in</span> <span class="n">Signal</span><span class="o">.</span><span class="n">get_signals</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+                <span class="n">signal</span><span class="o">.</span><span class="n">remove_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">greedy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unregister_child</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">child</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SignalListener.register_signals"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener.register_signals">[docs]</a>    <span class="k">def</span> <span class="nf">register_signals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Register signals to observer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_callbacks</span><span class="p">:</span>
+            <span class="n">Signal</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SignalListener.unregister_signals"><a class="viewcode-back" href="../../network.html#network.signals.SignalListener.unregister_signals">[docs]</a>    <span class="k">def</span> <span class="nf">unregister_signals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unregister signals from observer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_callbacks</span><span class="p">:</span>
+            <span class="n">Signal</span><span class="o">.</span><span class="n">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Signal"><a class="viewcode-back" href="../../network.html#network.signals.Signal">[docs]</a><span class="k">class</span> <span class="nc">Signal</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">TypeRegister</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Observer class for signal-like invocation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">subclasses</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.register_subtype"><a class="viewcode-back" href="../../network.html#network.signals.Signal.register_subtype">[docs]</a>    <span class="k">def</span> <span class="nf">register_subtype</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_unsubscribe</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_unisolate</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_unchild</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_child</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Signal.get_signals"><a class="viewcode-back" href="../../network.html#network.signals.Signal.get_signals">[docs]</a>    <span class="k">def</span> <span class="nf">get_signals</span><span class="p">(</span><span class="n">decorated</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">decorated</span><span class="o">.</span><span class="n">__annotations__</span><span class="p">[</span><span class="s">&#39;signals&#39;</span><span class="p">]</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.register_type"><a class="viewcode-back" href="../../network.html#network.signals.Signal.register_type">[docs]</a>    <span class="k">def</span> <span class="nf">register_type</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">register_subtype</span><span class="p">()</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">highest_signal</span> <span class="o">=</span> <span class="n">cls</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.unsubscribe"><a class="viewcode-back" href="../../network.html#network.signals.Signal.unsubscribe">[docs]</a>    <span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+        <span class="n">signals_data</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">get_signals</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">signal_cls</span><span class="p">,</span> <span class="n">is_context</span> <span class="ow">in</span> <span class="n">signals_data</span><span class="p">:</span>
+            <span class="n">remove_list</span> <span class="o">=</span> <span class="p">(</span><span class="n">signal_cls</span><span class="o">.</span><span class="n">to_unisolate</span> <span class="k">if</span> <span class="n">is_context</span> <span class="k">else</span>
+                         <span class="n">signal_cls</span><span class="o">.</span><span class="n">to_unsubscribe</span><span class="p">)</span>
+            <span class="n">remove_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+
+            <span class="n">signal_children</span> <span class="o">=</span> <span class="n">signal_cls</span><span class="o">.</span><span class="n">children</span>
+
+            <span class="k">if</span> <span class="n">identifier</span> <span class="ow">in</span> <span class="n">signal_children</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">signal_children</span><span class="p">[</span><span class="n">identifier</span><span class="p">]:</span>
+                    <span class="n">signal_cls</span><span class="o">.</span><span class="n">remove_parent</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">identifier</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">parent</span><span class="p">,</span> <span class="n">next_children</span> <span class="ow">in</span> <span class="n">signal_children</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">identifier</span> <span class="ow">in</span> <span class="n">next_children</span><span class="p">:</span>
+                    <span class="n">signal_cls</span><span class="o">.</span><span class="n">remove_parent</span><span class="p">(</span><span class="n">identifier</span><span class="p">,</span> <span class="n">parent</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.set_parent"><a class="viewcode-back" href="../../network.html#network.signals.Signal.set_parent">[docs]</a>    <span class="k">def</span> <span class="nf">set_parent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">parent_identifier</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_child</span><span class="p">[</span><span class="n">parent_identifier</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.remove_parent"><a class="viewcode-back" href="../../network.html#network.signals.Signal.remove_parent">[docs]</a>    <span class="k">def</span> <span class="nf">remove_parent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">parent_identifier</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">to_unchild</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">identifier</span><span class="p">,</span> <span class="n">parent_identifier</span><span class="p">))</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.on_subscribed"><a class="viewcode-back" href="../../network.html#network.signals.Signal.on_subscribed">[docs]</a>    <span class="k">def</span> <span class="nf">on_subscribed</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_contextual</span><span class="p">,</span> <span class="n">subscriber</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.get_total_subscribers"><a class="viewcode-back" href="../../network.html#network.signals.Signal.get_total_subscribers">[docs]</a>    <span class="k">def</span> <span class="nf">get_total_subscribers</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.subscribe"><a class="viewcode-back" href="../../network.html#network.signals.Signal.subscribe">[docs]</a>    <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+        <span class="n">signals_data</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">get_signals</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+        <span class="n">func_signature</span> <span class="o">=</span> <span class="n">signature</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+
+        <span class="n">accepts_signal</span> <span class="o">=</span> <span class="s">&quot;signal&quot;</span> <span class="ow">in</span> <span class="n">func_signature</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">accepts_target</span> <span class="o">=</span> <span class="s">&quot;target&quot;</span> <span class="ow">in</span> <span class="n">func_signature</span><span class="o">.</span><span class="n">parameters</span>
+
+        <span class="k">for</span> <span class="n">signal_cls</span><span class="p">,</span> <span class="n">is_context</span> <span class="ow">in</span> <span class="n">signals_data</span><span class="p">:</span>
+            <span class="n">data_dict</span> <span class="o">=</span> <span class="p">(</span><span class="n">signal_cls</span><span class="o">.</span><span class="n">to_isolate</span> <span class="k">if</span> <span class="n">is_context</span> <span class="k">else</span>
+                         <span class="n">signal_cls</span><span class="o">.</span><span class="n">to_subscribe</span><span class="p">)</span>
+            <span class="n">data_dict</span><span class="p">[</span><span class="n">identifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span><span class="p">,</span> <span class="n">accepts_signal</span><span class="p">,</span> <span class="n">accepts_target</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.update_state"><a class="viewcode-back" href="../../network.html#network.signals.Signal.update_state">[docs]</a>    <span class="k">def</span> <span class="nf">update_state</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="c"># Run safe notifications</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span><span class="p">:</span>
+            <span class="n">local_to_subscribe</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span><span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">local_to_subscribe</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">on_subscribed</span><span class="p">(</span><span class="bp">False</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span><span class="p">)</span>
+            <span class="n">local_to_isolate</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">local_to_isolate</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">on_subscribed</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="c"># Remove old subscribers</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unsubscribe</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unsubscribe</span><span class="p">:</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_unsubscribe</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unisolate</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unisolate</span><span class="p">:</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_unisolate</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c"># Add new children</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_child</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">to_child</span><span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_child</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c"># Remove old children</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unchild</span><span class="p">:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">children</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">parent</span><span class="p">)</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_unchild</span><span class="p">:</span>
+                <span class="n">parent_children_dict</span> <span class="o">=</span> <span class="n">children</span><span class="p">[</span><span class="n">parent</span><span class="p">]</span>
+                <span class="n">parent_children_dict</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">parent_children_dict</span><span class="p">:</span>
+                    <span class="n">children</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+
+            <span class="n">cls</span><span class="o">.</span><span class="n">to_unchild</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c"># Recurse to catch any missed subscribers</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_subscribe</span> <span class="ow">or</span> <span class="n">cls</span><span class="o">.</span><span class="n">to_isolate</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">update_state</span><span class="p">()</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.update_graph"><a class="viewcode-back" href="../../network.html#network.signals.Signal.update_graph">[docs]</a>    <span class="k">def</span> <span class="nf">update_graph</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">cls</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">subclasses</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">update_state</span><span class="p">()</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.invoke_signal"><a class="viewcode-back" href="../../network.html#network.signals.Signal.invoke_signal">[docs]</a>    <span class="k">def</span> <span class="nf">invoke_signal</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+                            <span class="n">supply_signal</span><span class="p">,</span> <span class="n">supply_target</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">supply_signal</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">supply_target</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">cls</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">supply_target</span><span class="p">:</span>
+            <span class="n">callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">callback</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.invoke_targets"><a class="viewcode-back" href="../../network.html#network.signals.Signal.invoke_targets">[docs]</a>    <span class="k">def</span> <span class="nf">invoke_targets</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">all_targets</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">addressee</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">addressee</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">addressee</span> <span class="o">=</span> <span class="n">target</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">update_graph</span><span class="p">()</span>
+
+        <span class="c"># If the child is a context listener</span>
+        <span class="k">if</span> <span class="n">addressee</span> <span class="ow">in</span> <span class="n">all_targets</span><span class="p">:</span>
+            <span class="n">callback</span><span class="p">,</span> <span class="n">supply_signal</span><span class="p">,</span> <span class="n">supply_target</span> <span class="o">=</span> <span class="n">all_targets</span><span class="p">[</span><span class="n">addressee</span><span class="p">]</span>
+            <span class="c"># Invoke with the same target context even if this is a child</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_signal</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+                             <span class="n">supply_signal</span><span class="p">,</span> <span class="n">supply_target</span><span class="p">)</span>
+
+        <span class="c"># Update children of this listener</span>
+        <span class="k">if</span> <span class="n">addressee</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">target_child</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="n">addressee</span><span class="p">]:</span>
+                <span class="n">cls</span><span class="o">.</span><span class="n">invoke_targets</span><span class="p">(</span><span class="n">all_targets</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                                   <span class="n">addressee</span><span class="o">=</span><span class="n">target_child</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.invoke_general"><a class="viewcode-back" href="../../network.html#network.signals.Signal.invoke_general">[docs]</a>    <span class="k">def</span> <span class="nf">invoke_general</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">all_subscribers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">supply_signal</span><span class="p">,</span> <span class="n">supply_target</span><span class="p">)</span> <span class="ow">in</span> \
+                                <span class="n">all_subscribers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_signal</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span>
+                             <span class="n">supply_signal</span><span class="p">,</span> <span class="n">supply_target</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.invoke"><a class="viewcode-back" href="../../network.html#network.signals.Signal.invoke">[docs]</a>    <span class="k">def</span> <span class="nf">invoke</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">target</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_targets</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                               <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">invoke_general</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                           <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">invoke_parent</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.invoke_parent"><a class="viewcode-back" href="../../network.html#network.signals.Signal.invoke_parent">[docs]</a>    <span class="k">def</span> <span class="nf">invoke_parent</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">highest_signal</span> <span class="o">==</span> <span class="n">cls</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parent</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">__mro__</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">parent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.global_listener"><a class="viewcode-back" href="../../network.html#network.signals.Signal.global_listener">[docs]</a>    <span class="k">def</span> <span class="nf">global_listener</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal_listener</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">True</span><span class="p">)(</span><span class="n">func</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Signal.listener"><a class="viewcode-back" href="../../network.html#network.signals.Signal.listener">[docs]</a>    <span class="k">def</span> <span class="nf">listener</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signal_listener</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">False</span><span class="p">)(</span><span class="n">func</span><span class="p">)</span>
+
+</div></div>
+<span class="k">class</span> <span class="nc">CachedSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">register_subtype</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="c"># Unfortunate hack to reproduce super() behaviour</span>
+        <span class="n">Signal</span><span class="o">.</span><span class="n">register_subtype</span><span class="o">.</span><span class="n">__func__</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">invoke</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">subscriber_data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Only cache normal invocations</span>
+        <span class="k">if</span> <span class="n">subscriber_data</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_targets</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">isolated_subscribers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                               <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_general</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">subscribers</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                               <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c"># Otherwise run a general invocation on new subscriber</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke_general</span><span class="p">(</span><span class="n">subscriber_data</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                               <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">invoke_parent</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">on_subscribed</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_contextual</span><span class="p">,</span> <span class="n">subscriber</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="c"># Only inform global listeners (wouldn&#39;t work anyway)</span>
+        <span class="k">if</span> <span class="n">is_contextual</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">subscriber_info</span> <span class="o">=</span> <span class="p">{</span><span class="n">subscriber</span><span class="p">:</span> <span class="n">data</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">previous_args</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">previous_kwargs</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">cache</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="o">*</span><span class="n">previous_args</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                       <span class="n">subscriber_data</span><span class="o">=</span><span class="n">subscriber_info</span><span class="p">,</span>
+                       <span class="o">**</span><span class="n">previous_kwargs</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReplicableRegisteredSignal"><a class="viewcode-back" href="../../network.html#network.signals.ReplicableRegisteredSignal">[docs]</a><span class="k">class</span> <span class="nc">ReplicableRegisteredSignal</span><span class="p">(</span><span class="n">CachedSignal</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ReplicableUnregisteredSignal"><a class="viewcode-back" href="../../network.html#network.signals.ReplicableUnregisteredSignal">[docs]</a><span class="k">class</span> <span class="nc">ReplicableUnregisteredSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ConnectionErrorSignal"><a class="viewcode-back" href="../../network.html#network.signals.ConnectionErrorSignal">[docs]</a><span class="k">class</span> <span class="nc">ConnectionErrorSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ConnectionSuccessSignal"><a class="viewcode-back" href="../../network.html#network.signals.ConnectionSuccessSignal">[docs]</a><span class="k">class</span> <span class="nc">ConnectionSuccessSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="UpdateSignal"><a class="viewcode-back" href="../../network.html#network.signals.UpdateSignal">[docs]</a><span class="k">class</span> <span class="nc">UpdateSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ProfileSignal"><a class="viewcode-back" href="../../network.html#network.signals.ProfileSignal">[docs]</a><span class="k">class</span> <span class="nc">ProfileSignal</span><span class="p">(</span><span class="n">Signal</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

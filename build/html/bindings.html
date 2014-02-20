@@ -33,6 +33,9 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li><a href="index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
@@ -42,8 +45,29 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="bindings-module">
-<h1>bindings Module<a class="headerlink" href="#bindings-module" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-bindings">
+<span id="bindings-module"></span><h1>bindings Module<a class="headerlink" href="#module-bindings" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="bindings.bind_all">
+<tt class="descclassname">bindings.</tt><tt class="descname">bind_all</tt><big>(</big><em>mc</em>, <em>builtin_only=False</em>, <em>stoplist=</em><span class="optional">[</span><span class="optional">]</span>, <em>verbose=False</em><big>)</big><a class="reference internal" href="_modules/bindings.html#bind_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bindings.bind_all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively apply constant binding to functions in a module or class.</p>
+<p>Use as the last line of the module (after everything is defined, but
+before test code).  In modules that need modifiable globals, set
+builtin_only to True.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="bindings.make_constants">
+<tt class="descclassname">bindings.</tt><tt class="descname">make_constants</tt><big>(</big><em>builtin_only=False</em>, <em>stoplist=</em><span class="optional">[</span><span class="optional">]</span>, <em>verbose=False</em><big>)</big><a class="reference internal" href="_modules/bindings.html#make_constants"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bindings.make_constants" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a decorator for optimizing global references.</p>
+<p>Replaces global references with their currently defined values.
+If not defined, the dynamic (runtime) global lookup is left undisturbed.
+If builtin_only is True, then only builtins are optimized.
+Variable names in the stoplist are also left undisturbed.
+Also, folds constant attr lookups and tuples of constants.
+If verbose is True, prints each substitution as is occurs</p>
+</dd></dl>
+
 </div>
 
 
@@ -80,6 +104,9 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li><a href="index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li> 
       </ul>
     </div>

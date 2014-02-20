@@ -1,3 +1,7 @@
 cleanup Module
 ==============
 
+.. automodule:: cleanup
+    :members:
+    :undoc-members:
+    :show-inheritance:
