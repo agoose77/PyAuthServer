@@ -22,7 +22,7 @@ class Mock(object):
         pass
 
     def __call__(self, *args, **kwargs):
-        return Mock()
+        return self
 
     @classmethod
     def __getattr__(cls, name):
@@ -33,7 +33,7 @@ class Mock(object):
             mockType.__module__ = __name__
             return mockType
         else:
-            return Mock()
+            return self
 
 MOCK_MODULES = ['bge', 'mathutils', 'pyaudio', 'bgui', 'opus', 'aud']
 
