@@ -14,31 +14,75 @@
 
 import sys, os
 
-class Mock(object):
+def fake_imports():
+    import sys, os
+    import types
 
-    __all__ = []
+    class Entry(types.ModuleType):
+        __all__ = []
 
-    def __init__(self, *args, **kwargs):
+    class GameObjType:
         pass
 
-    def __call__(self, *args, **kwargs):
-        return self
+    class LoopType:
+        pass
+    bge = Entry("BGE")
+    bge.logic = Entry("logic")
+    bge.render = Entry("logic")
+    bge.events = Entry("events")
 
-    @classmethod
-    def __getattr__(cls, name):
-        if name in ('__file__', '__path__'):
-            return '/dev/null'
-        elif name[0] == name[0].upper():
-            mockType = type(name, (), {})
-            mockType.__module__ = __name__
-            return mockType
-        else:
+    bge.logic.getCurrentScene = print
+
+    bge.types = Entry("types")
+    bge.types.KX_GameObject = GameObjType
+    bge.types.KX_Camera= GameObjType
+    bge.types.KX_LightObject= GameObjType
+    bge.types.BL_ArmatureObject= GameObjType
+    bge.types.KX_NavMeshObject= GameObjType
+    bge.types.KX_PythonLogicLoop = LoopType
+
+    class i:
+        def __iter__(self):
+            return [].__iter__()
+    class VectorType(i):
+        pass
+
+    class EulerType(i):
+        pass
+
+    class QuatType(i):
+        pass
+
+    class MatrixType(i):
+        pass
+
+    mathutils = Entry("mathutils")
+    mathutils.Vector = VectorType
+    mathutils.Euler = EulerType
+    mathutils.Matrix = MatrixType
+    mathutils.Quaternion = QuatType
+
+    sys.modules["mathutils"] = mathutils
+    sys.modules["bge"] = bge
+
+    class Mock(object):
+
+        __all__ = []
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __call__(self, *args, **kwargs):
             return self
 
-MOCK_MODULES = ['bge', 'mathutils', 'pyaudio', 'bgui', 'opus', 'aud']
+        def __getattr__(self, name):
+            return self
 
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = Mock()
+    MOCK_MODULES = ['pyaudio', 'bgui', 'opus', 'aud']
+
+    for mod_name in MOCK_MODULES:
+        sys.modules[mod_name] = Mock()
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
