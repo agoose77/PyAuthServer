@@ -1,14 +1,6 @@
 bge_network Package
 ===================
 
-:mod:`bge_network` Package
---------------------------
-
-.. automodule:: bge_network
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 :mod:`behaviour_tree` Module
 ----------------------------
 

@@ -31,7 +31,7 @@ def fake_imports():
     bge.render = Entry("logic")
     bge.events = Entry("events")
 
-    bge.logic.getCurrentScene = print
+    bge.logic.getCurrentScene = lambda:None
 
     bge.types = Entry("types")
     bge.types.KX_GameObject = GameObjType

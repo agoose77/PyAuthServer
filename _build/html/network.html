@@ -420,7 +420,7 @@ determines if one is greater than the other
 
 <dl class="attribute">
 <dt id="network.connection_interfaces.ConnectionInterface.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'ClientInterface': &lt;class 'network.connection_interfaces.ClientInterface'&gt;, 'ServerInterface': &lt;class 'network.connection_interfaces.ServerInterface'&gt;}</em><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ServerInterface': &lt;class 'network.connection_interfaces.ServerInterface'&gt;, 'ClientInterface': &lt;class 'network.connection_interfaces.ClientInterface'&gt;}</em><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -686,12 +686,12 @@ Handles data storage, access and complaints</p>
 
 <dl class="method">
 <dt id="network.containers.AttributeStorageContainer.get_description_tuple">
-<tt class="descname">get_description_tuple</tt><big>(</big><em>static_description=&lt;function static_description at 0x03B6E660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_description_tuple</tt><big>(</big><em>static_description=&lt;function static_description at 0x03BBB660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="staticmethod">
 <dt id="network.containers.AttributeStorageContainer.get_descriptions_of">
-<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em>, <em>static_description=&lt;function static_description at 0x03B6E660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em>, <em>static_description=&lt;function static_description at 0x03BBB660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1054,7 +1054,7 @@ Pretty printable</p>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.Exception</span></tt></p>
 <dl class="attribute">
 <dt id="network.errors.NetworkError.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;, 'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;, 'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;, 'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1241,7 +1241,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.ReplicableTypeHandler.string_packer">
-<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x03CE7930&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x03C50490&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1267,7 +1267,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.RolesHandler.packer">
-<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03CA60C0&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1372,7 +1372,7 @@ Packs replicable references and unpacks to proxy OR reference</p>
 
 <dl class="attribute">
 <dt id="network.native_handlers.BitFieldHandler.size_packer">
-<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03CA60C0&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1610,7 +1610,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.protocol_handler">
-<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03CA60C0&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1625,7 +1625,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.size_handler">
-<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03C9DE70&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED0C0&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -2124,7 +2124,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.Signal.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;, 'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -2475,7 +2475,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.ProfileSignal.to_subscribe">
-<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x03CE7F10&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x03CE7F10&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x03C50E10&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x03C50E10&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">

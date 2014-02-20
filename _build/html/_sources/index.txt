@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 3
 
    bindings
+   bge_network
    blender_example
    cleanup
    network
