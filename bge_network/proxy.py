@@ -1,4 +1,5 @@
 class Proxy(object):
+    '''A proxy wrapper for another object'''
     __slots__ = ["_obj", "__weakref__"]
 
     def __init__(self, obj):

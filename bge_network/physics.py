@@ -32,6 +32,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         print("Unable to convert {}: {}".format(lookup, err))
 
     def get_actor(self, lookup, name, type_of):
+        '''Create an Actor instance from a BGE proxy object
+        :param lookup: BGE proxy object
+        :param name: Name of Actor class
+        :param type_of: Required subclass that the Actor must inherit from'''
         if not name in lookup:
             return
 
@@ -46,7 +50,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         except (AssertionError, LookupError) as e:
             self.on_conversion_error(lookup, e)
 
-    def setup_map_controller(self, pawn, obj):
+    def create_pawn_controller(self, pawn, obj):
+        '''Setup a controller for given pawn object
+        :param pawn: Pawn object
+        :param obj: BGE proxy object'''
         controller = self.get_actor(obj, "controller", Controller)
         camera = self.get_actor(obj, "camera", Camera)
         info = self.get_actor(obj, "info", ReplicableInfo)
@@ -72,8 +79,9 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @contextmanager
     def protect_exemptions(self, exemptions):
+        '''Suspend and restore state of exempted actors around an operation
+        :param exemptions: Iterable of exempt Actor instances''' 
         # Suspend exempted objects
-
         for actor in exemptions:
             actor.suspended = True
 
@@ -85,6 +93,8 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @MapLoadedSignal.global_listener
     def convert_map(self, target=None):
+        '''Listener for MapLoadedSignal
+        Attempts to create network entities from BGE proxies'''
         scene = logic.getCurrentScene()
 
         found_actors = {}
@@ -103,7 +113,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
             actor.rotation = obj.worldOrientation.to_euler()
 
             if isinstance(actor, Pawn):
-                self.setup_map_controller(actor, obj)
+                self.create_pawn_controller(actor, obj)
 
         # Establish parent relationships
         for obj, actor in found_actors.items():
@@ -113,6 +123,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsSingleUpdateSignal.global_listener
     def update_for(self, delta_time, target):
+        '''Listener for PhysicsSingleUpdateSignal
+        Attempts to update physics simulation for single actor
+        :param delta_time: Time to progress simulation
+        :param target: Actor instance to update state'''
         if not target.physics in self._active_physics:
             return
 
@@ -126,19 +140,26 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
+        '''Listener for PhysicsTickSignal
+        Updates Physics simulation for entire world
+        :param scene: BGE scene reference
+        :param delta_time: Time to progress simulation'''
         self._update_func(delta_time)
         self._apply_func()
 
         UpdateCollidersSignal.invoke()
 
     @PhysicsCopyState.global_listener
-    def interface_state(self, a, b):
-        b.position = a.position.copy()
-        b.velocity = a.velocity.copy()
-        b.angular = a.angular.copy()
-        b.rotation = a.rotation.copy()
-        b.collision_group = a.collision_group
-        b.collision_mask = a.collision_mask
+    def interface_state(self, source_state, target_state):
+        '''Copy state information from source to target
+        :param source_state: State to copy from
+        :param target_state: State to copy to'''
+        target_state.position = source_state.position.copy()
+        target_state.velocity = source_state.velocity.copy()
+        target_state.angular = source_state.angular.copy()
+        target_state.rotation = source_state.rotation.copy()
+        target_state.collision_group = source_state.collision_group
+        target_state.collision_mask = source_state.collision_mask
 
 
 @netmode_switch(Netmodes.server)
@@ -218,8 +239,8 @@ class ServerPhysics(PhysicsSystem):
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
-        """Send state with unset data so velocities"""
-        """reflect results of behaviour"""
+        """Listener for PhysicsTickSignal
+        Copy physics state to network variable for Actor instances"""
         for replicable in WorldInfo.subclass_of(Actor):
             assert replicable.registered
             self.interface_state(replicable,
@@ -238,10 +259,16 @@ class ClientPhysics(PhysicsSystem):
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:
             return
+
         return super().get_actor(lookup, name, type_of)
 
     @PhysicsReplicatedSignal.global_listener
     def actor_replicated(self, target_physics, target):
+        '''Listener for PhysicsReplicatedSignal
+        Callback for physics state replication.
+        Applies physics struct data to physics state.
+        :param target_physics: Physics struct of target
+        :param target: Actor instance'''
         difference = target_physics.position - target.position
 
         target.rotation = target_physics.rotation

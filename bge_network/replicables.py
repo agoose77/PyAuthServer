@@ -193,6 +193,7 @@ class AIController(Controller):
 
 
 class PlayerController(Controller):
+    '''Player pawn controller network object'''
 
     input_fields = []
 
@@ -444,6 +445,7 @@ class PlayerController(Controller):
 
     @signals.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
+        '''Update function for client instance'''
         if not (self.pawn and self.camera):
             return
 
@@ -492,12 +494,14 @@ class PlayerController(Controller):
         super().server_fire()
 
     def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
+        '''Flag a variable as unlocked on the server'''
         try:
             self.locks.remove(name)
         except KeyError:
             print("{} was not locked".format(name))
 
     def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
+        '''Flag a variable as locked on the server'''
         self.locks.add(name)
 
     def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
@@ -517,6 +521,7 @@ class PlayerController(Controller):
                                 mouse_diff_y: TypeFlag(float),
                                 position: TypeFlag(mathutils.Vector),
                                 rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
+        '''Store a client move for later processing and clock validation'''
 
         current_tick = WorldInfo.tick
         target_tick = self.maximum_clock_ahead + current_tick
@@ -532,7 +537,7 @@ class PlayerController(Controller):
 
     @requires_netmode(Netmodes.server)
     def server_check_move(self):
-        """Check result of movement operation"""
+        """Check result of movement operation following Physics update"""
         # Get move information
         current_tick = WorldInfo.tick
 
@@ -561,6 +566,7 @@ class PlayerController(Controller):
 
     @requires_netmode(Netmodes.client)
     def setup_input(self):
+        '''Create the input manager for the client'''
         keybindings = self.load_keybindings()
 
         self.inputs = inputs.InputManager(keybindings)
@@ -568,6 +574,7 @@ class PlayerController(Controller):
 
     @requires_netmode(Netmodes.client)
     def setup_microphone(self):
+        '''Create the microphone for the client'''
         self.microphone = stream.MicrophoneStream()
         self.sound_channels = collections.defaultdict(stream.SpeakerStream)
 
@@ -575,6 +582,7 @@ class PlayerController(Controller):
         self.info.name = name
 
     def start_clock_correction(self, current_tick, command_tick):
+        '''Initiate client clock correction'''
         if not self.is_locked("clock_synch"):
             tick_difference = self.get_clock_correction(current_tick, command_tick)
             nudge_forward = current_tick > command_tick
@@ -592,6 +600,7 @@ class PlayerController(Controller):
         self.client_fire()
 
     def broadcast_voice(self):
+        '''Dump voice information and encode it for the server'''
         data = self.microphone.encode()
         if data:
             self.send_voice_server(data)
@@ -599,6 +608,7 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.server)
     @UpdateSignal.global_listener
     def update(self, delta_time):
+        '''Validate client clock and apply moves'''
         # Aim ahead by the jitter buffer size
         current_tick = WorldInfo.tick
         target_tick = self.maximum_clock_ahead + current_tick
@@ -642,7 +652,7 @@ class PlayerController(Controller):
             self.pending_moves[current_tick] = position, rotation
 
     def update_buffered_locks(self, tick):
-        '''Apply buffered server locks'''
+        '''Apply server lock changes for the jitter buffer tick'''
         removed_keys = []
         for tick_, locks in self.buffered_locks.items():
             if tick_ > tick:
@@ -661,6 +671,7 @@ class PlayerController(Controller):
 
 
 class Actor(Replicable, physics_object.PhysicsObject):
+    '''Physics enabled network object'''
 
     rigid_body_state = Attribute(structs.RigidBodyState(), notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
