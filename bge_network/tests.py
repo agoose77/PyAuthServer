@@ -1,3 +1,5 @@
+from network import Attribute
+
 
 class PlayerController:
 
