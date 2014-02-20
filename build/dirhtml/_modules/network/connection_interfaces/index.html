@@ -1,0 +1,488 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.connection_interfaces &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../../" />
+    <link rel="up" title="Module code" href="../../" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex/" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex/" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../../" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.connection_interfaces</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.replicables</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+<span class="kn">from</span> <span class="nn">.bitfield</span> <span class="kn">import</span> <span class="n">BitField</span>
+<span class="kn">from</span> <span class="nn">.connection</span> <span class="kn">import</span> <span class="n">ClientConnection</span><span class="p">,</span> <span class="n">ServerConnection</span>
+<span class="kn">from</span> <span class="nn">.conversions</span> <span class="kn">import</span> <span class="n">conversion</span>
+<span class="kn">from</span> <span class="nn">.decorators</span> <span class="kn">import</span> <span class="n">netmode_switch</span>
+<span class="kn">from</span> <span class="nn">.descriptors</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">ConnectionStatus</span><span class="p">,</span> <span class="n">Netmodes</span><span class="p">,</span> <span class="n">Protocols</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">NetworkError</span><span class="p">,</span> <span class="n">ConnectionTimeoutError</span>
+<span class="kn">from</span> <span class="nn">.signals</span> <span class="kn">import</span> <span class="p">(</span><span class="n">ConnectionSuccessSignal</span><span class="p">,</span> <span class="n">ConnectionErrorSignal</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.handler_interfaces</span> <span class="kn">import</span> <span class="n">get_handler</span>
+<span class="kn">from</span> <span class="nn">.packet</span> <span class="kn">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">PacketCollection</span>
+<span class="kn">from</span> <span class="nn">.netmode_switch</span> <span class="kn">import</span> <span class="n">NetmodeSwitch</span>
+<span class="kn">from</span> <span class="nn">.instance_register</span> <span class="kn">import</span> <span class="n">InstanceRegister</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">eq</span> <span class="k">as</span> <span class="n">equals_operator</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">monotonic</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;ConnectionInterface&quot;</span><span class="p">,</span> <span class="s">&quot;ClientInterface&quot;</span><span class="p">,</span> <span class="s">&quot;ServerInterface&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ConnectionInterface"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface">[docs]</a><span class="k">class</span> <span class="nc">ConnectionInterface</span><span class="p">(</span><span class="n">NetmodeSwitch</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">InstanceRegister</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Interface for remote peer</span>
+<span class="sd">    Mediates a connection instance between local and remote peer&quot;&quot;&quot;</span>
+
+    <span class="n">subclasses</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="ConnectionInterface.on_initialised"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Maximum sequence number value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequence_max_size</span> <span class="o">=</span> <span class="mi">255</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span>
+                                            <span class="n">max_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence_max_size</span><span class="p">))</span>
+
+        <span class="c"># Number of packets to ack per packet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span> <span class="o">=</span> <span class="mi">32</span>
+
+        <span class="c"># BitField and bitfield size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ack_bitfield</span> <span class="o">=</span> <span class="n">BitField</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ack_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="n">BitField</span><span class="p">))</span>
+
+        <span class="c"># Additional data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">netmode_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+
+        <span class="c"># Protocol unpacker</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+
+        <span class="c"># Storage for packets requesting ack or received</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">requested_ack</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">received_window</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+
+        <span class="c"># Current indicators of latest out/incoming sequence numbers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_sequence</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_sequence</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c"># Time out for connection before it is deleted</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_out</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_received</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span>
+
+        <span class="c"># Simple connected status</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">disconnected</span>  <span class="c"># @UndefinedVariable</span>
+
+        <span class="c"># Maintains an actual connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Estimate available bandwidth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="o">=</span> <span class="n">conversion</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;Mb&quot;</span><span class="p">,</span> <span class="s">&quot;B&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">packet_growth</span> <span class="o">=</span> <span class="n">conversion</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="s">&quot;KB&quot;</span><span class="p">,</span> <span class="s">&quot;B&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">throttle_pending</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">internal_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.on_unregistered"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unregistration callback&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">on_delete</span><span class="p">()</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ConnectionInterface.by_status"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.by_status">[docs]</a>    <span class="k">def</span> <span class="nf">by_status</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">comparator</span><span class="o">=</span><span class="n">equals_operator</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Filter connections by status</span>
+<span class="sd">        @param status: status query</span>
+<span class="sd">        @param comparator: comparison callback for filter&quot;&quot;&quot;</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">interface</span> <span class="ow">in</span> <span class="n">cls</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">comparator</span><span class="p">(</span><span class="n">interface</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">count</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConnectionInterface.next_local_sequence"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.next_local_sequence">[docs]</a>    <span class="k">def</span> <span class="nf">next_local_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Property</span>
+<span class="sd">        @returns next local sequence identifier&quot;&quot;&quot;</span>
+        <span class="n">current_sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_sequence</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_sequence</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_sequence</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">current_sequence</span> <span class="o">&lt;</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">sequence_max_size</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_sequence</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.set_time_out"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.set_time_out">[docs]</a>    <span class="k">def</span> <span class="nf">set_time_out</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the time out for peer</span>
+<span class="sd">        @param delay: delay until interface is timed out&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_out</span> <span class="o">=</span> <span class="n">delay</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.sequence_more_recent"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.sequence_more_recent">[docs]</a>    <span class="k">def</span> <span class="nf">sequence_more_recent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">sequence</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compares two sequence identifiers</span>
+<span class="sd">        determines if one is greater than the other</span>
+<span class="sd">        @param base: base sequence to compare against</span>
+<span class="sd">        @param sequence: sequence tested against base&quot;&quot;&quot;</span>
+        <span class="n">half_seq</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence_max_size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(((</span><span class="n">base</span> <span class="o">&gt;</span> <span class="n">sequence</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">base</span> <span class="o">-</span> <span class="n">sequence</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">half_seq</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="p">((</span><span class="n">sequence</span> <span class="o">&gt;</span> <span class="n">base</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">sequence</span> <span class="o">-</span> <span class="n">base</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">half_seq</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.delete"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets connection state to deleted&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">deleted</span>  <span class="c"># @UndefinedVariable</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.connected"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.connected">[docs]</a>    <span class="k">def</span> <span class="nf">connected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets connection state to connected</span>
+<span class="sd">        @param args: additional positional arguments</span>
+<span class="sd">        @param kwargs: additional keyword arguments&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">connected</span>  <span class="c"># @UndefinedVariable</span>
+        <span class="n">ConnectionSuccessSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.send"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pulls data from connection interfaces to send</span>
+<span class="sd">        @param network_tick: if this is a network tick&quot;&quot;&quot;</span>
+        <span class="c"># Check for timeout</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_received</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_out</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">timeout</span>  <span class="c"># @UndefinedVariable</span>
+
+            <span class="n">err</span> <span class="o">=</span> <span class="n">ConnectionTimeoutError</span><span class="p">(</span><span class="s">&quot;Connection timed out&quot;</span><span class="p">)</span>
+            <span class="n">ConnectionErrorSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># Self-incrementing sequence property</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_local_sequence</span>
+
+        <span class="c"># If we are waiting to detect when packets have been received for throttling</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">throttle_pending</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span> <span class="o">=</span> <span class="n">sequence</span>
+
+        <span class="c"># If not connected setup handshake</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">disconnected</span><span class="p">:</span>  <span class="c"># @UndefinedVariable</span>
+            <span class="n">packet_collection</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_handshake</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">handshake</span>
+
+        <span class="c"># If connected send normal data</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">connected</span><span class="p">:</span>  <span class="c"># @UndefinedVariable</span>
+            <span class="n">packet_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">network_tick</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span><span class="p">)</span>
+
+        <span class="c"># Don&#39;t send any data between states</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Include any re-send</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">internal_data</span><span class="p">:</span>
+            <span class="c"># Read internal_data</span>
+            <span class="n">packet_collection</span> <span class="o">+=</span> <span class="n">PacketCollection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">internal_data</span><span class="p">)</span>
+            <span class="c"># Empty internal_data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">internal_data</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="c"># Create a bitfield using window config</span>
+        <span class="n">ack_bitfield</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack_bitfield</span>
+
+        <span class="c"># The last received sequence number and received list</span>
+        <span class="n">remote_sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_sequence</span>
+        <span class="n">received_window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">received_window</span>
+
+        <span class="c"># Acknowledge all packets we&#39;ve received</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span><span class="p">):</span>
+            <span class="n">packet_sqn</span> <span class="o">=</span> <span class="n">remote_sequence</span> <span class="o">-</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">packet_sqn</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">ack_bitfield</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">packet_sqn</span> <span class="ow">in</span> <span class="n">received_window</span>
+
+        <span class="c"># Construct header information</span>
+        <span class="n">ack_info</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">sequence</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">remote_sequence</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ack_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">ack_bitfield</span><span class="p">)]</span>
+
+        <span class="c"># Store acknowledge request for reliable members of packet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">requested_ack</span><span class="p">[</span><span class="n">sequence</span><span class="p">]</span> <span class="o">=</span> <span class="n">packet_collection</span>
+
+        <span class="c"># Add user data after header</span>
+        <span class="n">packet_bytes</span> <span class="o">=</span> <span class="n">packet_collection</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">packet_bytes</span><span class="p">:</span>
+            <span class="n">ack_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">packet_bytes</span><span class="p">)</span>
+
+        <span class="c"># Force bandwidth to grow (until throttled)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packet_growth</span>
+
+        <span class="k">return</span> <span class="n">b</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ack_info</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.stop_throttling"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.stop_throttling">[docs]</a>    <span class="k">def</span> <span class="nf">stop_throttling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stops updating metric for bandwith&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">throttle_pending</span> <span class="o">=</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.start_throttling"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.start_throttling">[docs]</a>    <span class="k">def</span> <span class="nf">start_throttling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts updating metric for bandwith&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandwidth</span> <span class="o">/=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">throttle_pending</span> <span class="o">=</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="ConnectionInterface.receive"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ConnectionInterface.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handles received bytes from peer</span>
+<span class="sd">        @param bytes_: data from peer&quot;&quot;&quot;</span>
+        <span class="c"># Get the sequence id</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+        <span class="n">bytes_</span> <span class="o">=</span> <span class="n">bytes_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">size</span><span class="p">():]</span>
+
+        <span class="c"># Get the base value for the bitfield</span>
+        <span class="n">ack_base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+        <span class="n">bytes_</span> <span class="o">=</span> <span class="n">bytes_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence_handler</span><span class="o">.</span><span class="n">size</span><span class="p">():]</span>
+
+        <span class="c"># Read the acknowledgement bitfield</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ack_packer</span><span class="o">.</span><span class="n">unpack_merge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_bitfield</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">)</span>
+        <span class="n">bytes_</span> <span class="o">=</span> <span class="n">bytes_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_packer</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">bytes_</span><span class="p">):]</span>
+
+        <span class="c"># Dictionary of packets waiting for acknowledgement</span>
+        <span class="n">requested_ack</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">requested_ack</span>
+        <span class="n">ack_bitfield</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack_bitfield</span>
+
+        <span class="c"># Iterate over ACK bitfield</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span><span class="p">):</span>
+            <span class="n">sequence_</span> <span class="o">=</span> <span class="n">ack_base</span> <span class="o">-</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="c"># If it was acked successfully</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="n">ack_bitfield</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+            <span class="c"># If we are waiting for this packet, acknowledge it</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">flag</span> <span class="ow">and</span> <span class="n">sequence_</span> <span class="ow">in</span> <span class="n">requested_ack</span><span class="p">):</span>
+                <span class="n">requested_ack</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">sequence_</span><span class="p">)</span><span class="o">.</span><span class="n">on_ack</span><span class="p">()</span>
+
+                <span class="c"># Check throttling status</span>
+                <span class="k">if</span> <span class="n">sequence_</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stop_throttling</span><span class="p">()</span>
+
+        <span class="c"># Acknowledge the sequence of this packet</span>
+        <span class="k">if</span> <span class="n">ack_base</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">requested_ack</span><span class="p">:</span>
+            <span class="n">requested_ack</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">ack_base</span><span class="p">)</span><span class="o">.</span><span class="n">on_ack</span><span class="p">()</span>
+
+            <span class="c"># Check throttling status</span>
+            <span class="k">if</span> <span class="n">ack_base</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">tagged_throttle_sequence</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stop_throttling</span><span class="p">()</span>
+
+        <span class="c"># Dropped locals</span>
+        <span class="n">window_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span>
+        <span class="nb">buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">internal_data</span>
+        <span class="n">missed_ack</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="c"># Find packets we think are dropped and resend them</span>
+        <span class="n">considered_dropped</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">seq_</span> <span class="k">for</span> <span class="n">seq_</span> <span class="ow">in</span> <span class="n">requested_ack</span> <span class="k">if</span>
+                                 <span class="p">(</span><span class="n">sequence</span> <span class="o">-</span> <span class="n">seq_</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">window_size</span><span class="p">)</span>
+        <span class="c"># If the packet drops off the ack_window assume it is lost</span>
+        <span class="k">for</span> <span class="n">sequence_</span> <span class="ow">in</span> <span class="n">considered_dropped</span><span class="p">:</span>
+            <span class="c"># Only reliable members asked to be informed if received/dropped</span>
+            <span class="n">reliable_collection</span> <span class="o">=</span> <span class="n">requested_ack</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">sequence_</span><span class="p">)</span><span class="o">.</span><span class="n">to_reliable</span><span class="p">()</span>
+            <span class="n">reliable_collection</span><span class="o">.</span><span class="n">on_not_ack</span><span class="p">()</span>
+
+            <span class="n">missed_ack</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="nb">buffer</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">reliable_collection</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+        <span class="c"># Respond to network conditions</span>
+        <span class="k">if</span> <span class="n">missed_ack</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">throttle_pending</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start_throttling</span><span class="p">()</span>
+
+        <span class="c"># Store the received time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_received</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span>
+
+        <span class="c"># If we receive a newer foreign sequence, update our local record</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence_more_recent</span><span class="p">(</span><span class="n">sequence</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_sequence</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remote_sequence</span> <span class="o">=</span> <span class="n">sequence</span>
+
+        <span class="c"># Recreate packet collection</span>
+        <span class="n">packet_collection</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+
+        <span class="c"># Add packet to received list</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">received_window</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sequence</span><span class="p">)</span>
+
+        <span class="c"># Limit received size</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">received_window</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">ack_window</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">received_window</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+
+        <span class="c"># Called for handshake protocol</span>
+        <span class="n">receive_handshake</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receive_handshake</span>
+
+        <span class="c"># Call post-processed receive</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">connected</span><span class="p">:</span>  <span class="c"># @UndefinedVariable</span>
+            <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">packet_collection</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
+
+                <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">protocol</span> <span class="o">&gt;</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">request_auth</span><span class="p">:</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+                    <span class="k">continue</span>
+
+                <span class="n">receive_handshake</span><span class="p">(</span><span class="n">member</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">packet_collection</span><span class="p">)</span>
+</div></div>
+<span class="nd">@netmode_switch</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>  <span class="c"># @UndefinedVariable</span>
+<div class="viewcode-block" id="ServerInterface"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ServerInterface">[docs]</a><span class="k">class</span> <span class="nc">ServerInterface</span><span class="p">(</span><span class="n">ConnectionInterface</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ServerInterface.on_initialised"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ServerInterface.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialised callback&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth_error</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="ServerInterface.on_unregistered"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ServerInterface.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">on_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">replicable</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_unregistered</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ServerInterface.get_handshake"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ServerInterface.get_handshake">[docs]</a>    <span class="k">def</span> <span class="nf">get_handshake</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Creates a handshake packet</span>
+<span class="sd">        Either acknowledges connection or sends error state&#39;&#39;&#39;</span>
+        <span class="n">connection_failed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">is</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">connection_failed</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_error</span><span class="p">:</span>
+                <span class="c"># Send the error code</span>
+                <span class="n">err_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span>
+                                          <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_error</span><span class="p">)</span><span class="o">.</span><span class="n">type_name</span><span class="p">)</span>
+                <span class="n">err_body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">_auth_error</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+                <span class="c"># Yield a reliable packet</span>
+                <span class="k">return</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">Protocols</span><span class="o">.</span><span class="n">auth_failure</span><span class="p">,</span>
+                              <span class="n">payload</span><span class="o">=</span><span class="n">err_name</span> <span class="o">+</span> <span class="n">err_body</span><span class="p">,</span>
+                              <span class="n">on_success</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Send acknowledgement</span>
+            <span class="k">return</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">Protocols</span><span class="o">.</span><span class="n">auth_success</span><span class="p">,</span>
+                          <span class="n">payload</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">netmode_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">netmode</span><span class="p">),</span>
+                          <span class="n">on_success</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ServerInterface.receive_handshake"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ServerInterface.receive_handshake">[docs]</a>    <span class="k">def</span> <span class="nf">receive_handshake</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receives a handshake packet</span>
+<span class="sd">        Either proceeds to setup connection or stores the error&quot;&quot;&quot;</span>
+        <span class="c"># Unpack data</span>
+        <span class="n">netmode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">netmode_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+
+        <span class="c"># Store replicable</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="s">&quot;Connection already in mediation&quot;</span><span class="p">)</span>
+            <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">pre_initialise</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span><span class="p">,</span> <span class="n">netmode</span><span class="p">)</span>
+
+        <span class="c"># If a NetworkError is raised store the result</span>
+        <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_error</span> <span class="o">=</span> <span class="n">err</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">ServerConnection</span><span class="p">(</span><span class="n">netmode</span><span class="p">)</span>
+            <span class="n">returned_replicable</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">post_initialise</span><span class="p">(</span>
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
+            <span class="c"># Replicable is boolean false until registered</span>
+            <span class="c"># User can force register though!</span>
+            <span class="k">if</span> <span class="n">returned_replicable</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="n">returned_replicable</span>
+
+</div></div>
+<span class="nd">@netmode_switch</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="ClientInterface"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ClientInterface">[docs]</a><span class="k">class</span> <span class="nc">ClientInterface</span><span class="p">(</span><span class="n">ConnectionInterface</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ClientInterface.get_handshake"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ClientInterface.get_handshake">[docs]</a>    <span class="k">def</span> <span class="nf">get_handshake</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Creates a handshake packet</span>
+<span class="sd">        Sends netmode to server&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">Protocols</span><span class="o">.</span><span class="n">request_auth</span><span class="p">,</span>
+                      <span class="n">payload</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">netmode_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">netmode</span><span class="p">),</span>
+                      <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ClientInterface.receive_handshake"><a class="viewcode-back" href="../../../network/#network.connection_interfaces.ClientInterface.receive_handshake">[docs]</a>    <span class="k">def</span> <span class="nf">receive_handshake</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receives a handshake packet</span>
+<span class="sd">        Either proceeds to setup connection or invokes the error&quot;&quot;&quot;</span>
+        <span class="n">protocol</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">protocol</span>
+
+        <span class="k">if</span> <span class="n">protocol</span> <span class="o">==</span> <span class="n">Protocols</span><span class="o">.</span><span class="n">auth_failure</span><span class="p">:</span>
+            <span class="n">err_data</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">):]</span>
+            <span class="n">err_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+            <span class="n">err_body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">err_data</span><span class="p">)</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="n">NetworkError</span><span class="o">.</span><span class="n">from_type_name</span><span class="p">(</span><span class="n">err_type</span><span class="p">)</span>
+
+            <span class="n">ConnectionErrorSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Get remote network mode</span>
+            <span class="n">netmode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">netmode_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+            <span class="c"># If we did not have an error then we succeeded</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">ClientConnection</span><span class="p">(</span><span class="n">netmode</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search/" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex/" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex/" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../../" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -181,7 +181,6 @@ class SphereProjectile(bge_network.Actor):
     def on_registered(self):
         super().on_registered()
 
-        self.i_vel = self.velocity.copy()
         self.start_colour = mathutils.Vector(self.object.color)
         self.update_simulated_physics = False
         self.lifespan = 10
