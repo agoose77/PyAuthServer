@@ -7,8 +7,8 @@ __all__ = ['static_description', 'register_handler', 'register_description',
 
 def static_description(obj):
     '''Uses hash-like comparison of muteable and/or immuteable data
-    @param obj: object to describe
-    @return: obj's hash'''
+    :param obj: object to describe
+    :return: obj's hash'''
     if hasattr(obj, "__description__") and hasattr(obj.__description__,
                                                    "__self__"):
         return obj.__description__()
@@ -34,22 +34,22 @@ def static_description(obj):
 
 def register_handler(type_, callable_, is_condition=False):
     '''Registers new handler for custom serialisers
-    @param type_: type of object
-    @param callable: callable to run
-    @param is_condition: whether callable is generic or requires object'''
+    :param type_: type of object
+    :param callable: callable to run
+    :param is_condition: whether callable is generic or requires object'''
     handlers[type_] = callable_, is_condition
 
 
 def register_description(type_, callback):
     '''Registers special description for non-subclass-able types
-    @param type_: type of object
-    @param callable: callable for description'''
+    :param type_: type of object
+    :param callable: callable for description'''
     descriptions[type_] = callback
 
 
 def get_handler(value):
     '''Takes a TypeFlag (or subclass thereof) and return handler
-    @param value: TypeFlag subclass'''
+    :param value: TypeFlag subclass'''
 
     value_type = value.type
 

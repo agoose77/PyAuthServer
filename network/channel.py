@@ -44,7 +44,7 @@ class Channel:
 
     def invoke_rpc_call(self, rpc_call):
         '''Invokes an RPC call from packaged format
-        @param rpc_call: rpc data (see take_rpc_calls)'''
+        :param rpc_call: rpc data (see take_rpc_calls)'''
         rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
 
         if not self.replicable.registered:
@@ -69,7 +69,7 @@ class ClientChannel(Channel):
 
     def set_attributes(self, bytes_):
         '''Unpacks byte stream and updates attributes
-        @param bytes_: byte stream of attribute bytes_'''
+        :param bytes_: byte stream of attribute bytes_'''
         replicable = self.replicable
 
         # Create local references outside loop

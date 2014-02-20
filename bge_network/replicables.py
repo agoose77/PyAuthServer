@@ -1144,7 +1144,7 @@ class Lamp(Actor):
     @active.setter
     def active(self, state):
         '''Modifies the lamp state by setting the intensity to a placeholder
-        @param state: enabled state'''
+        :param state: enabled state'''
 
         if not (state != (self._intensity is None)):
             return
