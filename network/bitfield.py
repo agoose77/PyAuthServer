@@ -4,8 +4,16 @@ __all__ = ["BitField"]
 
 
 class BitField:
+
+    '''BitField data type which supports slicing operations'''
+
     @classmethod
     def from_iterable(cls, iterable):
+        '''Factory function to create a BitField from an iterable object
+
+        :param iterable: source iterable
+        :requires: fixed length iterable object
+        :returns: BitField instance of length equal to ``len(iterable)``'''
         size = len(iterable)
         field = cls(size)
         field[:size] = iterable
@@ -68,8 +76,12 @@ class BitField:
                 self._value &= ~(1 << index)
 
     def clear(self):
+        '''Clears the BitField to zero'''
         self._value = 0
 
     def resize(self, size):
+        '''Resizes the BitField
+
+        :param size: new size of BitField instance'''
         self._size = size
         self.footprint = bits2bytes(self._size)

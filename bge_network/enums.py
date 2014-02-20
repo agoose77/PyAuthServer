@@ -7,6 +7,10 @@ class PhysicsType(metaclass=Enum):
               "sensor", "navigation_mesh", "character", "no_collision")
 
 
+class EvaluationState(metaclass=Enum):
+    values = "success", "failure", "running", "error", "ready"
+
+
 class CameraMode(metaclass=Enum):
     values = ("first_person", "third_person")
 

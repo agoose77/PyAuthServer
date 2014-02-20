@@ -13,10 +13,10 @@ __all__ = ['ValueProperty', 'StorageInterface', 'RPCStorageInterface',
 
 
 class ValueProperty:
-    """Property wrapper about data item
-    Handles __get__ and __set__ calls by
-    callbacks on the host class
-    @requires: Host methods get_value(), set_value(arg)"""
+    """Implements Descriptor protocol, delegating __get__ and __set__ calls
+    to get_value() and set_value(value) methods on the parent instance
+
+    :requires: Host methods get_value(), set_value(value)"""
 
     __slots__ = []
 
@@ -31,7 +31,10 @@ class ValueProperty:
 
 class StorageInterface:
     """Interface for reading and writing a data value
-    @var value: Property descriptor with settable and gettable value"""
+
+    :cvar value: property descriptor with settable and gettable value
+    :ivar get_value: callback to retrieve value
+    :ivar set_value: callback to write new value"""
     __slots__ = ["get_value", "set_value"]
 
     def __init__(self, getter, setter):

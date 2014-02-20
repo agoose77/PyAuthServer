@@ -105,7 +105,7 @@ class Connection(SignalListener):
     @property
     def prioritised_replication_data(self):
         """Returns an iterator of priorised replicable data
-        :return: iterator of prioritised list of replication data"""
+        :returns: iterator of prioritised list of replication data"""
         return iter(sorted(self.replication_data, reverse=True,
                       key=self.get_replication_priority))
 
@@ -220,7 +220,7 @@ class ClientConnection(Connection):
 
         :param network_tick: unused argument
         :param available_bandwidth: estimated available bandwidth
-        :return: PacketCollection instance'''
+        :returns: PacketCollection instance'''
         collection = PacketCollection()
         replicables = self.get_method_replication(
                                           self.prioritised_replication_data,
@@ -283,7 +283,7 @@ class ServerConnection(Connection):
         of neglected replicables
 
         :param entry: replicable instance
-        :return: replication priority"""
+        :returns: replication priority"""
         replicable, _, channel = entry
         interval = (WorldInfo.elapsed - channel.last_replication_time)
         elapsed_fraction = (interval / replicable.replication_update_period)
@@ -398,7 +398,7 @@ class ServerConnection(Connection):
 
         :param network_tick: non urgent data is included in collection
         :param available_bandwidth: estimated available bandwidth
-        :return: PacketCollection instance'''
+        :returns: PacketCollection instance'''
 
         collection = PacketCollection()
         replicables = self.prioritised_replication_data

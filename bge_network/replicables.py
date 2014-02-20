@@ -24,7 +24,6 @@ import operator
 import functools
 
 from bge import logic
-from functools import lru_cache
 
 Move = collections.namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
 

@@ -12,11 +12,10 @@ __all__ = ['Replicable', '_WorldInfo', 'WorldInfo']
 
 
 class Replicable(metaclass=ReplicableRegister):
-    '''Replicable base class
-    Holds record of instantiated replicables and replicable types
-    Default method for notification and generator for conditions.
-    Additional attributes for attribute values (from descriptors)
-    And complaining attributes'''
+
+    '''Base class for all network involved objects
+    Supports Replicated Function calls, Attribute replication
+    and Signal subscription'''
 
     _MAXIMUM_REPLICABLES = 255
 
@@ -62,8 +61,9 @@ class Replicable(metaclass=ReplicableRegister):
 
     @property
     def uppermost(self):
-        '''Determines if a connection owns this replicable
-        Searches for Replicable with same network id as our Controller'''
+        '''Walks the successive owner of each Replicable to find highest parent
+
+        :returns: uppermost parent'''
         last = None
         replicable = self
 
@@ -104,6 +104,10 @@ class Replicable(metaclass=ReplicableRegister):
             return existing
 
     def validate_id(self, instance_id):
+        '''Validates a requested instance ID
+
+        :param instance_id: requested instance id
+        :returns: validity of ID'''
         return instance_id <= self._MAXIMUM_REPLICABLES
 
     def request_registration(self, instance_id):
@@ -207,17 +211,21 @@ class _WorldInfo(Replicable):
     elapsed = Attribute(0.0, complain=False)
     tick_rate = Attribute(1000, complain=True, notify=True)
 
+    netmode = Netmodes.server
+    rules = None
+    clock_correction = 0.0
+
     def on_initialised(self):
         self._cache = {}
 
-        self.clock_correction = 0.0
-        self.rules = None
-        self.netmode = Netmodes.server
         self.always_relevant = True
 
     @ReplicableRegisteredSignal.global_listener
     @simulated
     def cache_replicable(self, target):
+        '''Stores replicable instance for fast lookup by type
+
+        :param target: Replicable instance'''
         for cls_type, values in self._cache.items():
             if isinstance(target, cls_type):
                 values.append(target)
@@ -225,6 +233,9 @@ class _WorldInfo(Replicable):
     @ReplicableUnregisteredSignal.global_listener
     @simulated
     def uncache_replicable(self, target):
+        '''Removes stored replicable instance for fast lookup by type
+
+        :param target: Replicable instance'''
         for values in self._cache.values():
             if target in values:
                 values.remove(target)
@@ -240,13 +251,16 @@ class _WorldInfo(Replicable):
 
     @property
     def tick(self):
+        ''':returns: current simulation tick'''
         return int((self.elapsed + self.clock_correction) * self.tick_rate)
 
     @simulated
     def subclass_of(self, actor_type):
-        '''Returns registered actors that are subclasses of a given type
+        '''Find registered actors that are subclasses of a given type
 
-        :param actor_type: type to compare against'''
+        :param actor_type: type to compare against
+        :returns: list of subclass instances
+        '''
         try:
             return self._cache[actor_type]
 
@@ -256,11 +270,18 @@ class _WorldInfo(Replicable):
             return values
 
     @simulated
-    def update_clock(self, delta):
-        self.elapsed += delta
+    def update_clock(self, delta_time):
+        '''Update internal clock
+
+        :param delta_time: delta time since last simulation tick'''
+        self.elapsed += delta_time
 
     @simulated
     def type_is(self, name):
+        '''Find Replicable instances with provided type
+
+        :param name: name of class type
+        :returns: list of sibling instances derived from provided type'''
         return Replicable._by_types.get(name)
 
     replicables = property(Replicable.get_graph_instances)

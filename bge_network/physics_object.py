@@ -1,5 +1,4 @@
 from bge import logic
-from functools import lru_cache
 from mathutils import Vector
 from network.decorators import simulated
 from network.signals import SignalListener
@@ -13,7 +12,7 @@ class PhysicsObject:
     def on_initialised(self):
         self.object = self.entity_class(self.entity_name)
 
-        self.parent = None
+        self._parent = None
         self.children = set()
         self.child_entities = set()
 
@@ -23,20 +22,29 @@ class PhysicsObject:
         self._registered = set()
 
         self._register_callback()
-        self._establish_relationship()
+        self._establish_relationships()
 
     @staticmethod
     def from_object(obj):
-        return obj.get("owner")
+        '''Attempt to find the associated instance that owns an object
+        :param obj: instance of :py:class:`GameObject`
+        :returns: instance of :py:class:`PhysicsObject`'''
+        return obj.mapped_instance
 
     @simulated
     def _establish_relationship(self):
-        self.object['owner'] = self
+        self.object.mapped_instance = self
+
+        # Setup relationships in sockets
+        for socket in self.sockets:
+            socket = bge_data.SocketWrapper(socket)
+            socket.mapped_instance = self
 
     @property
     def lifespan(self):
+        '''The time before the object is destroyed'''
         if hasattr(self, "_timer"):
-            return self._timer.target
+            return self._timer.remaining
         return 0
 
     @lifespan.setter
@@ -50,6 +58,7 @@ class PhysicsObject:
 
     @property
     def suspended(self):
+        '''The Physics state of the object'''
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
             return True
@@ -67,10 +76,15 @@ class PhysicsObject:
 
     @property
     def colliding(self):
+        '''The collision status of the object'''
         return bool(self._registered)
 
     @simulated
     def colliding_with(self, other):
+        '''Determines if the object is colliding with another object
+
+        :param other: object to evaluate
+        :returns: result of condition'''
         return other in self._registered
 
     @simulated
@@ -126,69 +140,96 @@ class PhysicsObject:
         self.object.endObject()
 
     @simulated
-    def add_child(self, actor):
-        self.children.add(actor)
-        self.child_entities.add(actor.object)
+    def add_child(self, instance):
+        '''Adds a child to this object
+
+        :param instance: instance to add
+        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        self.children.add(instance)
+        self.child_entities.add(instance.object)
 
     @simulated
-    def remove_child(self, actor):
-        self.children.remove(actor)
-        self.child_entities.remove(actor.object)
+    def remove_child(self, instance):
+        '''Removes a child from this object
 
-    @simulated
-    def set_parent(self, actor, socket_name=None):
-        if socket_name is None:
-            parent_obj = actor.object
+        :param instance: instance to remove
+        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        self.children.remove(instance)
+        self.child_entities.remove(instance.object)
 
-        elif socket_name in actor.sockets:
-            parent_obj = actor.sockets[socket_name]
+    @property
+    def parent(self):
+        '''Relational parent of object
+
+        :returns: parent of object
+        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        return self._parent
+
+    @parent.setter
+    def parent(self, parent):
+        if parent is None:
+            self._parent.remove_child(self)
+            self.object.setParent(None)
+            self._parent = None
+
+        elif isinstance(parent, PhysicsObject):
+            parent.add_child(self)
+            self.object.setParent(parent.object)
+            self._parent = parent
 
         else:
-            raise LookupError("Parent: {} does not have socket named {}".
-                            format(actor, socket_name))
-
-        self.object.setParent(parent_obj)
-        self.parent = actor
-        actor.add_child(self)
-
-    @simulated
-    def remove_parent(self):
-        self.parent.remove_child(self)
-        self.object.setParent(None)
+            raise TypeError("Could not set parent\
+                with type {}".format(type(parent)))
 
     @property
     def collision_group(self):
+        '''Physics collision group
+
+        :returns: physics bitmask of collision group
+        :requires: must be within -1 and 256'''
         return self.object.collisionGroup
 
     @collision_group.setter
     def collision_group(self, group):
         if self.object.collisionGroup == group:
             return
+
+        assert -1 < group < 256
         self.object.collisionGroup = group
 
     @property
     def collision_mask(self):
+        '''Physics collision mask
+
+        :returns: physics bitmask of collision mask
+        :requires: must be within -1 and 256'''
         return self.object.collisionMask
 
     @collision_mask.setter
     def collision_mask(self, mask):
         if self.object.collisionMask == mask:
             return
+
+        assert -1 < mask < 256
         self.object.collisionMask = mask
 
     @property
     def visible(self):
+        ''':returns: the visible state of this object'''
         obj = self.object
         return (obj.visible and obj.meshes) or any(o.visible and o.meshes
                 for o in obj.childrenRecursive)
 
     @property
     def mass(self):
+        ''':returns: the mass of this object'''
         return self.object.mass
 
     @property
-    @lru_cache()
     def physics(self):
+        '''The physics type of this object
+
+        :returns: physics type of object, see :py:class:`bge_network.enums.PhysicsType`'''
         physics_type = self.object.physicsType
         if not getattr(self.object, "meshes", []):
             return logic.KX_PHYSICS_NO_COLLISION
@@ -196,8 +237,7 @@ class PhysicsObject:
 
     @property
     def sockets(self):
-        return {s['socket']: s for s in
-                self.object.childrenRecursive if "socket" in s}
+        return {s['socket']: s for s in self.object.childrenRecursive if "socket" in s}
 
     @property
     def has_dynamics(self):

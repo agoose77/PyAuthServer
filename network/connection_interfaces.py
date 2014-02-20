@@ -90,9 +90,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     @property
     def next_local_sequence(self):
-        """Property
-
-        :return next local sequence identifier"""
+        """:returns: next local packet sequence identifier"""
         current_sequence = self.local_sequence
         self.local_sequence = (current_sequence + 1) if (current_sequence <
                                              self.sequence_max_size) else 0
