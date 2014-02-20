@@ -3,7 +3,7 @@ from itertools import chain
 from network import (Float8, Float4, register_handler,
                      register_description, Struct, Attribute)
 
-					 
+
 class Euler8:
     item_pack = Float8.pack
     item_unpack = Float8.unpack

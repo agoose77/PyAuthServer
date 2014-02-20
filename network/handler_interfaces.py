@@ -48,31 +48,26 @@ def register_description(type_, callback):
 
 
 def get_handler(value):
-    def _get_handler(value):
-        '''Takes a TypeFlag (or subclass thereof) and return handler
-        :param value: TypeFlag subclass'''
-    
-        value_type = value.type
-    
-        try:
-            callback, is_callable = handlers[value_type]
-    
-        except KeyError:
-            handled_superclasses = (cls for cls in value.type.__mro__
-                                    if cls in handlers)
-    
-            try:
-                value_type = next(handled_superclasses)
-    
-            except StopIteration:
-                raise TypeError("No handler found for object with type {}".format(
-                                                                    value.type))
-            else:
-                # Remember this for later call
-                callback, is_callable = handlers[value.type] = handlers[value_type]
-    
-        return callback(value) if is_callable else callback
+    '''Takes a TypeFlag (or subclass thereof) and return handler
+    :param value: TypeFlag subclass'''
+
+    value_type = value.type
+
     try:
-        return _get_handler(value)
-    except Exception:
-        print(value, id(value.type))
+        callback, is_callable = handlers[value_type]
+
+    except KeyError:
+        handled_superclasses = (cls for cls in value.type.__mro__
+                                if cls in handlers)
+
+        try:
+            value_type = next(handled_superclasses)
+
+        except StopIteration:
+            raise TypeError("No handler found for object with type {}".format(
+                                                                value.type))
+        else:
+            # Remember this for later call
+            callback, is_callable = handlers[value.type] = handlers[value_type]
+
+    return callback(value) if is_callable else callback
