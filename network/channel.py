@@ -69,7 +69,7 @@ class ClientChannel(Channel):
 
     def set_attributes(self, bytes_):
         '''Unpacks byte stream and updates attributes
-        :param bytes_: byte stream of attribute bytes_'''
+        :param bytes_: byte stream of attribute'''
         replicable = self.replicable
 
         # Create local references outside loop
