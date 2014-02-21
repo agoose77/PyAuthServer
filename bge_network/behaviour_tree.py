@@ -3,6 +3,8 @@ from network import Signal, SignalListener
 from itertools import islice
 from contextlib import contextmanager
 
+from .enums import EvaluationState
+
 
 class BehaviourTree:
 

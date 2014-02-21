@@ -16,7 +16,6 @@ class PhysicsObject:
         self.children = set()
         self.child_entities = set()
 
-        self._suspended_parent = None
         self._new_colliders = set()
         self._old_colliders = set()
         self._registered = set()
@@ -29,14 +28,17 @@ class PhysicsObject:
         '''Attempt to find the associated instance that owns an object
         :param obj: instance of :py:class:`GameObject`
         :returns: instance of :py:class:`PhysicsObject`'''
-        return obj.mapped_instance
+        try:
+            return obj.mapped_instance
+        except AttributeError:
+            return None
 
     @simulated
-    def _establish_relationship(self):
+    def _establish_relationships(self):
         self.object.mapped_instance = self
 
         # Setup relationships in sockets
-        for socket in self.sockets:
+        for socket_name, socket in self.sockets.items():
             socket = bge_data.SocketWrapper(socket)
             socket.mapped_instance = self
 
@@ -72,6 +74,7 @@ class PhysicsObject:
 
         if self.object.parent:
             return
+
         self.object.useDynamics = not value
 
     @property
@@ -165,8 +168,7 @@ class PhysicsObject:
         :requires: instance must subclass :py:class:`PhysicsObject`'''
         return self._parent
 
-    @parent.setter
-    def parent(self, parent):
+    def set_parent(self, parent, socket_name=None):
         if parent is None:
             self._parent.remove_child(self)
             self.object.setParent(None)
@@ -174,7 +176,12 @@ class PhysicsObject:
 
         elif isinstance(parent, PhysicsObject):
             parent.add_child(self)
-            self.object.setParent(parent.object)
+            if socket_name is not None:
+                physics_obj = parent.sockets[socket_name]
+            else:
+                physics_obj = parent.object
+
+            self.object.setParent(physics_obj)
             self._parent = parent
 
         else:

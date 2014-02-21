@@ -64,6 +64,7 @@ class Connection(SignalListener):
         :return: condition status"""
         # Determine if parent is our controller
         parent = replicable.uppermost
+
         try:
             return parent.instance_id == \
                 self.replicable.instance_id
@@ -80,7 +81,7 @@ class Connection(SignalListener):
         return entry[0].replication_priority
 
     @property
-    def replication_data(self, Replicable=Replicable):
+    def replication_data(self):
         """Returns a generator for replicables
         with a remote role != Roles.none
 

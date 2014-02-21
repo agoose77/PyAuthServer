@@ -182,6 +182,7 @@ network Package
 
 .. automodule:: network.replicables
     :members:
+    :private-members:
     :undoc-members:
     :show-inheritance:
 

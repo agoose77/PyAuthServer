@@ -203,17 +203,18 @@ class AttributeStorageContainer(TypeCachedStorageContainer):
         self.complaints = self.get_default_complaints()
 
     @staticmethod
-    def get_descriptions_of(data, static_description=static_description):
+    def get_descriptions_of(data):
         return {attribute: static_description(value)
                 for attribute, value in data.items()}
 
-    def get_description_tuple(self, static_description=static_description):
+    def get_description_tuple(self):
         complaints = self.complaints
         data = self.data
         members = self._ordered_mapping.values()
+        get_description = static_description
 
         return tuple(complaints[member] if member in complaints else
-                     static_description(data[member]) for member in members)
+                     get_description(data[member]) for member in members)
 
     def get_default_descriptions(self):
         return self.get_descriptions_of(self.get_default_data())
