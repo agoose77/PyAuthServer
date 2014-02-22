@@ -57,20 +57,44 @@
 <dt id="network.bitfield.BitField">
 <em class="property">class </em><tt class="descclassname">network.bitfield.</tt><tt class="descname">BitField</tt><big>(</big><em>size</em>, <em>value=0</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.bitfield.BitField" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>BitField data type which supports slicing operations</p>
 <dl class="method">
 <dt id="network.bitfield.BitField.clear">
 <tt class="descname">clear</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.bitfield.BitField.clear" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Clears the BitField to zero</p>
+</dd></dl>
 
 <dl class="classmethod">
 <dt id="network.bitfield.BitField.from_iterable">
 <em class="property">classmethod </em><tt class="descname">from_iterable</tt><big>(</big><em>iterable</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.from_iterable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.bitfield.BitField.from_iterable" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Factory function to create a BitField from an iterable object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>iterable</strong> &#8211; source iterable</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Requires :</th><td class="field-body">fixed length iterable object</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">BitField instance of length equal to <tt class="docutils literal"><span class="pre">len(iterable)</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="network.bitfield.BitField.resize">
 <tt class="descname">resize</tt><big>(</big><em>size</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.resize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.bitfield.BitField.resize" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Resizes the BitField</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>size</strong> &#8211; new size of BitField instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </dd></dl>
 
@@ -92,8 +116,15 @@ Belongs to an instance of Replicable and a connection</p>
 <dl class="method">
 <dt id="network.channel.Channel.invoke_rpc_call">
 <tt class="descname">invoke_rpc_call</tt><big>(</big><em>rpc_call</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#Channel.invoke_rpc_call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.channel.Channel.invoke_rpc_call" title="Permalink to this definition">¶</a></dt>
-<dd><p>Invokes an RPC call from packaged format
-:param rpc_call: rpc data (see take_rpc_calls)</p>
+<dd><p>Invokes an RPC call from packaged format</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rpc_call</strong> &#8211; rpc data (see take_rpc_calls)</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -112,8 +143,15 @@ Format: rpc_id (bytes) + body (bytes), reliable status (bool)</p>
 <dl class="method">
 <dt id="network.channel.ClientChannel.set_attributes">
 <tt class="descname">set_attributes</tt><big>(</big><em>bytes_</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ClientChannel.set_attributes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.channel.ClientChannel.set_attributes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Unpacks byte stream and updates attributes
-:param <a href="#id1"><span class="problematic" id="id2">bytes_</span></a>: byte stream of attribute</p>
+<dd><p>Unpacks byte stream and updates attributes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>bytes</strong> &#8211; byte stream of attribute</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -135,17 +173,50 @@ Format: rpc_id (bytes) + body (bytes), reliable status (bool)</p>
 <dl class="function">
 <dt id="network.conditions.is_reliable">
 <tt class="descclassname">network.conditions.</tt><tt class="descname">is_reliable</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_reliable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_reliable" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Determines if a function is replicated reliably</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to evaluate</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="network.conditions.is_simulated">
 <tt class="descclassname">network.conditions.</tt><tt class="descname">is_simulated</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_simulated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_simulated" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Determines if a function is simulated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to evaluate</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="network.conditions.is_signal_listener">
 <tt class="descclassname">network.conditions.</tt><tt class="descname">is_signal_listener</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_signal_listener"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_signal_listener" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Determines if a function is a signal listener</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to evaluate</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </div>
 <div class="section" id="module-network.connection">
@@ -164,44 +235,86 @@ Represents a successful connection</p>
 <dl class="method">
 <dt id="network.connection.Connection.get_method_replication">
 <tt class="descname">get_method_replication</tt><big>(</big><em>replicables</em>, <em>collection</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.get_method_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.get_method_replication" title="Permalink to this definition">¶</a></dt>
-<dd><p>Writes replicated function calls to packet collection
-:param replicables: iterable of replicables to consider replication
-:param collection: PacketCollection instance
-:param bandwidth: available bandwidth
-&#64;yield: each entry in replicables</p>
+<dd><p>Writes replicated function calls to packet collection</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>replicables</strong> &#8211; iterable of replicables to consider replication</li>
+<li><strong>collection</strong> &#8211; PacketCollection instance</li>
+<li><strong>bandwidth</strong> &#8211; available bandwidth</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Yield :</th><td class="field-body"><p class="first last">each entry in replicables</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="staticmethod">
 <dt id="network.connection.Connection.get_replication_priority">
 <em class="property">static </em><tt class="descname">get_replication_priority</tt><big>(</big><em>entry</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.get_replication_priority"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.get_replication_priority" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets the replication priority for a replicable
-:param entry: replicable instance
-:return: replication priority</p>
+<dd><p>Gets the replication priority for a replicable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entry</strong> &#8211; replicable instance</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">replication priority</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.Connection.is_owner">
 <tt class="descname">is_owner</tt><big>(</big><em>replicable</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.is_owner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.is_owner" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determines if a replicable is belongs to this connection
-Compares uppermost parent of replicable with connection&#8217;s replicable
-:param replicable: replicable instance
-:return: condition status</p>
+Compares uppermost parent of replicable with connection&#8217;s replicable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>replicable</strong> &#8211; replicable instance</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">condition status</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.Connection.notify_registration">
 <tt class="descname">notify_registration</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.notify_registration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.notify_registration" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handles registration of a replicable instance
-Create channel for replicable instance
-:param target: replicable that was registered</p>
+Create channel for replicable instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; replicable that was registered</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.Connection.notify_unregistration">
 <tt class="descname">notify_unregistration</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.notify_unregistration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.notify_unregistration" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handles un-registration of a replicable instance
-Deletes channel for replicable instance
-:param target: replicable that was unregistered</p>
+Deletes channel for replicable instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; replicable that was unregistered</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -214,15 +327,22 @@ Deletes channel for replicable instance
 <dt id="network.connection.Connection.prioritised_replication_data">
 <tt class="descname">prioritised_replication_data</tt><a class="reference internal" href="_modules/network/connection.html#Connection.prioritised_replication_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.prioritised_replication_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns an iterator of priorised replicable data
-:return: iterator of prioritised list of replication data</p>
+:returns: iterator of prioritised list of replication data</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="network.connection.Connection.replication_data">
 <tt class="descname">replication_data</tt><a class="reference internal" href="_modules/network/connection.html#Connection.replication_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.replication_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a generator for replicables
-with a remote role != Roles.none
-&#64;yield: replicable, (is_owner and relevant_to_owner), channel</p>
+with a remote role != Roles.none</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yield :</th><td class="field-body">replicable, (is_owner and relevant_to_owner), channel</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -242,11 +362,23 @@ with a remote role != Roles.none
 <tt class="descname">get_attribute_replication</tt><big>(</big><em>replicables</em>, <em>collection</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.get_attribute_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.get_attribute_replication" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generator
 Writes to packet collection, respecting bandwidth for attribute
-replication
-:param replicables: iterable of replicables to consider replication
-:param collection: PacketCollection instance
-:param bandwidth: available bandwidth
-&#64;yield: each entry in replicables</p>
+replication</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>replicables</strong> &#8211; iterable of replicables to consider replication</li>
+<li><strong>collection</strong> &#8211; PacketCollection instance</li>
+<li><strong>bandwidth</strong> &#8211; available bandwidth</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Yield :</th><td class="field-body"><p class="first last">each entry in replicables</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="staticmethod">
@@ -254,16 +386,31 @@ replication
 <em class="property">static </em><tt class="descname">get_replication_priority</tt><big>(</big><em>entry</em>, <em>WorldInfo=(Replicable _WorldInfo: id=255)</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.get_replication_priority"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.get_replication_priority" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets the replication priority for a replicable
 Utilises replication interval to increment priority
-of neglected replicables
-:param entry: replicable instance
-:return: replication priority</p>
+of neglected replicables</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entry</strong> &#8211; replicable instance</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">replication priority</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.ServerConnection.notify_unregistration">
 <tt class="descname">notify_unregistration</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.notify_unregistration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.notify_unregistration" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called when replicable dies
-:param replicable: replicable that died</p>
+<dd><p>Called when replicable dies</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>replicable</strong> &#8211; replicable that died</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -276,17 +423,36 @@ Called by ConnectionStatus when deleted</p>
 <dl class="method">
 <dt id="network.connection.ServerConnection.receive">
 <tt class="descname">receive</tt><big>(</big><em>packets</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.receive" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handles incoming PacketCollection instance
-:param packets: PacketCollection instance</p>
+<dd><p>Handles incoming PacketCollection instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>packets</strong> &#8211; PacketCollection instance</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.ServerConnection.send">
 <tt class="descname">send</tt><big>(</big><em>network_tick</em>, <em>available_bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.send"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.send" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a packet collection of replicated function calls
-:param network_tick: non urgent data is included in collection
-:param available_bandwidth: estimated available bandwidth
-:return: PacketCollection instance</p>
+<dd><p>Creates a packet collection of replicated function calls</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>network_tick</strong> &#8211; non urgent data is included in collection</li>
+<li><strong>available_bandwidth</strong> &#8211; estimated available bandwidth</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">PacketCollection instance</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -304,25 +470,51 @@ Called by ConnectionStatus when deleted</p>
 <dl class="method">
 <dt id="network.connection.ClientConnection.receive">
 <tt class="descname">receive</tt><big>(</big><em>packets</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ClientConnection.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ClientConnection.receive" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handles incoming PacketCollection instance
-:param packets: PacketCollection instance</p>
+<dd><p>Handles incoming PacketCollection instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>packets</strong> &#8211; PacketCollection instance</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.ClientConnection.send">
 <tt class="descname">send</tt><big>(</big><em>network_tick</em>, <em>available_bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ClientConnection.send"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ClientConnection.send" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a packet collection of replicated function calls
-:param network_tick: unused argument
-:param available_bandwidth: estimated available bandwidth
-:return: PacketCollection instance</p>
+<dd><p>Creates a packet collection of replicated function calls</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>network_tick</strong> &#8211; unused argument</li>
+<li><strong>available_bandwidth</strong> &#8211; estimated available bandwidth</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">PacketCollection instance</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection.ClientConnection.set_replication">
 <tt class="descname">set_replication</tt><big>(</big><em>packet</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ClientConnection.set_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ClientConnection.set_replication" title="Permalink to this definition">¶</a></dt>
 <dd><p>Replication function
-Accepts replication packets and responds to protocol
-:param packet: replication packet</p>
+Accepts replication packets and responds to protocol</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>packet</strong> &#8211; replication packet</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -339,17 +531,37 @@ Mediates a connection instance between local and remote peer</p>
 <dl class="classmethod">
 <dt id="network.connection_interfaces.ConnectionInterface.by_status">
 <em class="property">classmethod </em><tt class="descname">by_status</tt><big>(</big><em>status</em>, <em>comparator=&lt;built-in function eq&gt;</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.by_status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.by_status" title="Permalink to this definition">¶</a></dt>
-<dd><p>Filter connections by status
-:param status: status query
-:param comparator: comparison callback for filter</p>
+<dd><p>Filter connections by status</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>status</strong> &#8211; status query</li>
+<li><strong>comparator</strong> &#8211; comparison callback for filter</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection_interfaces.ConnectionInterface.connected">
 <tt class="descname">connected</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.connected" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets connection state to connected
-:param args: additional positional arguments
-:param kwargs: additional keyword arguments</p>
+<dd><p>Sets connection state to connected</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>args</strong> &#8211; additional positional arguments</li>
+<li><strong>kwargs</strong> &#8211; additional keyword arguments</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -361,8 +573,14 @@ Mediates a connection instance between local and remote peer</p>
 <dl class="attribute">
 <dt id="network.connection_interfaces.ConnectionInterface.next_local_sequence">
 <tt class="descname">next_local_sequence</tt><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.next_local_sequence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.next_local_sequence" title="Permalink to this definition">¶</a></dt>
-<dd><p>Property
-:return next local sequence identifier</p>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">next local packet sequence identifier</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -379,31 +597,62 @@ Mediates a connection instance between local and remote peer</p>
 <dl class="method">
 <dt id="network.connection_interfaces.ConnectionInterface.receive">
 <tt class="descname">receive</tt><big>(</big><em>bytes_</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.receive" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handles received bytes from peer
-:param <a href="#id3"><span class="problematic" id="id4">bytes_</span></a>: data from peer</p>
+<dd><p>Handles received bytes from peer</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>bytes</strong> &#8211; data from peer</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection_interfaces.ConnectionInterface.send">
 <tt class="descname">send</tt><big>(</big><em>network_tick</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.send"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.send" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pulls data from connection interfaces to send
-:param network_tick: if this is a network tick</p>
+<dd><p>Pulls data from connection interfaces to send</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>network_tick</strong> &#8211; if this is a network tick</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection_interfaces.ConnectionInterface.sequence_more_recent">
 <tt class="descname">sequence_more_recent</tt><big>(</big><em>base</em>, <em>sequence</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.sequence_more_recent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.sequence_more_recent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compares two sequence identifiers
-determines if one is greater than the other
-:param base: base sequence to compare against
-:param sequence: sequence tested against base</p>
+determines if one is greater than the other</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>base</strong> &#8211; base sequence to compare against</li>
+<li><strong>sequence</strong> &#8211; sequence tested against base</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.connection_interfaces.ConnectionInterface.set_time_out">
 <tt class="descname">set_time_out</tt><big>(</big><em>delay</em><big>)</big><a class="reference internal" href="_modules/network/connection_interfaces.html#ConnectionInterface.set_time_out"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection_interfaces.ConnectionInterface.set_time_out" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets the time out for peer
-:param delay: delay until interface is timed out</p>
+<dd><p>Sets the time out for peer</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delay</strong> &#8211; delay until interface is timed out</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -483,18 +732,36 @@ Either proceeds to setup connection or stores the error</p>
 <dt id="network.containers.ValueProperty">
 <em class="property">class </em><tt class="descclassname">network.containers.</tt><tt class="descname">ValueProperty</tt><a class="reference internal" href="_modules/network/containers.html#ValueProperty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.ValueProperty" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
-<p>Property wrapper about data item
-Handles __get__ and __set__ calls by
-callbacks on the host class
-&#64;requires: Host methods get_value(), set_value(arg)</p>
+<p>Implements Descriptor protocol, delegating __get__ and __set__ calls
+to get_value() and set_value(value) methods on the parent instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Requires :</th><td class="field-body">Host methods get_value(), set_value(value)</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
 <dt id="network.containers.StorageInterface">
 <em class="property">class </em><tt class="descclassname">network.containers.</tt><tt class="descname">StorageInterface</tt><big>(</big><em>getter</em>, <em>setter</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#StorageInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.StorageInterface" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
-<p>Interface for reading and writing a data value
-&#64;var value: Property descriptor with settable and gettable value</p>
+<p>Interface for reading and writing a data value</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> &#8211; property descriptor with settable and gettable value</li>
+<li><strong>get_value</strong> &#8211; callback to retrieve value</li>
+<li><strong>set_value</strong> &#8211; callback to write new value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 <dl class="attribute">
 <dt id="network.containers.StorageInterface.get_value">
 <tt class="descname">get_value</tt><a class="headerlink" href="#network.containers.StorageInterface.get_value" title="Permalink to this definition">¶</a></dt>
@@ -508,10 +775,16 @@ callbacks on the host class
 <dl class="attribute">
 <dt id="network.containers.StorageInterface.value">
 <tt class="descname">value</tt><a class="headerlink" href="#network.containers.StorageInterface.value" title="Permalink to this definition">¶</a></dt>
-<dd><p>Property wrapper about data item
-Handles __get__ and __set__ calls by
-callbacks on the host class
-&#64;requires: Host methods get_value(), set_value(arg)</p>
+<dd><p>Implements Descriptor protocol, delegating __get__ and __set__ calls
+to get_value() and set_value(value) methods on the parent instance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Requires :</th><td class="field-body">Host methods get_value(), set_value(value)</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -686,17 +959,17 @@ Handles data storage, access and complaints</p>
 
 <dl class="method">
 <dt id="network.containers.AttributeStorageContainer.get_description_tuple">
-<tt class="descname">get_description_tuple</tt><big>(</big><em>static_description=&lt;function static_description at 0x03BBB660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_description_tuple</tt><big>(</big><em>static_description=&lt;function static_description at 0x03A96AE0&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="staticmethod">
 <dt id="network.containers.AttributeStorageContainer.get_descriptions_of">
-<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em>, <em>static_description=&lt;function static_description at 0x03BBB660&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em>, <em>static_description=&lt;function static_description at 0x03A96AE0&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="network.containers.AttributeStorageContainer.lookup_dict">
-<tt class="descname">lookup_dict</tt><em class="property"> = {&lt;class 'network.replicables._WorldInfo'&gt;: [('elapsed', &lt;Attribute elapsed: type=float&gt;), ('owner', &lt;Attribute owner: type=Replicable&gt;), ('roles', &lt;Attribute roles: type=Roles&gt;), ('tick_rate', &lt;Attribute tick_rate: type=int&gt;)]}</em><a class="headerlink" href="#network.containers.AttributeStorageContainer.lookup_dict" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">lookup_dict</tt><em class="property"> = {&lt;class 'bge_network.structs.RigidBodyState'&gt;: [('angular', &lt;Attribute angular: type=VectorType&gt;), ('collision_group', &lt;Attribute collision_group: type=int&gt;), ('collision_mask', &lt;Attribute collision_mask: type=int&gt;), ('position', &lt;Attribute position: type=VectorType&gt;), ('rotation', &lt;Attribute rotation: type=EulerType&gt;), ('velocity', &lt;Attribute velocity: type=VectorType&gt;)], &lt;class 'network.replicables._WorldInfo'&gt;: [('elapsed', &lt;Attribute elapsed: type=float&gt;), ('owner', &lt;Attribute owner: type=Replicable&gt;), ('roles', &lt;Attribute roles: type=Roles&gt;), ('tick_rate', &lt;Attribute tick_rate: type=int&gt;)]}</em><a class="headerlink" href="#network.containers.AttributeStorageContainer.lookup_dict" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -765,32 +1038,95 @@ Handles data storage, access and complaints</p>
 <dl class="function">
 <dt id="network.decorators.reliable">
 <tt class="descclassname">network.decorators.</tt><tt class="descname">reliable</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/decorators.html#reliable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.decorators.reliable" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Mark a function to be reliably replicated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to be marked</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">function that was passed as func</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="network.decorators.simulated">
 <tt class="descclassname">network.decorators.</tt><tt class="descname">simulated</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/decorators.html#simulated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.decorators.simulated" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Mark a function to be a simulated function</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to be marked</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">function that was passed as func</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="network.decorators.signal_listener">
 <tt class="descclassname">network.decorators.</tt><tt class="descname">signal_listener</tt><big>(</big><em>signal_type</em>, <em>global_listener</em><big>)</big><a class="reference internal" href="_modules/network/decorators.html#signal_listener"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.decorators.signal_listener" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Curries arguments to create a decorator that marks the
+function as a signal listener</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>signal_type</strong> &#8211; signal class</li>
+<li><strong>global_listener</strong> &#8211; flag that allows global invocation</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">decorator function</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="function">
 <dt id="network.decorators.requires_netmode">
 <tt class="descclassname">network.decorators.</tt><tt class="descname">requires_netmode</tt><big>(</big><em>netmode</em><big>)</big><a class="reference internal" href="_modules/network/decorators.html#requires_netmode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.decorators.requires_netmode" title="Permalink to this definition">¶</a></dt>
-<dd><p>Decorator
-:param netmode: netmode required to execute function
-&#64;requires: netmode context for execution of function
-:return: decorator that prohibits function execution
+<dd><p>Curries arguments to create a decorator that marks a class as requiring the provided netmode context before execution</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>netmode</strong> &#8211; netmode required to execute function</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Requires :</th><td class="field-body">provided <a class="reference internal" href="#network.replicables._WorldInfo.netmode" title="network.replicables._WorldInfo.netmode"><tt class="xref py py-attr docutils literal"><span class="pre">network.replicables._WorldInfo.netmode</span></tt></a></td>
+</tr>
+</tbody>
+</table>
+<p>context
+:returns: decorator that prohibits function execution
 for incorrect netmodes</p>
 </dd></dl>
 
 <dl class="function">
 <dt id="network.decorators.netmode_switch">
 <tt class="descclassname">network.decorators.</tt><tt class="descname">netmode_switch</tt><big>(</big><em>netmode</em><big>)</big><a class="reference internal" href="_modules/network/decorators.html#netmode_switch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.decorators.netmode_switch" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Curries arguments to create a decorator that marks a class as
+belonging to a specific netmode context</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>netmode</strong> &#8211; netmode that the class belongs to</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Requires :</th><td class="field-body">provided netmode context</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">decorator that prohibits function execution</td>
+</tr>
+</tbody>
+</table>
+<p>for incorrect netmodes</p>
+</dd></dl>
 
 </div>
 <div class="section" id="module-network.descriptors">
@@ -1054,7 +1390,7 @@ Pretty printable</p>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.Exception</span></tt></p>
 <dl class="attribute">
 <dt id="network.errors.NetworkError.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;, 'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;, 'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;, 'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1108,33 +1444,68 @@ Packed structure:
 <dl class="function">
 <dt id="network.handler_interfaces.static_description">
 <tt class="descclassname">network.handler_interfaces.</tt><tt class="descname">static_description</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/network/handler_interfaces.html#static_description"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.handler_interfaces.static_description" title="Permalink to this definition">¶</a></dt>
-<dd><p>Uses hash-like comparison of muteable and/or immuteable data
-:param obj: object to describe
-:return: obj&#8217;s hash</p>
+<dd><p>Uses hash-like comparison of muteable and/or immuteable data</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> &#8211; object to describe</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">obj&#8217;s hash</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="network.handler_interfaces.register_handler">
 <tt class="descclassname">network.handler_interfaces.</tt><tt class="descname">register_handler</tt><big>(</big><em>type_</em>, <em>callable_</em>, <em>is_condition=False</em><big>)</big><a class="reference internal" href="_modules/network/handler_interfaces.html#register_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.handler_interfaces.register_handler" title="Permalink to this definition">¶</a></dt>
-<dd><p>Registers new handler for custom serialisers
-:param <a href="#id5"><span class="problematic" id="id6">type_</span></a>: type of object
-:param callable: callable to run
-:param is_condition: whether callable is generic or requires object</p>
+<dd><p>Registers new handler for custom serialisers</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> &#8211; type of object</li>
+<li><strong>callable</strong> &#8211; callable to run</li>
+<li><strong>is_condition</strong> &#8211; whether callable is generic or requires object</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="network.handler_interfaces.register_description">
 <tt class="descclassname">network.handler_interfaces.</tt><tt class="descname">register_description</tt><big>(</big><em>type_</em>, <em>callback</em><big>)</big><a class="reference internal" href="_modules/network/handler_interfaces.html#register_description"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.handler_interfaces.register_description" title="Permalink to this definition">¶</a></dt>
-<dd><p>Registers special description for non-subclass-able types
-:param <a href="#id7"><span class="problematic" id="id8">type_</span></a>: type of object
-:param callable: callable for description</p>
+<dd><p>Registers special description for non-subclass-able types</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> &#8211; type of object</li>
+<li><strong>callable</strong> &#8211; callable for description</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="network.handler_interfaces.get_handler">
 <tt class="descclassname">network.handler_interfaces.</tt><tt class="descname">get_handler</tt><big>(</big><em>value</em><big>)</big><a class="reference internal" href="_modules/network/handler_interfaces.html#get_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.handler_interfaces.get_handler" title="Permalink to this definition">¶</a></dt>
-<dd><p>Takes a TypeFlag (or subclass thereof) and return handler
-:param value: TypeFlag subclass</p>
+<dd><p>Takes a TypeFlag (or subclass thereof) and return handler</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> &#8211; TypeFlag subclass</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </div>
@@ -1241,7 +1612,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.ReplicableTypeHandler.string_packer">
-<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x03C50490&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x039C3790&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1267,7 +1638,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.RolesHandler.packer">
-<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1372,7 +1743,7 @@ Packs replicable references and unpacks to proxy OR reference</p>
 
 <dl class="attribute">
 <dt id="network.native_handlers.BitFieldHandler.size_packer">
-<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1610,7 +1981,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.protocol_handler">
-<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED2D0&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1625,7 +1996,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.size_handler">
-<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BED0C0&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1780&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -1703,35 +2074,85 @@ Returns new slice of bytes string</p>
 <dt id="network.replicables.Replicable">
 <em class="property">class </em><tt class="descclassname">network.replicables.</tt><tt class="descname">Replicable</tt><big>(</big><em>instance_id=None</em>, <em>register=False</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
-<p>Replicable base class
-Holds record of instantiated replicables and replicable types
-Default method for notification and generator for conditions.
-Additional attributes for attribute values (from descriptors)
-And complaining attributes</p>
+<p>Base class for all network involved objects
+Supports Replicated Function calls, Attribute replication
+and Signal subscription</p>
+<dl class="attribute">
+<dt id="network.replicables.Replicable._MAXIMUM_REPLICABLES">
+<tt class="descname">_MAXIMUM_REPLICABLES</tt><em class="property"> = 255</em><a class="headerlink" href="#network.replicables.Replicable._MAXIMUM_REPLICABLES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables.Replicable._by_types">
+<tt class="descname">_by_types</tt><em class="property"> = defaultdict(&lt;class 'list'&gt;, {&lt;class 'network.replicables._WorldInfo'&gt;: [(Replicable _WorldInfo: id=255)]})</em><a class="headerlink" href="#network.replicables.Replicable._by_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables.Replicable._instances">
+<tt class="descname">_instances</tt><em class="property"> = {255: (Replicable _WorldInfo: id=255)}</em><a class="headerlink" href="#network.replicables.Replicable._instances" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables.Replicable._to_register">
+<tt class="descname">_to_register</tt><em class="property"> = set()</em><a class="headerlink" href="#network.replicables.Replicable._to_register" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables.Replicable._to_unregister">
+<tt class="descname">_to_unregister</tt><em class="property"> = set()</em><a class="headerlink" href="#network.replicables.Replicable._to_unregister" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="method">
 <dt id="network.replicables.Replicable.conditions">
 <tt class="descname">conditions</tt><big>(</big><em>is_owner</em>, <em>is_complaint</em>, <em>is_initial</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.conditions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.conditions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Condition generator that determines replicated attributes
-Attributes yielded are still subject to conditions before sending
-:param is_owner: if the current replicator is the owner
-:param is_complaint: if any complaining variables have been changed
-:param is_initial: if this is the first replication for this target</p>
+Attributes yielded are still subject to conditions before sending</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>is_owner</strong> &#8211; if the current replicator is the owner</li>
+<li><strong>is_complaint</strong> &#8211; if any complaining variables have been changed</li>
+<li><strong>is_initial</strong> &#8211; if this is the first replication for this target</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="classmethod">
 <dt id="network.replicables.Replicable.create_or_return">
 <em class="property">classmethod </em><tt class="descname">create_or_return</tt><big>(</big><em>base_cls</em>, <em>instance_id</em>, <em>register=True</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.create_or_return"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.create_or_return" title="Permalink to this definition">¶</a></dt>
 <dd><p>Called by the replication system, assumes non static if creating
-Creates a replicable if it is not already instantiated
-:param base_cls: base class of replicable to instantiate
-:param register: if registration should occur immediately</p>
+Creates a replicable if it is not already instantiated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>base_cls</strong> &#8211; base class of replicable to instantiate</li>
+<li><strong>register</strong> &#8211; if registration should occur immediately</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.replicables.Replicable.on_notify">
 <tt class="descname">on_notify</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.on_notify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.on_notify" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called on notifier attribute change
-:param name: name of attribute that has changed</p>
+<dd><p>Called on notifier attribute change</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> &#8211; name of attribute that has changed</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -1756,8 +2177,15 @@ Removes instance from type list</p>
 <dl class="method">
 <dt id="network.replicables.Replicable.possessed_by">
 <tt class="descname">possessed_by</tt><big>(</big><em>other</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.possessed_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.possessed_by" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called on possession by other replicable
-:param other: other replicable (owner)</p>
+<dd><p>Called on possession by other replicable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>other</strong> &#8211; other replicable (owner)</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -1765,9 +2193,19 @@ Removes instance from type list</p>
 <tt class="descname">request_registration</tt><big>(</big><em>instance_id</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.request_registration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.request_registration" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handles registration of instances
 Modifies behaviour to allow network priority over local instances
-Handles edge cases such as static replicables
-:param instance_id: instance id to register with
-:param verbose: if verbose debugging should occur</p>
+Handles edge cases such as static replicables</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>instance_id</strong> &#8211; instance id to register with</li>
+<li><strong>verbose</strong> &#8211; if verbose debugging should occur</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="attribute">
@@ -1777,7 +2215,7 @@ Handles edge cases such as static replicables
 
 <dl class="attribute">
 <dt id="network.replicables.Replicable.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'_WorldInfo': &lt;class 'network.replicables._WorldInfo'&gt;, 'ReplicationRules': &lt;class 'network.replication_rules.ReplicationRules'&gt;}</em><a class="headerlink" href="#network.replicables.Replicable.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'Pawn': &lt;class 'bge_network.replicables.Pawn'&gt;, 'ReplicationRules': &lt;class 'network.replication_rules.ReplicationRules'&gt;, 'Actor': &lt;class 'bge_network.replicables.Actor'&gt;, 'ZombieWeapon': &lt;class 'blender_example.replicables.ZombieWeapon'&gt;, 'Controller': &lt;class 'bge_network.replicables.Controller'&gt;, 'RobertNeville': &lt;class 'blender_example.replicables.RobertNeville'&gt;, 'PlayerReplicationInfo': &lt;class 'bge_network.replicables.PlayerReplicationInfo'&gt;, 'Navmesh': &lt;class 'bge_network.replicables.Navmesh'&gt;, 'AIController': &lt;class 'bge_network.replicables.AIController'&gt;, 'WeaponAttachment': &lt;class 'bge_network.replicables.WeaponAttachment'&gt;, 'EmptyWeapon': &lt;class 'bge_network.replicables.EmptyWeapon'&gt;, 'PlayerController': &lt;class 'bge_network.replicables.PlayerController'&gt;, 'M4A1Weapon': &lt;class 'blender_example.replicables.M4A1Weapon'&gt;, '_WorldInfo': &lt;class 'network.replicables._WorldInfo'&gt;, 'TraceWeapon': &lt;class 'bge_network.replicables.TraceWeapon'&gt;, 'SphereProjectile': &lt;class 'blender_example.replicables.SphereProjectile'&gt;, 'AIReplicationInfo': &lt;class 'bge_network.replicables.AIReplicationInfo'&gt;, 'GameReplicationInfo': &lt;class 'blender_example.replicables.GameReplicationInfo'&gt;, 'M4A1Attachment': &lt;class 'blender_example.replicables.M4A1Attachment'&gt;, 'Cone': &lt;class 'blender_example.replicables.Cone'&gt;, 'ReplicableInfo': &lt;class 'bge_network.replicables.ReplicableInfo'&gt;, 'ZombieAttachment': &lt;class 'blender_example.replicables.ZombieAttachment'&gt;, 'Weapon': &lt;class 'bge_network.replicables.Weapon'&gt;, 'ProjectileWeapon': &lt;class 'bge_network.replicables.ProjectileWeapon'&gt;, 'Lamp': &lt;class 'bge_network.replicables.Lamp'&gt;, 'Camera': &lt;class 'bge_network.replicables.Camera'&gt;, 'EnemyController': &lt;class 'blender_example.replicables.EnemyController'&gt;, 'ArrowProjectile': &lt;class 'blender_example.replicables.ArrowProjectile'&gt;, 'LegendController': &lt;class 'blender_example.replicables.LegendController'&gt;, 'Zombie': &lt;class 'blender_example.replicables.Zombie'&gt;, 'EmptyAttatchment': &lt;class 'bge_network.replicables.EmptyAttatchment'&gt;}</em><a class="headerlink" href="#network.replicables.Replicable.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -1790,14 +2228,191 @@ May be due to death of replicable</p>
 <dl class="attribute">
 <dt id="network.replicables.Replicable.uppermost">
 <tt class="descname">uppermost</tt><a class="reference internal" href="_modules/network/replicables.html#Replicable.uppermost"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.uppermost" title="Permalink to this definition">¶</a></dt>
-<dd><p>Determines if a connection owns this replicable
-Searches for Replicable with same network id as our Controller</p>
+<dd><p>Walks the successive owner of each Replicable to find highest parent</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">uppermost parent</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
 <dt id="network.replicables.Replicable.validate_id">
 <tt class="descname">validate_id</tt><big>(</big><em>instance_id</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#Replicable.validate_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables.Replicable.validate_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates a requested instance ID</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>instance_id</strong> &#8211; requested instance id</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">validity of ID</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.replicables._WorldInfo">
+<em class="property">class </em><tt class="descclassname">network.replicables.</tt><tt class="descname">_WorldInfo</tt><big>(</big><em>instance_id=None</em>, <em>register=False</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.replicables.Replicable" title="network.replicables.Replicable"><tt class="xref py py-class docutils literal"><span class="pre">network.replicables.Replicable</span></tt></a>, <a class="reference internal" href="#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
+<p>Holds info about game state</p>
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo._ID">
+<tt class="descname">_ID</tt><em class="property"> = 255</em><a class="headerlink" href="#network.replicables._WorldInfo._ID" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo._MAXIMUM_TICK">
+<tt class="descname">_MAXIMUM_TICK</tt><em class="property"> = 4294967295</em><a class="headerlink" href="#network.replicables._WorldInfo._MAXIMUM_TICK" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.cache_replicable">
+<tt class="descname">cache_replicable</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.cache_replicable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.cache_replicable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores replicable instance for fast lookup by type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; Replicable instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.clock_correction">
+<tt class="descname">clock_correction</tt><em class="property"> = 0.0</em><a class="headerlink" href="#network.replicables._WorldInfo.clock_correction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.conditions">
+<tt class="descname">conditions</tt><big>(</big><em>is_owner</em>, <em>is_complain</em>, <em>is_initial</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.conditions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.conditions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.elapsed">
+<tt class="descname">elapsed</tt><a class="headerlink" href="#network.replicables._WorldInfo.elapsed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.get_replicable">
+<tt class="descname">get_replicable</tt><big>(</big><em>instance_id</em>, <em>only_real=True</em><big>)</big><a class="headerlink" href="#network.replicables._WorldInfo.get_replicable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.has_replicable">
+<tt class="descname">has_replicable</tt><big>(</big><em>instance_id</em><big>)</big><a class="headerlink" href="#network.replicables._WorldInfo.has_replicable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.netmode">
+<tt class="descname">netmode</tt><em class="property"> = 0</em><a class="headerlink" href="#network.replicables._WorldInfo.netmode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.on_initialised">
+<tt class="descname">on_initialised</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.on_initialised"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.on_initialised" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.replicables">
+<tt class="descname">replicables</tt><a class="headerlink" href="#network.replicables._WorldInfo.replicables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.roles">
+<tt class="descname">roles</tt><a class="headerlink" href="#network.replicables._WorldInfo.roles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.rules">
+<tt class="descname">rules</tt><em class="property"> = None</em><a class="headerlink" href="#network.replicables._WorldInfo.rules" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.subclass_of">
+<tt class="descname">subclass_of</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.subclass_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.subclass_of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find registered actors that are subclasses of a given type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>actor_type</strong> &#8211; type to compare against</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of subclass instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.tick">
+<tt class="descname">tick</tt><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.tick"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.tick" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">current simulation tick</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicables._WorldInfo.tick_rate">
+<tt class="descname">tick_rate</tt><a class="headerlink" href="#network.replicables._WorldInfo.tick_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.type_is">
+<tt class="descname">type_is</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.type_is"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.type_is" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find Replicable instances with provided type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> &#8211; name of class type</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of sibling instances derived from provided type</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.uncache_replicable">
+<tt class="descname">uncache_replicable</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.uncache_replicable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.uncache_replicable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes stored replicable instance for fast lookup by type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; Replicable instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicables._WorldInfo.update_clock">
+<tt class="descname">update_clock</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicables.html#_WorldInfo.update_clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicables._WorldInfo.update_clock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update internal clock</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delta_time</strong> &#8211; delta time since last simulation tick</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </dd></dl>
 
@@ -1994,10 +2609,20 @@ Optional greedy binding (binds the events supported by either class)</p>
 <dl class="method">
 <dt id="network.signals.SignalListener.register_child">
 <tt class="descname">register_child</tt><big>(</big><em>child</em>, <em>signal_store=None</em>, <em>greedy=False</em><big>)</big><a class="reference internal" href="_modules/network/signals.html#SignalListener.register_child"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.SignalListener.register_child" title="Permalink to this definition">¶</a></dt>
-<dd><p>Subscribes child to parent for signals
-:param child: Child to subscribe for 
-:param signal_store: SignalListener subclass instance, default=None
-:param greedy: Determines if child should bind its own events, default=False</p>
+<dd><p>Subscribes child to parent for signals</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>child</strong> &#8211; Child to subscribe for</li>
+<li><strong>signal_store</strong> &#8211; SignalListener subclass instance, default=None</li>
+<li><strong>greedy</strong> &#8211; Determines if child should bind its own events, default=False</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -2017,10 +2642,21 @@ Gets the marked signal callbacks
 <dl class="method">
 <dt id="network.signals.SignalListener.unregister_child">
 <tt class="descname">unregister_child</tt><big>(</big><em>child</em>, <em>signal_store=None</em>, <em>greedy=False</em><big>)</big><a class="reference internal" href="_modules/network/signals.html#SignalListener.unregister_child"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.SignalListener.unregister_child" title="Permalink to this definition">¶</a></dt>
-<dd><p>Unsubscribe the child to parent for signals
-:param child: Child to un-subscribe for
-:param signal_store: SignalListener subclass instance, default=None
-:param greedy: Determines if child should un-bind its own events, default=False</p>
+<dd><p>Unsubscribe the child to parent for signals</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>child</strong> &#8211; Child to be unsubscribed</li>
+<li><strong>signal_store</strong> &#8211; SignalListener subclass instance, default=None</li>
+<li><strong>greedy</strong> &#8211; Determines if child should un-bind its own events,</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>default=False</p>
 </dd></dl>
 
 <dl class="method">
@@ -2124,7 +2760,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.Signal.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;, 'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'UIWeaponChangedSignal': &lt;class 'blender_example.signals.UIWeaponChangedSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'UIWeaponDataChangedSignal': &lt;class 'blender_example.signals.UIWeaponDataChangedSignal'&gt;, 'ConsoleMessage': &lt;class 'blender_example.signals.ConsoleMessage'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'ConnectToSignal': &lt;class 'blender_example.signals.ConnectToSignal'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'UIHealthChangedSignal': &lt;class 'blender_example.signals.UIHealthChangedSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -2475,7 +3111,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.ProfileSignal.to_subscribe">
-<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x03C50E10&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x03C50E10&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x039BC8D0&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x039BC8D0&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -2571,17 +3207,32 @@ Stores class name: class mapping on parent.subclasses</p>
 <dl class="method">
 <dt id="network.type_register.TypeRegister.from_type_name">
 <tt class="descname">from_type_name</tt><big>(</big><em>type_name</em><big>)</big><a class="reference internal" href="_modules/network/type_register.html#TypeRegister.from_type_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.type_register.TypeRegister.from_type_name" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets class type from type_name
-:param type_name: name of class type
-:return: class reference</p>
+<dd><p>Gets class type from type_name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>type_name</strong> &#8211; name of class type</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">class reference</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="network.type_register.TypeRegister.type_name">
 <tt class="descname">type_name</tt><a class="reference internal" href="_modules/network/type_register.html#TypeRegister.type_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.type_register.TypeRegister.type_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Property
-Gets the class type name
-:return: name of class type</p>
+Gets the class type name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">name of class type</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>

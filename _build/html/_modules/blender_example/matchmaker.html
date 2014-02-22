@@ -1,0 +1,211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>blender_example.matchmaker &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for blender_example.matchmaker</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">json</span> <span class="kn">import</span> <span class="n">loads</span>
+<span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">request</span><span class="p">,</span> <span class="n">parse</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">from</span> <span class="nn">queue</span> <span class="kn">import</span> <span class="n">Empty</span> <span class="k">as</span> <span class="n">EmptyQueue</span>
+<span class="kn">from</span> <span class="nn">bge_network</span> <span class="kn">import</span> <span class="n">GameExitSignal</span><span class="p">,</span> <span class="n">SignalListener</span><span class="p">,</span> <span class="n">UpdateSignal</span><span class="p">,</span> <span class="n">SafeThread</span>
+
+
+<div class="viewcode-block" id="URLThread"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.URLThread">[docs]</a><span class="k">class</span> <span class="nc">URLThread</span><span class="p">(</span><span class="n">SafeThread</span><span class="p">):</span>
+
+<div class="viewcode-block" id="URLThread.handle_task"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.URLThread.handle_task">[docs]</a>    <span class="k">def</span> <span class="nf">handle_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="n">callback</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">task</span>
+        <span class="n">request_obj</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">response_obj</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">request_obj</span><span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">response_obj</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">callback</span><span class="p">,</span> <span class="n">response_data</span><span class="p">))</span>
+
+</div></div>
+<div class="viewcode-block" id="json_decoded"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.json_decoded">[docs]</a><span class="k">def</span> <span class="nf">json_decoded</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">callback</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Matchmaker"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker">[docs]</a><span class="k">class</span> <span class="nc">Matchmaker</span><span class="p">(</span><span class="n">SignalListener</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread</span> <span class="o">=</span> <span class="n">URLThread</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Matchmaker.perform_query"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.perform_query">[docs]</a>    <span class="k">def</span> <span class="nf">perform_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">is_json</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">bytes_data</span> <span class="o">=</span> <span class="p">[(</span><span class="n">a</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span> <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+            <span class="n">parsed_data</span> <span class="o">=</span> <span class="n">parse</span><span class="o">.</span><span class="n">urlencode</span><span class="p">(</span><span class="n">bytes_data</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">parsed_data</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">is_json</span><span class="p">:</span>
+            <span class="n">callback</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">json_decoded</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread</span><span class="o">.</span><span class="n">in_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">callback</span><span class="p">,</span> <span class="n">parsed_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Matchmaker.server_query"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.server_query">[docs]</a>    <span class="k">def</span> <span class="nf">server_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="Matchmaker.register_query"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.register_query">[docs]</a>    <span class="k">def</span> <span class="nf">register_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">map_name</span><span class="p">,</span> <span class="n">max_players</span><span class="p">,</span> <span class="n">players</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&quot;is_server&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;max_players&quot;</span><span class="p">,</span> <span class="n">max_players</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&quot;map&quot;</span><span class="p">,</span> <span class="n">map_name</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;players&quot;</span><span class="p">,</span> <span class="n">players</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="Matchmaker.poll_query"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.poll_query">[docs]</a>    <span class="k">def</span> <span class="nf">poll_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">map_name</span><span class="p">,</span> <span class="n">max_players</span><span class="p">,</span> <span class="n">players</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&quot;is_server&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;max_players&quot;</span><span class="p">,</span> <span class="n">max_players</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&quot;map&quot;</span><span class="p">,</span> <span class="n">map_name</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;players&quot;</span><span class="p">,</span> <span class="n">players</span><span class="p">),</span>
+                <span class="p">(</span><span class="s">&quot;update_id&quot;</span><span class="p">,</span> <span class="n">server_id</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="Matchmaker.unregister_query"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.unregister_query">[docs]</a>    <span class="k">def</span> <span class="nf">unregister_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server_id</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&quot;is_server&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span> <span class="p">(</span><span class="s">&quot;delete_id&quot;</span><span class="p">,</span> <span class="n">server_id</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="Matchmaker.update"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread</span><span class="o">.</span><span class="n">out_queue</span><span class="o">.</span><span class="n">get_nowait</span><span class="p">()</span>
+
+            <span class="k">except</span> <span class="n">EmptyQueue</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</div>
+    <span class="nd">@GameExitSignal.global_listener</span>
+<div class="viewcode-block" id="Matchmaker.on_quit"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.Matchmaker.on_quit">[docs]</a>    <span class="k">def</span> <span class="nf">on_quit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread</span>
+
+</div></div>
+<div class="viewcode-block" id="BoundMatchmaker"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker">[docs]</a><span class="k">class</span> <span class="nc">BoundMatchmaker</span><span class="p">(</span><span class="n">Matchmaker</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="BoundMatchmaker.register"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker.register">[docs]</a>    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_query</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">id_setter</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">,</span> <span class="s">&quot;_id&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perform_query</span><span class="p">(</span><span class="n">id_setter</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+</div>
+<div class="viewcode-block" id="BoundMatchmaker.poll"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker.poll">[docs]</a>    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perform_query</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">poll_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">,</span>
+                                                <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                                                <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="BoundMatchmaker.unregister"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker.unregister">[docs]</a>    <span class="k">def</span> <span class="nf">unregister</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perform_query</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">unregister_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">))</span>
+</div>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="BoundMatchmaker.update"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+</div>
+    <span class="nd">@GameExitSignal.global_listener</span>
+<div class="viewcode-block" id="BoundMatchmaker.on_quit"><a class="viewcode-back" href="../../blender_example.html#blender_example.matchmaker.BoundMatchmaker.on_quit">[docs]</a>    <span class="k">def</span> <span class="nf">on_quit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unregister</span><span class="p">()</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_quit</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

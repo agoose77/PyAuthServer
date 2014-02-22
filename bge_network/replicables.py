@@ -911,7 +911,7 @@ class Camera(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-        self.mode = enums.CameraMode.third_person
+        self.mode = enums.CameraMode.first_person
         self.offset = 2.0
 
     def possessed_by(self, parent):
@@ -1007,6 +1007,7 @@ class Pawn(Actor):
 
         if not is_owner:
             yield "view_pitch"
+            yield "flash_count"
 
         if is_complaint:
             yield "weapon_attachment_class"
@@ -1014,9 +1015,6 @@ class Pawn(Actor):
 
             if is_owner:
                 yield "health"
-
-            else:
-                yield "flash_count"
 
     @simulated
     def create_weapon_attachment(self, cls):

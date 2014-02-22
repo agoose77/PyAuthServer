@@ -85,13 +85,19 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
         :param exemptions: Iterable of exempt Actor instances'''
         # Suspend exempted objects
+        skip_updates = set()
         for actor in exemptions:
+            if actor.suspended:
+                skip_updates.add(actor)
+                continue
             actor.suspended = True
 
         yield
 
         # Restore scheduled objects
         for actor in exemptions:
+            if actor in skip_updates:
+                continue
             actor.suspended = False
 
     @MapLoadedSignal.global_listener

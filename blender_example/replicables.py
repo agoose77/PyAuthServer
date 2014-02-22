@@ -130,6 +130,28 @@ class Zombie(bge_network.Pawn):
         self.run_speed = 6
 
 
+class BowWeapon(bge_network.ProjectileWeapon):
+
+    def on_notify(self, name):
+        # This way ammo is still updated locally
+        if name == "ammo":
+            signals.UIWeaponDataChangedSignal.invoke("ammo", self.ammo)
+        else:
+            super().on_notify(name)
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.max_ammo = 60
+        self.attachment_class = BowAttachment
+
+        self.shoot_interval = 0.6
+        self.theme_colour = [0.0, 0.50, 0.93, 1.0]
+
+        self.projectile_class = ArrowProjectile
+        self.projectile_velocity = mathutils.Vector((0, 15, 0))
+
+
 class M4A1Weapon(bge_network.ProjectileWeapon):
 
     def on_notify(self, name):
@@ -149,7 +171,7 @@ class M4A1Weapon(bge_network.ProjectileWeapon):
         self.theme_colour = [0.53, 0.94, 0.28, 1.0]
 
         self.projectile_class = ArrowProjectile
-        self.projectile_velocity = mathutils.Vector((0, 15, 10))
+        self.projectile_velocity = mathutils.Vector((0, 15, 0))
 
 
 class ZombieAttachment(bge_network.WeaponAttachment):
@@ -236,11 +258,14 @@ class ArrowProjectile(bge_network.Actor):
     @UpdateSignal.global_listener
     @simulated
     def update(self, delta_time):
+        if not self.in_flight:
+            return
+
         global_vel = self.velocity.copy()
         global_vel.rotate(self.rotation)
 
-        if self.in_flight:
-            self.align_to(global_vel, 0.3)
+        TracerParticle().position = self.position
+        self.align_to(global_vel, 0.3)
 
     @bge_network.CollisionSignal.listener
     @simulated
@@ -264,7 +289,7 @@ class ArrowProjectile(bge_network.Actor):
 
         elif self.in_flight:
             if other.name != self.object.name:
-                self.object.setParent(other)
+                self.suspended = True
 
             self.lifespan = 5
 
@@ -291,3 +316,13 @@ class ZombieWeapon(bge_network.TraceWeapon):
 class M4A1Attachment(bge_network.WeaponAttachment):
 
     entity_name = "M4"
+
+
+class BowAttachment(bge_network.WeaponAttachment):
+
+    entity_name = "Bow"
+
+#     @bge_network.UpdateSignal.global_listener
+#     @simulated
+#     def update(self, dt):
+#         print(self.owner.view_pitch)

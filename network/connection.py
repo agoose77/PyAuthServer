@@ -290,7 +290,8 @@ class ServerConnection(Connection):
         elapsed_fraction = (interval / replicable.replication_update_period)
         return replicable.replication_priority + (elapsed_fraction - 1)
 
-    def get_attribute_replication(self, replicables, collection, bandwidth):
+    def get_attribute_replication(self, replicables, collection,
+                                  bandwidth, send_attributes=True):
         """Generator
         Writes to packet collection, respecting bandwidth for attribute
         replication
@@ -325,9 +326,13 @@ class ServerConnection(Connection):
                 # Check whether enough time has elapsed
                 interval = (timestamp - channel.last_replication_time)
 
+                inside_update_interval = ((interval <=
+                                       replicable.replication_update_period)
+                                       or channel.is_initial)
+
                 # Only send attributes if relevant
-                if (interval < replicable.replication_update_period or
-                    not (is_owner or is_relevant(replicator, replicable))):
+                if not (inside_update_interval and (is_owner
+                        or is_relevant(replicator, replicable))):
                     continue
 
                 # If we've never replicated to this channel
@@ -344,6 +349,7 @@ class ServerConnection(Connection):
                     # Insert the packet at the front (to ensure attribute
                     # references are valid to newly created replicables
                     insert_packet(0, packet)
+
                     used_bandwidth += packet.size
 
                 # Send changed attributes
@@ -404,11 +410,10 @@ class ServerConnection(Connection):
         collection = PacketCollection()
         replicables = self.prioritised_replication_data
 
-        if network_tick:
-            replicables = self.get_attribute_replication(replicables,
+        replicables = self.get_attribute_replication(replicables,
                                                          collection,
-                                                         available_bandwidth)
-
+                                                         available_bandwidth,
+                                                         network_tick)
         replicables = self.get_method_replication(
                                           replicables,
                                           collection,

@@ -29,7 +29,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     player_controller_class = LegendController
     player_pawn_class = RobertNeville
     player_replication_info_class = bge_network.PlayerReplicationInfo
-    player_weapon_class = M4A1Weapon
+    player_weapon_class = BowWeapon
 
     relevant_radius_squared = 9 ** 2
 
@@ -163,6 +163,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     def post_initialise(self, connection):
         replicable = self.create_new_player()
+        BowWeapon.update_graph()
         self.broadcast(replicable, "{} connected".format(replicable))
         return replicable
 

@@ -1,0 +1,386 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>blender_example.replicables &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for blender_example.replicables</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">bge_network</span>
+<span class="kn">from</span> <span class="nn">behaviours</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">bge</span> <span class="kn">import</span> <span class="n">logic</span>
+
+<span class="kn">import</span> <span class="nn">signals</span>
+<span class="kn">import</span> <span class="nn">aud</span>
+<span class="kn">import</span> <span class="nn">controls</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">mathutils</span>
+<span class="kn">import</span> <span class="nn">bge</span>
+
+
+<div class="viewcode-block" id="GameReplicationInfo"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.GameReplicationInfo">[docs]</a><span class="k">class</span> <span class="nc">GameReplicationInfo</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">ReplicableInfo</span><span class="p">):</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">Attribute</span><span class="p">(</span>
+                                  <span class="n">bge_network</span><span class="o">.</span><span class="n">Roles</span><span class="p">(</span>
+                                                    <span class="n">bge_network</span><span class="o">.</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span>
+                                                    <span class="n">bge_network</span><span class="o">.</span><span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span>
+                                                    <span class="p">)</span>
+                                  <span class="p">)</span>
+
+    <span class="n">time_to_start</span> <span class="o">=</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">match_started</span> <span class="o">=</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">Attribute</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GameReplicationInfo.conditions"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.GameReplicationInfo.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">yield</span> <span class="s">&quot;match_started&quot;</span>
+        <span class="k">yield</span> <span class="s">&quot;time_to_start&quot;</span>
+
+</div></div>
+<div class="viewcode-block" id="EnemyController"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.EnemyController">[docs]</a><span class="k">class</span> <span class="nc">EnemyController</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">AIController</span><span class="p">):</span>
+
+<div class="viewcode-block" id="EnemyController.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.EnemyController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="n">behaviour</span> <span class="o">=</span> <span class="n">SelectorNode</span><span class="p">(</span>
+                                 <span class="n">dying_behaviour</span><span class="p">(),</span>
+                                 <span class="n">attack_behaviour</span><span class="p">(),</span>
+                                 <span class="n">idle_behaviour</span><span class="p">()</span>
+                                 <span class="p">)</span>
+
+        <span class="n">behaviour</span><span class="o">.</span><span class="n">should_restart</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">behaviour</span>
+
+</div></div>
+<div class="viewcode-block" id="Cone"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.Cone">[docs]</a><span class="k">class</span> <span class="nc">Cone</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Cone&quot;</span>
+
+</div>
+<div class="viewcode-block" id="LegendController"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController">[docs]</a><span class="k">class</span> <span class="nc">LegendController</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">PlayerController</span><span class="p">):</span>
+
+    <span class="n">input_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;forward&quot;</span><span class="p">,</span> <span class="s">&quot;backwards&quot;</span><span class="p">,</span> <span class="s">&quot;left&quot;</span><span class="p">,</span>
+                    <span class="s">&quot;right&quot;</span><span class="p">,</span> <span class="s">&quot;shoot&quot;</span><span class="p">,</span> <span class="s">&quot;run&quot;</span><span class="p">,</span> <span class="s">&quot;voice&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LegendController.on_notify"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;weapon&quot;</span><span class="p">:</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">UIWeaponChangedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="p">)</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">UIWeaponDataChangedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s">&quot;ammo&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">ammo</span><span class="p">)</span>
+           <span class="c">#signals.UIWeaponDataChangedSignal.invoke(&quot;clips&quot;, self.weapon.clips)</span>
+
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;pawn&quot;</span><span class="p">:</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">UIHealthChangedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">health</span><span class="p">)</span>
+</div>
+    <span class="nd">@bge_network.ActorDamagedSignal.listener</span>
+<div class="viewcode-block" id="LegendController.take_damage"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController.take_damage">[docs]</a>    <span class="k">def</span> <span class="nf">take_damage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">damage</span><span class="p">,</span> <span class="n">instigator</span><span class="p">,</span> <span class="n">hit_position</span><span class="p">,</span> <span class="n">momentum</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">health</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">bge_network</span><span class="o">.</span><span class="n">ActorKilledSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">instigator</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="LegendController.receive_broadcast"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController.receive_broadcast">[docs]</a>    <span class="k">def</span> <span class="nf">receive_broadcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_string</span><span class="p">:</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">ConsoleMessage</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">message_string</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="LegendController.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="n">behaviour</span> <span class="o">=</span> <span class="n">SequenceNode</span><span class="p">(</span>
+                                 <span class="n">controls</span><span class="o">.</span><span class="n">camera_control</span><span class="p">(),</span>
+                                 <span class="n">controls</span><span class="o">.</span><span class="n">inputs_control</span><span class="p">()</span>
+                                 <span class="p">)</span>
+
+        <span class="n">behaviour</span><span class="o">.</span><span class="n">should_restart</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">behaviour</span><span class="p">)</span>
+</div>
+    <span class="nd">@bge_network.PlayerInputSignal.global_listener</span>
+<div class="viewcode-block" id="LegendController.player_update"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.LegendController.player_update">[docs]</a>    <span class="k">def</span> <span class="nf">player_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">player_update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+
+        <span class="c"># Only record when we need to</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">voice</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">microphone</span><span class="o">.</span><span class="n">active</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">microphone</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">voice</span>
+
+</div></div>
+<div class="viewcode-block" id="RobertNeville"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.RobertNeville">[docs]</a><span class="k">class</span> <span class="nc">RobertNeville</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Pawn</span><span class="p">):</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Suzanne_Physics&quot;</span>
+
+    <span class="nd">@bge_network.simulated</span>
+<div class="viewcode-block" id="RobertNeville.on_notify"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.RobertNeville.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># play weapon effects</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;health&quot;</span><span class="p">:</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">UIHealthChangedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">health</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RobertNeville.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.RobertNeville.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">walk_speed</span> <span class="o">=</span> <span class="mi">3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_speed</span> <span class="o">=</span> <span class="mi">6</span>
+
+</div></div>
+<div class="viewcode-block" id="Zombie"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.Zombie">[docs]</a><span class="k">class</span> <span class="nc">Zombie</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Pawn</span><span class="p">):</span>
+
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;ZombieCollision&quot;</span>
+
+<div class="viewcode-block" id="Zombie.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.Zombie.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="n">animations</span> <span class="o">=</span> <span class="n">SelectorNode</span><span class="p">(</span>
+                                  <span class="n">dead_animation</span><span class="p">(),</span>
+                                  <span class="n">idle_animation</span><span class="p">(),</span>
+                                  <span class="n">walk_animation</span><span class="p">(),</span>
+                                <span class="p">)</span>
+
+        <span class="n">animations</span><span class="o">.</span><span class="n">should_restart</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">animations</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">add_child</span><span class="p">(</span><span class="n">animations</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">walk_speed</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_speed</span> <span class="o">=</span> <span class="mi">6</span>
+
+</div></div>
+<div class="viewcode-block" id="M4A1Weapon"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.M4A1Weapon">[docs]</a><span class="k">class</span> <span class="nc">M4A1Weapon</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">ProjectileWeapon</span><span class="p">):</span>
+
+<div class="viewcode-block" id="M4A1Weapon.on_notify"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.M4A1Weapon.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># This way ammo is still updated locally</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;ammo&quot;</span><span class="p">:</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">UIWeaponDataChangedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s">&quot;ammo&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ammo</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="M4A1Weapon.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.M4A1Weapon.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_ammo</span> <span class="o">=</span> <span class="mi">50</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachment_class</span> <span class="o">=</span> <span class="n">M4A1Attachment</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">shoot_interval</span> <span class="o">=</span> <span class="mf">0.3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theme_colour</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.53</span><span class="p">,</span> <span class="mf">0.94</span><span class="p">,</span> <span class="mf">0.28</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectile_class</span> <span class="o">=</span> <span class="n">ArrowProjectile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectile_velocity</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+</div></div>
+<div class="viewcode-block" id="ZombieAttachment"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ZombieAttachment">[docs]</a><span class="k">class</span> <span class="nc">ZombieAttachment</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">WeaponAttachment</span><span class="p">):</span>
+
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;EmptyWeapon&quot;</span>
+
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="ZombieAttachment.play_fire_effects"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ZombieAttachment.play_fire_effects">[docs]</a>    <span class="k">def</span> <span class="nf">play_fire_effects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">play_animation</span><span class="p">(</span><span class="s">&quot;Attack&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="TracerParticle"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.TracerParticle">[docs]</a><span class="k">class</span> <span class="nc">TracerParticle</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Particle</span><span class="p">):</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Trace&quot;</span>
+
+<div class="viewcode-block" id="TracerParticle.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.TracerParticle.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lifespan</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">localScale</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</div>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="TracerParticle.update"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.TracerParticle.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">localScale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timer</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+</div></div>
+<div class="viewcode-block" id="SphereProjectile"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.SphereProjectile">[docs]</a><span class="k">class</span> <span class="nc">SphereProjectile</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Sphere&quot;</span>
+
+<div class="viewcode-block" id="SphereProjectile.on_registered"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.SphereProjectile.on_registered">[docs]</a>    <span class="k">def</span> <span class="nf">on_registered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_registered</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_colour</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">color</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_simulated_physics</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lifespan</span> <span class="o">=</span> <span class="mi">10</span>
+</div>
+    <span class="nd">@UpdateSignal.global_listener</span>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="SphereProjectile.update"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.SphereProjectile.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="n">particle</span> <span class="o">=</span> <span class="n">TracerParticle</span><span class="p">()</span>
+        <span class="n">particle</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span>
+
+        <span class="n">global_vel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">global_vel</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rotation</span><span class="p">)</span>
+        <span class="n">global_rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">()</span><span class="o">.</span><span class="n">rotation_difference</span><span class="p">(</span><span class="n">global_vel</span><span class="p">)</span>
+
+        <span class="n">axis_spin</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timer</span><span class="o">.</span><span class="n">progress</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">axis_spin</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">global_rotation</span><span class="p">)</span>
+        <span class="n">particle</span><span class="o">.</span><span class="n">rotation</span> <span class="o">=</span> <span class="n">axis_spin</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">color</span> <span class="o">=</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">utilities</span><span class="o">.</span><span class="n">lerp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_colour</span><span class="p">,</span>
+                                            <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">_timer</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span>
+        <span class="n">particle</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">color</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">color</span>
+</div>
+    <span class="nd">@bge_network.CollisionSignal.listener</span>
+<div class="viewcode-block" id="SphereProjectile.on_collision"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.SphereProjectile.on_collision">[docs]</a>    <span class="k">def</span> <span class="nf">on_collision</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">is_new</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">is_new</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">hit_normal</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">c</span><span class="o">.</span><span class="n">hitNormal</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="p">),</span> <span class="n">Vector</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">hit_position</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">c</span><span class="o">.</span><span class="n">hitPosition</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="p">),</span> <span class="n">Vector</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">momentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mass</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">length</span> <span class="o">*</span> <span class="n">hit_normal</span>
+
+            <span class="n">bge_network</span><span class="o">.</span><span class="n">ActorDamagedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">base_damage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">owner</span><span class="p">,</span>
+                                                  <span class="n">hit_position</span><span class="p">,</span> <span class="n">momentum</span><span class="p">,</span>
+                                                  <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="ArrowProjectile"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ArrowProjectile">[docs]</a><span class="k">class</span> <span class="nc">ArrowProjectile</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Arrow&quot;</span>
+
+<div class="viewcode-block" id="ArrowProjectile.on_registered"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ArrowProjectile.on_registered">[docs]</a>    <span class="k">def</span> <span class="nf">on_registered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_registered</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_simulated_physics</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_flight</span> <span class="o">=</span> <span class="bp">True</span>
+</div>
+    <span class="nd">@UpdateSignal.global_listener</span>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="ArrowProjectile.update"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ArrowProjectile.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="n">global_vel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">global_vel</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rotation</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_flight</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">align_to</span><span class="p">(</span><span class="n">global_vel</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">)</span>
+</div>
+    <span class="nd">@bge_network.CollisionSignal.listener</span>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="ArrowProjectile.on_collision"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ArrowProjectile.on_collision">[docs]</a>    <span class="k">def</span> <span class="nf">on_collision</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">is_new</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">is_new</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_flight</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">hit_normal</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">c</span><span class="o">.</span><span class="n">hitNormal</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="p">),</span> <span class="n">Vector</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">hit_position</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">c</span><span class="o">.</span><span class="n">hitPosition</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="p">),</span> <span class="n">Vector</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">bge_network</span><span class="o">.</span><span class="n">Pawn</span><span class="p">):</span>
+            <span class="n">momentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mass</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">length</span> <span class="o">*</span> <span class="n">hit_normal</span>
+
+            <span class="n">bge_network</span><span class="o">.</span><span class="n">ActorDamagedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">base_damage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">owner</span><span class="p">,</span>
+                                              <span class="n">hit_position</span><span class="p">,</span> <span class="n">momentum</span><span class="p">,</span>
+                                              <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_flight</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">setParent</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">lifespan</span> <span class="o">=</span> <span class="mi">5</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_flight</span> <span class="o">=</span> <span class="bp">False</span>
+
+</div></div>
+<div class="viewcode-block" id="ZombieWeapon"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ZombieWeapon">[docs]</a><span class="k">class</span> <span class="nc">ZombieWeapon</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">TraceWeapon</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ZombieWeapon.on_initialised"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ZombieWeapon.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_ammo</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">shoot_interval</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maximum_range</span> <span class="o">=</span> <span class="mi">8</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">effective_range</span> <span class="o">=</span> <span class="mi">6</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_damage</span> <span class="o">=</span> <span class="mi">80</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachment_class</span> <span class="o">=</span> <span class="n">ZombieAttachment</span>
+</div>
+<div class="viewcode-block" id="ZombieWeapon.consume_ammo"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.ZombieWeapon.consume_ammo">[docs]</a>    <span class="k">def</span> <span class="nf">consume_ammo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+</div></div>
+<div class="viewcode-block" id="M4A1Attachment"><a class="viewcode-back" href="../../blender_example.html#blender_example.replicables.M4A1Attachment">[docs]</a><span class="k">class</span> <span class="nc">M4A1Attachment</span><span class="p">(</span><span class="n">bge_network</span><span class="o">.</span><span class="n">WeaponAttachment</span><span class="p">):</span>
+
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;M4&quot;</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

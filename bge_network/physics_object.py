@@ -114,8 +114,10 @@ class PhysicsObject:
     @signals.UpdateCollidersSignal.global_listener
     @simulated
     def _update_colliders(self):
-        if not self or self.suspended:
+        if self.suspended:
             return
+
+        assert self
 
         # If we have a stored collision
         difference = self._old_colliders.difference(self._new_colliders)
@@ -138,8 +140,9 @@ class PhysicsObject:
         if hasattr(self, "_timer"):
             self._timer.delete()
 
-        self.children.clear()
-        self.child_entities.clear()
+        for child in self.children.copy():
+            self.remove_child(child)
+
         self.object.endObject()
 
     @simulated

@@ -1,6 +1,6 @@
 from bge_network import *
 from mathutils import Vector, Euler
-from math import radians, sin, cos
+from math import radians, sin, cos, copysign
 
 from behaviours import *
 
@@ -64,21 +64,50 @@ class IsThirdPerson(ConditionNode):
 
 class HandleFirstPersonCamera(SignalLeafNode):
 
+    def normalise(self, angle):
+        if angle > radians(180):
+            angle = radians(180) - angle
+        elif angle < - radians(180):
+            angle = angle + radians(180)
+        return angle
+
     def evaluate(self, blackboard):
-        _, mouse_diff_y = blackboard['mouse']
+        mouse_diff_x, mouse_diff_y = blackboard['mouse']
         pawn = blackboard['pawn']
         camera = blackboard['camera']
 
         look_speed = 1
         look_limit = radians(45)
 
-        rotation_delta = mouse_diff_y * look_speed
+        delta_yaw = mouse_diff_x * look_speed
+        delta_pitch = mouse_diff_y * look_speed
 
-        new_pitch = pawn.view_pitch + rotation_delta
-        new_pitch = max(0.0, min(look_limit, new_pitch))
+        current_pitch = camera.local_rotation[0]
 
-        pawn.view_pitch = new_pitch
-        camera.rotation = Euler((new_pitch, 0, 0))
+        # Stop locking
+        current_pitch = self.normalise(current_pitch)
+
+        if (current_pitch < look_limit and delta_pitch > 0):
+            if delta_pitch > (look_limit - current_pitch):
+                delta_pitch = (look_limit - current_pitch)
+
+        elif (current_pitch > -look_limit and delta_pitch < 0):
+            if delta_pitch < (-look_limit - current_pitch):
+                delta_pitch = (-look_limit - current_pitch)
+
+        else:
+            return EvaluationState.success
+
+        current_pitch += delta_pitch
+        current_pitch = self.normalise(current_pitch)
+
+        pawn_rotation = pawn.rotation.copy()
+        pawn_rotation.rotate(Euler((0, 0, delta_yaw)))
+        pawn.rotation = pawn_rotation
+
+        camera.local_rotation = Euler((current_pitch, 0, 0))
+        pawn.view_pitch = current_pitch
+
         return EvaluationState.success
 
 

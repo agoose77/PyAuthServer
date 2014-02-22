@@ -299,7 +299,6 @@ class IsWalking(ConditionNode):
 
     def condition(self, blackboard):
         pawn = blackboard['pawn']
-        print(pawn.velocity.y, pawn.walk_speed)
         return pawn.velocity.xy.length >= pawn.walk_speed * 0.9
 
 

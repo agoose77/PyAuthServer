@@ -236,7 +236,7 @@
                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
 
 </div>
-<span class="k">class</span> <span class="nc">_WorldInfo</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo">[docs]</a><span class="k">class</span> <span class="nc">_WorldInfo</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;Holds info about game state&#39;&#39;&#39;</span>
 
     <span class="n">_MAXIMUM_TICK</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
@@ -252,29 +252,29 @@
     <span class="n">elapsed</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
     <span class="n">tick_rate</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.on_initialised"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">clock_correction</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rules</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">netmode</span> <span class="o">=</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">always_relevant</span> <span class="o">=</span> <span class="bp">True</span>
-
+</div>
     <span class="nd">@ReplicableRegisteredSignal.global_listener</span>
     <span class="nd">@simulated</span>
-    <span class="k">def</span> <span class="nf">cache_replicable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.cache_replicable"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.cache_replicable">[docs]</a>    <span class="k">def</span> <span class="nf">cache_replicable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">cls_type</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">cls_type</span><span class="p">):</span>
                 <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-
+</div>
     <span class="nd">@ReplicableUnregisteredSignal.global_listener</span>
     <span class="nd">@simulated</span>
-    <span class="k">def</span> <span class="nf">uncache_replicable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.uncache_replicable"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.uncache_replicable">[docs]</a>    <span class="k">def</span> <span class="nf">uncache_replicable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
                 <span class="n">values</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="_WorldInfo.conditions"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
         <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">is_initial</span><span class="p">:</span>
@@ -282,13 +282,13 @@
 
         <span class="k">if</span> <span class="n">is_complain</span><span class="p">:</span>
             <span class="k">yield</span> <span class="s">&quot;tick_rate&quot;</span>
-
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">tick</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.tick"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.tick">[docs]</a>    <span class="k">def</span> <span class="nf">tick</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">int</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">clock_correction</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tick_rate</span><span class="p">)</span>
-
+</div>
     <span class="nd">@simulated</span>
-    <span class="k">def</span> <span class="nf">subclass_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actor_type</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.subclass_of"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.subclass_of">[docs]</a>    <span class="k">def</span> <span class="nf">subclass_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actor_type</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;Returns registered actors that are subclasses of a given type</span>
 <span class="sd">        :param actor_type: type to compare against&#39;&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
@@ -298,21 +298,21 @@
             <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">actor_type</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">Replicable</span> <span class="k">if</span>
                                                 <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">actor_type</span><span class="p">)]</span>
             <span class="k">return</span> <span class="n">values</span>
-
+</div>
     <span class="nd">@simulated</span>
-    <span class="k">def</span> <span class="nf">update_clock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.update_clock"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.update_clock">[docs]</a>    <span class="k">def</span> <span class="nf">update_clock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">+=</span> <span class="n">delta</span>
-
+</div>
     <span class="nd">@simulated</span>
-    <span class="k">def</span> <span class="nf">type_is</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<div class="viewcode-block" id="_WorldInfo.type_is"><a class="viewcode-back" href="../../network.html#network.replicables._WorldInfo.type_is">[docs]</a>    <span class="k">def</span> <span class="nf">type_is</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">_by_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
+</div>
     <span class="n">replicables</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">Replicable</span><span class="o">.</span><span class="n">get_graph_instances</span><span class="p">)</span>
     <span class="n">get_replicable</span> <span class="o">=</span> <span class="n">simulated</span><span class="p">(</span><span class="n">Replicable</span><span class="o">.</span><span class="n">get_from_graph</span><span class="p">)</span>
     <span class="n">has_replicable</span> <span class="o">=</span> <span class="n">simulated</span><span class="p">(</span><span class="n">Replicable</span><span class="o">.</span><span class="n">graph_has_instance</span><span class="p">)</span>
 
 
-<span class="c"># Circular Reference on attribute</span>
+<span class="c"># Circular Reference on attribute</span></div>
 <span class="n">Replicable</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">Replicable</span>
 
 <span class="n">WorldInfo</span> <span class="o">=</span> <span class="n">_WorldInfo</span><span class="p">(</span><span class="n">_WorldInfo</span><span class="o">.</span><span class="n">_ID</span><span class="p">,</span> <span class="n">register</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>

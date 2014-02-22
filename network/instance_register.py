@@ -173,7 +173,6 @@ class InstanceRegister(TypeRegister):
             raise
 
         finally:
-            instance.tt=1
             instance.unregister_signals()
 
     def __iter__(cls, iter=iter):  # @NoSelf
