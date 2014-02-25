@@ -6,6 +6,18 @@ def lerp(a, b, factor):
     return a + (b - a) * factor
 
 
+def mean(iterable):
+    fixed = list(iterable)
+
+    try:
+        first = fixed[0]
+
+    except IndexError as err:
+        raise ValueError("Empty iterable") from err
+
+    return sum(fixed[1:], first) / len(fixed)
+
+
 def falloff_fraction(origin, maximum, actual, effective):
     distance = (actual - origin).length
 

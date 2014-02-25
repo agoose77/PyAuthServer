@@ -16,4 +16,5 @@ from .timer import *
 from .threads import *
 from .stream import *
 from .proxy import *
+from .utilities import *
 from network import *

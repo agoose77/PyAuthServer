@@ -158,6 +158,8 @@ class Replicable(metaclass=ReplicableRegister):
     def on_unregistered(self):
         '''Called on unregistration of replicable
         Removes instance from type list'''
+        self.unpossessed()
+
         super().on_unregistered()
 
         self.__class__._by_types[type(self)].remove(self)

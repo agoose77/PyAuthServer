@@ -1,6 +1,6 @@
 from .replicables import WorldInfo
 from .bitfield import BitField
-from .connection import ClientConnection, ServerConnection
+from .connection import Connection
 from .conversions import conversion
 from .decorators import netmode_switch
 from .descriptors import TypeFlag
@@ -361,7 +361,7 @@ class ServerInterface(ConnectionInterface):
             self._auth_error = err
 
         else:
-            self.connection = ServerConnection(netmode)
+            self.connection = Connection(netmode)
             returned_replicable = WorldInfo.rules.post_initialise(
                                                           self.connection)
             # Replicable is boolean false until registered
@@ -396,5 +396,5 @@ class ClientInterface(ConnectionInterface):
             # Get remote network mode
             netmode = self.netmode_packer.unpack_from(packet.payload)
             # If we did not have an error then we succeeded
-            self.connection = ClientConnection(netmode)
+            self.connection = Connection(netmode)
             self.connected()

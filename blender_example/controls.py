@@ -168,9 +168,15 @@ class HandleInputs(SignalLeafNode):
         if inputs.shoot:
             controller.start_fire()
 
-        velocity = Vector((x_plane, y_plane, 0.0))
-        velocity.length = forward_speed
+        if pawn.on_ground:
+            velocity = Vector((x_plane, y_plane, 0.0))
+            velocity.length = forward_speed
 
-        pawn.velocity.xy = velocity.xy
+            if inputs.jump and pawn.colliding:
+                velocity.z = pawn.walk_speed
+            else:
+                velocity.z = pawn.velocity.z
+
+            pawn.velocity = velocity
 
         return EvaluationState.success

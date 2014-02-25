@@ -71,5 +71,6 @@ def netmode_switch(netmode):
     for incorrect netmodes'''
     def wrapper(cls):
         cls._netmode_data = cls, netmode
+
         return cls
     return wrapper

@@ -3,13 +3,18 @@ from .flag_serialiser import FlagSerialiser
 from .conditions import is_reliable
 from .descriptors import TypeFlag
 from .replicables import Replicable, WorldInfo
+from .decorators import netmode_switch
+from .enums import Netmodes
+from .netmode_switch import NetmodeSwitch
 
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
-class Channel:
+class Channel(NetmodeSwitch):
     """Channel for replication information
     Belongs to an instance of Replicable and a connection"""
+
+    subclasses = {}
 
     def __init__(self, connection, replicable):
         # Store important info
@@ -66,6 +71,7 @@ class Channel:
         return bool(self.replicable.rpc_storage.data)
 
 
+@netmode_switch(Netmodes.client)
 class ClientChannel(Channel):
 
     def set_attributes(self, bytes_):
@@ -98,6 +104,7 @@ class ClientChannel(Channel):
                 invoke_notify(attribute_name)
 
 
+@netmode_switch(Netmodes.server)
 class ServerChannel(Channel):
 
     def __init__(self, *args, **kwargs):

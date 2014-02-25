@@ -50,7 +50,8 @@ class Cone(bge_network.Actor):
 class LegendController(bge_network.PlayerController):
 
     input_fields = ("forward", "backwards", "left",
-                    "right", "shoot", "run", "voice")
+                    "right", "shoot", "run", "voice",
+                    "jump")
 
     def on_notify(self, name):
         super().on_notify(name)
@@ -58,7 +59,7 @@ class LegendController(bge_network.PlayerController):
         if name == "weapon":
             signals.UIWeaponChangedSignal.invoke(self.weapon)
             signals.UIWeaponDataChangedSignal.invoke("ammo", self.weapon.ammo)
-           #signals.UIWeaponDataChangedSignal.invoke("clips", self.weapon.clips)
+            #signals.UIWeaponDataChangedSignal.invoke("clips", self.weapon.clips)
 
         if name == "pawn":
             signals.UIHealthChangedSignal.invoke(self.pawn.health)
@@ -275,8 +276,8 @@ class ArrowProjectile(bge_network.Actor):
         if not data or not is_new or not self.in_flight:
             return
 
-        hit_normal = sum((c.hitNormal for c in data), Vector()) / len(data)
-        hit_position = sum((c.hitPosition for c in data), Vector()) / len(data)
+        hit_normal = bge_network.mean(c.hitNormal for c in data)
+        hit_position = bge_network.mean(c.hitPosition for c in data)
 
         if isinstance(target, bge_network.Pawn):
             momentum = self.mass * self.velocity.length * hit_normal
@@ -287,10 +288,8 @@ class ArrowProjectile(bge_network.Actor):
 
             self.request_unregistration()
 
-        elif self.in_flight:
-            if other.name != self.object.name:
-                self.suspended = True
-
+        else:
+            self.suspended = True
             self.lifespan = 5
 
         self.in_flight = False

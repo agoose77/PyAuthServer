@@ -163,8 +163,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     def post_initialise(self, connection):
         replicable = self.create_new_player()
-        BowWeapon.update_graph()
-        self.broadcast(replicable, "{} connected".format(replicable))
+
         return replicable
 
     def pre_initialise(self, address_tuple, netmode):

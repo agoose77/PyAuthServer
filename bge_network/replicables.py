@@ -23,7 +23,7 @@ import os
 import operator
 import functools
 
-from bge import logic
+from bge import logic, types
 
 Move = collections.namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
 
@@ -202,7 +202,7 @@ class PlayerController(Controller):
     @property
     def mouse_delta(self):
         '''Returns the mouse movement since the last tick'''
-        mouse = bge.logic.mouse
+        mouse = logic.mouse
 
         # The first tick the mouse won't be centred
         screen_center = (0.5, 0.5)
@@ -408,7 +408,7 @@ class PlayerController(Controller):
         self.buffer = collections.deque()
 
         self.clock_convergence_factor = 1.0
-        self.maximum_clock_ahead = int(0.1 * WorldInfo.tick_rate)
+        self.maximum_clock_ahead = int(0.05 * WorldInfo.tick_rate)
 
         self.ping_timer = timer.Timer(1.0, on_target=self.calculate_ping,
                                     repeat=True)
@@ -861,12 +861,12 @@ class Camera(Actor):
 
     @property
     def active(self):
-        return self.object == bge.logic.getCurrentScene().active_camera
+        return self.object == logic.getCurrentScene().active_camera
 
     @active.setter
     def active(self, status):
         if status:
-            bge.logic.getCurrentScene().active_camera = self.object
+            logic.getCurrentScene().active_camera = self.object
 
     @property
     def lens(self):
@@ -917,8 +917,7 @@ class Camera(Actor):
     def possessed_by(self, parent):
         super().possessed_by(parent)
 
-        self.setup_camera_perspective()
-
+        self.setup_camera_perspective()
     def draw(self):
         orientation = self.rotation.to_matrix() * mathutils.Matrix.Rotation(-math.radians(90),
                                                                 3, "X")
@@ -966,6 +965,7 @@ class Camera(Actor):
     def sees_actor(self, actor):
         try:
             radius = actor.camera_radius
+
         except AttributeError:
             return
 
@@ -1028,6 +1028,21 @@ class Pawn(Actor):
         self.weapon_attachment.local_position = mathutils.Vector()
         self.weapon_attachment.local_rotation = mathutils.Euler()
 
+    @simulated
+    def get_animation_frame(self, layer=0):
+        return int(self.skeleton.getActionFrame(layer))
+
+    @simulated
+    def is_playing_animation(self, layer=0):
+        return self.skeleton.isPlayingAction(layer)
+
+    @property
+    def on_ground(self):
+        for collider in self._registered:
+            if not self.from_object(collider):
+                return True
+        return False
+
     def on_initialised(self):
         super().on_initialised()
 
@@ -1067,24 +1082,16 @@ class Pawn(Actor):
                     blend_mode=enums.AnimationBlend.interpolate):
 
         # Define conversions from Blender animations to Network animation enum
-        ge_mode = {enums.AnimationMode.play: bge.logic.KX_ACTION_MODE_PLAY,
-                enums.AnimationMode.loop: bge.logic.KX_ACTION_MODE_LOOP,
-                enums.AnimationMode.ping_pong: bge.logic.KX_ACTION_MODE_PING_PONG
+        ge_mode = {enums.AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
+                enums.AnimationMode.loop: logic.KX_ACTION_MODE_LOOP,
+                enums.AnimationMode.ping_pong: logic.KX_ACTION_MODE_PING_PONG
                 }[mode]
-        ge_blend_mode = {enums.AnimationBlend.interpolate: bge.logic.KX_ACTION_BLEND_BLEND,
-                        enums.AnimationBlend.add: bge.logic.KX_ACTION_BLEND_ADD}[blend_mode]
+        ge_blend_mode = {enums.AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
+                        enums.AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}[blend_mode]
 
         self.skeleton.playAction(name, start, end, layer, priority, blend,
                                 ge_mode, weight, speed=speed,
                                 blend_mode=ge_blend_mode)
-
-    @simulated
-    def is_playing_animation(self, layer=0):
-        return self.skeleton.isPlayingAction(layer)
-
-    @simulated
-    def get_animation_frame(self, layer=0):
-        return int(self.skeleton.getActionFrame(layer))
 
     @simulated
     def stop_animation(self, layer=0):
@@ -1093,7 +1100,7 @@ class Pawn(Actor):
     @property
     def skeleton(self):
         for child in self.object.childrenRecursive:
-            if isinstance(child, bge.types.BL_ArmatureObject):
+            if isinstance(child, types.BL_ArmatureObject):
                 return child
 
     @signals.ActorDamagedSignal.listener
@@ -1117,7 +1124,12 @@ class Pawn(Actor):
 
     @simulated
     def update_weapon_attachment(self):
+        # Account for missing shots
         if self.flash_count != self.last_flash_count:
+            # Protect from wrap around
+            if self.last_flash_count > self.flash_count:
+                self.last_flash_count = -1
+
             self.weapon_attachment.play_fire_effects()
             self.last_flash_count += 1
 
@@ -1171,7 +1183,7 @@ class Navmesh(Actor):
     entity_name = "Navmesh"
 
     def draw(self):
-        self.object.draw(bge.logic.RM_TRIS)
+        self.object.draw(logic.RM_TRIS)
 
     def find_path(self, from_point, to_point):
         return self.object.findPath(from_point, to_point)

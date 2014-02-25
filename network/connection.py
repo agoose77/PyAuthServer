@@ -1,11 +1,13 @@
 from .packet import Packet, PacketCollection
 from .handler_interfaces import get_handler
 from .descriptors import TypeFlag
+from .decorators import netmode_switch
 from .replicables import Replicable, WorldInfo
 from .signals import (ReplicableUnregisteredSignal, ReplicableRegisteredSignal,
                       SignalListener)
-from .enums import Roles, Protocols
-from .channel import ClientChannel, ServerChannel
+from .enums import Roles, Protocols, Netmodes
+from .netmode_switch import NetmodeSwitch
+from .channel import Channel
 
 __all__ = ['Connection', 'ServerConnection', 'ClientConnection']
 
@@ -19,10 +21,11 @@ def consume(iterable):
         pass
 
 
-class Connection(SignalListener):
+class Connection(SignalListener, NetmodeSwitch):
     """Connection between loacl host and remote peer
     Represents a successful connection"""
-    channel_class = None
+
+    subclasses = {}
 
     def __init__(self, netmode):
         super().__init__()
@@ -50,7 +53,7 @@ class Connection(SignalListener):
         Create channel for replicable instance
 
         :param target: replicable that was registered"""
-        self.channels[target.instance_id] = self.channel_class(self, target)
+        self.channels[target.instance_id] = Channel(self, target)
 
     def on_delete(self):
         """Delete callback"""
@@ -139,9 +142,8 @@ class Connection(SignalListener):
             yield item
 
 
+@netmode_switch(Netmodes.client)
 class ClientConnection(Connection):
-
-    channel_class = ClientChannel
 
     def set_replication(self, packet):
         '''Replication function
@@ -244,9 +246,8 @@ class ClientConnection(Connection):
                 self.set_replication(packet)
 
 
+@netmode_switch(Netmodes.server)
 class ServerConnection(Connection):
-
-    channel_class = ServerChannel
 
     def __init__(self, netmode):
         super().__init__(netmode)
