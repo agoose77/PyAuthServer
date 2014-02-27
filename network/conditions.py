@@ -25,3 +25,7 @@ def is_signal_listener(func):
     :param func: function to evaluate
     :returns: result of condition'''
     return "signals" in func.__annotations__
+
+
+def get_annotation(func, name, default=None):
+    return func.__annotations__.get(name, default)

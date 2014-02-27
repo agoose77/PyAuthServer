@@ -326,13 +326,12 @@ class ServerConnection(Connection):
 
                 # Check whether enough time has elapsed
                 interval = (timestamp - channel.last_replication_time)
-
-                inside_update_interval = ((interval <=
+                needs_replication = ((interval >=
                                        replicable.replication_update_period)
                                        or channel.is_initial)
 
                 # Only send attributes if relevant
-                if not (inside_update_interval and (is_owner
+                if not (needs_replication and (is_owner
                         or is_relevant(replicator, replicable))):
                     continue
 
@@ -354,20 +353,22 @@ class ServerConnection(Connection):
                     used_bandwidth += packet.size
 
                 # Send changed attributes
-                attributes = channel.get_attributes(is_owner, timestamp)
+                if send_attributes:
 
-                # If they have changed
-                if attributes:
-                    # This ensures references exist
-                    # By calling it after all creation packets are yielded
-                    update_payload = packed_id + attributes
-                    packet = make_packet(
-                                        protocol=replication_update,
-                                        payload=update_payload,
-                                        reliable=True)
+                    attributes = channel.get_attributes(is_owner, timestamp)
 
-                    store_packet(packet)
-                    used_bandwidth += packet.size
+                    # If they have changed
+                    if attributes:
+                        # This ensures references exist
+                        # By calling it after all creation packets are yielded
+                        update_payload = packed_id + attributes
+                        packet = make_packet(
+                                            protocol=replication_update,
+                                            payload=update_payload,
+                                            reliable=True)
+
+                        store_packet(packet)
+                        used_bandwidth += packet.size
 
             yield item
 

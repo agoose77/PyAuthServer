@@ -304,6 +304,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         else:
             self.connection.receive(packet_collection)
 
+
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):
 

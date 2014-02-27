@@ -9,10 +9,10 @@ from bge import logic
 
 class Client(ClientGameLoop):
 
-    def update_loop(self):
+    def create_network(self):
         self.ui_system = BGESystem()
 
-        super().update_loop()
+        return super().create_network()
 
     def update_scene(self, scene, current_time, delta_time):
         super().update_scene(scene, current_time, delta_time)
@@ -23,4 +23,4 @@ class Client(ClientGameLoop):
 
     @ConnectToSignal.global_listener
     def new_connection(self, addr, port):
-        self.network.connect_to((addr, port))
+        self.network_system.connect_to((addr, port))

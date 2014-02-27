@@ -7,17 +7,16 @@ __all__ = ['NetmodeSwitch']
 class NetmodeSwitch(metaclass=TypeRegister):
 
     @classmethod
-    def netmode_specific(cls, id_):
-        netmode_classes = (t for t in cls.subclasses.values() if
-                           getattr(t, "_netmode_data") == (t, id_))
+    def find_subclass_for(cls, netmode):
+        for subcls in cls.subclasses.values():
 
-        try:
-            return next(netmode_classes)
+            if getattr(subcls, "_netmode") == netmode:
+                return subcls
 
-        except StopIteration as err:
-            raise TypeError("Netmode is not supported by this class") from err
+        raise TypeError("Netmode {} is not supported by this class"
+                        .format(netmode))
 
     def __new__(cls, *args, **kwargs):
-        specific_cls = cls.netmode_specific(WorldInfo.netmode)
+        specific_cls = cls.find_subclass_for(WorldInfo.netmode)
 
         return super().__new__(specific_cls)

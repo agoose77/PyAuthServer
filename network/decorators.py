@@ -7,13 +7,19 @@ __all__ = ['reliable', 'simulated', 'signal_listener',
 '''API functions to modify function behaviour'''
 
 
+def annotate(name, value=True):
+    def wrapper(func):
+        func.__annotations__[name] = value
+        return func
+    return wrapper
+
+
 def reliable(func):
     '''Mark a function to be reliably replicated
 
     :param func: function to be marked
     :returns: function that was passed as func'''
-    func.__annotations__['reliable'] = True
-    return func
+    return annotate("reliable", True)(func)
 
 
 def simulated(func):
@@ -21,8 +27,7 @@ def simulated(func):
 
     :param func: function to be marked
     :returns: function that was passed as func'''
-    func.__annotations__['simulated'] = True
-    return func
+    return annotate("simulated", True)(func)
 
 
 def signal_listener(signal_type, global_listener):
@@ -70,7 +75,8 @@ def netmode_switch(netmode):
     :returns: decorator that prohibits function execution
     for incorrect netmodes'''
     def wrapper(cls):
-        cls._netmode_data = cls, netmode
+        cls._netmode = netmode
 
         return cls
     return wrapper
+
