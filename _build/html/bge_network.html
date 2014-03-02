@@ -936,13 +936,13 @@ Handles node state before and after evaluation</p>
 <em class="property">class </em><tt class="descclassname">bge_network.gameloop.</tt><tt class="descname">GameLoop</tt><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.LoopType</span></tt>, <a class="reference internal" href="network.html#network.signals.SignalListener" title="network.signals.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.SignalListener</span></tt></a></p>
 <dl class="method">
-<dt id="bge_network.gameloop.GameLoop.apply_physics">
-<tt class="descname">apply_physics</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.apply_physics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.apply_physics" title="Permalink to this definition">¶</a></dt>
+<dt id="bge_network.gameloop.GameLoop.clean_up">
+<tt class="descname">clean_up</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.clean_up"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.clean_up" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="bge_network.gameloop.GameLoop.clean_up">
-<tt class="descname">clean_up</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.clean_up"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.clean_up" title="Permalink to this definition">¶</a></dt>
+<dt id="bge_network.gameloop.GameLoop.dispatch">
+<tt class="descname">dispatch</tt><big>(</big><big>)</big><a class="headerlink" href="#bge_network.gameloop.GameLoop.dispatch" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -953,27 +953,62 @@ Handles node state before and after evaluation</p>
 <dl class="method">
 <dt id="bge_network.gameloop.GameLoop.notify_registration">
 <tt class="descname">notify_registration</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.notify_registration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.notify_registration" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Signal listener for replicable instantiation
+Listens for Camera creation to correct camera matrices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; replicable instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="bge_network.gameloop.GameLoop.physics_callback">
 <tt class="descname">physics_callback</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.physics_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.physics_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for physics simulation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delta_time</strong> &#8211; time to progress simulation</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_network.gameloop.GameLoop.profile">
+<tt class="descname">profile</tt><a class="headerlink" href="#bge_network.gameloop.GameLoop.profile" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="bge_network.gameloop.GameLoop.start_profile">
-<tt class="descname">start_profile</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.start_profile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.start_profile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="bge_network.gameloop.GameLoop.scenegraph_callback">
+<tt class="descname">scenegraph_callback</tt><big>(</big><big>)</big><a class="headerlink" href="#bge_network.gameloop.GameLoop.scenegraph_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for scenegraph update</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_network.gameloop.GameLoop.scenes">
+<tt class="descname">scenes</tt><a class="headerlink" href="#bge_network.gameloop.GameLoop.scenes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generator sets current scene before yielding item</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Yields :</th><td class="field-body">KX_Scene instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="bge_network.gameloop.GameLoop.update_graphs">
 <tt class="descname">update_graphs</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.update_graphs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.update_graphs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="bge_network.gameloop.GameLoop.update_loop">
-<tt class="descname">update_loop</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_network/gameloop.html#GameLoop.update_loop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.gameloop.GameLoop.update_loop" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Update isolated resource graphs</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="bge_network.gameloop.GameLoop.update_scene">
@@ -1389,7 +1424,7 @@ Attempts to create network entities from BGE proxies</p>
 
 <dl class="attribute">
 <dt id="bge_network.physics.PhysicsSystem.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'ClientPhysics': &lt;class 'bge_network.physics.ClientPhysics'&gt;, 'ServerPhysics': &lt;class 'bge_network.physics.ServerPhysics'&gt;}</em><a class="headerlink" href="#bge_network.physics.PhysicsSystem.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ServerPhysics': &lt;class 'bge_network.physics.ServerPhysics'&gt;, 'ClientPhysics': &lt;class 'bge_network.physics.ClientPhysics'&gt;}</em><a class="headerlink" href="#bge_network.physics.PhysicsSystem.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -1690,6 +1725,11 @@ Applies physics struct data to physics state.</p>
 <dl class="attribute">
 <dt id="bge_network.physics_object.PhysicsObject.rotation">
 <tt class="descname">rotation</tt><a class="reference internal" href="_modules/bge_network/physics_object.html#PhysicsObject.rotation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.physics_object.PhysicsObject.rotation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_network.physics_object.PhysicsObject.set_parent">
+<tt class="descname">set_parent</tt><big>(</big><em>parent</em>, <em>socket_name=None</em><big>)</big><a class="reference internal" href="_modules/bge_network/physics_object.html#PhysicsObject.set_parent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.physics_object.PhysicsObject.set_parent" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -2187,6 +2227,11 @@ Applies physics struct data to physics state.</p>
 <dl class="method">
 <dt id="bge_network.replicables.Pawn.is_playing_animation">
 <tt class="descname">is_playing_animation</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/bge_network/replicables.html#Pawn.is_playing_animation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.replicables.Pawn.is_playing_animation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_network.replicables.Pawn.on_ground">
+<tt class="descname">on_ground</tt><a class="headerlink" href="#bge_network.replicables.Pawn.on_ground" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -3808,6 +3853,11 @@ Runs on authority / autonomous proxy only</p>
 <dl class="function">
 <dt id="bge_network.utilities.lerp">
 <tt class="descclassname">bge_network.utilities.</tt><tt class="descname">lerp</tt><big>(</big><em>a</em>, <em>b</em>, <em>factor</em><big>)</big><a class="reference internal" href="_modules/bge_network/utilities.html#lerp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_network.utilities.lerp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="bge_network.utilities.mean">
+<tt class="descclassname">bge_network.utilities.</tt><tt class="descname">mean</tt><big>(</big><em>iterable</em><big>)</big><a class="headerlink" href="#bge_network.utilities.mean" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="function">

@@ -58,16 +58,19 @@ class PacketCollection:
     def to_bytes(self):
         return b''.join(m.to_bytes() for m in self.members)
 
-    def from_bytes(self, bytes_):
-        members = self.members = []
-        append = members.append
-
+    @classmethod
+    def iter_bytes(cls, bytes_, callback):
         while bytes_:
             packet = Packet()
             bytes_ = packet.take_from(bytes_)
-            append(packet)
+            callback(packet)
 
-        return self
+    @classmethod
+    def from_bytes(cls, bytes_):
+        collection = cls()
+        cls.iter_bytes(bytes_, collection.members.append)
+
+        return collection
 
     def __bool__(self):
         return bool(self.members)
@@ -91,7 +94,7 @@ class Packet:
     protocol_handler = get_handler(TypeFlag(int))
     size_handler = get_handler(TypeFlag(int, max_value=1000))
 
-    def __init__(self, protocol=None, payload=None, *, reliable=False,
+    def __init__(self, protocol=None, payload=b'', *, reliable=False,
                  on_success=None, on_failure=None):
 
         # Force reliability for callbacks

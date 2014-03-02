@@ -2,11 +2,12 @@ from .replicables import WorldInfo
 from .bitfield import BitField
 from .connection import Connection
 from .conversions import conversion
-from .decorators import netmode_switch
+from .decorators import netmode_switch, ignore_arguments
 from .descriptors import TypeFlag
-from .enums import ConnectionStatus, Netmodes, Protocols
+from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
-from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal)
+from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal,
+                      DisconnectSignal, ConnectionDeletedSignal)
 from .handler_interfaces import get_handler
 from .packet import Packet, PacketCollection
 from .netmode_switch import NetmodeSwitch
@@ -44,6 +45,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Protocol unpacker
         self.protocol_handler = get_handler(TypeFlag(int))
+        self.handshake_packer = get_handler(TypeFlag(int))
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -54,11 +56,11 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.remote_sequence = 0
 
         # Time out for connection before it is deleted
-        self.time_out = 5
+        self.time_out_delay = 2
         self.last_received = monotonic()
 
         # Simple connected status
-        self.status = ConnectionStatus.disconnected  # @UndefinedVariable
+        self.status = ConnectionStatus.pending  # @UndefinedVariable
 
         # Maintains an actual connection
         self.connection = None
@@ -75,6 +77,13 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         """Unregistration callback"""
         if self.connection:
             self.connection.on_delete()
+
+    def on_connected(self):
+        self.status = ConnectionStatus.connected  # @UndefinedVariable
+        ConnectionSuccessSignal.invoke(target=self)
+
+    def on_failure(self):
+        self.status = ConnectionStatus.failed  # @UndefinedVariable
 
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
@@ -96,12 +105,6 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                                              self.sequence_max_size) else 0
         return self.local_sequence
 
-    def set_time_out(self, delay):
-        """Sets the time out for peer
-
-        :param delay: delay until interface is timed out"""
-        self.time_out = delay
-
     def sequence_more_recent(self, base, sequence):
         """Compares two sequence identifiers
         determines if one is greater than the other
@@ -112,39 +115,29 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         return (((base > sequence) and (base - sequence) <= half_seq)
             or ((sequence > base) and (sequence - base) > half_seq))
 
-    def delete(self, *args, **kwargs):
-        """Sets connection state to deleted"""
-        self.status = ConnectionStatus.deleted  # @UndefinedVariable
-
-    def connected(self, *args, **kwargs):
-        """Sets connection state to connected
-
-        :param args: additional positional arguments
-        :param kwargs: additional keyword arguments"""
-        self.status = ConnectionStatus.connected  # @UndefinedVariable
-        ConnectionSuccessSignal.invoke(target=self)
-
     def send(self, network_tick):
         """Pulls data from connection interfaces to send
 
         :param network_tick: if this is a network tick"""
+
         # Check for timeout
-        if (monotonic() - self.last_received) > self.time_out:
+        if (monotonic() - self.last_received) > self.time_out_delay:
             self.status = ConnectionStatus.timeout  # @UndefinedVariable
 
             err = ConnectionTimeoutError("Connection timed out")
             ConnectionErrorSignal.invoke(err, target=self)
+            return
 
         # Self-incrementing sequence property
         sequence = self.next_local_sequence
 
-        # If we are waiting to detect when packets have been received for throttling
+        # If we are waiting to detect when throttling will have returned
         if self.throttle_pending and self.tagged_throttle_sequence is None:
             self.tagged_throttle_sequence = sequence
 
         # If not connected setup handshake
-        if self.status == ConnectionStatus.disconnected:  # @UndefinedVariable
-            packet_collection = PacketCollection(self.get_handshake())
+        if self.status == ConnectionStatus.pending:  # @UndefinedVariable
+            packet_collection = PacketCollection(self.send_handshake())
             self.status = ConnectionStatus.handshake
 
         # If connected send normal data
@@ -208,38 +201,38 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.bandwidth /= 2
         self.throttle_pending = True
 
-    def receive(self, bytes_):
-        """Handles received bytes from peer
+    def handle_packet(self, packet):
+        # Called for handshake protocol
+        packet_protocol = packet.protocol
 
-        :param bytes_: data from peer"""
-        # Get the sequence id
-        sequence = self.sequence_handler.unpack_from(bytes_)
-        bytes_ = bytes_[self.sequence_handler.size():]
+        if packet_protocol > Protocols.request_handshake and self.status != ConnectionStatus.pending:
+            self.connection.receive(packet)
 
-        # Get the base value for the bitfield
-        ack_base = self.sequence_handler.unpack_from(bytes_)
-        bytes_ = bytes_[self.sequence_handler.size():]
+        elif packet_protocol == Protocols.request_handshake:
+            self.handle_handshake(packet)
 
-        # Read the acknowledgement bitfield
-        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
-        bytes_ = bytes_[self.ack_packer.size(bytes_):]
+        else:
+            err = TypeError("Unable to process packet with protocol {}"
+                            .format(packet_protocol))
+            ConnectionErrorSignal.invoke(err, target=self)
+            self.request_unregistration()
 
-        # Dictionary of packets waiting for acknowledgement
+    def update_reliable_info(self, ack_base, sliding_window):
         requested_ack = self.requested_ack
-        ack_bitfield = self.ack_bitfield
+        window_size = self.ack_window
 
         # Iterate over ACK bitfield
-        for index in range(self.ack_window):
+        for index in range(window_size):
             sequence_ = ack_base - (index + 1)
 
             # If it was acked successfully
-            flag = ack_bitfield[index]
+            flag = sliding_window[index]
 
             # If we are waiting for this packet, acknowledge it
             if (flag and sequence_ in requested_ack):
                 requested_ack.pop(sequence_).on_ack()
 
-                # Check throttling status
+                # If a packet has had time to return since throttling began
                 if sequence_ == self.tagged_throttle_sequence:
                     self.stop_throttling()
 
@@ -247,18 +240,17 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         if ack_base in self.requested_ack:
             requested_ack.pop(ack_base).on_ack()
 
-            # Check throttling status
+            # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
                 self.stop_throttling()
 
         # Dropped locals
-        window_size = self.ack_window
         buffer = self.internal_data
         missed_ack = False
 
         # Find packets we think are dropped and resend them
         considered_dropped = set(seq_ for seq_ in requested_ack if
-                                 (sequence - seq_) >= window_size)
+                                 (ack_base - seq_) >= window_size)
         # If the packet drops off the ack_window assume it is lost
         for sequence_ in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
@@ -272,37 +264,40 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
-        # Store the received time
-        self.last_received = monotonic()
+    def receive(self, bytes_):
+        """Handles received bytes from peer
+
+        :param bytes_: data from peer"""
+
+        # Get the sequence id
+        sequence = self.sequence_handler.unpack_from(bytes_)
+        bytes_ = bytes_[self.sequence_handler.size():]
+
+        # Get the base value for the bitfield
+        ack_base = self.sequence_handler.unpack_from(bytes_)
+        bytes_ = bytes_[self.sequence_handler.size():]
+
+        # Read the acknowledgement bitfield
+        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
+        bytes_ = bytes_[self.ack_packer.size(bytes_):]
+
+        # Dictionary of packets waiting for acknowledgement
+        self.update_reliable_info(ack_base, self.ack_bitfield)
 
         # If we receive a newer foreign sequence, update our local record
         if self.sequence_more_recent(sequence, self.remote_sequence):
             self.remote_sequence = sequence
 
-        # Recreate packet collection
-        packet_collection = PacketCollection().from_bytes(bytes_)
-
-        # Add packet to received list
+        # Update received window
         self.received_window.append(sequence)
-
-        # Limit received size
         if len(self.received_window) > self.ack_window:
             self.received_window.popleft()
 
-        # Called for handshake protocol
-        receive_handshake = self.receive_handshake
+        # Store the received time
+        self.last_received = monotonic()
 
-        # Call post-processed receive
-        if self.status != ConnectionStatus.connected:  # @UndefinedVariable
-            for member in packet_collection.members:
-
-                if member.protocol > Protocols.request_auth:  # @UndefinedVariable @IgnorePep8
-                    continue
-
-                receive_handshake(member)
-
-        else:
-            self.connection.receive(packet_collection)
+        # Handle received packets
+        PacketCollection.iter_bytes(bytes_, self.handle_packet)
 
 
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
@@ -316,45 +311,63 @@ class ServerInterface(ConnectionInterface):
 
     def on_unregistered(self):
         if self.connection is not None:
-            WorldInfo.rules.on_disconnect(self.connection.replicable)
+            ConnectionDeletedSignal.invoke(self.connection.replicable)
 
         super().on_unregistered()
 
-    def get_handshake(self):
+    def on_disconnect(self):
+        self.status = ConnectionStatus.disconnected  # @UndefinedVariable
+
+    def handle_packet(self, packet):
+        if packet.protocol == Protocols.request_disconnect:
+            self.on_disconnect()
+
+        else:
+            super().handle_packet(packet)
+
+    def send_handshake(self):
         '''Creates a handshake packet
         Either acknowledges connection or sends error state'''
         connection_failed = self.connection is None
 
         if connection_failed:
-
             if self._auth_error:
                 # Send the error code
+                handshake_type = self.handshake_packer.pack(
+                                        HandshakeState.failure)
                 err_name = self.error_packer.pack(
                                           type(self._auth_error).type_name)
                 err_body = self.error_packer.pack(
                                           self._auth_error.args[0])
 
                 # Yield a reliable packet
-                return Packet(protocol=Protocols.auth_failure,
-                              payload=err_name + err_body,
-                              on_success=self.delete)
+                return Packet(protocol=Protocols.request_handshake,
+                              payload=handshake_type + err_name + err_body,
+                              on_success=ignore_arguments(self.on_failure))
 
         else:
             # Send acknowledgement
-            return Packet(protocol=Protocols.auth_success,
-                          payload=self.netmode_packer.pack(WorldInfo.netmode),
-                          on_success=self.connected)
+            handshake_type = self.handshake_packer.pack(
+                                    HandshakeState.success)
+            return Packet(protocol=Protocols.request_handshake,
+                          payload=handshake_type + self.netmode_packer.pack(WorldInfo.netmode),
+                          on_success=ignore_arguments(self.on_connected))
 
-    def receive_handshake(self, packet):
+    def handle_handshake(self, packet):
         """Receives a handshake packet
         Either proceeds to setup connection or stores the error"""
+
         # Unpack data
-        netmode = self.netmode_packer.unpack_from(packet.payload)
+        handshake_type = self.handshake_packer.unpack_from(packet.payload)
+        payload = packet.payload[self.handshake_packer.size():]
+        netmode = self.netmode_packer.unpack_from(payload)
 
         # Store replicable
         try:
             if self.connection is not None:
                 raise NetworkError("Connection already in mediation")
+            if handshake_type != HandshakeState.request:
+                raise NetworkError("Handshake request was invalid")
             WorldInfo.rules.pre_initialise(self.instance_id, netmode)
 
         # If a NetworkError is raised store the result
@@ -362,40 +375,55 @@ class ServerInterface(ConnectionInterface):
             self._auth_error = err
 
         else:
-            self.connection = Connection(netmode)
-            returned_replicable = WorldInfo.rules.post_initialise(
-                                                          self.connection)
+            self.connection = connection = Connection(netmode)
+            returned_replicable = WorldInfo.rules.post_initialise(connection)
             # Replicable is boolean false until registered
             # User can force register though!
             if returned_replicable is not None:
-                self.connection.replicable = returned_replicable
+                connection.replicable = returned_replicable
 
 
 @netmode_switch(Netmodes.client)
 class ClientInterface(ConnectionInterface):
 
-    def get_handshake(self):
+    @DisconnectSignal.global_listener
+    def disconnect_from_server(self, quit_callback):
+        packet = Packet(Protocols.request_disconnect,
+                        on_success=ignore_arguments(quit_callback))
+        self.internal_data.append(packet)
+
+    def send_handshake(self):
         '''Creates a handshake packet
         Sends netmode to server'''
-        return Packet(protocol=Protocols.request_auth,
-                      payload=self.netmode_packer.pack(WorldInfo.netmode),
+        handshake_type = self.handshake_packer.pack(HandshakeState.request)
+        netmode = self.netmode_packer.pack(WorldInfo.netmode)
+        return Packet(protocol=Protocols.request_handshake,
+                      payload=handshake_type + netmode,
                       reliable=True)
 
-    def receive_handshake(self, packet):
+    def handle_handshake(self, packet):
         """Receives a handshake packet
         Either proceeds to setup connection or invokes the error"""
-        protocol = packet.protocol
 
-        if protocol == Protocols.auth_failure:
-            err_data = packet.payload[self.error_packer.size(packet.payload):]
-            err_type = self.error_packer.unpack_from(packet.payload)
+        # Unpack data
+        handshake_type = self.handshake_packer.unpack_from(packet.payload)
+        payload = packet.payload[self.handshake_packer.size():]
+
+        if handshake_type == HandshakeState.failure:
+            err_data = packet.payload[self.error_packer.size(payload):]
+            err_type = self.error_packer.unpack_from(payload)
             err_body = self.error_packer.unpack_from(err_data)
-            err = NetworkError.from_type_name(err_type)
+            err = NetworkError.from_type_name(err_type)(err_body)
 
             ConnectionErrorSignal.invoke(err, target=self)
-        else:
+
+        elif handshake_type == HandshakeState.success:
             # Get remote network mode
-            netmode = self.netmode_packer.unpack_from(packet.payload)
+            netmode = self.netmode_packer.unpack_from(payload)
             # If we did not have an error then we succeeded
             self.connection = Connection(netmode)
-            self.connected()
+            self.on_connected()
+
+        else:
+            err = NetworkError("Failed to determine handshake protocol")
+            ConnectionErrorSignal.invoke(err, target=self)

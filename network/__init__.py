@@ -1,3 +1,7 @@
+"""Network library to enable simple networking between Python objects.
+Attributes and Function calls can be "replicated" from the server and
+server-client respectively."""
+
 from .bitfield import *
 from .channel import *
 from .conditions import *

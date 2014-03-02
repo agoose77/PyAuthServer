@@ -8,7 +8,8 @@ from inspect import getmembers, signature
 
 __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal',
            'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
-           'ConnectionSuccessSignal', 'UpdateSignal', 'ProfileSignal']
+           'ConnectionSuccessSignal', 'UpdateSignal', 'ProfileSignal',
+           'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal']
 
 
 def members_predicate(member):
@@ -339,6 +340,33 @@ class CachedSignal(Signal):
                        **previous_kwargs)
 
 
+class SignalValue:
+
+    __slots__ = ['_value', '_changed']
+
+    def __init__(self, default=None):
+        self._value = default
+        self._changed = False
+
+    @property
+    def changed(self):
+        return self._changed
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+        self._changed = True
+
+    def create_setter(self, value):
+        def wrapper():
+            self.value = value
+        return wrapper
+
+
 class ReplicableRegisteredSignal(CachedSignal):
     pass
 
@@ -347,11 +375,19 @@ class ReplicableUnregisteredSignal(Signal):
     pass
 
 
+class DisconnectSignal(Signal):
+    pass
+
+
 class ConnectionErrorSignal(Signal):
     pass
 
 
 class ConnectionSuccessSignal(Signal):
+    pass
+
+
+class ConnectionDeletedSignal(Signal):
     pass
 
 

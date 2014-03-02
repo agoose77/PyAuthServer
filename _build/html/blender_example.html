@@ -677,6 +677,11 @@
 <tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/blender_example/controls.html#HandleFirstPersonCamera.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#blender_example.controls.HandleFirstPersonCamera.evaluate" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+<dl class="method">
+<dt id="blender_example.controls.HandleFirstPersonCamera.normalise">
+<tt class="descname">normalise</tt><big>(</big><em>angle</em><big>)</big><a class="headerlink" href="#blender_example.controls.HandleFirstPersonCamera.normalise" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -892,6 +897,33 @@
 </dd></dl>
 
 <dl class="class">
+<dt id="blender_example.replicables.BowAttachment">
+<em class="property">class </em><tt class="descclassname">blender_example.replicables.</tt><tt class="descname">BowAttachment</tt><big>(</big><em>instance_id=None</em>, <em>register=False</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#blender_example.replicables.BowAttachment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="bge_network.html#bge_network.replicables.WeaponAttachment" title="bge_network.replicables.WeaponAttachment"><tt class="xref py py-class docutils literal"><span class="pre">bge_network.replicables.WeaponAttachment</span></tt></a>, <a class="reference internal" href="network.html#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
+<dl class="attribute">
+<dt id="blender_example.replicables.BowAttachment.entity_name">
+<tt class="descname">entity_name</tt><em class="property"> = 'Bow'</em><a class="headerlink" href="#blender_example.replicables.BowAttachment.entity_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blender_example.replicables.BowWeapon">
+<em class="property">class </em><tt class="descclassname">blender_example.replicables.</tt><tt class="descname">BowWeapon</tt><big>(</big><em>instance_id=None</em>, <em>register=False</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#blender_example.replicables.BowWeapon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="bge_network.html#bge_network.replicables.ProjectileWeapon" title="bge_network.replicables.ProjectileWeapon"><tt class="xref py py-class docutils literal"><span class="pre">bge_network.replicables.ProjectileWeapon</span></tt></a>, <a class="reference internal" href="network.html#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
+<dl class="method">
+<dt id="blender_example.replicables.BowWeapon.on_initialised">
+<tt class="descname">on_initialised</tt><big>(</big><big>)</big><a class="headerlink" href="#blender_example.replicables.BowWeapon.on_initialised" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blender_example.replicables.BowWeapon.on_notify">
+<tt class="descname">on_notify</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#blender_example.replicables.BowWeapon.on_notify" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="blender_example.replicables.Cone">
 <em class="property">class </em><tt class="descclassname">blender_example.replicables.</tt><tt class="descname">Cone</tt><big>(</big><em>instance_id=None</em>, <em>register=False</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/blender_example/replicables.html#Cone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#blender_example.replicables.Cone" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="bge_network.html#bge_network.replicables.Actor" title="bge_network.replicables.Actor"><tt class="xref py py-class docutils literal"><span class="pre">bge_network.replicables.Actor</span></tt></a>, <a class="reference internal" href="network.html#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
@@ -945,7 +977,7 @@
 <dd><p>Bases: <a class="reference internal" href="bge_network.html#bge_network.replicables.PlayerController" title="bge_network.replicables.PlayerController"><tt class="xref py py-class docutils literal"><span class="pre">bge_network.replicables.PlayerController</span></tt></a>, <a class="reference internal" href="network.html#network.instance_register.InstanceMixins" title="network.instance_register.InstanceMixins"><tt class="xref py py-class docutils literal"><span class="pre">network.instance_register.InstanceMixins</span></tt></a></p>
 <dl class="attribute">
 <dt id="blender_example.replicables.LegendController.input_fields">
-<tt class="descname">input_fields</tt><em class="property"> = ('forward', 'backwards', 'left', 'right', 'shoot', 'run', 'voice')</em><a class="headerlink" href="#blender_example.replicables.LegendController.input_fields" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">input_fields</tt><em class="property"> = ('forward', 'backwards', 'left', 'right', 'shoot', 'run', 'voice', 'jump')</em><a class="headerlink" href="#blender_example.replicables.LegendController.input_fields" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">

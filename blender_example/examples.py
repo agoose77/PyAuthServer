@@ -72,13 +72,13 @@ class Cube(bge_network.Actor):
         file_path = logic.expandPath("//bump.mp3")
         factory = aud.Factory.file(file_path)
         device = aud.device()
-        handle = device.play(factory)
+        return device.play(factory)
 
-    def handle_damage(self, is_collision):
+    def handle_damage(self):
         self.damage -= 20
 
         if self.damage <= self.max_damage:
-            self.destroy()
+            self.request_unregistration()
 
     @bge_network.CollisionSignal.listener
     def on_collided(self, target, is_collision):

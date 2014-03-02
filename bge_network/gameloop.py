@@ -3,6 +3,7 @@ from .signals import (PlayerInputSignal, PhysicsTickSignal,
                       MapLoadedSignal, GameExitSignal,
                       PostPhysicsSignal)
 from .physics import PhysicsSystem
+from .timer import Timer
 
 from collections import Counter
 from contextlib import contextmanager
@@ -10,7 +11,8 @@ from functools import wraps
 from bge import logic, events, types
 from network import (Netmodes, WorldInfo, Network, Replicable,
                      SignalListener, ReplicableRegisteredSignal,
-                     UpdateSignal, Signal)
+                     UpdateSignal, Signal, DisconnectSignal,
+                     SignalValue)
 from time import monotonic
 
 
@@ -38,6 +40,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.network_tick_rate = 25
 
         self.profile = logic.KX_ENGINE_DEBUG_SERVICES
+        self.can_quit = SignalValue(self.check_quit())
 
         # Load world
         Signal.update_graph()
@@ -143,13 +146,17 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)
             self.update_scenegraph(current_time)
 
+    def on_quit(self):
+        self.can_quit.value = True
+
     def dispatch(self):
         last_time = self.get_time()
+        quit_object = SignalValue(self.check_quit())
 
         accumulator = 0.0
 
         # Fixed timestep
-        while not self.check_quit():
+        while not self.can_quit.value:
             current_time = self.get_time()
 
             # Determine delta time
@@ -168,6 +175,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 # Update IO events from Blender
                 self.profile = logic.KX_ENGINE_DEBUG_SERVICES
                 self.update_blender()
+
+                if self.check_quit():
+                    self.on_quit()
 
                 # Handle this outside of usual update
                 WorldInfo.update_clock(step_time)
@@ -232,6 +242,10 @@ class ServerGameLoop(GameLoop):
 
 
 class ClientGameLoop(GameLoop):
+
+    def on_quit(self):
+        DisconnectSignal.invoke(super().on_quit)
+        timer = Timer(1, on_target=super().on_quit)
 
     def create_network(self):
         WorldInfo.netmode = Netmodes.client

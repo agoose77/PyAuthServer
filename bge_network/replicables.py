@@ -196,7 +196,7 @@ class PlayerController(Controller):
 
     input_fields = []
 
-    move_error_limit = 0.1 ** 2
+    move_error_limit = 0.05 ** 2
     config_filepath = "inputs.conf"
 
     @property

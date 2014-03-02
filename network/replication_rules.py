@@ -16,8 +16,5 @@ class ReplicationRules(Replicable):
     def post_initialise(self, connection):
         raise NotImplementedError
 
-    def on_disconnect(self, replicable):
-        raise NotImplementedError
-
     def is_relevant(self, conn, replicable):
         raise NotImplementedError

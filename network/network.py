@@ -126,13 +126,13 @@ class Network:
     def send(self, full_update):
         '''Send all connection data and update timeouts'''
         send_func = self.send_to
-        disconnected_state = ConnectionStatus.disconnected  # @UndefinedVariable @IgnorePep8
+        pending_state = ConnectionStatus.pending  # @UndefinedVariable @IgnorePep8
 
         # Send all queued data
         for connection in ConnectionInterface:
 
             # If the connection should be removed (timeout or explicit)
-            if connection.status < disconnected_state:
+            if connection.status < pending_state:
                 connection.request_unregistration()
                 continue
 
@@ -148,4 +148,7 @@ class Network:
 
     @staticmethod
     def connect_to(peer_data, *args, **kwargs):
-        return ConnectionInterface(peer_data, *args, **kwargs)
+        try:
+            return ConnectionInterface.get_from_graph(peer_data)
+        except LookupError:
+            return ConnectionInterface(peer_data, *args, **kwargs)

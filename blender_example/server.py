@@ -35,7 +35,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     @property
     def connected_players(self):
-        disconnected_status = bge_network.ConnectionStatus.disconnected
+        disconnected_status = bge_network.ConnectionStatus.pending
         return bge_network.ConnectionInterface.by_status(disconnected_status,
                                                          operator.gt)
 
@@ -157,6 +157,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         self.matchmaker.register("Demo Server", "Test Map",
                                         self.player_limit, 0)
 
+    @bge_network.ConnectionDeletedSignal.global_listener
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
         self.update_matchmaker()

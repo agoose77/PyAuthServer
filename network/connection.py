@@ -234,16 +234,13 @@ class ClientConnection(Connection):
         consume(replicables)
         return collection
 
-    def receive(self, packets):
+    def receive(self, packet):
         '''Handles incoming PacketCollection instance
 
         :param packets: PacketCollection instance'''
 
-        for packet in packets:
-            protocol = packet.protocol
-
-            if protocol in Protocols:
-                self.set_replication(packet)
+        if packet.protocol in Protocols:
+            self.set_replication(packet)
 
 
 @netmode_switch(Netmodes.server)
@@ -376,7 +373,7 @@ class ServerConnection(Connection):
             extend_packets(self.cached_packets)
             self.cached_packets.clear()
 
-    def receive(self, packets):
+    def receive(self, packet):
         '''Handles incoming PacketCollection instance
 
         :param packets: PacketCollection instance'''
@@ -389,18 +386,15 @@ class ServerConnection(Connection):
 
         method_invoke = Protocols.method_invoke  # @UndefinedVariable
 
-        # Run RPC invoke for each packet
-        for packet in packets:
+        # If it is an RPC packet
+        if packet.protocol == method_invoke:
+            # Unpack data
+            instance_id = unpacker(packet.payload)
+            channel = channels[instance_id]
 
-            # If it is an RPC packet
-            if packet.protocol == method_invoke:
-                # Unpack data
-                instance_id = unpacker(packet.payload)
-                channel = channels[instance_id]
-
-                # If we have permission to execute
-                if is_owner(channel.replicable):
-                    channel.invoke_rpc_call(packet.payload[id_size:])
+            # If we have permission to execute
+            if is_owner(channel.replicable):
+                channel.invoke_rpc_call(packet.payload[id_size:])
 
     def send(self, network_tick, available_bandwidth):
         '''Creates a packet collection of replicated function calls

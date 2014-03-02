@@ -80,3 +80,9 @@ def netmode_switch(netmode):
         return cls
     return wrapper
 
+
+def ignore_arguments(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func()
+    return wrapper

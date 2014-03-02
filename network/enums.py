@@ -32,15 +32,19 @@ class Enum(type):
 
 
 class ConnectionStatus(metaclass=Enum):
-    values = ("deleted", "timeout", "disconnected", "handshake", "connected")
+    values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
 
 class Netmodes(metaclass=Enum):
     values = "server", "client", "listen", "single"
 
 
+class HandshakeState(metaclass=Enum):
+    values = "failure", "success", "request"
+
+
 class Protocols(metaclass=Enum):
-    values = ("auth_failure", "auth_success", "request_auth",
+    values = ("request_disconnect", "request_handshake",
               "replication_init", "replication_del",
               "replication_update", "method_invoke")
 

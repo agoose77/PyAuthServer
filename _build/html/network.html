@@ -80,6 +80,7 @@
 </tr>
 </tbody>
 </table>
+<p>:code:bitfield=`Bitfield.from_iterable() `</p>
 </dd></dl>
 
 <dl class="method">
@@ -104,7 +105,7 @@
 <dl class="class">
 <dt id="network.channel.Channel">
 <em class="property">class </em><tt class="descclassname">network.channel.</tt><tt class="descname">Channel</tt><big>(</big><em>connection</em>, <em>replicable</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#Channel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.channel.Channel" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <a class="reference internal" href="#network.netmode_switch.NetmodeSwitch" title="network.netmode_switch.NetmodeSwitch"><tt class="xref py py-class docutils literal"><span class="pre">network.netmode_switch.NetmodeSwitch</span></tt></a></p>
 <p>Channel for replication information
 Belongs to an instance of Replicable and a connection</p>
 <dl class="attribute">
@@ -126,6 +127,11 @@ Belongs to an instance of Replicable and a connection</p>
 </tbody>
 </table>
 </dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.Channel.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'ServerChannel': &lt;class 'network.channel.ServerChannel'&gt;, 'ClientChannel': &lt;class 'network.channel.ClientChannel'&gt;}</em><a class="headerlink" href="#network.channel.Channel.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="network.channel.Channel.take_rpc_calls">
@@ -224,14 +230,9 @@ Format: rpc_id (bytes) + body (bytes), reliable status (bool)</p>
 <dl class="class">
 <dt id="network.connection.Connection">
 <em class="property">class </em><tt class="descclassname">network.connection.</tt><tt class="descname">Connection</tt><big>(</big><em>netmode</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#network.signals.SignalListener" title="network.signals.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.SignalListener</span></tt></a></p>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.SignalListener" title="network.signals.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.SignalListener</span></tt></a>, <a class="reference internal" href="#network.netmode_switch.NetmodeSwitch" title="network.netmode_switch.NetmodeSwitch"><tt class="xref py py-class docutils literal"><span class="pre">network.netmode_switch.NetmodeSwitch</span></tt></a></p>
 <p>Connection between loacl host and remote peer
 Represents a successful connection</p>
-<dl class="attribute">
-<dt id="network.connection.Connection.channel_class">
-<tt class="descname">channel_class</tt><em class="property"> = None</em><a class="headerlink" href="#network.connection.Connection.channel_class" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 <dl class="method">
 <dt id="network.connection.Connection.get_method_replication">
 <tt class="descname">get_method_replication</tt><big>(</big><em>replicables</em>, <em>collection</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#Connection.get_method_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.Connection.get_method_replication" title="Permalink to this definition">¶</a></dt>
@@ -345,21 +346,20 @@ with a remote role != Roles.none</p>
 </table>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="network.connection.Connection.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'ClientConnection': &lt;class 'network.connection.ClientConnection'&gt;, 'ServerConnection': &lt;class 'network.connection.ServerConnection'&gt;}</em><a class="headerlink" href="#network.connection.Connection.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
 <dt id="network.connection.ServerConnection">
 <em class="property">class </em><tt class="descclassname">network.connection.</tt><tt class="descname">ServerConnection</tt><big>(</big><em>netmode</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#network.connection.Connection" title="network.connection.Connection"><tt class="xref py py-class docutils literal"><span class="pre">network.connection.Connection</span></tt></a></p>
-<dl class="attribute">
-<dt id="network.connection.ServerConnection.channel_class">
-<tt class="descname">channel_class</tt><a class="headerlink" href="#network.connection.ServerConnection.channel_class" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">ServerChannel</span></tt></p>
-</dd></dl>
-
 <dl class="method">
 <dt id="network.connection.ServerConnection.get_attribute_replication">
-<tt class="descname">get_attribute_replication</tt><big>(</big><em>replicables</em>, <em>collection</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.get_attribute_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.get_attribute_replication" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_attribute_replication</tt><big>(</big><em>replicables</em>, <em>collection</em>, <em>bandwidth</em>, <em>send_attributes=True</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ServerConnection.get_attribute_replication"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ServerConnection.get_attribute_replication" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generator
 Writes to packet collection, respecting bandwidth for attribute
 replication</p>
@@ -461,12 +461,6 @@ Called by ConnectionStatus when deleted</p>
 <dt id="network.connection.ClientConnection">
 <em class="property">class </em><tt class="descclassname">network.connection.</tt><tt class="descname">ClientConnection</tt><big>(</big><em>netmode</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ClientConnection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ClientConnection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#network.connection.Connection" title="network.connection.Connection"><tt class="xref py py-class docutils literal"><span class="pre">network.connection.Connection</span></tt></a></p>
-<dl class="attribute">
-<dt id="network.connection.ClientConnection.channel_class">
-<tt class="descname">channel_class</tt><a class="headerlink" href="#network.connection.ClientConnection.channel_class" title="Permalink to this definition">¶</a></dt>
-<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">ClientChannel</span></tt></p>
-</dd></dl>
-
 <dl class="method">
 <dt id="network.connection.ClientConnection.receive">
 <tt class="descname">receive</tt><big>(</big><em>packets</em><big>)</big><a class="reference internal" href="_modules/network/connection.html#ClientConnection.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.connection.ClientConnection.receive" title="Permalink to this definition">¶</a></dt>
@@ -959,12 +953,12 @@ Handles data storage, access and complaints</p>
 
 <dl class="method">
 <dt id="network.containers.AttributeStorageContainer.get_description_tuple">
-<tt class="descname">get_description_tuple</tt><big>(</big><em>static_description=&lt;function static_description at 0x03A96AE0&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_description_tuple</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_description_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_description_tuple" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="staticmethod">
 <dt id="network.containers.AttributeStorageContainer.get_descriptions_of">
-<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em>, <em>static_description=&lt;function static_description at 0x03A96AE0&gt;</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
+<em class="property">static </em><tt class="descname">get_descriptions_of</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/containers.html#AttributeStorageContainer.get_descriptions_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.containers.AttributeStorageContainer.get_descriptions_of" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1390,7 +1384,7 @@ Pretty printable</p>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.Exception</span></tt></p>
 <dl class="attribute">
 <dt id="network.errors.NetworkError.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;, 'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ConnectionTimeoutError': &lt;class 'network.errors.ConnectionTimeoutError'&gt;, 'ReplicableAccessError': &lt;class 'network.errors.ReplicableAccessError'&gt;, 'BlacklistError': &lt;class 'bge_network.errors.BlacklistError'&gt;, 'AuthError': &lt;class 'bge_network.errors.AuthError'&gt;}</em><a class="headerlink" href="#network.errors.NetworkError.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1612,7 +1606,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.ReplicableTypeHandler.string_packer">
-<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x039C3790&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">string_packer</tt><em class="property"> = &lt;network.serialiser.StringHandler object at 0x03D7F530&gt;</em><a class="headerlink" href="#network.native_handlers.ReplicableTypeHandler.string_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1638,7 +1632,7 @@ Packed structure:
 
 <dl class="attribute">
 <dt id="network.native_handlers.RolesHandler.packer">
-<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03D3B090&gt;</em><a class="headerlink" href="#network.native_handlers.RolesHandler.packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1743,7 +1737,7 @@ Packs replicable references and unpacks to proxy OR reference</p>
 
 <dl class="attribute">
 <dt id="network.native_handlers.BitFieldHandler.size_packer">
-<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_packer</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03D3B090&gt;</em><a class="headerlink" href="#network.native_handlers.BitFieldHandler.size_packer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -1771,8 +1765,8 @@ Packs replicable references and unpacks to proxy OR reference</p>
 <em class="property">class </em><tt class="descclassname">network.netmode_switch.</tt><tt class="descname">NetmodeSwitch</tt><a class="reference internal" href="_modules/network/netmode_switch.html#NetmodeSwitch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.netmode_switch.NetmodeSwitch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
 <dl class="classmethod">
-<dt id="network.netmode_switch.NetmodeSwitch.netmode_specific">
-<em class="property">classmethod </em><tt class="descname">netmode_specific</tt><big>(</big><em>id_</em><big>)</big><a class="reference internal" href="_modules/network/netmode_switch.html#NetmodeSwitch.netmode_specific"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.netmode_switch.NetmodeSwitch.netmode_specific" title="Permalink to this definition">¶</a></dt>
+<dt id="network.netmode_switch.NetmodeSwitch.find_subclass_for">
+<em class="property">classmethod </em><tt class="descname">find_subclass_for</tt><big>(</big><em>netmode</em><big>)</big><a class="headerlink" href="#network.netmode_switch.NetmodeSwitch.find_subclass_for" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1981,7 +1975,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.protocol_handler">
-<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1990&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">protocol_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03D3B090&gt;</em><a class="headerlink" href="#network.packet.Packet.protocol_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -1996,7 +1990,7 @@ Takes data from bytes, returns Packet()</p>
 
 <dl class="attribute">
 <dt id="network.packet.Packet.size_handler">
-<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03BD1780&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">size_handler</tt><em class="property"> = &lt;network.serialiser.IStruct object at 0x03D34CF0&gt;</em><a class="headerlink" href="#network.packet.Packet.size_handler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -2215,7 +2209,7 @@ Handles edge cases such as static replicables</p>
 
 <dl class="attribute">
 <dt id="network.replicables.Replicable.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'Pawn': &lt;class 'bge_network.replicables.Pawn'&gt;, 'ReplicationRules': &lt;class 'network.replication_rules.ReplicationRules'&gt;, 'Actor': &lt;class 'bge_network.replicables.Actor'&gt;, 'ZombieWeapon': &lt;class 'blender_example.replicables.ZombieWeapon'&gt;, 'Controller': &lt;class 'bge_network.replicables.Controller'&gt;, 'RobertNeville': &lt;class 'blender_example.replicables.RobertNeville'&gt;, 'PlayerReplicationInfo': &lt;class 'bge_network.replicables.PlayerReplicationInfo'&gt;, 'Navmesh': &lt;class 'bge_network.replicables.Navmesh'&gt;, 'AIController': &lt;class 'bge_network.replicables.AIController'&gt;, 'WeaponAttachment': &lt;class 'bge_network.replicables.WeaponAttachment'&gt;, 'EmptyWeapon': &lt;class 'bge_network.replicables.EmptyWeapon'&gt;, 'PlayerController': &lt;class 'bge_network.replicables.PlayerController'&gt;, 'M4A1Weapon': &lt;class 'blender_example.replicables.M4A1Weapon'&gt;, '_WorldInfo': &lt;class 'network.replicables._WorldInfo'&gt;, 'TraceWeapon': &lt;class 'bge_network.replicables.TraceWeapon'&gt;, 'SphereProjectile': &lt;class 'blender_example.replicables.SphereProjectile'&gt;, 'AIReplicationInfo': &lt;class 'bge_network.replicables.AIReplicationInfo'&gt;, 'GameReplicationInfo': &lt;class 'blender_example.replicables.GameReplicationInfo'&gt;, 'M4A1Attachment': &lt;class 'blender_example.replicables.M4A1Attachment'&gt;, 'Cone': &lt;class 'blender_example.replicables.Cone'&gt;, 'ReplicableInfo': &lt;class 'bge_network.replicables.ReplicableInfo'&gt;, 'ZombieAttachment': &lt;class 'blender_example.replicables.ZombieAttachment'&gt;, 'Weapon': &lt;class 'bge_network.replicables.Weapon'&gt;, 'ProjectileWeapon': &lt;class 'bge_network.replicables.ProjectileWeapon'&gt;, 'Lamp': &lt;class 'bge_network.replicables.Lamp'&gt;, 'Camera': &lt;class 'bge_network.replicables.Camera'&gt;, 'EnemyController': &lt;class 'blender_example.replicables.EnemyController'&gt;, 'ArrowProjectile': &lt;class 'blender_example.replicables.ArrowProjectile'&gt;, 'LegendController': &lt;class 'blender_example.replicables.LegendController'&gt;, 'Zombie': &lt;class 'blender_example.replicables.Zombie'&gt;, 'EmptyAttatchment': &lt;class 'bge_network.replicables.EmptyAttatchment'&gt;}</em><a class="headerlink" href="#network.replicables.Replicable.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'ReplicableInfo': &lt;class 'bge_network.replicables.ReplicableInfo'&gt;, '_WorldInfo': &lt;class 'network.replicables._WorldInfo'&gt;, 'AIController': &lt;class 'bge_network.replicables.AIController'&gt;, 'ArrowProjectile': &lt;class 'blender_example.replicables.ArrowProjectile'&gt;, 'Camera': &lt;class 'bge_network.replicables.Camera'&gt;, 'GameReplicationInfo': &lt;class 'blender_example.replicables.GameReplicationInfo'&gt;, 'LegendController': &lt;class 'blender_example.replicables.LegendController'&gt;, 'EmptyWeapon': &lt;class 'bge_network.replicables.EmptyWeapon'&gt;, 'EnemyController': &lt;class 'blender_example.replicables.EnemyController'&gt;, 'SphereProjectile': &lt;class 'blender_example.replicables.SphereProjectile'&gt;, 'Actor': &lt;class 'bge_network.replicables.Actor'&gt;, 'Weapon': &lt;class 'bge_network.replicables.Weapon'&gt;, 'Controller': &lt;class 'bge_network.replicables.Controller'&gt;, 'ZombieWeapon': &lt;class 'blender_example.replicables.ZombieWeapon'&gt;, 'PlayerController': &lt;class 'bge_network.replicables.PlayerController'&gt;, 'Lamp': &lt;class 'bge_network.replicables.Lamp'&gt;, 'M4A1Attachment': &lt;class 'blender_example.replicables.M4A1Attachment'&gt;, 'AIReplicationInfo': &lt;class 'bge_network.replicables.AIReplicationInfo'&gt;, 'Navmesh': &lt;class 'bge_network.replicables.Navmesh'&gt;, 'Zombie': &lt;class 'blender_example.replicables.Zombie'&gt;, 'ReplicationRules': &lt;class 'network.replication_rules.ReplicationRules'&gt;, 'ZombieAttachment': &lt;class 'blender_example.replicables.ZombieAttachment'&gt;, 'TraceWeapon': &lt;class 'bge_network.replicables.TraceWeapon'&gt;, 'WeaponAttachment': &lt;class 'bge_network.replicables.WeaponAttachment'&gt;, 'BowAttachment': &lt;class 'blender_example.replicables.BowAttachment'&gt;, 'Pawn': &lt;class 'bge_network.replicables.Pawn'&gt;, 'ProjectileWeapon': &lt;class 'bge_network.replicables.ProjectileWeapon'&gt;, 'PlayerReplicationInfo': &lt;class 'bge_network.replicables.PlayerReplicationInfo'&gt;, 'BowWeapon': &lt;class 'blender_example.replicables.BowWeapon'&gt;, 'RobertNeville': &lt;class 'blender_example.replicables.RobertNeville'&gt;, 'Cone': &lt;class 'blender_example.replicables.Cone'&gt;, 'M4A1Weapon': &lt;class 'blender_example.replicables.M4A1Weapon'&gt;, 'EmptyAttatchment': &lt;class 'bge_network.replicables.EmptyAttatchment'&gt;}</em><a class="headerlink" href="#network.replicables.Replicable.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
@@ -2760,7 +2754,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.Signal.subclasses">
-<tt class="descname">subclasses</tt><em class="property"> = {'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'UIWeaponChangedSignal': &lt;class 'blender_example.signals.UIWeaponChangedSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'UIWeaponDataChangedSignal': &lt;class 'blender_example.signals.UIWeaponDataChangedSignal'&gt;, 'ConsoleMessage': &lt;class 'blender_example.signals.ConsoleMessage'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'ConnectToSignal': &lt;class 'blender_example.signals.ConnectToSignal'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'UIHealthChangedSignal': &lt;class 'blender_example.signals.UIHealthChangedSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">subclasses</tt><em class="property"> = {'CollisionSignal': &lt;class 'bge_network.signals.CollisionSignal'&gt;, 'SetMoveTarget': &lt;class 'bge_network.signals.SetMoveTarget'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.ReplicableRegisteredSignal'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.ConnectionSuccessSignal'&gt;, 'ActorKilledSignal': &lt;class 'bge_network.signals.ActorKilledSignal'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.ReplicableUnregisteredSignal'&gt;, 'ConnectToSignal': &lt;class 'blender_example.signals.ConnectToSignal'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'bge_network.signals.PhysicsSingleUpdateSignal'&gt;, 'CachedSignal': &lt;class 'network.signals.CachedSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.ConnectionErrorSignal'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'bge_network.signals.PhysicsRoleChangedSignal'&gt;, 'UIHealthChangedSignal': &lt;class 'blender_example.signals.UIHealthChangedSignal'&gt;, 'PhysicsCopyState': &lt;class 'bge_network.signals.PhysicsCopyState'&gt;, 'PlayerInputSignal': &lt;class 'bge_network.signals.PlayerInputSignal'&gt;, 'ActorDamagedSignal': &lt;class 'bge_network.signals.ActorDamagedSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'bge_network.signals.PhysicsReplicatedSignal'&gt;, 'PhysicsTickSignal': &lt;class 'bge_network.signals.PhysicsTickSignal'&gt;, 'ProfileSignal': &lt;class 'network.signals.ProfileSignal'&gt;, 'UIWeaponDataChangedSignal': &lt;class 'blender_example.signals.UIWeaponDataChangedSignal'&gt;, 'PhysicsRewindSignal': &lt;class 'bge_network.signals.PhysicsRewindSignal'&gt;, 'ConsoleMessage': &lt;class 'blender_example.signals.ConsoleMessage'&gt;, 'UpdateCollidersSignal': &lt;class 'bge_network.signals.UpdateCollidersSignal'&gt;, 'MapLoadedSignal': &lt;class 'bge_network.signals.MapLoadedSignal'&gt;, 'UIWeaponChangedSignal': &lt;class 'blender_example.signals.UIWeaponChangedSignal'&gt;, 'PostPhysicsSignal': &lt;class 'bge_network.signals.PostPhysicsSignal'&gt;, 'GameExitSignal': &lt;class 'bge_network.signals.GameExitSignal'&gt;, 'UpdateSignal': &lt;class 'network.signals.UpdateSignal'&gt;, 'BroadcastMessage': &lt;class 'bge_network.signals.BroadcastMessage'&gt;}</em><a class="headerlink" href="#network.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="classmethod">
@@ -3111,7 +3105,7 @@ Gets the marked signal callbacks
 
 <dl class="attribute">
 <dt id="network.signals.ProfileSignal.to_subscribe">
-<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x039BC8D0&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x039BC8D0&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">to_subscribe</tt><em class="property"> = {&lt;network.profiler.ProfileManager object at 0x03D7FEB0&gt;: (&lt;bound method ProfileManager.update_profiler of &lt;network.profiler.ProfileManager object at 0x03D7FEB0&gt;&gt;, False, False)}</em><a class="headerlink" href="#network.signals.ProfileSignal.to_subscribe" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
