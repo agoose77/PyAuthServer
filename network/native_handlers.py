@@ -120,7 +120,7 @@ class StructHandler:
         return struct
 
     def unpack_merge(self, struct, bytes_):
-        struct.from_bytes(bytes_[self.size_packer.size():])
+        struct.read_bytes(bytes_[self.size_packer.size():])
 
     def size(self, bytes_):
         return self.size_packer.unpack_from(bytes_) + self.size_packer.size()

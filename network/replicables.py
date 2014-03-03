@@ -254,7 +254,15 @@ class _WorldInfo(Replicable):
     @property
     def tick(self):
         ''':returns: current simulation tick'''
-        return int((self.elapsed + self.clock_correction) * self.tick_rate)
+        return self.to_ticks(self.elapsed + self.clock_correction)
+
+    @simulated
+    def to_ticks(self, delta_time):
+        '''Converts delta time into approximate number of ticks
+
+        :param delta_time: time in seconds
+        :returns: ticks according to current tick rate'''
+        return round(delta_time * self.tick_rate)
 
     @simulated
     def subclass_of(self, actor_type):

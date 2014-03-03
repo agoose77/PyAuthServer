@@ -180,87 +180,55 @@ class ServerPhysics(PhysicsSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._rewind_buffers = defaultdict(deque)
+        self._rewind_buffers = {}
+        self._rewind_keys = deque()
         self._rewind_length = 1 * WorldInfo.tick_rate
 
     @PhysicsRewindSignal.global_listener
-    def rewind_to(self, target_tick):
-        raise NotImplementedError
+    def rewind_to(self, target_tick=None):
+        try:
+            if target_tick is None:
+                target_tick = self._rewind_keys[-1]
+            tick_buffer = self._rewind_buffers[target_tick]
 
-        rewind_buffers = self._rewind_buffers
-
-        first_pawn, pawn_data = next(rewind_buffers.items().__iter__(), None)
-
-        if first_pawn is None:
-            return
-
-        # Find rewinding
-        for index, (from_tick, from_state) in enumerate(
-                                                 reversed(pawn_data)):
-            if from_tick <= target_tick:
-                break
-            target_tick = from_tick
-
-        else:
-            return
+        except (IndexError, KeyError) as err:
+            raise ValueError("Could not rewind to tick {}"
+                             .format(target_tick)) from err
 
         # Apply rewinding
-        if from_tick == target_tick:
-            for pawn, buffer in rewind_buffers.items():
-                try:
-                    to_state = buffer[-(index + 1)][1]
-                except IndexError:
-                    continue
+        for pawn, state in tick_buffer.items():
+            rigid_state = RigidBodyState.from_tuple(state)
 
-                rigid_state = RigidBodyState()
-                rigid_state.from_tuple(to_state)
-
-                self.interface_state(rigid_state, pawn)
-
-        else:
-            for pawn, buffer in rewind_buffers.items():
-                delta_time = target_tick - from_timestamp
-                progress = target_tick - from_timestamp
-                factor = progress / delta_time
-                try:
-                    from_state = buffer[-(index + 1)][1]
-                    to_state = buffer[-index][1]
-                except IndexError:
-                    continue
-
-                state_f = RigidBodyState()
-                state_f.from_tuple(from_state)
-                state_t = RigidBodyState()
-                state_t.from_tuple(to_state)
-                state_f.lerp(state_t, factor)
-
-                self.interface_state(state_f, pawn)
+            self.interface_state(rigid_state, pawn)
 
     def store_rewind_data(self):
-        buffers = self._rewind_buffers
         tick = WorldInfo.tick
 
-        for pawn in WorldInfo.subclass_of(Pawn):
-            buffer = buffers[pawn]
+        # Store data
+        self._rewind_buffers[tick] = {p: p.rigid_body_state.to_tuple()
+                                      for p in WorldInfo.subclass_of(Pawn)}
 
-            state = pawn.rigid_body_state.to_tuple()
-            buffer.append((tick, state))
+        self._rewind_keys.append(tick)
 
-            if (tick - buffer[0][0]) > self._rewind_length:
-                buffer.popleft()
+        # Cap rewind length
+        if (tick - self._rewind_keys[0]) > self._rewind_length:
+            self._rewind_buffers.pop(self._rewind_keys[0])
+            self._rewind_keys.popleft()
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         """Listener for PhysicsTickSignal
         Copy physics state to network variable for Actor instances"""
+
         for replicable in WorldInfo.subclass_of(Actor):
             assert replicable.registered
             self.interface_state(replicable,
                                  replicable.rigid_body_state)
+        self.store_rewind_data()
 
         super().update(scene, delta_time)
 
-        self.store_rewind_data()
+
 
 
 @netmode_switch(Netmodes.client)

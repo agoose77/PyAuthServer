@@ -196,7 +196,7 @@ class PlayerController(Controller):
 
     input_fields = []
 
-    move_error_limit = 0.05 ** 2
+    move_error_limit = 0.2 ** 2
     config_filepath = "inputs.conf"
 
     @property
@@ -488,9 +488,14 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.server)
     def server_fire(self):
         print("Rolling back by {:.3f} seconds".format(self.info.ping))
-        #signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)
+        if 0:
+            latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
+            signals.PhysicsRewindSignal.invoke(WorldInfo.tick - latency_ticks)
 
         super().server_fire()
+
+        if 0:
+            signals.PhysicsRewindSignal.invoke()
 
     def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
         '''Flag a variable as unlocked on the server'''

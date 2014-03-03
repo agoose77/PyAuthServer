@@ -3,7 +3,7 @@ from .descriptors import TypeFlag
 
 from collections import OrderedDict, namedtuple
 from functools import update_wrapper
-from inspect import signature
+from inspect import signature, Parameter
 
 __all__ = ['MarkAttribute', 'RPCInterfaceFactory', 'RPCInterface']
 
@@ -18,8 +18,11 @@ class RPCInterfaceFactory:
         # Information about RPC
         update_wrapper(self, function)
 
-        self.function = function
+        self._function = function
+        self._signature = signature(function)
         self._by_instance = {}
+
+        self.verify_function(function)
 
     def __get__(self, instance, base):
         if instance is None:
@@ -29,10 +32,10 @@ class RPCInterfaceFactory:
             return self._by_instance[instance]
 
         except KeyError:
-            return self.function.__get__(instance)
+            return self._function.__get__(instance)
 
     def create_rpc_interface(self, instance):
-        bound_function = self.function.__get__(instance)
+        bound_function = self._function.__get__(instance)
 
         self.update_class_arguments(bound_function, instance)
         self._by_instance[instance] = RPCInterface(bound_function)
@@ -40,8 +43,7 @@ class RPCInterfaceFactory:
         return self._by_instance[instance]
 
     def update_class_arguments(self, function, instance):
-        function_signature = signature(function)
-        function_arguments = RPCInterface.order_arguments(function_signature)
+        function_arguments = RPCInterface.order_arguments(self._signature)
         lookup_type = MarkAttribute
         for argument in function_arguments.values():
             data = argument.data
@@ -50,8 +52,17 @@ class RPCInterfaceFactory:
                     continue
                 data[arg_name] = getattr(instance, arg_value.name)
 
+    def verify_function(self, function):
+        parameters = iter(self._signature.parameters.items())
+        next(parameters)
+        for parameter_name, parameter in parameters:
+            if parameter.annotation is Parameter.empty:
+                raise ValueError("RPC call '{}' has not provided a type for "
+                         "parameter '{}'".format(self._function.__qualname__,
+                                               parameter_name))
+
     def __repr__(self):
-        return "<RPC {}>".format(self.function.__qualname__)
+        return "<RPC {}>".format(self._function.__qualname__)
 
 
 class RPCInterface:
@@ -85,16 +96,20 @@ class RPCInterface:
 
         # Store serialised argument data for later sending
         arguments = self._binder(*args, **kwargs).arguments
-        self._interface.value = self._serialiser.pack(arguments)
+        try:
+            self._interface.value = self._serialiser.pack(arguments)
+        except Exception as err:
+            raise RuntimeError("Could not package RPC call: '{}'".format(
+                                        self._function_name)) from err
 
     def execute(self, bytes_):
         # Unpack RPC
         try:
             unpacked_data = self._serialiser.unpack(bytes_)
             self._function_call(**dict(unpacked_data))
+
         except Exception as err:
-            print("Error invoking {}: {}".format(self._function_name, err))
-            raise
+            print("Could not invoke RPC call: '{}' - {}".format(self._function_name, err))
 
     @staticmethod
     def order_arguments(signature):

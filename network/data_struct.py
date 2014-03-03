@@ -37,17 +37,22 @@ class Struct:
         data = container.data
         return tuple(data[k] for k in attributes)
 
-    def from_tuple(self, tuple_):
-        container = self._container
-        data = container.data
-        for member, value in zip(
-                         container._ordered_mapping.values(), tuple_):
+    @classmethod
+    def from_tuple(cls, tuple_):
+        struct = cls()
+
+        data = struct._container.data
+        members = struct._container._ordered_mapping.values()
+
+        for member, value in zip(members, tuple_):
             data[member] = value
+
+        return struct
 
     def on_notify(self, name):
         pass
 
-    def from_bytes(self, bytes_):
+    def read_bytes(self, bytes_):
         notifications = []
 
         replicable_data = self._container.data
