@@ -90,8 +90,9 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.setup_weapon(weapon)
 
-        pawn.position = Vector((random.randint(-10, 10),
-                                random.randint(-10, 10), 3))
+        pawn.position = random.choice(WorldInfo.subclass_of(SpawnPoint)
+                                      ).position
+
         return controller
 
     def is_relevant(self, player_controller, replicable):

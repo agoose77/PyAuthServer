@@ -325,3 +325,12 @@ class BowAttachment(bge_network.WeaponAttachment):
 #     @simulated
 #     def update(self, dt):
 #         print(self.owner.view_pitch)
+
+
+class SpawnPoint(bge_network.Actor):
+
+    roles = bge_network.Roles(bge_network.Roles.authority,
+                              bge_network.Roles.none)
+
+    entity_name = "SpawnPoint"
+
