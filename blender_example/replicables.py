@@ -28,6 +28,11 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
         yield "time_to_start"
 
 
+class TeamInfo(bge_network.ReplicableInfo):
+
+    name = bge_network.Attribute(type_of=str)
+
+
 class EnemyController(bge_network.AIController):
 
     def on_initialised(self):
@@ -255,6 +260,7 @@ class ArrowProjectile(bge_network.Actor):
 
         self.update_simulated_physics = False
         self.in_flight = True
+        self.lifespan = 5
 
     @UpdateSignal.global_listener
     @simulated
@@ -265,7 +271,7 @@ class ArrowProjectile(bge_network.Actor):
         global_vel = self.velocity.copy()
         global_vel.rotate(self.rotation)
 
-        TracerParticle().position = self.position
+        TracerParticle().position = self.position - global_vel.normalized() * 2
         self.align_to(global_vel, 0.3)
 
     @bge_network.CollisionSignal.listener
@@ -320,11 +326,6 @@ class M4A1Attachment(bge_network.WeaponAttachment):
 class BowAttachment(bge_network.WeaponAttachment):
 
     entity_name = "Bow"
-
-#     @bge_network.UpdateSignal.global_listener
-#     @simulated
-#     def update(self, dt):
-#         print(self.owner.view_pitch)
 
 
 class SpawnPoint(bge_network.Actor):

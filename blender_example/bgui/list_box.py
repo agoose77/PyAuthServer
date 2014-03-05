@@ -162,6 +162,8 @@ class ListBox(Widget):
 		self._spatial_map.clear()
 	
 	def can_draw(self, item):
+		if not item in self.items:
+			return False
 		return 0 <= (self.items.index(item) - self.shift) < self.length
 	
 	def _draw(self):
