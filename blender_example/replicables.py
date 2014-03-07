@@ -20,12 +20,20 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
 
     time_to_start = bge_network.Attribute(0.0)
     match_started = bge_network.Attribute(False)
+    players = bge_network.Attribute(bge_network.TypedList(bge_network.Replicable),
+                                    element_flag=bge_network.TypeFlag(bge_network.Replicable))
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
         yield "match_started"
         yield "time_to_start"
+        yield "players"
+
+    @bge_network.UpdateSignal.global_listener
+    @bge_network.simulated
+    def update(self, t):
+        print(self.players)
 
 
 class TeamInfo(bge_network.ReplicableInfo):
@@ -324,6 +332,9 @@ class M4A1Attachment(bge_network.WeaponAttachment):
 
 
 class BowAttachment(bge_network.WeaponAttachment):
+
+    roles = bge_network.Attribute(bge_network.Roles(local=bge_network.Roles.authority,
+                                                    remote=bge_network.Roles.simulated_proxy))
 
     entity_name = "Bow"
 

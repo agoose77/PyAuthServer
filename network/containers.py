@@ -1,7 +1,7 @@
 from .handler_interfaces import static_description
 from .descriptors import Attribute
 from .rpc import RPCInterfaceFactory
-from .factory_dict import FactoryDict
+from .structures import FactoryDict
 
 from functools import partial
 from collections import OrderedDict, deque

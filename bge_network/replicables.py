@@ -916,7 +916,7 @@ class Camera(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-        self.mode = enums.CameraMode.first_person
+        self.mode = enums.CameraMode.third_person
         self.offset = 2.0
 
     def possessed_by(self, parent):

@@ -165,7 +165,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     def post_initialise(self, connection):
         replicable = self.create_new_player()
-
+        self.info.players.append(replicable.info)
         return replicable
 
     def pre_initialise(self, address_tuple, netmode):

@@ -1,7 +1,7 @@
 from .type_register import TypeRegister
 from .conditions import is_signal_listener
 from .decorators import signal_listener
-from .factory_dict import FactoryDict
+from .structures import FactoryDict
 
 from collections import defaultdict
 from inspect import getmembers, signature

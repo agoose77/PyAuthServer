@@ -14,7 +14,6 @@ from .decorators import *
 from .descriptors import *
 from .enums import *
 from .errors import *
-from .factory_dict import *
 from .flag_serialiser import *
 from .handler_interfaces import *
 from .instance_register import *
@@ -29,5 +28,6 @@ from .replication_rules import *
 from .rpc import *
 from .serialiser import *
 from .signals import *
+from .structures import *
 from .type_register import *
 from .testing import *

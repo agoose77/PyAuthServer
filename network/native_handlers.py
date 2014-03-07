@@ -200,7 +200,7 @@ class ReplicableBaseHandler:
             return
 
     def size(self, bytes_=None):
-        return self._packer.size(bytes_)
+        return self._packer.size()
 
     unpack_from = unpack
 
