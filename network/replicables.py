@@ -29,7 +29,7 @@ class Replicable(metaclass=ReplicableRegister):
                       )
 
     owner = Attribute(type_of=None, complain=True, notify=True)
-    torn_off = Attribute(False, notify=True)
+    torn_off = Attribute(False, complain=True, notify=True)
 
     # Dictionary of class-owned instances
     _by_types = defaultdict(list)
@@ -185,6 +185,7 @@ class Replicable(metaclass=ReplicableRegister):
         if is_complaint or is_initial:
             yield "roles"
             yield "owner"
+            yield "torn_off"
 
     def __description__(self):
         '''Returns a hash-like description for this replicable
