@@ -30,11 +30,6 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
         yield "time_to_start"
         yield "players"
 
-    @bge_network.UpdateSignal.global_listener
-    @bge_network.simulated
-    def update(self, t):
-        print(self.players)
-
 
 class TeamInfo(bge_network.ReplicableInfo):
 
@@ -266,7 +261,7 @@ class ArrowProjectile(bge_network.Actor):
     def on_registered(self):
         super().on_registered()
 
-        self.update_simulated_physics = False
+        self.replicate_temporarily = True
         self.in_flight = True
         self.lifespan = 5
 

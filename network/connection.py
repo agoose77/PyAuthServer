@@ -98,6 +98,10 @@ class Connection(SignalListener, NetmodeSwitch):
             if replicable.roles.remote == no_role:
                 continue
 
+            # If we don't have a channel (if torn off or temporary)
+            if not replicable.instance_id in channels:
+                continue
+
             channel = channels[replicable.instance_id]
 
             # Now check if we are an owner
@@ -262,14 +266,30 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
+    @ReplicableRegisteredSignal.global_listener
+    def notify_registration(self, target):
+        """Handles registration of a replicable instance
+        Create channel for replicable instance
+
+        :param target: replicable that was registered"""
+        if target.torn_off:
+            return
+
+        super().notify_registration(target)
+
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         '''Called when replicable dies
 
         :param replicable: replicable that died'''
-        # Send delete packet
+
+        # If the target is not in channel list, we don't need to delete
+        if not target.instance_id in self.channels:
+            return
+
         channel = self.channels[target.instance_id]
 
+        # Send delete packet
         self.cached_packets.add(Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
                                     payload=channel.packed_id, reliable=True))
 
@@ -366,6 +386,10 @@ class ServerConnection(Connection):
 
                         store_packet(packet)
                         used_bandwidth += packet.size
+
+                    # If a temporary replicable remove from channels (but don't delete)
+                    if replicable.replicate_temporarily:
+                        super().notify_unregistration(replicable)
 
             yield item
 

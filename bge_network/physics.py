@@ -229,8 +229,6 @@ class ServerPhysics(PhysicsSystem):
         super().update(scene, delta_time)
 
 
-
-
 @netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
@@ -250,6 +248,7 @@ class ClientPhysics(PhysicsSystem):
 
         :param target_physics: Physics struct of target
         :param target: Actor instance'''
+        print(target.__class__.__name__, WorldInfo.tick)
         difference = target_physics.position - target.position
 
         target.rotation = target_physics.rotation

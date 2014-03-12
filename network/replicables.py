@@ -27,7 +27,9 @@ class Replicable(metaclass=ReplicableRegister):
                             ),
                       notify=True,
                       )
+
     owner = Attribute(type_of=None, complain=True, notify=True)
+    torn_off = Attribute(False, notify=True)
 
     # Dictionary of class-owned instances
     _by_types = defaultdict(list)
@@ -52,6 +54,7 @@ class Replicable(metaclass=ReplicableRegister):
         self.relevant_to_owner = True
         self.always_relevant = False
 
+        self.replicate_temporarily = False
         self.replication_priority = 1.0
         self.replication_update_period = 1 / 20
 

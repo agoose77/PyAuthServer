@@ -722,6 +722,8 @@ class Actor(Replicable, physics_object.PhysicsObject):
 
     @simulated
     def align_to(self, vector, time=1, axis=enums.Axis.y):
+        if not vector:
+            return
         self.object.alignAxisToVect(vector, axis, time)
 
 
