@@ -67,7 +67,10 @@ class Network:
         '''Network socket initialiser'''
         super().__init__()
 
-        self._started = 0.0
+        self._delta_timestamp = 0.0
+
+        self._delta_received = 0
+        self._delta_sent = 0
 
         self.sent_bytes = 0
         self.received_bytes = 0
@@ -76,11 +79,15 @@ class Network:
 
     @property
     def send_rate(self):
-        return (self.sent_bytes / (monotonic() - self._started))
+        return (self.delta_sent / (monotonic() - self._delta_timestamp))
 
     @property
     def receive_rate(self):
-        return (self.received_bytes / (monotonic() - self._started))
+        return (self.delta_received / (monotonic() - self._delta_timestamp))
+
+    def reset_metrics(self):
+        self._delta_timestamp = monotonic()
+        self._delta_sent = self._delta_received = 0
 
     def stop(self):
         self.socket.close()
@@ -90,6 +97,8 @@ class Network:
         result = self.socket.sendto(*args, **kwargs)
 
         self.sent_bytes += result
+        self._delta_sent += result
+
         return result
 
     def receive_from(self, buff_size=63553):
@@ -118,7 +127,11 @@ class Network:
 
             # Dispatch data to connection
             connection.receive(bytes_)
-            self.received_bytes += len(bytes_)
+
+            # Update metrics
+            byte_length = len(bytes_)
+            self.received_bytes += byte_length
+            self._delta_received += byte_length
 
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()  # @UndefinedVariable

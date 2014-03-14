@@ -22,7 +22,7 @@ class RPCInterfaceFactory:
         self._signature = signature(function)
         self._by_instance = {}
 
-        self.verify_function(function)
+        self.validate_function(self._signature.parameters, function)
 
     def __get__(self, instance, base):
         if instance is None:
@@ -47,18 +47,21 @@ class RPCInterfaceFactory:
         lookup_type = MarkAttribute
         for argument in function_arguments.values():
             data = argument.data
+
             for arg_name, arg_value in data.items():
                 if not isinstance(arg_value, lookup_type):
                     continue
+
                 data[arg_name] = getattr(instance, arg_value.name)
 
-    def verify_function(self, function):
-        parameters = iter(self._signature.parameters.items())
+    @staticmethod
+    def validate_function(parameters, function):
+        parameters = iter(parameters.items())
         next(parameters)
         for parameter_name, parameter in parameters:
             if parameter.annotation is Parameter.empty:
                 raise ValueError("RPC call '{}' has not provided a type for "
-                         "parameter '{}'".format(self._function.__qualname__,
+                         "parameter '{}'".format(function.__qualname__,
                                                parameter_name))
 
     def __repr__(self):
