@@ -173,20 +173,27 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_state(cls):
-        # Run safe notifications
-        if cls.to_subscribe:
-            local_to_subscribe = cls.to_subscribe.copy()
-            cls.subscribers.update(cls.to_subscribe)
-            cls.to_subscribe.clear()
-            for identifier, data in local_to_subscribe.items():
-                cls.on_subscribed(False, identifier, data)
+        # Global subscribers
+        to_subscribe = cls.to_subscribe
+        if to_subscribe:
+            popitem = to_subscribe.popitem
+            subscribers = cls.subscribers
+            callback = cls.on_subscribed
+            while to_subscribe:
+                identifier, data = popitem()
+                subscribers[identifier] = data
+                callback(False, identifier, data)
 
-        if cls.to_isolate:
-            cls.isolated_subscribers.update(cls.to_isolate)
-            local_to_isolate = cls.to_isolate.copy()
-            cls.to_isolate.clear()
-            for identifier, data in local_to_isolate.items():
-                cls.on_subscribed(True, identifier, data)
+        # Context subscribers
+        to_isolate = cls.to_isolate
+        if to_isolate:
+            popitem = to_isolate.popitem
+            subscribers = cls.isolated_subscribers
+            callback = cls.on_subscribed
+            while to_isolate:
+                identifier, data = popitem()
+                subscribers[identifier] = data
+                callback(True, identifier, data)
 
         # Remove old subscribers
         if cls.to_unsubscribe:
@@ -216,13 +223,8 @@ class Signal(metaclass=TypeRegister):
 
             cls.to_unchild.clear()
 
-        # Recurse to catch any missed subscribers
-        if cls.to_subscribe or cls.to_isolate:
-            cls.update_state()
-
     @classmethod
     def update_graph(cls):
-
         for cls in cls.subclasses.values():
             cls.update_state()
 
@@ -246,8 +248,6 @@ class Signal(metaclass=TypeRegister):
                        **kwargs):
         if addressee is None:
             addressee = target
-
-        cls.update_graph()
 
         # If the child is a context listener
         if addressee in all_targets:

@@ -2,12 +2,12 @@ from bge import logic
 from mathutils import Vector
 from network.decorators import simulated
 from network.signals import SignalListener
-from . import enums, signals, bge_data, timer
+from . import enums, signals, object_types, timer
 
 
 class PhysicsObject:
     entity_name = ""
-    entity_class = bge_data.GameObject
+    entity_class = object_types.GameObject
 
     def on_initialised(self):
         self.object = self.entity_class(self.entity_name)
@@ -39,7 +39,7 @@ class PhysicsObject:
 
         # Setup relationships in sockets
         for socket_name, socket in self.sockets.items():
-            socket = bge_data.SocketWrapper(socket)
+            socket = object_types.SocketWrapper(socket)
             socket.mapped_instance = self
 
     @property
@@ -59,12 +59,30 @@ class PhysicsObject:
                             on_target=self.request_unregistration)
 
     @property
+    def colour(self):
+        '''The object's colour'''
+        return self.object.color
+
+    @colour.setter
+    def colour(self, value):
+        self.object.color = value
+
+    @property
     def suspended(self):
         '''The Physics state of the object'''
         if self.physics in (enums.PhysicsType.navigation_mesh,
                             enums.PhysicsType.no_collision):
             return True
-        return not self.object.useDynamics
+
+        try:
+            return not self.object.useDynamics
+
+        except AttributeError:
+            try:
+                return self._suspended
+            except AttributeError:
+                self._suspended = False
+                return self._suspended
 
     @suspended.setter
     def suspended(self, value):
@@ -75,7 +93,18 @@ class PhysicsObject:
         if self.object.parent:
             return
 
-        self.object.useDynamics = not value
+        # Legacy code
+        try:
+            dynamics = self.object.useDynamics
+            self.object.useDynamics = not value
+
+        except AttributeError:
+            suspended = self.suspended
+            if value and not suspended:
+                self.object.suspendDynamics()
+            elif not value and suspended:
+                self.object.restoreDynamics()
+            self._suspended = value
 
     @property
     def colliding(self):
@@ -140,8 +169,8 @@ class PhysicsObject:
         if hasattr(self, "_timer"):
             self._timer.delete()
 
-        for child in self.children.copy():
-            self.remove_child(child)
+        while self.children:
+            self.pop_child()
 
         self.object.endObject()
 
@@ -162,6 +191,17 @@ class PhysicsObject:
         :requires: instance must subclass :py:class:`PhysicsObject`'''
         self.children.remove(instance)
         self.child_entities.remove(instance.object)
+        instance.set_parent(None)
+
+    @simulated
+    def pop_child(self):
+        '''Removes a child from this object
+
+        :param instance: instance to remove
+        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        instance = self.children.pop()
+        self.child_entities.remove(instance.object)
+        instance.set_parent(None)
 
     @property
     def parent(self):
@@ -172,17 +212,21 @@ class PhysicsObject:
         return self._parent
 
     def set_parent(self, parent, socket_name=None):
-        if parent is None:
-            self._parent.remove_child(self)
-            self.object.setParent(None)
+        if parent is None and self._parent is not None:
+            # Remove parent's child (might be socket)
+            if self in self.parent.children:
+                self._parent.remove_child(self)
+            self.object.removeParent()
             self._parent = None
 
         elif isinstance(parent, PhysicsObject):
+            # Remove existing parent
+            if self._parent:
+                self.set_parent(None)
+
             parent.add_child(self)
-            if socket_name is not None:
-                physics_obj = parent.sockets[socket_name]
-            else:
-                physics_obj = parent.object
+            physics_obj = (parent.object if socket_name is None
+                           else parent.sockets[socket_name])
 
             self.object.setParent(physics_obj)
             self._parent = parent

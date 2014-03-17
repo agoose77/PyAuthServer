@@ -201,6 +201,7 @@ class ClientConnection(Connection):
             replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
+
             # Perform incomplete role switch
             (replicable.roles.local,
              replicable.roles.remote) = (replicable.roles.remote,

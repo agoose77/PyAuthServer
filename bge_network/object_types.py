@@ -1,5 +1,6 @@
 from bge import logic, types
 from mathutils import Matrix, Quaternion
+from .navmesh import NavmeshProxy
 
 
 class MappedGameObject:
@@ -30,13 +31,6 @@ class EngineObject(MappedGameObject):
                                                                 obj_name))
         return super().__new__(cls, obj)
 
-    @property
-    def all_children(self):
-        yield from self.childrenRecursive
-        if self.groupMembers:
-            for child in self.groupMembers:
-                yield from child.childrenRecursive
-
 
 class GameObject(EngineObject, types.KX_GameObject):
 
@@ -58,7 +52,7 @@ class ArmatureObject(EngineObject, types.BL_ArmatureObject):
     pass
 
 
-class NavmeshObject(EngineObject, types.KX_NavMeshObject):
+class NavmeshObject(EngineObject, NavmeshProxy):
 
     pass
 

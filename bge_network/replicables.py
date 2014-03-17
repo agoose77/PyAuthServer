@@ -1,6 +1,6 @@
 from network import *
 
-from . import bge_data
+from . import object_types
 from . import structs
 from . import behaviour_tree
 from . import configuration
@@ -74,7 +74,7 @@ class Controller(Replicable):
             self.info.pawn = replicable
 
         # Register as child for signals
-        replicable.register_child(self)
+        replicable.register_child(self, greedy=True)
 
     def remove_camera(self):
         self.camera.unpossessed()
@@ -469,6 +469,13 @@ class PlayerController(Controller):
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         BroadcastMessage.invoke(message_string)
 
+    @requires_netmode(Netmodes.server)
+    def send_broadcast(self, message):
+        player_controllers = WorldInfo.subclass_of(PlayerController)
+
+        for controller in player_controllers:
+            controller.receive_broadcast(message)
+
     def send_voice_server(self, data: TypeFlag(bytes,
                                             max_length=2**32 - 1)) -> Netmodes.server:
         info = self.info
@@ -687,23 +694,28 @@ class Actor(Replicable, physics_object.PhysicsObject):
         remote_role = self.roles.remote
 
         # If simulated, send rigid body state
-        if (remote_role == Roles.simulated_proxy) or \
-            (remote_role == Roles.dumb_proxy) or \
-            (self.roles.remote == Roles.autonomous_proxy and not is_owner):
-            if self.update_simulated_physics or is_initial:
-                yield "rigid_body_state"
+        valid_role = ((remote_role == Roles.simulated_proxy) or
+                     (remote_role == Roles.autonomous_proxy and not is_owner))
+        allowed_physics = ((self.replicate_simulated_physics or is_initial)
+                        and (self.replicate_physics_to_owner or not is_owner))
+
+        if valid_role and allowed_physics:
+            yield "rigid_body_state"
 
     def on_initialised(self):
         super().on_initialised()
 
         self.camera_radius = 1
 
-        self.update_simulated_physics = True
         self.always_relevant = False
+        self.replicate_physics_to_owner = True
+        self.replicate_simulated_physics = True
 
     def on_unregistered(self):
         # Unregister any actor children
         for child in self.children:
+            if isinstance(child, ResourceActor):
+                continue
             child.request_unregistration()
 
         super().on_unregistered()
@@ -725,6 +737,10 @@ class Actor(Replicable, physics_object.PhysicsObject):
         if not vector:
             return
         self.object.alignAxisToVect(vector, axis, time)
+
+
+class ResourceActor(Actor):
+    pass
 
 
 class Weapon(Replicable):
@@ -847,7 +863,7 @@ class WeaponAttachment(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-        self.update_simulated_physics = False
+        self.replicate_simulated_physics = False
 
     def play_fire_effects(self):
         pass
@@ -860,7 +876,7 @@ class EmptyAttatchment(WeaponAttachment):
 
 class Camera(Actor):
 
-    entity_class = bge_data.CameraObject
+    entity_class = object_types.CameraObject
     entity_name = "Camera"
 
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
@@ -1054,7 +1070,6 @@ class Pawn(Actor):
         super().on_initialised()
 
         self.weapon_attachment = None
-        self.navmesh_object = None
 
         # Non owner attributes
         self.last_flash_count = 0
@@ -1062,8 +1077,6 @@ class Pawn(Actor):
         self.walk_speed = 4.0
         self.run_speed = 7.0
         self.turn_speed = 1.0
-
-        self.animation_tolerance = 0.5
 
         self.animations = behaviour_tree.BehaviourTree(self)
         self.animations.blackboard['pawn'] = self
@@ -1148,7 +1161,7 @@ class Pawn(Actor):
 class Lamp(Actor):
     roles = Roles(Roles.authority, Roles.simulated_proxy)
 
-    entity_class = bge_data.LampObject
+    entity_class = object_types.LampObject
     entity_name = "Lamp"
 
     def on_initialised(self):
@@ -1186,7 +1199,7 @@ class Lamp(Actor):
 class Navmesh(Actor):
     roles = Roles(Roles.authority, Roles.none)
 
-    entity_class = bge_data.NavmeshObject
+    entity_class = object_types.NavmeshObject
     entity_name = "Navmesh"
 
     def draw(self):

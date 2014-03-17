@@ -1,15 +1,14 @@
 from replicables import *
 
 import bge_network
-import functools
-import operator
-import weakref
-
 import signals
 import matchmaker
-import random
-
 import stats_ui
+
+import operator
+import functools
+import weakref
+import random
 
 
 class TeamDeathMatch(bge_network.ReplicationRules):
@@ -22,13 +21,13 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     ai_camera_class = bge_network.Camera
     ai_controller_class = EnemyController
     ai_pawn_class = Zombie
-    ai_replication_info_class = bge_network.AIReplicationInfo
+    ai_replication_info_class = CTFPlayerReplicationInfo
     ai_weapon_class = ZombieWeapon
 
     player_camera_class = bge_network.Camera
-    player_controller_class = LegendController
-    player_pawn_class = RobertNeville
-    player_replication_info_class = bge_network.PlayerReplicationInfo
+    player_controller_class = CTFPlayerController
+    player_pawn_class = CTFPawn
+    player_replication_info_class = CTFPlayerReplicationInfo
     player_weapon_class = BowWeapon
 
     relevant_radius_squared = 9 ** 2
@@ -79,12 +78,12 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
         :param controller: options, controller instance'''
         if controller is None:
-            controller = self.player_controller_class()
-            controller.info = self.player_replication_info_class()
+            controller = self.player_controller_class(register=True)
+            controller.info = self.player_replication_info_class(register=True)
 
-        pawn = self.player_pawn_class()
-        camera = self.player_camera_class()
-        weapon = self.player_weapon_class()
+        pawn = self.player_pawn_class(register=True)
+        camera = self.player_camera_class(register=True)
+        weapon = self.player_weapon_class(register=True)
 
         controller.possess(pawn)
         controller.set_camera(camera)
@@ -166,6 +165,10 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     def post_initialise(self, connection):
         replicable = self.create_new_player()
         self.info.players.append(replicable.info)
+        team = TeamInfo()
+        team.name = "Team Test"
+        team.players.add(replicable.info)
+        replicable.info.team = team
         return replicable
 
     def pre_initialise(self, address_tuple, netmode):

@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+
 __all__ = ['FactoryDict', 'TypedList', 'TypedSet']
 
 
@@ -49,6 +52,12 @@ class TypedIterable:
         else:
             super().__init__()
 
+    def copy(self):
+        return self.__class__(self._type, super().copy())
+
+    def __deepcopy__(self, memo):
+        return self.__class__(self._type, deepcopy([i for i in self], memo))
+
 
 class TypedList(TypedIterable, list):
 
@@ -80,9 +89,6 @@ class TypedSet(TypedIterable, set):
         if not isinstance(obj, self._type):
             raise TypeError("Elements must be of type {}".format(self._type))
         super().add(obj)
-
-    def copy(self):
-        return self.__class__(self._type, super().copy())
 
     def verify_set(self, obj):
         if not isinstance(obj, TypedIterable):

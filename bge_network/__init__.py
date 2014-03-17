@@ -1,5 +1,5 @@
 from .mathutils_data import *
-from .bge_data import *
+from .object_types import *
 from .behaviour_tree import *
 from .draw_tools import *
 from .enums import *

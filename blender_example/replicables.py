@@ -9,6 +9,8 @@ import math
 import mathutils
 import bge
 
+from enums import TeamRelation
+
 
 class GameReplicationInfo(bge_network.ReplicableInfo):
     roles = bge_network.Attribute(
@@ -33,7 +35,30 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
 
 class TeamInfo(bge_network.ReplicableInfo):
 
-    name = bge_network.Attribute(type_of=str)
+    name = bge_network.Attribute(type_of=str, complain=True)
+    score = bge_network.Attribute(0, complain=True)
+    players = bge_network.Attribute(bge_network.TypedSet(bge_network.Replicable),
+                    element_flag=bge_network.TypeFlag(bge_network.Replicable))
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "name"
+            yield "score"
+
+        yield "players"
+
+
+class CTFPlayerReplicationInfo(bge_network.PlayerReplicationInfo):
+
+    team = bge_network.Attribute(type_of=bge_network.Replicable, complain=True)
+
+    def conditions(self, is_owner, is_complain, is_initial):
+        yield from super().conditions(is_owner, is_complain, is_initial)
+
+        if is_complain:
+            yield "team"
 
 
 class EnemyController(bge_network.AIController):
@@ -51,15 +76,20 @@ class EnemyController(bge_network.AIController):
         self.behaviour.root = behaviour
 
 
-class Cone(bge_network.Actor):
-    entity_name = "Cone"
-
-
-class LegendController(bge_network.PlayerController):
+class CTFPlayerController(bge_network.PlayerController):
 
     input_fields = ("forward", "backwards", "left",
                     "right", "shoot", "run", "voice",
                     "jump")
+
+    def pickup_flag(self, flag):
+        flag.possessed_by(self)
+        flag.owner_info_possessed = self.info
+        flag.set_parent(self.pawn, "weapon")
+        flag.local_position = mathutils.Vector()
+
+        # Inform other players
+        self.send_broadcast("{} has picked up flag".format(self.info.name))
 
     def on_notify(self, name):
         super().on_notify(name)
@@ -99,8 +129,17 @@ class LegendController(bge_network.PlayerController):
         if self.inputs.voice != self.microphone.active:
             self.microphone.active = self.inputs.voice
 
+    @bge_network.CollisionSignal.listener
+    def on_collision(self, other, is_new, data):
+        target = bge_network.Actor.from_object(other)
+        if target is None or not is_new:
+            return
 
-class RobertNeville(bge_network.Pawn):
+        if isinstance(target, CTFFlag):
+            self.pickup_flag(target)
+
+
+class CTFPawn(bge_network.Pawn):
     entity_name = "Suzanne_Physics"
 
     @bge_network.simulated
@@ -108,6 +147,7 @@ class RobertNeville(bge_network.Pawn):
         # play weapon effects
         if name == "health":
             signals.UIHealthChangedSignal.invoke(self.health)
+
         else:
             super().on_notify(name)
 
@@ -161,28 +201,6 @@ class BowWeapon(bge_network.ProjectileWeapon):
         self.projectile_velocity = mathutils.Vector((0, 15, 0))
 
 
-class M4A1Weapon(bge_network.ProjectileWeapon):
-
-    def on_notify(self, name):
-        # This way ammo is still updated locally
-        if name == "ammo":
-            signals.UIWeaponDataChangedSignal.invoke("ammo", self.ammo)
-        else:
-            super().on_notify(name)
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.max_ammo = 50
-        self.attachment_class = M4A1Attachment
-
-        self.shoot_interval = 0.3
-        self.theme_colour = [0.53, 0.94, 0.28, 1.0]
-
-        self.projectile_class = ArrowProjectile
-        self.projectile_velocity = mathutils.Vector((0, 15, 0))
-
-
 class ZombieAttachment(bge_network.WeaponAttachment):
 
     entity_name = "EmptyWeapon"
@@ -204,55 +222,6 @@ class TracerParticle(bge_network.Particle):
     @UpdateSignal.global_listener
     def update(self, delta_time):
         self.object.localScale = self.scale * (1 - self._timer.progress) ** 2
-
-
-class SphereProjectile(bge_network.Actor):
-    entity_name = "Sphere"
-
-    def on_registered(self):
-        super().on_registered()
-
-        self.start_colour = mathutils.Vector(self.object.color)
-        self.update_simulated_physics = False
-        self.lifespan = 10
-
-    @UpdateSignal.global_listener
-    @requires_netmode(Netmodes.client)
-    @simulated
-    def update(self, delta_time):
-        particle = TracerParticle()
-        particle.position = self.position
-
-        global_vel = self.velocity.copy()
-        global_vel.rotate(self.rotation)
-        global_rotation = mathutils.Vector().rotation_difference(global_vel)
-
-        axis_spin = mathutils.Euler((0, (math.pi) * self._timer.progress, 0))
-        axis_spin.rotate(global_rotation)
-        particle.rotation = axis_spin
-
-        self.object.color = bge_network.utilities.lerp(self.start_colour,
-                                            mathutils.Vector((1, 0, 0, 1)),
-                                            self._timer.progress)
-        particle.object.color = self.object.color
-
-    @bge_network.CollisionSignal.listener
-    def on_collision(self, other, is_new, data):
-        target = self.from_object(other)
-        if not data or not is_new:
-            return
-
-        hit_normal = sum((c.hitNormal for c in data), Vector()) / len(data)
-        hit_position = sum((c.hitPosition for c in data), Vector()) / len(data)
-
-        if target is not None:
-            momentum = self.mass * self.velocity.length * hit_normal
-
-            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage, self.owner.owner,
-                                                  hit_position, momentum,
-                                                  target=target)
-
-            self.request_unregistration()
 
 
 class ArrowProjectile(bge_network.Actor):
@@ -321,11 +290,6 @@ class ZombieWeapon(bge_network.TraceWeapon):
         pass
 
 
-class M4A1Attachment(bge_network.WeaponAttachment):
-
-    entity_name = "M4"
-
-
 class BowAttachment(bge_network.WeaponAttachment):
 
     roles = bge_network.Attribute(bge_network.Roles(local=bge_network.Roles.authority,
@@ -340,4 +304,53 @@ class SpawnPoint(bge_network.Actor):
                               bge_network.Roles.none)
 
     entity_name = "SpawnPoint"
+
+
+class CTFFlag(bge_network.ResourceActor):
+    owner_info_possessed = bge_network.Attribute(type_of=bge_network.Replicable,
+                                            notify=True, complain=True)
+
+    entity_name = "Flag"
+    colours = {TeamRelation.friendly: [0, 255, 0, 1],
+                TeamRelation.enemy: [255, 0, 0, 1]}
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.replicate_physics_to_owner = False
+        self.owner_changed = False
+
+    def on_notify(self, name):
+        if name == "owner_info_possessed":
+            self.owner_changed = True
+
+        else:
+            super().on_notify(name)
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "owner_info_possessed"
+
+
+    @bge_network.UpdateSignal.global_listener
+    @bge_network.simulated
+    def update(self, delta_time):
+        if self.owner_changed:
+            player_controllers = bge_network.WorldInfo.subclass_of(
+                                       bge_network.PlayerController)
+            player_controller = next(player_controllers.__iter__())
+            player_team = player_controller.info.team
+
+            owner_team = self.owner_info_possessed.team
+
+            team_relation = (TeamRelation.friendly if player_team ==
+                             owner_team else TeamRelation.enemy)
+
+            self.colour = self.colours[team_relation]
+            self.owner_changed = False
+
+class Cone(bge_network.Actor):
+    entity_name = "Cone"
 
