@@ -145,9 +145,22 @@ class Connection(SignalListener, NetmodeSwitch):
                                 )
             yield item
 
+    def received_all(self):
+        pass
+
 
 @netmode_switch(Netmodes.client)
 class ClientConnection(Connection):
+
+    def __init__(self, netmode):
+        super().__init__(netmode)
+
+        self.pending_notifications = []
+
+    def received_all(self):
+        for notification in self.pending_notifications:
+            notification()
+        self.pending_notifications.clear()
 
     def set_replication(self, packet):
         '''Replication function
@@ -167,8 +180,10 @@ class ClientConnection(Connection):
                       .format(instance_id))
 
             else:
-                channel.set_attributes(packet.payload[
+                notification_callback = channel.set_attributes(packet.payload[
                                       self.replicable_packer.size():])
+                if notification_callback:
+                    self.pending_notifications.append(notification_callback)
 
         # If it is an RPC call
         elif packet.protocol == Protocols.method_invoke:  # @UndefinedVariable

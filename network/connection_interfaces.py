@@ -427,3 +427,9 @@ class ClientInterface(ConnectionInterface):
         else:
             err = NetworkError("Failed to determine handshake protocol")
             ConnectionErrorSignal.invoke(err, target=self)
+
+    def receive(self, bytes_):
+        super().receive(bytes_)
+
+        if self.connection:
+            self.connection.received_all()

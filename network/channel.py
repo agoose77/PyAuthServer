@@ -7,6 +7,8 @@ from .decorators import netmode_switch
 from .enums import Netmodes
 from .netmode_switch import NetmodeSwitch
 
+from functools import partial
+
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
@@ -74,6 +76,11 @@ class Channel(NetmodeSwitch):
 @netmode_switch(Netmodes.client)
 class ClientChannel(Channel):
 
+    def notify_callback(self, notifications):
+        invoke_notify = self.replicable.on_notify
+        for attribute_name in notifications:
+            invoke_notify(attribute_name)
+
     def set_attributes(self, bytes_):
         '''Unpacks byte stream and updates attributes
 
@@ -85,7 +92,6 @@ class ClientChannel(Channel):
         get_attribute = replicable.attribute_storage.get_member_by_name
         notifications = []
         notify = notifications.append
-        invoke_notify = replicable.on_notify
 
         # Process and store new values
         for attribute_name, value in self.serialiser.unpack(bytes_,
@@ -100,8 +106,7 @@ class ClientChannel(Channel):
 
         # Notify after all values are set
         if notifications:
-            for attribute_name in notifications:
-                invoke_notify(attribute_name)
+            return partial(self.notify_callback, notifications)
 
 
 @netmode_switch(Netmodes.server)

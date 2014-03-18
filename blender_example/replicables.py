@@ -318,26 +318,9 @@ class CTFFlag(bge_network.ResourceActor):
         super().on_initialised()
 
         self.replicate_physics_to_owner = False
-        self.owner_changed = False
 
     def on_notify(self, name):
         if name == "owner_info_possessed":
-            self.owner_changed = True
-
-        else:
-            super().on_notify(name)
-
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
-
-        if is_complaint:
-            yield "owner_info_possessed"
-
-
-    @bge_network.UpdateSignal.global_listener
-    @bge_network.simulated
-    def update(self, delta_time):
-        if self.owner_changed:
             player_controllers = bge_network.WorldInfo.subclass_of(
                                        bge_network.PlayerController)
             player_controller = next(player_controllers.__iter__())
@@ -349,7 +332,16 @@ class CTFFlag(bge_network.ResourceActor):
                              owner_team else TeamRelation.enemy)
 
             self.colour = self.colours[team_relation]
-            self.owner_changed = False
+
+        else:
+            super().on_notify(name)
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "owner_info_possessed"
+
 
 class Cone(bge_network.Actor):
     entity_name = "Cone"

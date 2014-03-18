@@ -187,7 +187,7 @@ class ReplicableBaseHandler:
     def unpack_id(self, bytes_):
         return self._packer.unpack_from(bytes_)
 
-    def unpack(self, bytes_):
+    def unpack_from(self, bytes_):
         instance_id = self.unpack_id(bytes_)
 
         # Return only a replicable that was created by the network
@@ -201,8 +201,6 @@ class ReplicableBaseHandler:
 
     def size(self, bytes_=None):
         return self._packer.size()
-
-    unpack_from = unpack
 
 
 class StructHandler:
