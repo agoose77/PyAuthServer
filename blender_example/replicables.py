@@ -25,6 +25,16 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
     players = bge_network.Attribute(bge_network.TypedList(bge_network.Replicable),
                                     element_flag=bge_network.TypeFlag(bge_network.Replicable))
 
+
+    @bge_network.requires_netmode(bge_network.Netmodes.server)
+    @bge_network.BroadcastMessage.global_listener
+    def send_broadcast(self, message):
+        player_controllers = bge_network.WorldInfo.subclass_of(
+                                   bge_network.PlayerController)
+
+        for controller in player_controllers:
+            controller.receive_broadcast(message)
+
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
@@ -86,6 +96,12 @@ class CTFPlayerController(bge_network.PlayerController):
                     "right", "shoot", "run", "voice",
                     "jump")
 
+    @bge_network.ActorKilledSignal.listener
+    def on_killed(self, attacker, target):
+        for item in self.inventory:
+            item.unpossessed()
+        self.inventory.clear()
+
     @bge_network.CollisionSignal.listener
     def on_collision(self, other, is_new, data):
         target = bge_network.Actor.from_object(other)
@@ -106,6 +122,8 @@ class CTFPlayerController(bge_network.PlayerController):
         behaviour.should_restart = True
         self.behaviour.root.add_child(behaviour)
 
+        self.inventory = []
+
     def on_notify(self, name):
         super().on_notify(name)
 
@@ -122,6 +140,7 @@ class CTFPlayerController(bge_network.PlayerController):
         flag.owner_info_possessed = self.info
         flag.set_parent(self.pawn, "weapon")
         flag.local_position = mathutils.Vector()
+        self.inventory.append(flag)
 
     @bge_network.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
@@ -183,6 +202,7 @@ class BowWeapon(bge_network.ProjectileWeapon):
         # This way ammo is still updated locally
         if name == "ammo":
             signals.UIWeaponDataChangedSignal.invoke("ammo", self.ammo)
+
         else:
             super().on_notify(name)
 

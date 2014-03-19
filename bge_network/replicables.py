@@ -38,6 +38,9 @@ class Controller(Replicable):
 
     replication_priority = 2.0
 
+    def attach_camera(self, camera):
+        camera.set_parent(self.pawn, "camera")
+
     def on_initialised(self):
         super().on_initialised()
 
@@ -55,13 +58,28 @@ class Controller(Replicable):
 
     def on_unregistered(self):
         if self.pawn:
-            self.pawn.request_unregistration()
-            self.camera.request_unregistration()
-
-            self.remove_camera()
-            self.unpossess()
+            self.remove_dependencies()
 
         super().on_unregistered()
+
+    def on_pawn_updated(self):
+        if self.pawn:
+            self.pawn.register_child(self, greedy=True)
+
+    def on_camera_updated(self):
+        if self.camera:
+            self.attach_camera(self.camera)
+
+    def remove_dependencies(self):
+        self.pawn.request_unregistration()
+        self.weapon.request_unregistration()
+        self.camera.request_unregistration()
+
+        self.camera.unpossessed()
+        self.weapon.unpossessed()
+        self.unpossess()
+
+        self.camera = self.weapon = None
 
     def hear_voice(self, info, voice):
         pass
@@ -69,15 +87,9 @@ class Controller(Replicable):
     def possess(self, replicable):
         self.pawn = replicable
         self.pawn.possessed_by(self)
+        self.info.pawn = replicable
 
-        if WorldInfo.netmode == Netmodes.server:
-            self.info.pawn = replicable
-
-        # Register as child for signals
-        replicable.register_child(self, greedy=True)
-
-    def remove_camera(self):
-        self.camera.unpossessed()
+        self.on_pawn_updated()
 
     def server_fire(self):
         self.weapon.fire(self.camera)
@@ -95,23 +107,21 @@ class Controller(Replicable):
                                 self.pawn.position)
 
     def set_camera(self, camera):
-        camera.set_parent(self.pawn, "camera")
-
         self.camera = camera
         self.camera.possessed_by(self)
+
+        self.on_camera_updated()
 
     def set_weapon(self, weapon):
         self.weapon = weapon
         self.weapon.possessed_by(self)
-
-    def setup_weapon(self, weapon):
-        self.set_weapon(weapon)
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
     def unpossess(self):
         self.pawn.unpossessed()
-
         self.info.pawn = self.pawn = None
+
+        self.on_pawn_updated()
 
 
 class ReplicableInfo(Replicable):
@@ -398,8 +408,8 @@ class PlayerController(Controller):
         self._mouse_delta = None
         self._mouse_epsilon = 0.001
 
-        self.behaviour = behaviour_tree.BehaviourTree(self)
-        self.behaviour.blackboard['controller'] = self
+        self.behaviour = behaviour_tree.BehaviourTree(self,
+                              default={"controller": self})
 
         self.locks = set()
         self.buffered_locks = FactoryDict(dict,
@@ -415,29 +425,22 @@ class PlayerController(Controller):
                                     repeat=True)
         self.ping_influence_factor = 0.8
 
-        self._last_pawn = None
-
     def on_notify(self, name):
         if name == "pawn":
-            if self.pawn:
-                if self._last_pawn is not None:
-                    self._last_pawn.unpossessed()
-
-                self.possess(self.pawn)
-                self._last_pawn = self.pawn
-            else:
-                self.unpossess()
+            # Register as child for signals
+            self.on_pawn_updated()
 
         elif name == "camera":
-            #assert self.pawn
-            self.set_camera(self.camera)
+            self.on_camera_updated()
             self.camera.active = True
-
-        elif name == "weapon":
-            self.set_weapon(self.weapon)
 
         else:
             super().on_notify(name)
+
+    def on_pawn_updated(self):
+        super().on_pawn_updated()
+
+        self.behaviour.reset()
 
     def on_unregistered(self):
         super().on_unregistered()
@@ -469,14 +472,6 @@ class PlayerController(Controller):
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         signals.ReceiveMessage.invoke(message_string)
-
-    @requires_netmode(Netmodes.server)
-    @signals.BroadcastMessage.global_listener
-    def send_broadcast(self, message):
-        player_controllers = WorldInfo.subclass_of(PlayerController)
-
-        for controller in player_controllers:
-            controller.receive_broadcast(message)
 
     def send_voice_server(self, data: TypeFlag(bytes,
                                             max_length=2**32 - 1)) -> Netmodes.server:
@@ -718,6 +713,7 @@ class Actor(Replicable, physics_object.PhysicsObject):
         for child in self.children:
             if isinstance(child, ResourceActor):
                 continue
+
             child.request_unregistration()
 
         super().on_unregistered()
@@ -1091,12 +1087,6 @@ class Pawn(Actor):
 
         else:
             super().on_notify(name)
-
-    def on_unregistered(self):
-        if self.weapon_attachment:
-            self.weapon_attachment.request_unregistration()
-
-        super().on_unregistered()
 
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0,

@@ -10,8 +10,10 @@ class BehaviourTree:
 
     """Entry point for a Behaviour Tree decision graph"""
 
-    def __init__(self, signaller, root=None):
+    def __init__(self, signaller, root=None, default=None):
         self.signaller = signaller
+        self.default_blackboard = default
+
         self.blackboard = self.new_blackboard()
 
         if root is None:
@@ -29,8 +31,13 @@ class BehaviourTree:
         self._root = value
         self._root.change_signaller(self.signaller)
 
-    def new_blackboard(self):
-        return {"_visited": set()}
+    def new_blackboard(self, default=None):
+        blackboard = {"_visited": set()}
+
+        if self.default_blackboard is not None:
+            blackboard.update(self.default_blackboard)
+
+        return blackboard
 
     def debug(self):
         self._root.print_tree()

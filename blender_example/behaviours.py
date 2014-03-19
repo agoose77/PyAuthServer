@@ -628,7 +628,6 @@ class MoveToActor(SignalLeafNode):
         try:
             blackboard['pawn'].velocity.y = 0
         except KeyError:
-            print(blackboard)
             bge.logic.endGame()
 
     def draw(self, path):

@@ -171,7 +171,6 @@ class PhysicsObject:
 
         while self.children:
             self.pop_child()
-
         self.object.endObject()
 
     @simulated

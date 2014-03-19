@@ -75,7 +75,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         if weapon is None:
             return
 
-        controller.setup_weapon(weapon)
+        controller.set_weapon(weapon)
         if pawn.weapon_attachment_class is not None:
             pawn.create_weapon_attachment(pawn.weapon_attachment_class)
 

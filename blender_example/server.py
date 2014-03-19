@@ -65,7 +65,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
         controller.possess(pawn)
         controller.set_camera(camera)
-        controller.setup_weapon(weapon)
+        controller.set_weapon(weapon)
 
         pawn.position = Vector((random.randint(-10, 10),
                                 random.randint(-10, 10), 3))
@@ -87,7 +87,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
         controller.possess(pawn)
         controller.set_camera(camera)
-        controller.setup_weapon(weapon)
+        controller.set_weapon(weapon)
 
         pawn.position = random.choice(WorldInfo.subclass_of(SpawnPoint)
                                       ).position
@@ -126,12 +126,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
         self.broadcast(attacker, message)
 
-        target.owner.unpossess()
-        target.request_unregistration()
-
-        if target.owner.weapon:
-            target.owner.weapon.unpossessed()
-            target.owner.weapon.request_unregistration()
+        target.owner.remove_dependencies()
 
         if isinstance(target.owner, self.player_controller_class):
             self.create_new_player(target.owner)
