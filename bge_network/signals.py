@@ -57,6 +57,10 @@ class GameExitSignal(Signal):
     pass
 
 
+class ReceiveMessage(Signal):
+    pass
+
+
 class BroadcastMessage(Signal):
     pass
 

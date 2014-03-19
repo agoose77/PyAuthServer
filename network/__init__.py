@@ -16,6 +16,7 @@ from .enums import *
 from .errors import *
 from .flag_serialiser import *
 from .handler_interfaces import *
+from .iterators import *
 from .instance_register import *
 from .native_handlers import *
 from .network import *

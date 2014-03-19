@@ -3,7 +3,6 @@ from ui import Panel, ConsoleRenderer, System, TableRenderer
 from matchmaker import Matchmaker
 from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
                      SignalListener, WorldInfo, ManualTimer)
-from signals import ConsoleMessage
 from datetime import datetime
 
 import bge

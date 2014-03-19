@@ -17,7 +17,10 @@ def members_predicate(member):
                 (is_signal_listener(member) and callable(member)))
 
 
-def cache_signals(cls):
+def create_signals_cache(cls):
+    """Callback to register decorated functions for signals
+
+    :param cls: Class to inspet for cache"""
     data = cls.lookup_dict[cls] = [name for name, val in
                                    getmembers(cls, members_predicate)]
     return data
@@ -29,7 +32,7 @@ class SignalListener:
     Optional greedy binding (binds the events supported by either class)
     """
 
-    lookup_dict = FactoryDict(cache_signals)
+    lookup_dict = FactoryDict(create_signals_cache)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,8 +62,9 @@ class SignalListener:
             for signal, *_ in Signal.get_signals(callback):
                 signal.set_parent(child, self)
 
+        # Register child's signals as well as parents
         if greedy:
-            self.register_child(child, child)
+            self.register_child(child, signal_store=child)
 
     def unregister_child(self, child, signal_store=None, greedy=False):
         """Unsubscribe the child to parent for signals
@@ -78,6 +82,7 @@ class SignalListener:
             for signal, *_ in Signal.get_signals(callback):
                 signal.remove_parent(child, self)
 
+        # Unregister child's signals as well as parents
         if greedy:
             self.unregister_child(child, child)
 
@@ -104,15 +109,15 @@ class Signal(metaclass=TypeRegister):
         cls.subscribers = {}
         cls.isolated_subscribers = {}
 
-        cls.to_subscribe = {}
-        cls.to_isolate = {}
+        cls.to_subscribe_global = {}
+        cls.to_subscribe_context = {}
 
-        cls.to_unsubscribe = []
-        cls.to_unisolate = []
+        cls.to_unsubscribe_context = []
+        cls.to_unsubscribe_global = []
 
         cls.children = {}
-        cls.to_unchild = set()
-        cls.to_child = defaultdict(set)
+        cls.to_remove_child = set()
+        cls.to_add_child = defaultdict(set)
 
     @staticmethod
     def get_signals(decorated):
@@ -128,8 +133,8 @@ class Signal(metaclass=TypeRegister):
         signals_data = cls.get_signals(callback)
 
         for signal_cls, is_context in signals_data:
-            remove_list = (signal_cls.to_unisolate if is_context else
-                         signal_cls.to_unsubscribe)
+            remove_list = (signal_cls.to_unsubscribe_global if is_context else
+                         signal_cls.to_unsubscribe_context)
             remove_list.append(identifier)
 
             signal_children = signal_cls.children
@@ -144,11 +149,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def set_parent(cls, identifier, parent_identifier):
-        cls.to_child[parent_identifier].add(identifier)
+        cls.to_add_child[parent_identifier].add(identifier)
 
     @classmethod
     def remove_parent(cls, identifier, parent_identifier):
-        cls.to_unchild.add((identifier, parent_identifier))
+        cls.to_remove_child.add((identifier, parent_identifier))
 
     @classmethod
     def on_subscribed(cls, is_contextual, subscriber, data):
@@ -167,61 +172,63 @@ class Signal(metaclass=TypeRegister):
         accepts_target = "target" in func_signature.parameters
 
         for signal_cls, is_context in signals_data:
-            data_dict = (signal_cls.to_isolate if is_context else
-                         signal_cls.to_subscribe)
+            data_dict = (signal_cls.to_subscribe_context if is_context else
+                         signal_cls.to_subscribe_global)
             data_dict[identifier] = callback, accepts_signal, accepts_target
 
     @classmethod
     def update_state(cls):
         # Global subscribers
-        to_subscribe = cls.to_subscribe
-        if to_subscribe:
-            popitem = to_subscribe.popitem
+        to_subscribe_global = cls.to_subscribe_global
+        if to_subscribe_global:
+            popitem = to_subscribe_global.popitem
             subscribers = cls.subscribers
             callback = cls.on_subscribed
-            while to_subscribe:
+            while to_subscribe_global:
                 identifier, data = popitem()
                 subscribers[identifier] = data
                 callback(False, identifier, data)
 
         # Context subscribers
-        to_isolate = cls.to_isolate
-        if to_isolate:
-            popitem = to_isolate.popitem
+        to_subscribe_context = cls.to_subscribe_context
+        if to_subscribe_context:
+            popitem = to_subscribe_context.popitem
             subscribers = cls.isolated_subscribers
             callback = cls.on_subscribed
-            while to_isolate:
+            while to_subscribe_context:
                 identifier, data = popitem()
                 subscribers[identifier] = data
                 callback(True, identifier, data)
 
         # Remove old subscribers
-        if cls.to_unsubscribe:
-            for key in cls.to_unsubscribe:
+        if cls.to_unsubscribe_context:
+            for key in cls.to_unsubscribe_context:
                 cls.subscribers.pop(key, None)
-            cls.to_unsubscribe.clear()
+            cls.to_unsubscribe_context.clear()
 
-        if cls.to_unisolate:
-            for key in cls.to_unisolate:
+        if cls.to_unsubscribe_global:
+            for key in cls.to_unsubscribe_global:
                 cls.isolated_subscribers.pop(key, None)
-            cls.to_unisolate.clear()
+            cls.to_unsubscribe_global.clear()
 
         # Add new children
-        if cls.to_child:
-            cls.children.update(cls.to_child)
-            cls.to_child.clear()
+        if cls.to_add_child:
+            cls.children.update(cls.to_add_child)
+            cls.to_add_child.clear()
 
         # Remove old children
-        if cls.to_unchild:
+        if cls.to_remove_child:
             children = cls.children
-            for (child, parent) in cls.to_unchild:
-                parent_children_dict = children[parent]
-                parent_children_dict.remove(child)
 
+            for (child, parent) in cls.to_remove_child:
+                parent_children_dict = children[parent]
+                # Remove from parent's children
+                parent_children_dict.remove(child)
+                # If we are the last child, remove parent
                 if not parent_children_dict:
                     children.pop(parent)
 
-            cls.to_unchild.clear()
+            cls.to_remove_child.clear()
 
     @classmethod
     def update_graph(cls):
@@ -231,15 +238,20 @@ class Signal(metaclass=TypeRegister):
     @classmethod
     def invoke_signal(cls, args, target, kwargs, callback,
                             supply_signal, supply_target):
+        # If callback accepts "signal" argument
         if supply_signal:
+            # If callback accepts "target" argument
             if supply_target:
                 callback(*args, signal=cls, target=target, **kwargs)
+
             else:
                 callback(*args, signal=cls, **kwargs)
 
+        # If callback accepts "target" argument only
         elif supply_target:
             callback(*args, target=target, **kwargs)
 
+        # If callback accepts no named arguments
         else:
             callback(*args, **kwargs)
 
@@ -311,17 +323,16 @@ class CachedSignal(Signal):
 
     @classmethod
     def invoke(cls, *args, subscriber_data=None, target=None, **kwargs):
-        # Only cache normal invocations
+        # Don't cache from cache itself!
         if subscriber_data is None:
             cls.cache.append((args, target, kwargs))
-
             cls.invoke_targets(cls.isolated_subscribers, *args,
                                target=target, **kwargs)
             cls.invoke_general(cls.subscribers, *args,
                                target=target, **kwargs)
 
-        # Otherwise run a general invocation on new subscriber
         else:
+            # Otherwise run a general invocation on new subscriber
             cls.invoke_general(subscriber_data, *args,
                                target=target, **kwargs)
 
@@ -334,8 +345,9 @@ class CachedSignal(Signal):
             return
 
         subscriber_info = {subscriber: data}
+        invoke_signal = cls.invoke
         for previous_args, target, previous_kwargs in cls.cache:
-            cls.invoke(*previous_args, target=target,
+            invoke_signal(*previous_args, target=target,
                        subscriber_data=subscriber_info,
                        **previous_kwargs)
 

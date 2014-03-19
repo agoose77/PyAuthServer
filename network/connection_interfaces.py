@@ -299,7 +299,6 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         # Handle received packets
         PacketCollection.iter_bytes(bytes_, self.handle_packet)
 
-
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):
 

@@ -169,6 +169,7 @@ class ClientConnection(Connection):
         :param packet: replication packet'''
 
         instance_id = self.replicable_packer.unpack_id(packet.payload)
+        payload_following_id = packet.payload[self.replicable_packer.size():]
 
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:  # @UndefinedVariable @IgnorePep8
@@ -180,13 +181,17 @@ class ClientConnection(Connection):
                       .format(instance_id))
 
             else:
-                notification_callback = channel.set_attributes(packet.payload[
-                                      self.replicable_packer.size():])
+                # Apply attributes and retrieve notify callback
+                notification_callback = channel.set_attributes(payload_following_id)
+
+                # Save callbacks
                 if notification_callback:
                     self.pending_notifications.append(notification_callback)
 
         # If it is an RPC call
         elif packet.protocol == Protocols.method_invoke:  # @UndefinedVariable
+            self.received_all()
+
             try:
                 channel = self.channels[instance_id]
 
@@ -196,21 +201,16 @@ class ClientConnection(Connection):
 
             else:
                 if self.is_owner(channel.replicable):
-                    channel.invoke_rpc_call(packet.payload[
-                                           self.replicable_packer.size():])
+                    channel.invoke_rpc_call(payload_following_id)
 
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:  # @UndefinedVariable @IgnorePep8
-            id_size = self.replicable_packer.size()
-
-            type_name = self.string_packer.unpack_from(
-                       packet.payload[id_size:])
-
-            type_size = self.string_packer.size(
-                        packet.payload[id_size:])
+            type_name = self.string_packer.unpack_from(payload_following_id)
+            type_size = self.string_packer.size(payload_following_id)
+            payload_following_id = payload_following_id[type_size:]
 
             is_connection_host = bool(self.int_packer.unpack_from(
-                       packet.payload[id_size + type_size:]))
+                                                  payload_following_id))
 
             # Create replicable of same type
             replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
@@ -236,7 +236,7 @@ class ClientConnection(Connection):
                 pass
 
             else:
-                replicable.request_unregistration()
+                replicable.request_unregistration(True)
 
     def send(self, network_tick, available_bandwidth):
         '''Creates a packet collection of replicated function calls
@@ -258,7 +258,6 @@ class ClientConnection(Connection):
         '''Handles incoming PacketCollection instance
 
         :param packets: PacketCollection instance'''
-
         if packet.protocol in Protocols:
             self.set_replication(packet)
 
@@ -304,10 +303,10 @@ class ServerConnection(Connection):
             return
 
         channel = self.channels[target.instance_id]
-
+        packet = Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
+                        payload=channel.packed_id, reliable=True)
         # Send delete packet
-        self.cached_packets.add(Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
-                                    payload=channel.packed_id, reliable=True))
+        self.cached_packets.add(packet)
 
         super().notify_unregistration(target)
 
@@ -375,6 +374,7 @@ class ServerConnection(Connection):
                                    replicable.__class__.type_name)
                     packed_is_host = self.int_packer.pack(
                                   replicable == self.replicable)
+
                     # Send the protocol, class name and owner status to client
                     packet = make_packet(protocol=replication_init,
                                   payload=packed_id + packed_class +\
@@ -386,7 +386,7 @@ class ServerConnection(Connection):
                     used_bandwidth += packet.size
 
                 # Send changed attributes
-                if send_attributes:
+                if send_attributes or channel.is_initial:
 
                     attributes = channel.get_attributes(is_owner, timestamp)
 
@@ -409,8 +409,9 @@ class ServerConnection(Connection):
 
             yield item
 
+        # Add queued packets to front of collection
         if self.cached_packets:
-            extend_packets(self.cached_packets)
+            collection.members[:0] = self.cached_packets
             self.cached_packets.clear()
 
     def receive(self, packet):

@@ -1,33 +1,30 @@
 from .signals import SignalListener
 from .type_register import TypeRegister
+from .iterators import RenewableGenerator
 
-
-from random import choice
 from itertools import chain
 
 __all__ = ['InstanceRegister', 'InstanceMixins']
 
 
 class InstanceMixins(SignalListener):
+    """Mixing class for managed instances
+
+    Provides API for registration callbacks,
+    individual registration functions and registered status"""
 
     def __init__(self, instance_id=None, register=False,
                  allow_random_key=False, **kwargs):
         super().__init__()
 
+        # Generator used for finding IDs
         self.allow_random_key = allow_random_key
-
-        # Add to register queue
-        self.request_registration(instance_id)
 
         # Run clean init function
         self.on_initialised()
 
-        # Update graph
-        if register:
-            self.__class__.update_graph()
-
-    def validate_id(self, instance_id):
-        return True
+        # Add to register queue
+        self.request_registration(instance_id, register)
 
     def on_initialised(self):
         pass
@@ -45,18 +42,18 @@ class InstanceMixins(SignalListener):
         self.__class__._to_unregister.add(self)
 
         if unregister:
-            self.__class__._unregister_from_graph()
+            self.__class__._unregister_from_graph(self)
 
-    def request_registration(self, instance_id):
+    def request_registration(self, instance_id, register=False):
         if instance_id is None:
             assert self.allow_random_key, "No key specified"
-            instance_id = self.__class__.get_random_id()
-
-        if not self.validate_id(instance_id):
-            raise IndexError("Instance ID requested is not available")
+            instance_id = self.__class__.get_next_id()
 
         self.instance_id = instance_id
         self.__class__._to_register.add(self)
+
+        if register:
+            self.__class__._register_to_graph(self)
 
     @property
     def registered(self):
@@ -73,6 +70,13 @@ class InstanceMixins(SignalListener):
 
 
 class InstanceRegister(TypeRegister):
+    """Graph managing metaclass
+
+    Provides high level interface for managing instance objects
+    Supports ID conflict resolution and ID recycling
+
+    Most methods could be implemented as classmethods on the implementee,
+    however this metaclass prevents namespace cluttering"""
 
     def __new__(self, name, parents, attrs):
         parents += (InstanceMixins,)
@@ -82,8 +86,42 @@ class InstanceRegister(TypeRegister):
             cls._instances = {}
             cls._to_register = set()
             cls._to_unregister = set()
+            cls._id_generator = RenewableGenerator(cls.get_available_ids)
 
         return cls
+
+    def get_next_id(cls): # @NoSelf
+        """Gets the next free ID
+
+        :returns: first free ID"""
+        next_id = next(cls._id_generator)
+        try:
+            cls.get_from_graph(next_id, False)
+
+        except LookupError:
+            return next_id
+
+        return cls.get_next_id()
+
+    def get_id_iterable(cls): # @NoSelf
+        """Get iterable of all potential IDs
+
+        :returns: range(total_ids + 1)"""
+        id_range = len(tuple(cls.get_entire_graph_ids()))
+        return range(id_range + 1)
+
+    def get_available_ids(cls): # @NoSelf
+        """Filters existing IDs from potential IDs
+
+        :returns: iter(free_ids)"""
+        potential_ids = cls.get_id_iterable()
+        current_ids = cls.get_entire_graph_ids()
+        free_ids = set(potential_ids).difference(current_ids)
+
+        if not free_ids:
+            raise IndexError("No free Instance IDs remaining")
+
+        return iter(free_ids)
 
     def get_entire_graph_ids(cls, instigator=None):  # @NoSelf
         instance_ids = (k for k, v in cls._instances.items()
@@ -130,13 +168,6 @@ class InstanceRegister(TypeRegister):
 
             cls._to_register.remove(i)
             return i
-
-    def get_random_id(cls):  # @NoSelf
-        all_instances = list(cls.get_entire_graph_ids())
-
-        for key in range(len(all_instances) + 1):
-            if not key in all_instances:
-                return key
 
     def update_graph(cls):  # @NoSelf
         if cls._to_register:

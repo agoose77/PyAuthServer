@@ -6,6 +6,7 @@ from .replicables import Replicable, WorldInfo
 from .decorators import netmode_switch
 from .enums import Netmodes
 from .netmode_switch import NetmodeSwitch
+from .signals import Signal
 
 from functools import partial
 
@@ -93,9 +94,8 @@ class ClientChannel(Channel):
         notifications = []
         notify = notifications.append
 
-        # Process and store new values
         for attribute_name, value in self.serialiser.unpack(bytes_,
-                                                    replicable_data):
+                                                            replicable_data):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
@@ -103,6 +103,8 @@ class ClientChannel(Channel):
             # Check if needs notification
             if attribute.notify:
                 notify(attribute_name)
+
+        # Process and store new values
 
         # Notify after all values are set
         if notifications:

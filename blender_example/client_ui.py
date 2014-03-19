@@ -4,8 +4,8 @@ from ui import (Panel, ConsoleRenderer, System, TableRenderer,
 from matchmaker import Matchmaker
 from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
                      SignalListener, WorldInfo, ManualTimer, Timer,
-                     BroadcastMessage)
-from signals import (ConsoleMessage, ConnectToSignal, UIWeaponDataChangedSignal,
+                     ReceiveMessage)
+from signals import (ConnectToSignal, UIWeaponDataChangedSignal,
                      UIWeaponChangedSignal, UIHealthChangedSignal)
 from functools import partial
 
@@ -688,7 +688,7 @@ class UIPanel(TimerMixins, Panel):
         for name, (field, label) in self.entries.items():
             if label.text == "0":
                 if not name in self.handled_concerns:
-                    BroadcastMessage.invoke("Ran out of {}!".format(name), alive_time=10)
+                    ReceiveMessage.invoke("Ran out of {}!".format(name), alive_time=10)
                     self.handled_concerns[name] = self.create_glow_animation(
                                                                          field)
 
@@ -707,7 +707,7 @@ class UIPanel(TimerMixins, Panel):
 
         super().update(delta_time)
 
-    @BroadcastMessage.global_listener
+    @ReceiveMessage.global_listener
     def add_notification(self, message, alive_time=5.0):
         if self._notifications:
             position = self._notifications[-1].initial_position
@@ -745,4 +745,4 @@ class BGESystem(System):
 
     @ConnectionSuccessSignal.global_listener
     def invoke(self, *args, **kwargs):
-        ConsoleMessage.invoke("Connected to server", alive_time=4)
+        ReceiveMessage.invoke("Connected to server", alive_time=4)

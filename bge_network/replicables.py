@@ -273,12 +273,13 @@ class PlayerController(Controller):
     def client_apply_correction(self, correction_tick: TypeFlag(int,
                                max_value=WorldInfo._MAXIMUM_TICK),
                                 correction: TypeFlag(structs.RigidBodyState)) -> Netmodes.client:
+        # Remove the lock at this network tick on server
+        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
+
         if not self.pawn:
             print("Could not find Pawn for {}".format(self))
             return
 
-        # Remove the lock at this network tick on server
-        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
 
         if not self.client_acknowledge_move(correction_tick):
             print("No move found")
@@ -467,9 +468,10 @@ class PlayerController(Controller):
         self.server_check_move()
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
-        BroadcastMessage.invoke(message_string)
+        signals.ReceiveMessage.invoke(message_string)
 
     @requires_netmode(Netmodes.server)
+    @signals.BroadcastMessage.global_listener
     def send_broadcast(self, message):
         player_controllers = WorldInfo.subclass_of(PlayerController)
 
@@ -734,7 +736,7 @@ class Actor(Replicable, physics_object.PhysicsObject):
 
     @simulated
     def align_to(self, vector, time=1, axis=enums.Axis.y):
-        if not vector:
+        if not vector.length:
             return
         self.object.alignAxisToVect(vector, axis, time)
 
@@ -843,7 +845,7 @@ class ProjectileWeapon(Weapon):
         projectile.position = camera.position + forward_vector * 6.0
         projectile.rotation = camera.rotation.copy()
         projectile.velocity = self.projectile_velocity
-        projectile.owner = self
+        projectile.possessed_by(self)
 
 
 class EmptyWeapon(Weapon):

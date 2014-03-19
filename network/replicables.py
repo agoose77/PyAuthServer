@@ -99,6 +99,7 @@ class Replicable(metaclass=ReplicableRegister):
         else:
             # If we find a locally defined replicable
             # If instance_id was None when created -> not static
+            # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
             if existing._local_authority:
                 # Make the class and overwrite the id
                 return base_cls(instance_id=instance_id,
@@ -106,14 +107,14 @@ class Replicable(metaclass=ReplicableRegister):
 
             return existing
 
-    def validate_id(self, instance_id):
-        '''Validates a requested instance ID
+    @classmethod
+    def get_id_iterable(cls):
+        '''Returns iterable up to maximum replicable count
 
-        :param instance_id: requested instance id
-        :returns: validity of ID'''
-        return instance_id <= self._MAXIMUM_REPLICABLES
+        :returns: range up to maximum ID'''
+        return range(cls._MAXIMUM_REPLICABLES)
 
-    def request_registration(self, instance_id):
+    def request_registration(self, instance_id, register=False):
         '''Handles registration of instances
         Modifies behaviour to allow network priority over local instances
         Handles edge cases such as static replicables
@@ -134,10 +135,10 @@ class Replicable(metaclass=ReplicableRegister):
             assert instance._local_authority, error_message
 
             # Forces reassignment of instance id
-            instance.request_registration(None)
+            instance.request_registration(None, register)
 
         # Possess the instance id
-        super().request_registration(instance_id)
+        super().request_registration(instance_id, register)
 
     def possessed_by(self, other):
         '''Called on possession by other replicable
@@ -172,7 +173,8 @@ class Replicable(metaclass=ReplicableRegister):
         '''Called on notifier attribute change
 
         :param name: name of attribute that has changed'''
-        if 0:print("{} attribute of {} was changed by the network".format(name,
+        if 0:
+            print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 
     def conditions(self, is_owner, is_complaint, is_initial):

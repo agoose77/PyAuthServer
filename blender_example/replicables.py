@@ -40,6 +40,10 @@ class TeamInfo(bge_network.ReplicableInfo):
     players = bge_network.Attribute(bge_network.TypedSet(bge_network.Replicable),
                     element_flag=bge_network.TypeFlag(bge_network.Replicable))
 
+    @bge_network.simulated
+    def get_relationship_with(self, team):
+        return(TeamRelation.friendly if team == self else TeamRelation.enemy)
+
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
@@ -82,33 +86,14 @@ class CTFPlayerController(bge_network.PlayerController):
                     "right", "shoot", "run", "voice",
                     "jump")
 
-    def pickup_flag(self, flag):
-        flag.possessed_by(self)
-        flag.owner_info_possessed = self.info
-        flag.set_parent(self.pawn, "weapon")
-        flag.local_position = mathutils.Vector()
+    @bge_network.CollisionSignal.listener
+    def on_collision(self, other, is_new, data):
+        target = bge_network.Actor.from_object(other)
+        if target is None or not is_new:
+            return
 
-        # Inform other players
-        self.send_broadcast("{} has picked up flag".format(self.info.name))
-
-    def on_notify(self, name):
-        super().on_notify(name)
-
-        if name == "weapon":
-            signals.UIWeaponChangedSignal.invoke(self.weapon)
-            signals.UIWeaponDataChangedSignal.invoke("ammo", self.weapon.ammo)
-            #signals.UIWeaponDataChangedSignal.invoke("clips", self.weapon.clips)
-
-        if name == "pawn":
-            signals.UIHealthChangedSignal.invoke(self.pawn.health)
-
-    @bge_network.ActorDamagedSignal.listener
-    def take_damage(self, damage, instigator, hit_position, momentum):
-        if self.pawn.health == 0:
-            bge_network.ActorKilledSignal.invoke(instigator, target=self.pawn)
-
-    def receive_broadcast(self, message_string: bge_network.TypeFlag(str)) -> bge_network.Netmodes.client:
-        signals.ConsoleMessage.invoke(message_string)
+        if isinstance(target, CTFFlag):
+            self.pickup_flag(target)
 
     def on_initialised(self):
         super().on_initialised()
@@ -121,6 +106,23 @@ class CTFPlayerController(bge_network.PlayerController):
         behaviour.should_restart = True
         self.behaviour.root.add_child(behaviour)
 
+    def on_notify(self, name):
+        super().on_notify(name)
+
+        if name == "weapon":
+            signals.UIWeaponChangedSignal.invoke(self.weapon)
+            signals.UIWeaponDataChangedSignal.invoke("ammo", self.weapon.ammo)
+            #signals.UIWeaponDataChangedSignal.invoke("clips", self.weapon.clips)
+
+        if name == "pawn":
+            signals.UIHealthChangedSignal.invoke(self.pawn.health)
+
+    def pickup_flag(self, flag):
+        flag.possessed_by(self)
+        flag.owner_info_possessed = self.info
+        flag.set_parent(self.pawn, "weapon")
+        flag.local_position = mathutils.Vector()
+
     @bge_network.PlayerInputSignal.global_listener
     def player_update(self, delta_time):
         super().player_update(delta_time)
@@ -129,14 +131,10 @@ class CTFPlayerController(bge_network.PlayerController):
         if self.inputs.voice != self.microphone.active:
             self.microphone.active = self.inputs.voice
 
-    @bge_network.CollisionSignal.listener
-    def on_collision(self, other, is_new, data):
-        target = bge_network.Actor.from_object(other)
-        if target is None or not is_new:
-            return
-
-        if isinstance(target, CTFFlag):
-            self.pickup_flag(target)
+    @bge_network.ActorDamagedSignal.listener
+    def take_damage(self, damage, instigator, hit_position, momentum):
+        if self.pawn.health == 0:
+            bge_network.ActorKilledSignal.invoke(instigator, target=self.pawn)
 
 
 class CTFPawn(bge_network.Pawn):
@@ -257,19 +255,15 @@ class ArrowProjectile(bge_network.Actor):
         hit_normal = bge_network.mean(c.hitNormal for c in data)
         hit_position = bge_network.mean(c.hitPosition for c in data)
 
-        if isinstance(target, bge_network.Pawn):
+        if isinstance(target, bge_network.Pawn) and self.owner:
             momentum = self.mass * self.velocity.length * hit_normal
 
-            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage, self.owner.owner,
-                                              hit_position, momentum,
-                                              target=target)
+            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage,
+                                                  self.owner.owner,
+                                                  hit_position, momentum,
+                                                  target=target)
 
-            self.request_unregistration()
-
-        else:
-            self.suspended = True
-            self.lifespan = 5
-
+        self.request_unregistration()
         self.in_flight = False
 
 
@@ -319,17 +313,27 @@ class CTFFlag(bge_network.ResourceActor):
 
         self.replicate_physics_to_owner = False
 
+    def possessed_by(self, other):
+        super().possessed_by(other)
+
+        # Inform other players
+        bge_network.BroadcastMessage.invoke("{} has picked up flag"
+                                .format(other.info.name))
+
+    def unpossessed(self):
+        # Inform other players
+        bge_network.BroadcastMessage.invoke("{} has dropped flag"
+                                .format(self.owner.info.name))
+
+        super().unpossessed()
+
     def on_notify(self, name):
         if name == "owner_info_possessed":
             player_controllers = bge_network.WorldInfo.subclass_of(
                                        bge_network.PlayerController)
             player_controller = next(player_controllers.__iter__())
-            player_team = player_controller.info.team
-
-            owner_team = self.owner_info_possessed.team
-
-            team_relation = (TeamRelation.friendly if player_team ==
-                             owner_team else TeamRelation.enemy)
+            team_relation = player_controller.info.team.get_relationship_with(
+                                         self.owner_info_possessed.team)
 
             self.colour = self.colours[team_relation]
 
