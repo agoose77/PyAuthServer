@@ -28,11 +28,8 @@ def is_variable_sized(packer):
     size_func = packer.size
     size_signature = signature(size_func)
     parameter_list = list(size_signature.parameters.keys())
-    try:
-        bytes_arg = parameter_list[1]
-    except IndexError:
-        return False
-    return bytes_arg.default != bytes_arg.empty
+    bytes_arg = size_signature.parameters[parameter_list[-1]]
+    return bytes_arg.default is bytes_arg.empty
 
 
 class ReplicableTypeHandler:
@@ -112,7 +109,7 @@ class IterableHandler:
 
         # Variable length unpacking
         elements = self.iterable_cls()
-        add = self.iterable_add
+        add = self.__class__.iterable_add
 
         for i in range(size):
             shift = element_get_size(data)
@@ -121,8 +118,8 @@ class IterableHandler:
 
         return elements
 
-    def unpack_merge(self, bytes_, iterable):
-        self.iterable_update(iterable, self.unpack_from(bytes_))
+    def unpack_merge(self, iterable, bytes_):
+        self.__class__.iterable_update(iterable, self.unpack_from(bytes_))
 
     def size(self, bytes_):
         count_size = self.count_packer.size()
@@ -130,7 +127,7 @@ class IterableHandler:
         data = bytes_[count_size:]
         element_get_size = self.element_packer.size
 
-        if self.is_variable_sized:
+        if not self.is_variable_sized:
             return (number_elements * element_get_size()) + count_size
 
         for i in range(number_elements):
@@ -145,12 +142,16 @@ class ListHandler(IterableHandler):
     """Handler for packing list iterables"""
     iterable_cls = list
     iterable_add = list.append
-    iterable_update = partial(list.__setitem__, slice(None, None, None))
+
+    def list_update(list_, data):
+        list_[:] = data
+
+    iterable_update = list_update
 
 
 class SetHandler(IterableHandler):
     """Handler for packing set iterables"""
-    def set_update(self, set_, data):
+    def set_update(set_, data):
         set_.clear()
         set_.update(data)
 

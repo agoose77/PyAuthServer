@@ -216,7 +216,6 @@ class ClientConnection(Connection):
             replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
             replicable = Replicable.create_or_return(replicable_cls,
                                           instance_id, register=True)
-
             # Perform incomplete role switch
             (replicable.roles.local,
              replicable.roles.remote) = (replicable.roles.remote,
@@ -387,7 +386,6 @@ class ServerConnection(Connection):
 
                 # Send changed attributes
                 if send_attributes or channel.is_initial:
-
                     attributes = channel.get_attributes(is_owner, timestamp)
 
                     # If they have changed
@@ -395,6 +393,7 @@ class ServerConnection(Connection):
                         # This ensures references exist
                         # By calling it after all creation packets are yielded
                         update_payload = packed_id + attributes
+
                         packet = make_packet(
                                             protocol=replication_update,
                                             payload=update_payload,

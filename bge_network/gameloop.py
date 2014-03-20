@@ -151,7 +151,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def dispatch(self):
         last_time = self.get_time()
-        quit_object = SignalValue(self.check_quit())
 
         accumulator = 0.0
 
@@ -209,10 +208,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         GameExitSignal.invoke()
 
         try:
-            for replicable in Replicable:
-                replicable.request_unregistration()
-
-            Replicable.update_graph()
+            Replicable.clear_graph()
 
         except Exception as err:
             print(err)

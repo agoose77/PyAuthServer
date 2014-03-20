@@ -34,7 +34,6 @@ class Channel(NetmodeSwitch):
 
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))
-
         self.packed_id = self.replicable_id_packer.pack(replicable)
 
     def take_rpc_calls(self):

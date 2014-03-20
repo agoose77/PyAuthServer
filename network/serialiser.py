@@ -3,7 +3,7 @@ from math import ceil
 
 from .handler_interfaces import register_handler
 
-__all__ = ['IStruct', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8',
+__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8',
            'bits2bytes', 'handler_from_bit_length', 'handler_from_int',
            'handler_from_byte_length', 'StringHandler', 'BytesHandler']
 
@@ -19,12 +19,12 @@ class IStruct(PyStruct):
         return super().unpack_from(bytes_)[0]
 
 
-UInt32 = IStruct("@I")
-UInt16 = IStruct("@H")
-UInt64 = IStruct("@Q")
-UInt8 = IStruct("@B")
-Float4 = IStruct("@f")
-Float8 = IStruct("@d")
+UInt32 = IStruct("!I")
+UInt16 = IStruct("!H")
+UInt64 = IStruct("!Q")
+UInt8 = IStruct("!B")
+Float4 = IStruct("!f")
+Float8 = IStruct("!d")
 
 int_packers = [UInt8, UInt16, UInt32, UInt64]
 int_sized = {x.size(): x for x in int_packers}

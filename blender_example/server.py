@@ -20,9 +20,9 @@ class TeamDeathMatch(bge_network.ReplicationRules):
 
     ai_camera_class = bge_network.Camera
     ai_controller_class = EnemyController
-    ai_pawn_class = Zombie
+    ai_pawn_class = CTFPawn
     ai_replication_info_class = CTFPlayerReplicationInfo
-    ai_weapon_class = ZombieWeapon
+    ai_weapon_class = BowWeapon
 
     player_camera_class = bge_network.Camera
     player_controller_class = CTFPlayerController
@@ -89,7 +89,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.position = random.choice(WorldInfo.subclass_of(SpawnPoint)
+        pawn.position = random.choice(bge_network.WorldInfo.subclass_of(SpawnPoint)
                                       ).position
 
         return controller
@@ -155,6 +155,7 @@ class TeamDeathMatch(bge_network.ReplicationRules):
     @bge_network.ConnectionDeletedSignal.global_listener
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
+
         self.update_matchmaker()
 
     def post_initialise(self, connection):

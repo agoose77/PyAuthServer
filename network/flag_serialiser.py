@@ -20,7 +20,7 @@ class FlagSerialiser:
                           if value.type is bool]
         self.non_bool_args = [(key, value) for key, value in arguments.items()
                               if value.type is not bool]
-        self.none_bool_handlers = [(key, get_handler(value))
+        self.non_bool_handlers = [(key, get_handler(value))
                                for key, value in self.non_bool_args]
 
         # Maintain count of data types
@@ -36,10 +36,36 @@ class FlagSerialiser:
         self.content_bits = BitField(self.total_contents + 2)
         self.bitfield_packer = get_handler(TypeFlag(BitField))
 
+    def report_information(self, bytes_):
+        bitfield_packer = self.bitfield_packer
+        content_bits = bitfield_packer.unpack_from(bytes_)[:]
+        content_data = bytes_[:bitfield_packer.size(bytes_)]
+        print("Contents", content_data)
+        bytes_ = bytes_[bitfield_packer.size(bytes_):]
+        entry_names = [i[0] for i in self.non_bool_args + self.bool_args]
+
+        # If there are NoneType values they will be first
+        if content_bits[self.NONE_CONTENT_INDEX]:
+            none_bits = bitfield_packer.unpack_from(bytes_)
+            none_data = bytes_[:bitfield_packer.size(bytes_)]
+            print("None values", none_data)
+            bytes_ = bytes_[bitfield_packer.size(bytes_):]
+
+        else:
+            none_bits = [False] * self.total_contents
+            none_data = None
+
+        is_bool = [i[0] for i in self.bool_args].__contains__
+        for name, included, is_none in zip(entry_names, content_bits, none_bits):
+            if not included:
+                continue
+
+            print("{} : {}".format(name, "None" if is_none else ("Bool" if is_bool(name) else "Default")))
+
+        print()
+
     def unpack(self, bytes_, previous_values={}):
         '''Accepts ordered bytes, and optional previous values'''
-
-        # Read content bits
         bitfield_packer = self.bitfield_packer
         bitfield_packer.unpack_merge(self.content_bits, bytes_)
         bytes_ = bytes_[bitfield_packer.size(bytes_):]
@@ -50,10 +76,14 @@ class FlagSerialiser:
             bitfield_packer.unpack_merge(self.none_bits, bytes_)
             bytes_ = bytes_[bitfield_packer.size(bytes_):]
 
+        # Ensure that the NoneType values are cleared
+        else:
+            self.none_bits.clear()
+
         # All values have an entry in the contents bitfield
         for included, value_none, (key, handler) in zip(content_values,
                                                         self.none_bits,
-                                                        self.none_bool_handlers):
+                                                        self.non_bool_handlers):
             if not included:
                 continue
 
@@ -65,7 +95,6 @@ class FlagSerialiser:
             # If the value can be merged with an existing data type
             if key in previous_values and hasattr(handler, "unpack_merge"):
                 value = previous_values[key]
-
                 # If we can't merge use default unpack
                 if value is None:
                     value = handler.unpack_from(bytes_)
@@ -95,7 +124,7 @@ class FlagSerialiser:
                 if included:
                     yield (key, None if is_none else bool_value)
 
-    def pack(self, data, current_values={}):
+    def pack(self, data):
         content_bits = self.content_bits
         none_bits = self.none_bits
 
@@ -108,14 +137,13 @@ class FlagSerialiser:
         append_value = data_values.append
 
         # Iterate over non booleans
-        for index, (key, handler) in enumerate(self.none_bool_handlers):
+        for index, (key, handler) in enumerate(self.non_bool_handlers):
             if not key in data:
                 continue
 
             # Register as included
             content_bits[index] = True
             value = data.pop(key)
-
             if value is None:
                 none_bits[index] = True
 

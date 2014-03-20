@@ -1,4 +1,4 @@
-import bge_network
+from bge_network import *
 from behaviours import *
 from bge import logic
 
@@ -12,25 +12,24 @@ import bge
 from enums import TeamRelation
 
 
-class GameReplicationInfo(bge_network.ReplicableInfo):
-    roles = bge_network.Attribute(
-                                  bge_network.Roles(
-                                                    bge_network.Roles.authority,
-                                                    bge_network.Roles.simulated_proxy
-                                                    )
-                                  )
+class GameReplicationInfo(ReplicableInfo):
+    roles = Attribute(
+                      Roles(
+                            Roles.authority,
+                            Roles.simulated_proxy
+                            )
+                      )
 
-    time_to_start = bge_network.Attribute(0.0)
-    match_started = bge_network.Attribute(False)
-    players = bge_network.Attribute(bge_network.TypedList(bge_network.Replicable),
-                                    element_flag=bge_network.TypeFlag(bge_network.Replicable))
+    time_to_start = Attribute(0.0)
+    match_started = Attribute(False)
+    players = Attribute(TypedList(Replicable),
+                        element_flag=TypeFlag(Replicable))
 
 
-    @bge_network.requires_netmode(bge_network.Netmodes.server)
-    @bge_network.BroadcastMessage.global_listener
+    @requires_netmode(Netmodes.server)
+    @BroadcastMessage.global_listener
     def send_broadcast(self, message):
-        player_controllers = bge_network.WorldInfo.subclass_of(
-                                   bge_network.PlayerController)
+        player_controllers = WorldInfo.subclass_of(PlayerController)
 
         for controller in player_controllers:
             controller.receive_broadcast(message)
@@ -43,14 +42,14 @@ class GameReplicationInfo(bge_network.ReplicableInfo):
         yield "players"
 
 
-class TeamInfo(bge_network.ReplicableInfo):
+class TeamInfo(ReplicableInfo):
 
-    name = bge_network.Attribute(type_of=str, complain=True)
-    score = bge_network.Attribute(0, complain=True)
-    players = bge_network.Attribute(bge_network.TypedSet(bge_network.Replicable),
-                    element_flag=bge_network.TypeFlag(bge_network.Replicable))
+    name = Attribute(type_of=str, complain=True)
+    score = Attribute(0, complain=True)
+    players = Attribute(TypedSet(Replicable),
+                        element_flag=TypeFlag(Replicable))
 
-    @bge_network.simulated
+    @simulated
     def get_relationship_with(self, team):
         return(TeamRelation.friendly if team == self else TeamRelation.enemy)
 
@@ -64,9 +63,9 @@ class TeamInfo(bge_network.ReplicableInfo):
         yield "players"
 
 
-class CTFPlayerReplicationInfo(bge_network.PlayerReplicationInfo):
+class CTFPlayerReplicationInfo(PlayerReplicationInfo):
 
-    team = bge_network.Attribute(type_of=bge_network.Replicable, complain=True)
+    team = Attribute(type_of=Replicable, complain=True)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
@@ -75,7 +74,7 @@ class CTFPlayerReplicationInfo(bge_network.PlayerReplicationInfo):
             yield "team"
 
 
-class EnemyController(bge_network.AIController):
+class EnemyController(AIController):
 
     def on_initialised(self):
         super().on_initialised()
@@ -90,21 +89,20 @@ class EnemyController(bge_network.AIController):
         self.behaviour.root = behaviour
 
 
-class CTFPlayerController(bge_network.PlayerController):
+class CTFPlayerController(PlayerController):
 
     input_fields = ("forward", "backwards", "left",
                     "right", "shoot", "run", "voice",
                     "jump")
 
-    @bge_network.ActorKilledSignal.listener
-    def on_killed(self, attacker, target):
+    def clear_inventory(self):
         for item in self.inventory:
             item.unpossessed()
         self.inventory.clear()
 
-    @bge_network.CollisionSignal.listener
+    @CollisionSignal.listener
     def on_collision(self, other, is_new, data):
-        target = bge_network.Actor.from_object(other)
+        target = Actor.from_object(other)
         if target is None or not is_new:
             return
 
@@ -124,6 +122,15 @@ class CTFPlayerController(bge_network.PlayerController):
 
         self.inventory = []
 
+    @ActorKilledSignal.listener
+    def on_killed(self, attacker, target):
+        self.clear_inventory()
+
+    def on_unregistered(self):
+        super().on_unregistered()
+
+        self.clear_inventory()
+
     def on_notify(self, name):
         super().on_notify(name)
 
@@ -142,7 +149,7 @@ class CTFPlayerController(bge_network.PlayerController):
         flag.local_position = mathutils.Vector()
         self.inventory.append(flag)
 
-    @bge_network.PlayerInputSignal.global_listener
+    @PlayerInputSignal.global_listener
     def player_update(self, delta_time):
         super().player_update(delta_time)
 
@@ -150,16 +157,16 @@ class CTFPlayerController(bge_network.PlayerController):
         if self.inputs.voice != self.microphone.active:
             self.microphone.active = self.inputs.voice
 
-    @bge_network.ActorDamagedSignal.listener
+    @ActorDamagedSignal.listener
     def take_damage(self, damage, instigator, hit_position, momentum):
         if self.pawn.health == 0:
-            bge_network.ActorKilledSignal.invoke(instigator, target=self.pawn)
+            ActorKilledSignal.invoke(instigator, target=self.pawn)
 
 
-class CTFPawn(bge_network.Pawn):
+class CTFPawn(Pawn):
     entity_name = "Suzanne_Physics"
 
-    @bge_network.simulated
+    @simulated
     def on_notify(self, name):
         # play weapon effects
         if name == "health":
@@ -175,28 +182,7 @@ class CTFPawn(bge_network.Pawn):
         self.run_speed = 6
 
 
-class Zombie(bge_network.Pawn):
-
-    entity_name = "ZombieCollision"
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        animations = SelectorNode(
-                                  dead_animation(),
-                                  idle_animation(),
-                                  walk_animation(),
-                                )
-
-        animations.should_restart = True
-
-        self.animations.root.add_child(animations)
-
-        self.walk_speed = 1
-        self.run_speed = 6
-
-
-class BowWeapon(bge_network.ProjectileWeapon):
+class BowWeapon(ProjectileWeapon):
 
     def on_notify(self, name):
         # This way ammo is still updated locally
@@ -219,16 +205,7 @@ class BowWeapon(bge_network.ProjectileWeapon):
         self.projectile_velocity = mathutils.Vector((0, 15, 0))
 
 
-class ZombieAttachment(bge_network.WeaponAttachment):
-
-    entity_name = "EmptyWeapon"
-
-    @simulated
-    def play_fire_effects(self):
-        self.owner.play_animation("Attack", 0, 60)
-
-
-class TracerParticle(bge_network.Particle):
+class TracerParticle(Particle):
     entity_name = "Trace"
 
     def on_initialised(self):
@@ -242,7 +219,7 @@ class TracerParticle(bge_network.Particle):
         self.object.localScale = self.scale * (1 - self._timer.progress) ** 2
 
 
-class ArrowProjectile(bge_network.Actor):
+class ArrowProjectile(Actor):
     entity_name = "Arrow"
 
     def on_registered(self):
@@ -264,7 +241,7 @@ class ArrowProjectile(bge_network.Actor):
         TracerParticle().position = self.position - global_vel.normalized() * 2
         self.align_to(global_vel, 0.3)
 
-    @bge_network.CollisionSignal.listener
+    @CollisionSignal.listener
     @simulated
     def on_collision(self, other, is_new, data):
         target = self.from_object(other)
@@ -272,13 +249,13 @@ class ArrowProjectile(bge_network.Actor):
         if not data or not is_new or not self.in_flight:
             return
 
-        hit_normal = bge_network.mean(c.hitNormal for c in data)
-        hit_position = bge_network.mean(c.hitPosition for c in data)
+        hit_normal = mean(c.hitNormal for c in data)
+        hit_position = mean(c.hitPosition for c in data)
 
-        if isinstance(target, bge_network.Pawn) and self.owner:
+        if isinstance(target, Pawn) and self.owner:
             momentum = self.mass * self.velocity.length * hit_normal
 
-            bge_network.ActorDamagedSignal.invoke(self.owner.base_damage,
+            ActorDamagedSignal.invoke(self.owner.base_damage,
                                                   self.owner.owner,
                                                   hit_position, momentum,
                                                   target=target)
@@ -287,73 +264,66 @@ class ArrowProjectile(bge_network.Actor):
         self.in_flight = False
 
 
-class ZombieWeapon(bge_network.TraceWeapon):
+class BowAttachment(WeaponAttachment):
 
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.max_ammo = 1
-
-        self.shoot_interval = 1
-        self.maximum_range = 8
-        self.effective_range = 6
-        self.base_damage = 80
-        self.attachment_class = ZombieAttachment
-
-    def consume_ammo(self):
-        pass
-
-
-class BowAttachment(bge_network.WeaponAttachment):
-
-    roles = bge_network.Attribute(bge_network.Roles(local=bge_network.Roles.authority,
-                                                    remote=bge_network.Roles.simulated_proxy))
+    roles = Attribute(Roles(local=Roles.authority,
+                            remote=Roles.simulated_proxy))
 
     entity_name = "Bow"
 
 
-class SpawnPoint(bge_network.Actor):
+class SpawnPoint(Actor):
 
-    roles = bge_network.Roles(bge_network.Roles.authority,
-                              bge_network.Roles.none)
+    roles = Roles(Roles.authority,
+                              Roles.none)
 
     entity_name = "SpawnPoint"
 
 
-class CTFFlag(bge_network.ResourceActor):
-    owner_info_possessed = bge_network.Attribute(type_of=bge_network.Replicable,
-                                            notify=True, complain=True)
+class CTFFlag(ResourceActor):
+    a = Attribute("")
+    owner_info_possessed = Attribute(type_of=Replicable,
+                                     notify=True,
+                                     complain=True)
 
     entity_name = "Flag"
     colours = {TeamRelation.friendly: [0, 255, 0, 1],
-                TeamRelation.enemy: [255, 0, 0, 1]}
+                TeamRelation.enemy: [255, 0, 0, 1],
+                TeamRelation.neutral: [255, 255, 255, 1]}
 
     def on_initialised(self):
         super().on_initialised()
-
+        self.a = "DEBUG"
         self.replicate_physics_to_owner = False
 
     def possessed_by(self, other):
         super().possessed_by(other)
-
+        assert other.info
         # Inform other players
-        bge_network.BroadcastMessage.invoke("{} has picked up flag"
+        BroadcastMessage.invoke("{} has picked up flag"
                                 .format(other.info.name))
 
     def unpossessed(self):
         # Inform other players
-        bge_network.BroadcastMessage.invoke("{} has dropped flag"
+        assert self.owner.info
+        BroadcastMessage.invoke("{} has dropped flag"
                                 .format(self.owner.info.name))
+        self.owner_info_possessed = None
 
         super().unpossessed()
 
     def on_notify(self, name):
         if name == "owner_info_possessed":
-            player_controllers = bge_network.WorldInfo.subclass_of(
-                                       bge_network.PlayerController)
-            player_controller = next(player_controllers.__iter__())
+
+            if self.owner_info_possessed is None:
+                self.colour = self.colours[TeamRelation.neutral]
+                return
+
+            player_controller = take_first(WorldInfo.subclass_of(
+                                                     PlayerController))
+            assert player_controller.info
             team_relation = player_controller.info.team.get_relationship_with(
-                                         self.owner_info_possessed.team)
+                                              self.owner_info_possessed.team)
 
             self.colour = self.colours[team_relation]
 
@@ -362,11 +332,11 @@ class CTFFlag(bge_network.ResourceActor):
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
-
+        yield "a"
         if is_complaint:
             yield "owner_info_possessed"
 
 
-class Cone(bge_network.Actor):
+class Cone(Actor):
     entity_name = "Cone"
 

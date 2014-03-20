@@ -181,6 +181,11 @@ class InstanceRegister(TypeRegister):
         if cls._to_register or cls._to_unregister:
             cls.update_graph()
 
+    def clear_graph(cls):  # @NoSelf
+        for instance in cls._instances.values():
+            instance.request_unregistration()
+        cls.update_graph()
+
     def _register_to_graph(cls, instance):  # @NoSelf
         if instance.registered:
             return

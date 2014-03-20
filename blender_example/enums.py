@@ -4,4 +4,4 @@ __all__ = ['TeamRelation']
 
 
 class TeamRelation(metaclass=bge_network.Enum):
-    values = ["friendly", "enemy"]
+    values = ["friendly", "enemy", "neutral"]

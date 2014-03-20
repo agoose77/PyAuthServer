@@ -1,4 +1,4 @@
-__all__ = ['RenewableGenerator']
+__all__ = ['RenewableGenerator', 'take_first']
 
 
 class RenewableGenerator:
@@ -17,3 +17,7 @@ class RenewableGenerator:
         except StopIteration:
             self._internal = self._renew_func()
             return next(self._internal)
+
+
+def take_first(iterable):
+    return next(iter(iterable))
