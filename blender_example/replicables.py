@@ -106,7 +106,8 @@ class CTFPlayerController(PlayerController):
         if target is None or not is_new:
             return
 
-        if isinstance(target, CTFFlag):
+        # If we can pick it up
+        if isinstance(target, CTFFlag) and target.owner_info_possessed is None:
             self.pickup_flag(target)
 
     def on_initialised(self):

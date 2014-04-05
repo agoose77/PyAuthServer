@@ -134,14 +134,16 @@ class AbstractStorageContainer:
 
 
 def cache_rpc_calls(cls):
-    is_supported = RPCStorageContainer.check_is_supported
-    data = RPCStorageContainer.lookup_dict[cls] = getmembers(cls, is_supported)
+    container = RPCStorageContainer
+    is_supported = container.check_is_supported
+    data = container.lookup_dict[cls] = getmembers(cls, is_supported)
     return data
 
 
 def cache_attributes(cls):
-    is_supported = AttributeStorageContainer.check_is_supported
-    data = AttributeStorageContainer.lookup_dict[cls] = getmembers(cls, is_supported)
+    container = AttributeStorageContainer
+    is_supported = container.check_is_supported
+    data = container.lookup_dict[cls] = getmembers(cls, is_supported)
     return data
 
 

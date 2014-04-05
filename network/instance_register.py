@@ -78,9 +78,9 @@ class InstanceRegister(TypeRegister):
     Most methods could be implemented as classmethods on the implementee,
     however this metaclass prevents namespace cluttering"""
 
-    def __new__(self, name, parents, attrs):
+    def __new__(self, name, parents, cls_attrs):
         parents += (InstanceMixins,)
-        cls = super().__new__(self, name, parents, attrs)
+        cls = super().__new__(self, name, parents, cls_attrs)
 
         if not hasattr(cls, "_instances"):
             cls._instances = {}

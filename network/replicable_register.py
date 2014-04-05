@@ -11,47 +11,73 @@ __all__ = ['ReplicableRegister']
 
 class ReplicableRegister(InstanceRegister):
 
-    def __new__(self, cls_name, bases, attrs):
-        # If this isn't the base class
-        if bases:
-            # Get all the member methods
-            for name, value in attrs.items():
+    forced_redefinitions = {}
 
-                # Wrap them with permission
-                if (self.not_wrappable(value)
-                    or self.found_in_parents(name, bases)):
+    def __new__(self, cls_name, bases, cls_dict):
+        # If this isn't the base class
+        unshareable_rpc_functions = {}
+
+        # We cannot operate on base classes
+        if not bases:
+            return super().__new__(self, cls_name, bases, cls_dict)
+
+        # Include certain RPCs for redefinition
+        for parent_cls in bases:
+            if not parent_cls in self.forced_redefinitions:
+                continue
+
+            rpc_functions = self.forced_redefinitions[parent_cls]
+            for name, function in rpc_functions.items():
+                if name in cls_dict:
                     continue
 
-                # Wrap with permission wrapper
-                value = self.permission_wrapper(value)
+                cls_dict[name] = function
 
-                # Automatically wrap RPC
-                if self.is_rpc(value):
-                    value = RPCInterfaceFactory(value)
+        # Get all the member methods
+        for name, value in cls_dict.items():
+            if (not self.is_wrappable(value) or
+                self.found_in_parents(name, bases)):
+                continue
 
-                attrs[name] = value
+            # Wrap function with permission wrapper
+            value = self.permission_wrapper(value)
 
-        return super().__new__(self, cls_name, bases, attrs)
+            # Automatically wrap RPC
+            if self.is_unbound_rpc_function(value):
+                value = RPCInterfaceFactory(value)
 
-    def is_rpc(func):  # @NoSelf
+                # If subclasses will need copies
+                if value.has_marked_parameters:
+                    unshareable_rpc_functions[name] = value.original_function
+
+            cls_dict[name] = value
+
+        cls = super().__new__(self, cls_name, bases, cls_dict)
+
+        # If we will require redefinitions
+        if unshareable_rpc_functions:
+            self.forced_redefinitions[cls] = unshareable_rpc_functions
+
+        return cls
+
+    def is_unbound_rpc_function(func):  # @NoSelf
         try:
             annotations = func.__annotations__
 
         except AttributeError:
-            if not hasattr(func, "__func__"):
-                return False
-            annotations = func.__func__.__annotations__
+            return False
 
         try:
             return_type = annotations['return']
+
         except KeyError:
             return False
 
         return return_type in Netmodes
 
     @classmethod
-    def not_wrappable(cls, value):
-        return (not isinstance(value, FunctionType) or
+    def is_wrappable(cls, value):
+        return (isinstance(value, FunctionType) and not
                 isinstance(value, (classmethod, staticmethod)))
 
     @classmethod
@@ -60,8 +86,10 @@ class ReplicableRegister(InstanceRegister):
             for cls in reversed(parent.__mro__):
                 if hasattr(cls, name):
                     return True
+
                 if cls.__class__ == meta:
                     break
+
         return False
 
     def mark_wrapped(func):  # @NoSelf

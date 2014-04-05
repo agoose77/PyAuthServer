@@ -9,6 +9,7 @@ __all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8',
 
 
 class IStruct(PyStruct):
+
     def size(self, bytes_=None):
         return super().size
 
@@ -58,34 +59,34 @@ def handler_from_byte_length(bytes_):
     return int_sized[bytes_]
 
 
-class StringHandler:
+class BytesHandler:
 
     def __init__(self, static_value):
-        bytes_ = static_value.data.get("max_length", 255)
-        self.packer = handler_from_int(bytes_)
+        header_max_value = static_value.data.get("max_length", 255)
+        self.packer = handler_from_int(header_max_value)
 
-    def pack(self, str_):
-        return self.packer.pack(len(str_)) + str_.encode()
+    def pack(self, bytes_):
+        return self.packer.pack(len(bytes_)) + bytes_
 
     def size(self, bytes_):
         length = self.packer.unpack_from(bytes_)
         return length + self.packer.size()
 
     def unpack(self, bytes_):
-        return bytes_[self.packer.size():].decode()
+        return bytes_[self.packer.size():]
 
     def unpack_from(self, bytes_):
         length = self.size(bytes_)
         return self.unpack(bytes_[:length])
 
 
-class BytesHandler(StringHandler):
+class StringHandler(BytesHandler):
 
-    def pack(self, bytes_):
-        return self.packer.pack(len(bytes_)) + bytes_
+    def pack(self, str_):
+        return super().pack(str_.encode())
 
     def unpack(self, bytes_):
-        return bytes_[self.packer.size():]
+        return super().unpack(bytes_).decode()
 
 
 # Register handlers for native types
