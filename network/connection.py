@@ -9,6 +9,8 @@ from .enums import Roles, Protocols, Netmodes
 from .netmode_switch import NetmodeSwitch
 from .channel import Channel
 
+from operator import attrgetter
+
 __all__ = ['Connection', 'ServerConnection', 'ClientConnection']
 
 
@@ -59,63 +61,25 @@ class Connection(SignalListener, NetmodeSwitch):
         """Delete callback"""
         self.replicable.request_unregistration()
 
-    def is_owner(self, replicable):
-        """Determines if a replicable is belongs to this connection
-        Compares uppermost parent of replicable with connection's replicable
-
-        :param replicable: replicable instance
-        :return: condition status"""
-        # Determine if parent is our controller
-        parent = replicable.uppermost
-
-        try:
-            return parent.instance_id == \
-                self.replicable.instance_id
-
-        except AttributeError:
-            return False
-
-    @staticmethod
-    def get_replication_priority(entry):
-        """Gets the replication priority for a replicable
-
-        :param entry: replicable instance
-        :return: replication priority"""
-        return entry[0].replication_priority
-
     @property
-    def replication_data(self):
+    def prioritised_channels(self):
         """Returns a generator for replicables
         with a remote role != Roles.none
 
         :yield: replicable, (is_owner and relevant_to_owner), channel"""
-        check_is_owner = self.is_owner
-        channels = self.channels
         no_role = Roles.none  # @UndefinedVariable
 
-        for replicable in Replicable:
+        for channel in sorted(self.channels.values(), reverse=True,
+                              key=attrgetter("replication_priority")):
+            replicable = channel.replicable
+
             # Check if remote role is permitted
             if replicable.roles.remote == no_role:
                 continue
 
-            # If we don't have a channel (if torn off or temporary)
-            if not replicable.instance_id in channels:
-                continue
-
-            channel = channels[replicable.instance_id]
-
             # Now check if we are an owner
-            is_owner = check_is_owner(replicable)
-            relevant_to_owner = replicable.relevant_to_owner
-
-            yield (replicable, is_owner and relevant_to_owner, channel)
-
-    @property
-    def prioritised_replication_data(self):
-        """Returns an iterator of priorised replicable data
-        :returns: iterator of prioritised list of replication data"""
-        return iter(sorted(self.replication_data, reverse=True,
-                      key=self.get_replication_priority))
+            yield (channel, replicable.relevant_to_owner
+                            and channel.is_owner)
 
     def get_method_replication(self, replicables, collection, bandwidth):
         """Writes replicated function calls to packet collection
@@ -129,10 +93,10 @@ class Connection(SignalListener, NetmodeSwitch):
         store_packet = collection.members.append
 
         for item in replicables:
-            is_owner, channel = item[1:]
+            channel, is_owner_relevant = item
 
             # Send RPC calls if we are the owner
-            if is_owner and channel.has_rpc_calls:
+            if is_owner_relevant and channel.has_rpc_calls:
                 packed_id = channel.packed_id
 
                 for rpc_call, reliable in channel.take_rpc_calls():
@@ -200,7 +164,7 @@ class ClientConnection(Connection):
                       .format(instance_id))
 
             else:
-                if self.is_owner(channel.replicable):
+                if channel.is_owner:
                     channel.invoke_rpc_call(payload_following_id)
 
         # If construction for replicable
@@ -245,7 +209,7 @@ class ClientConnection(Connection):
         :returns: PacketCollection instance'''
         collection = PacketCollection()
         replicables = self.get_method_replication(
-                                          self.prioritised_replication_data,
+                                          self.prioritised_channels,
                                           collection,
                                           available_bandwidth)
 
@@ -280,17 +244,6 @@ class ServerConnection(Connection):
             print("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
-    @ReplicableRegisteredSignal.global_listener
-    def notify_registration(self, target):
-        """Handles registration of a replicable instance
-        Create channel for replicable instance
-
-        :param target: replicable that was registered"""
-        if target.torn_off:
-            return
-
-        super().notify_registration(target)
-
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         '''Called when replicable dies
@@ -309,19 +262,6 @@ class ServerConnection(Connection):
 
         super().notify_unregistration(target)
 
-    @staticmethod
-    def get_replication_priority(entry, WorldInfo=WorldInfo):
-        """Gets the replication priority for a replicable
-        Utilises replication interval to increment priority
-        of neglected replicables
-
-        :param entry: replicable instance
-        :returns: replication priority"""
-        replicable, _, channel = entry
-        interval = (WorldInfo.elapsed - channel.last_replication_time)
-        elapsed_fraction = (interval / replicable.replication_update_period)
-        return replicable.replication_priority + (elapsed_fraction - 1)
-
     def get_attribute_replication(self, replicables, collection,
                                   bandwidth, send_attributes=True):
         """Generator
@@ -336,75 +276,76 @@ class ServerConnection(Connection):
         make_packet = Packet
         store_packet = collection.members.append
         insert_packet = collection.members.insert
-        extend_packets = collection.members.extend
 
         replication_init = Protocols.replication_init  # @UndefinedVariable
         replication_update = Protocols.replication_update  # @UndefinedVariable
 
         timestamp = WorldInfo.elapsed
         is_relevant = WorldInfo.rules.is_relevant
-        replicator = self.replicable
+        connection_replicable = self.replicable
 
         used_bandwidth = 0
         free_bandwidth = bandwidth > 0
 
         for item in replicables:
 
-            if free_bandwidth:
-                replicable, is_owner, channel = item
-                # Get network ID
-                packed_id = channel.packed_id
+            if not free_bandwidth:
+                yield item
+                continue
 
-                # Check whether enough time has elapsed
-                interval = (timestamp - channel.last_replication_time)
-                needs_replication = ((interval >=
-                                       replicable.replication_update_period)
-                                       or channel.is_initial)
+            channel, is_owner = item
 
-                # Only send attributes if relevant
-                if not (needs_replication and (is_owner
-                        or is_relevant(replicator, replicable))):
-                    continue
+            # Get replicable
+            replicable = channel.replicable
 
-                # If we've never replicated to this channel
-                if channel.is_initial:
-                    # Pack the class name
-                    packed_class = self.string_packer.pack(
-                                   replicable.__class__.type_name)
-                    packed_is_host = self.int_packer.pack(
-                                  replicable == self.replicable)
+            # Only send attributes if relevant
+            if not (channel.awaiting_replication and
+                    (is_owner or is_relevant(connection_replicable,
+                                             replicable))):
+                continue
 
-                    # Send the protocol, class name and owner status to client
-                    packet = make_packet(protocol=replication_init,
-                                  payload=packed_id + packed_class +\
-                                  packed_is_host, reliable=True)
-                    # Insert the packet at the front (to ensure attribute
-                    # references are valid to newly created replicables
-                    insert_packet(0, packet)
+            # Get network ID
+            packed_id = channel.packed_id
 
+            # If we've never replicated to this channel
+            if channel.is_initial:
+                # Pack the class name
+                packed_class = self.string_packer.pack(
+                               replicable.__class__.type_name)
+                packed_is_host = self.int_packer.pack(
+                              replicable == self.replicable)
+
+                # Send the protocol, class name and owner status to client
+                packet = make_packet(protocol=replication_init,
+                              payload=packed_id + packed_class +\
+                              packed_is_host, reliable=True)
+                # Insert the packet at the front (to ensure attribute
+                # references are valid to newly created replicables
+                insert_packet(0, packet)
+
+                used_bandwidth += packet.size
+
+            # Send changed attributes
+            if send_attributes or channel.is_initial:
+                attributes = channel.get_attributes(is_owner)
+
+                # If they have changed
+                if attributes:
+                    # This ensures references exist
+                    # By calling it after all creation packets are yielded
+                    update_payload = packed_id + attributes
+
+                    packet = make_packet(
+                                        protocol=replication_update,
+                                        payload=update_payload,
+                                        reliable=True)
+
+                    store_packet(packet)
                     used_bandwidth += packet.size
 
-                # Send changed attributes
-                if send_attributes or channel.is_initial:
-                    attributes = channel.get_attributes(is_owner, timestamp)
-
-                    # If they have changed
-                    if attributes:
-                        # This ensures references exist
-                        # By calling it after all creation packets are yielded
-                        update_payload = packed_id + attributes
-
-                        packet = make_packet(
-                                            protocol=replication_update,
-                                            payload=update_payload,
-                                            reliable=True)
-
-                        store_packet(packet)
-                        used_bandwidth += packet.size
-
-                    # If a temporary replicable remove from channels (but don't delete)
-                    if replicable.replicate_temporarily:
-                        super().notify_unregistration(replicable)
+                # If a temporary replicable remove from channels (but don't delete)
+                if replicable.replicate_temporarily:
+                    self.channels.pop(replicable.instance_id)
 
             yield item
 
@@ -418,7 +359,6 @@ class ServerConnection(Connection):
 
         :param packets: PacketCollection instance'''
         # Local space variables
-        is_owner = self.is_owner
         channels = self.channels
 
         unpacker = self.replicable_packer.unpack_id
@@ -433,7 +373,7 @@ class ServerConnection(Connection):
             channel = channels[instance_id]
 
             # If we have permission to execute
-            if is_owner(channel.replicable):
+            if channel.is_owner:
                 channel.invoke_rpc_call(packet.payload[id_size:])
 
     def send(self, network_tick, available_bandwidth):
@@ -444,7 +384,7 @@ class ServerConnection(Connection):
         :returns: PacketCollection instance'''
 
         collection = PacketCollection()
-        replicables = self.prioritised_replication_data
+        replicables = self.prioritised_channels
 
         replicables = self.get_attribute_replication(replicables,
                                                          collection,

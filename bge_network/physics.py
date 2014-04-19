@@ -224,10 +224,6 @@ class ServerPhysics(PhysicsSystem):
             assert replicable.registered
             self.interface_state(replicable,
                                  replicable.rigid_body_state)
-            if replicable.rigid_body_state.collision_mask is None or replicable.rigid_body_state.collision_group is None:
-                print(replicable.rigid_body_state.collision_mask,
-                  replicable.rigid_body_state.collision_group)
-                print("NONW")
         self.store_rewind_data()
 
         super().update(scene, delta_time)

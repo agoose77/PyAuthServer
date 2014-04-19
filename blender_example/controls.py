@@ -64,13 +64,6 @@ class IsThirdPerson(ConditionNode):
 
 class HandleFirstPersonCamera(SignalLeafNode):
 
-    def normalise(self, angle):
-        if angle > radians(180):
-            angle = radians(180) - angle
-        elif angle < - radians(180):
-            angle = angle + radians(180)
-        return angle
-
     def evaluate(self, blackboard):
         mouse_diff_x, mouse_diff_y = blackboard['mouse']
         pawn = blackboard['pawn']
@@ -84,9 +77,6 @@ class HandleFirstPersonCamera(SignalLeafNode):
 
         current_pitch = camera.local_rotation[0]
 
-        # Stop locking
-        current_pitch = self.normalise(current_pitch)
-
         if (current_pitch < look_limit and delta_pitch > 0):
             if delta_pitch > (look_limit - current_pitch):
                 delta_pitch = (look_limit - current_pitch)
@@ -99,13 +89,16 @@ class HandleFirstPersonCamera(SignalLeafNode):
             return EvaluationState.success
 
         current_pitch += delta_pitch
-        current_pitch = self.normalise(current_pitch)
 
+        # Set pawn's Z rotation
         pawn_rotation = pawn.rotation.copy()
         pawn_rotation.rotate(Euler((0, 0, delta_yaw)))
-        pawn.rotation = pawn_rotation
+       # pawn.rotation = pawn_rotation
 
+        # Set camera's X rotation
         camera.local_rotation = Euler((current_pitch, 0, 0))
+
+        # Set replication rotation
         pawn.view_pitch = current_pitch
 
         return EvaluationState.success
@@ -125,18 +118,18 @@ class HandleThirdPersonCamera(SignalLeafNode):
         pawn.view_pitch = 0.0
         camera.local_position.rotate(Euler((rotation_delta, 0, 0)))
 
-        minimum_y = -camera.offset
-        maximum_y = cos(look_limit) * -camera.offset
+        minimum_y = -camera.gimbal_offset
+        maximum_y = cos(look_limit) * -camera.gimbal_offset
 
         minimum_z = 0
-        maximum_z = sin(look_limit) * camera.offset
+        maximum_z = sin(look_limit) * camera.gimbal_offset
 
         camera.local_position.y = min(maximum_y, max(minimum_y,
                                             camera.local_position.y))
         camera.local_position.z = min(maximum_z, max(minimum_z,
                                             camera.local_position.z))
 
-        camera.local_position.length = camera.offset
+        camera.local_position.length = camera.gimbal_offset
 
         rotation = Vector((0, -1, 0)).rotation_difference(
                           camera.local_position).inverted().to_euler()

@@ -211,8 +211,11 @@ class InstanceRegister(TypeRegister):
         finally:
             instance.unregister_signals()
 
-    def __iter__(cls, iter=iter):  # @NoSelf
+    def __getitem__(cls, key):  # @NoSelf
+        return cls.get_from_graph(key)
+
+    def __iter__(cls):  # @NoSelf
         return iter(cls._instances.values())
 
-    def __len__(cls, len=len):  # @NoSelf
+    def __len__(cls):  # @NoSelf
         return len(cls._instances)

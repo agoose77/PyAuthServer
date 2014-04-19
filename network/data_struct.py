@@ -14,6 +14,7 @@ class Struct:
     def __init__(self):
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()
+
         self._serialiser = FlagSerialiser(self._container._ordered_mapping)
 
     def __deepcopy__(self, memo):

@@ -270,8 +270,7 @@ class PhysicsObject:
     def visible(self):
         ''':returns: the visible state of this object'''
         obj = self.object
-        return (obj.visible and obj.meshes) or any(o.visible and o.meshes
-                for o in obj.childrenRecursive)
+        return (obj.visible and obj.meshes) or any(o.visible and o.meshes for o in obj.childrenRecursive)
 
     @property
     def mass(self):

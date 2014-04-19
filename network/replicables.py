@@ -51,6 +51,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         self.owner = None
 
+        # Replicaton properties
         self.relevant_to_owner = True
         self.always_relevant = False
 

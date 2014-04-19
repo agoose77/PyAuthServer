@@ -282,7 +282,6 @@ class SpawnPoint(Actor):
 
 
 class CTFFlag(ResourceActor):
-    a = Attribute("")
     owner_info_possessed = Attribute(type_of=Replicable,
                                      notify=True,
                                      complain=True)
@@ -294,12 +293,11 @@ class CTFFlag(ResourceActor):
 
     def on_initialised(self):
         super().on_initialised()
-        self.a = "DEBUG"
+
         self.replicate_physics_to_owner = False
 
     def possessed_by(self, other):
         super().possessed_by(other)
-        assert other.info
         # Inform other players
         BroadcastMessage.invoke("{} has picked up flag"
                                 .format(other.info.name))
@@ -333,11 +331,19 @@ class CTFFlag(ResourceActor):
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
-        yield "a"
+
         if is_complaint:
             yield "owner_info_possessed"
 
 
 class Cone(Actor):
     entity_name = "Cone"
+
+
+class Palette(Actor):
+    entity_name = "Palette"
+
+
+class Barrel(Actor):
+    entity_name = "Barrel"
 

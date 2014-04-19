@@ -5,6 +5,7 @@ from . import structs
 from . import behaviour_tree
 from . import configuration
 from . import enums
+from . import errors
 from . import signals
 from . import inputs
 from . import utilities
@@ -15,17 +16,17 @@ from . import physics_object
 
 import aud
 import bge
-import collections
+from collections import deque, defaultdict, namedtuple, OrderedDict
 
 import math
 import mathutils
 import os
-import operator
-import functools
 
+from functools import partial
+from contextlib import contextmanager
 from bge import logic, types
 
-Move = collections.namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
+Move = namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
 
 
 class Controller(Replicable):
@@ -40,6 +41,7 @@ class Controller(Replicable):
 
     def attach_camera(self, camera):
         camera.set_parent(self.pawn, "camera")
+        camera.local_position = mathutils.Vector()
 
     def on_initialised(self):
         super().on_initialised()
@@ -93,9 +95,9 @@ class Controller(Replicable):
 
     def server_fire(self):
         self.weapon.fire(self.camera)
+
         # Update flash count (for client-side fire effects)
         self.pawn.flash_count += 1
-
         if self.pawn.flash_count > 255:
             self.pawn.flash_count = 0
 
@@ -205,9 +207,10 @@ class PlayerController(Controller):
     '''Player pawn controller network object'''
 
     input_fields = []
-
-    move_error_limit = 0.2 ** 2
     config_filepath = "inputs.conf"
+
+    max_position_difference_squared = 1
+    max_rotation_difference = (2 * math.pi) / 60
 
     @property
     def mouse_delta(self):
@@ -248,6 +251,12 @@ class PlayerController(Controller):
         blackboard['mouse'] = mouse_diff_x, mouse_diff_y
 
         self.behaviour.update()
+
+    def broadcast_voice(self):
+        '''Dump voice information and encode it for the server'''
+        data = self.microphone.encode()
+        if data:
+            self.send_voice_server(data)
 
     @requires_netmode(Netmodes.server)
     def calculate_ping(self):
@@ -290,7 +299,6 @@ class PlayerController(Controller):
             print("Could not find Pawn for {}".format(self))
             return
 
-
         if not self.client_acknowledge_move(correction_tick):
             print("No move found")
             return
@@ -299,19 +307,34 @@ class PlayerController(Controller):
         print("{}: Correcting prediction for move {}".format(self,
                                                              correction_tick))
 
-        # Interface inputs with existing ones
+        # Input Interface
         lookup_dict = {}
+
+        # Input data
+        input_manager = self.inputs
+
+        # Get ordered event codes
+        keybindings = input_manager._keybindings_to_events
+        keybinding_codes = [keybindings[name] for name in sorted(keybindings)]
+
+        # Ask input manager to lookup from dict
+        get_input = lookup_dict.__getitem__
+
+        # State call-backs
         apply_move = self.apply_move
+        update_physics = partial(signals.PhysicsSingleUpdateSignal.invoke,
+                                 1 / WorldInfo.tick_rate, target=self.pawn)
 
-        with self.inputs.using_interface(lookup_dict.__getitem__):
+        # Re-apply later moves
+        with input_manager.using_interface(get_input):
+            # Iterate over all later moves
             for move in self.pending_moves.values():
-                # Place inputs into input manager
-                inputs_zip = zip(sorted(self.inputs.keybindings), move.inputs)
-                lookup_dict.update(inputs_zip)
-
-                apply_move(self.inputs, move.mouse_x, move.mouse_y)
-                signals.PhysicsSingleUpdateSignal.invoke(1 / WorldInfo.tick_rate,
-                                                         target=self.pawn)
+                # Place inputs into input dict {code: status}
+                lookup_dict.update(zip(sorted(keybinding_codes), move.inputs))
+                # Apply move inputs
+                apply_move(input_manager, move.mouse_x, move.mouse_y)
+                # Update Physics world
+                update_physics()
 
     @requires_netmode(Netmodes.client)
     def client_fire(self):
@@ -322,8 +345,7 @@ class PlayerController(Controller):
     def client_nudge_clock(self, difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                            forward: TypeFlag(bool)) -> Netmodes.client:
         # Update clock
-        sign = (-1 + (forward * 2))
-        WorldInfo.elapsed += (difference * sign) / WorldInfo.tick_rate
+        WorldInfo.elapsed += (difference if forward else -difference) / WorldInfo.tick_rate
 
         # Reply received correction
         self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
@@ -356,9 +378,14 @@ class PlayerController(Controller):
         return int((current_tick - command_tick) * self.clock_convergence_factor)
 
     def get_corrected_state(self, position, rotation):
+        '''Finds difference between local state and remote state
+
+        :param position: position of state
+        :param rotation: rotation of state
+        :returns: None if state is within safe limits else correction'''
         pos_difference = self.pawn.position - position
 
-        if pos_difference.length_squared <= self.move_error_limit:
+        if pos_difference.length_squared <= self.max_position_difference_squared:
             return
 
         # Create correction if neccessary
@@ -388,6 +415,10 @@ class PlayerController(Controller):
         return name in self.locks
 
     def load_keybindings(self):
+        '''Read config file for keyboard inputs
+        Looks for config file with "ClassName.conf" in config filepath
+
+        :returns: keybindings'''
         bindings = configuration.load_configuration(self.config_filepath,
                                     self.__class__.__name__,
                                     self.input_fields)
@@ -397,14 +428,9 @@ class PlayerController(Controller):
     def on_initialised(self):
         super().on_initialised()
 
-        self.setup_input()
-        self.setup_microphone()
+        self.pending_moves = OrderedDict()
 
-        self.pending_moves = collections.OrderedDict()
-
-        self.camera_setup = False
         self.mouse_smoothing = 0.6
-
         self._mouse_delta = None
         self._mouse_epsilon = 0.001
 
@@ -413,17 +439,20 @@ class PlayerController(Controller):
 
         self.locks = set()
         self.buffered_locks = FactoryDict(dict,
-                                          dict_type=collections.OrderedDict,
+                                          dict_type=OrderedDict,
                                           provide_key=False)
 
-        self.buffer = collections.deque()
+        self.buffer = deque()
 
         self.clock_convergence_factor = 1.0
         self.maximum_clock_ahead = int(0.05 * WorldInfo.tick_rate)
 
+        self.ping_influence_factor = 0.8
         self.ping_timer = timer.Timer(1.0, on_target=self.calculate_ping,
                                     repeat=True)
-        self.ping_influence_factor = 0.8
+
+        self.setup_input()
+        self.setup_microphone()
 
     def on_notify(self, name):
         if name == "pawn":
@@ -482,66 +511,14 @@ class PlayerController(Controller):
 
             controller.hear_voice(info, data)
 
-    def server_deduce_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.server:
-        round_trip_tick = WorldInfo.tick - tick
-        round_trip_time = round_trip_tick / WorldInfo.tick_rate
-        self.info.ping = (((1 - self.ping_influence_factor) * self.info.ping)
-                          + (self.ping_influence_factor * round_trip_time))
-        self.server_remove_lock("ping")
-
-    @requires_netmode(Netmodes.server)
-    def server_fire(self):
-        print("Rolling back by {:.3f} seconds".format(self.info.ping))
-        if 0:
-            latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
-            signals.PhysicsRewindSignal.invoke(WorldInfo.tick - latency_ticks)
-
-        super().server_fire()
-
-        if 0:
-            signals.PhysicsRewindSignal.invoke()
-
-    def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
-        '''Flag a variable as unlocked on the server'''
-        try:
-            self.locks.remove(name)
-        except KeyError:
-            print("{} was not locked".format(name))
+    def server_add_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+                                    name: TypeFlag(str)) -> Netmodes.server:
+        '''Add a server lock with respect for the dejittering latency'''
+        self.buffered_locks[tick][name] = True
 
     def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
         '''Flag a variable as locked on the server'''
         self.locks.add(name)
-
-    def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-                                    name: TypeFlag(str)) -> Netmodes.server:
-        '''Remove a server lock with respect for the jitter offset'''
-        self.buffered_locks[tick][name] = False
-
-    def server_add_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-                                    name: TypeFlag(str)) -> Netmodes.server:
-        '''Add a server lock with respect for the jitter offset'''
-        self.buffered_locks[tick][name] = True
-
-    def server_store_move(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-                                inputs: TypeFlag(inputs.InputManager,
-                                input_fields=MarkAttribute("input_fields")),
-                                mouse_diff_x: TypeFlag(float),
-                                mouse_diff_y: TypeFlag(float),
-                                position: TypeFlag(mathutils.Vector),
-                                rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
-        '''Store a client move for later processing and clock validation'''
-
-        current_tick = WorldInfo.tick
-        target_tick = self.maximum_clock_ahead + current_tick
-
-        # If the move is too early, correct clock
-        if tick > target_tick:
-            self.update_buffered_locks(tick)
-            self.start_clock_correction(target_tick, tick)
-            return
-
-        data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
-        self.buffer.append((tick, data))
 
     @requires_netmode(Netmodes.server)
     def server_check_move(self):
@@ -572,19 +549,80 @@ class PlayerController(Controller):
             self.server_add_lock("correction")
             self.client_apply_correction(current_tick, correction)
 
+    def server_deduce_ping(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.server:
+        '''Callback to determine ping for a client
+        Called by client_reply_ping(tick)
+        Unlocks the ping synchronisation lock
+
+        :param tick: tick from client reply replicated function'''
+        tick_delta = (WorldInfo.tick - tick)
+        round_trip_time = tick_delta / WorldInfo.tick_rate
+
+        self.info.ping = utilities.approach(self.info.ping, round_trip_time,
+                                            self.ping_influence_factor)
+        self.server_remove_lock("ping")
+
+    @requires_netmode(Netmodes.server)
+    def server_fire(self):
+        print("Rolling back by {:.3f} seconds".format(self.info.ping))
+        if 0:
+            latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
+            signals.PhysicsRewindSignal.invoke(WorldInfo.tick - latency_ticks)
+
+        super().server_fire()
+
+        if 0:
+            signals.PhysicsRewindSignal.invoke()
+
+    def server_remove_buffered_lock(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+                                    name: TypeFlag(str)) -> Netmodes.server:
+        '''Remove a server lock with respect for the dejittering latency'''
+        self.buffered_locks[tick][name] = False
+
+    def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
+        '''Flag a variable as unlocked on the server'''
+        try:
+            self.locks.remove(name)
+
+        except KeyError as err:
+            raise errors.FlagLockingError("{} was not locked".format(name))\
+                 from err
+
+    def server_store_move(self, tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+                                inputs: TypeFlag(inputs.InputManager,
+                                input_fields=MarkAttribute("input_fields")),
+                                mouse_diff_x: TypeFlag(float),
+                                mouse_diff_y: TypeFlag(float),
+                                position: TypeFlag(mathutils.Vector),
+                                rotation: TypeFlag(mathutils.Euler)) -> Netmodes.server:
+        '''Store a client move for later processing and clock validation'''
+
+        current_tick = WorldInfo.tick
+        target_tick = self.maximum_clock_ahead + current_tick
+
+        # If the move is too early, correct clock
+        if tick > target_tick:
+            self.update_buffered_locks(tick)
+            self.start_clock_correction(target_tick, tick)
+            return
+
+        data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
+        self.buffer.append((tick, data))
+
     @requires_netmode(Netmodes.client)
     def setup_input(self):
         '''Create the input manager for the client'''
         keybindings = self.load_keybindings()
 
-        self.inputs = inputs.InputManager(keybindings)
+        self.inputs = inputs.InputManager(keybindings,
+                                          inputs.BGEInputStatusLookup())
         print("Created input manager")
 
     @requires_netmode(Netmodes.client)
     def setup_microphone(self):
         '''Create the microphone for the client'''
         self.microphone = stream.MicrophoneStream()
-        self.sound_channels = collections.defaultdict(stream.SpeakerStream)
+        self.sound_channels = defaultdict(stream.SpeakerStream)
 
     def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
@@ -592,9 +630,10 @@ class PlayerController(Controller):
     def start_clock_correction(self, current_tick, command_tick):
         '''Initiate client clock correction'''
         if not self.is_locked("clock_synch"):
-            tick_difference = self.get_clock_correction(current_tick, command_tick)
-            nudge_forward = current_tick > command_tick
-            self.client_nudge_clock(abs(tick_difference), forward=nudge_forward)
+            tick_difference = self.get_clock_correction(current_tick,
+                                                        command_tick)
+            self.client_nudge_clock(abs(tick_difference),
+                                    forward=current_tick > command_tick)
             self.server_add_lock("clock_synch")
 
     def start_fire(self):
@@ -606,12 +645,6 @@ class PlayerController(Controller):
 
         self.server_fire()
         self.client_fire()
-
-    def broadcast_voice(self):
-        '''Dump voice information and encode it for the server'''
-        data = self.microphone.encode()
-        if data:
-            self.send_voice_server(data)
 
     @requires_netmode(Netmodes.server)
     @UpdateSignal.global_listener
@@ -906,6 +939,24 @@ class Camera(Actor):
         self.object.fov = value
 
     @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode):
+        if mode == self._mode:
+            return
+
+        if mode == enums.CameraMode.first_person:
+            self.local_position = mathutils.Vector()
+
+        else:
+            self.local_position = mathutils.Vector((0, -self.gimbal_offset, 0))
+
+        self.local_rotation = mathutils.Euler()
+        self._mode = mode
+
+    @property
     def rotation(self):
         rotation = mathutils.Euler((-math.radians(90), 0, 0))
         rotation.rotate(self.object.worldOrientation)
@@ -929,22 +980,21 @@ class Camera(Actor):
         rotation.rotate(rot)
         self.object.localOrientation = rotation
 
-    def on_initialised(self):
-        super().on_initialised()
+    @contextmanager
+    def active_context(self):
+        cam = self.object
+        scene = cam.scene
 
-        self.mode = enums.CameraMode.third_person
-        self.offset = 2.0
+        old_camera = scene.active_camera
+        scene.active_camera = cam
+        yield
+        if old_camera:
+            scene.active_camera = old_camera
 
-    def possessed_by(self, parent):
-        super().possessed_by(parent)
-
-        self.setup_camera_perspective()
     def draw(self):
-        orientation = self.rotation.to_matrix() * mathutils.Matrix.Rotation(-math.radians(90),
-                                                                3, "X")
-
+        '''Draws a colourful 3D camera object to the screen'''
+        orientation = self.rotation.to_matrix()
         circle_size = 0.20
-
         upwards_orientation = orientation * mathutils.Matrix.Rotation(math.radians(90),
                                                             3, "X")
         upwards_vector = mathutils.Vector(upwards_orientation.col[1])
@@ -964,42 +1014,28 @@ class Camera(Actor):
         draw_tools.draw_square_pyramid(self.position + forwards_vector * 0.4, orientation,
                             colour=[1, 1, 0], angle=self.fov, incline=False)
 
-    def render_temporary(self, render_func):
-        cam = self.object
-        scene = cam.scene
+    def on_initialised(self):
+        super().on_initialised()
 
-        old_camera = scene.active_camera
-        scene.active_camera = cam
-        render_func()
-        if old_camera:
-            scene.active_camera = old_camera
+        self._mode = None
 
-    def setup_camera_perspective(self):
-        if self.mode == enums.CameraMode.first_person:
-            self.local_position = mathutils.Vector()
-
-        else:
-            self.local_position = mathutils.Vector((0, -self.offset, 0))
-
-        self.local_rotation = mathutils.Euler()
+        self.gimbal_offset = 2.0
+        self.mode = enums.CameraMode.first_person
 
     def sees_actor(self, actor):
+        '''Determines if actor is visible to camera
+
+        :param actor: Actor subclass
+        :returns: condition result'''
         try:
             radius = actor.camera_radius
-
         except AttributeError:
-            return
+            radius = 0.0
 
         if radius < 0.5:
             return self.object.pointInsideFrustum(actor.position)
 
         return self.object.sphereInsideFrustum(actor.position, radius) != self.object.OUTSIDE
-
-    @simulated
-    @UpdateSignal.global_listener
-    def update(self, delta_time):
-        if self.visible:
-            self.draw()
 
     def trace(self, x_coord, y_coord, distance=0):
         return self.object.getScreenRay(x_coord, y_coord, distance)
@@ -1008,20 +1044,25 @@ class Camera(Actor):
         target = self.transform * mathutils.Vector((0, 0, -distance))
         return self.object.rayCast(target, self.position, distance)
 
+    @UpdateSignal.global_listener
+    @simulated
+    def update(self, delta_time):
+        if self.visible:
+            self.draw()
+
 
 class Pawn(Actor):
-    view_pitch = Attribute(0.0)
+    # Network Attributes
+    alive = Attribute(True, notify=True, complain=True)
     flash_count = Attribute(0)
+    health = Attribute(100, notify=True, complain=True)
+    roles = Attribute(Roles(Roles.authority,
+                             Roles.autonomous_proxy),
+                      notify=True)
+    view_pitch = Attribute(0.0)
     weapon_attachment_class = Attribute(type_of=type(Replicable),
                                         notify=True,
                                         complain=True)
-
-    health = Attribute(100, notify=True, complain=True)
-    alive = Attribute(True, notify=True, complain=True)
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
-                    notify=True)
-
-    replication_update_period = 1 / 60
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -1075,6 +1116,7 @@ class Pawn(Actor):
         self.walk_speed = 4.0
         self.run_speed = 7.0
         self.turn_speed = 1.0
+        self.replication_update_period = 1 / 60
 
         self.animations = behaviour_tree.BehaviourTree(self)
         self.animations.blackboard['pawn'] = self

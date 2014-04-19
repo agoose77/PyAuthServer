@@ -9,6 +9,7 @@ from .netmode_switch import NetmodeSwitch
 from .signals import Signal
 
 from functools import partial
+from time import monotonic
 
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
@@ -35,6 +36,17 @@ class Channel(NetmodeSwitch):
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))
         self.packed_id = self.replicable_id_packer.pack(replicable)
+
+    @property
+    def is_owner(self):
+        parent = self.replicable.uppermost
+
+        try:
+            return parent.instance_id == \
+                self.connection.replicable.instance_id
+
+        except AttributeError:
+            return False
 
     def take_rpc_calls(self):
         '''Returns the requested RPC calls in a packaged format
@@ -81,6 +93,15 @@ class ClientChannel(Channel):
         for attribute_name in notifications:
             invoke_notify(attribute_name)
 
+    @property
+    def replication_priority(self):
+        """Gets the replication priority for a replicable
+        Utilises replication interval to increment priority
+        of neglected replicables
+
+        :returns: replication priority"""
+        return self.replicable.replication_priority
+
     def set_attributes(self, bytes_):
         '''Unpacks byte stream and updates attributes
 
@@ -115,14 +136,27 @@ class ServerChannel(Channel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #=====================================================================
-        # Store dictionary of complaint values to compare replicable's account
-        # Data may changed from default values
-        #======================================================================
         self.hash_dict = self.attribute_storage.get_default_descriptions()
         self.complaint_dict = self.attribute_storage.get_default_complaints()
 
-    def get_attributes(self, is_owner, replication_time):
+    @property
+    def replication_priority(self):
+        """Gets the replication priority for a replicable
+        Utilises replication interval to increment priority
+        of neglected replicables
+
+        :returns: replication priority"""
+        interval = (monotonic() - self.last_replication_time)
+        elapsed_fraction = (interval / self.replicable.replication_update_period)
+        return self.replicable.replication_priority + (elapsed_fraction - 1)
+
+    @property
+    def awaiting_replication(self):
+        interval = (monotonic() - self.last_replication_time)
+        return ((interval >= self.replicable.replication_update_period)
+                or self.is_initial)
+
+    def get_attributes(self, is_owner):
         # Get Replicable and its class
         replicable = self.replicable
 
@@ -177,7 +211,7 @@ class ServerChannel(Channel):
                 previous_complaints[attribute] = new_hash
 
         # We must have now replicated
-        self.last_replication_time = replication_time
+        self.last_replication_time = monotonic()
         self.is_initial = False
 
         # Outputting bytes asserts we have data

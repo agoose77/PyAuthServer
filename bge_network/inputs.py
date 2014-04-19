@@ -1,73 +1,62 @@
 from bge import events, logic
 from network import FactoryDict, BitField, TypeFlag, get_handler, register_handler
-from functools import partial
-import bge
+from contextlib import contextmanager
 
 
-class EventInterface:
-    def __init__(self, name, status):
-        self.name = name
-        self.get_status = status
+class IInputStatusLookup:
 
-    @property
-    def status(self):
-        return self.get_status(self.name)
+    def __call__(self, event):
+        raise NotImplementedError()
 
-    @property
-    def active(self):
-        return self.status == logic.KX_INPUT_ACTIVE or \
-            self.status == logic.KX_INPUT_JUST_ACTIVATED
+
+class BGEInputStatusLookup(IInputStatusLookup):
+
+    def __init__(self):
+        self._event_list_containing = FactoryDict(self.get_containing_events)
+
+    def __call__(self, event):
+        events = self._event_list_containing[event]
+        return events[event] in (logic.KX_INPUT_ACTIVE,
+                                 logic.KX_INPUT_JUST_ACTIVATED)
+
+    def get_containing_events(self, event):
+        keyboard = logic.keyboard
+        return (keyboard.events if event in keyboard.events
+                else logic.mouse.events)
 
 
 class InputManager:
-    def __init__(self, keybindings, status_lookup=None):
-        self.keybindings = keybindings
 
-        if status_lookup is None:
-            self.status_lookup = self.default_lookup
-        else:
-            self.status_lookup = status_lookup
+    def __init__(self, keybindings, status_lookup):
+        self.status_lookup = status_lookup
+        self._keybindings_to_events = keybindings
 
-        self._devices_for_keybindings = FactoryDict(self.choose_device)
-
+    @contextmanager
     def using_interface(self, lookup_func):
-        self._lookup = self.status_lookup
+        previous_lookup_func = self.status_lookup
         self.status_lookup = lookup_func
-        return self
-
-    def restore_interface(self, *args, **kwargs):
-        self.status_lookup = self._lookup
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, *args):
-        self.restore_interface()
+        yield
+        self.status_lookup = previous_lookup_func
 
     def to_tuple(self):
-        return tuple(self.status_lookup(k) for k in sorted(self.keybindings))
-
-    def choose_device(self, name):
-        binding_code = self.keybindings[name]
-        keyboard = logic.keyboard
-        return keyboard if binding_code in keyboard.events else logic.mouse
-
-    def default_lookup(self, name):
-        binding_code = self.keybindings[name]
-        device = self._devices_for_keybindings[name]
-        return device.events[binding_code] in (logic.KX_INPUT_ACTIVE,
-                                               logic.KX_INPUT_JUST_ACTIVATED)
+        get_binding = self._keybindings_to_events.__getitem__
+        return tuple(self.status_lookup(get_binding(name))
+                     for name in sorted(self._keybindings_to_events))
 
     def __getattr__(self, name):
-        if name in self.keybindings:
-            return self.status_lookup(name)
-        raise AttributeError("Input manager does not have {} binding"
-                            .format(name))
+        try:
+            event_code = self._keybindings_to_events[name]
+
+        except KeyError as err:
+            raise AttributeError("Input manager does not have {} binding"
+                            .format(name)) from err
+
+        return self.status_lookup(event_code)
 
     def __str__(self):
-        lookup = self.status_lookup
-        data = [("{}: {}".format(key, lookup(key))) for key in self.keybindings]
-        return "[Input Manager] " + ', '.join(data)
+        print("[Input Manager]")
+        for binding_name in self._keybindings_to_events.values():
+            print("{}".format(binding_name))
 
 
 class InputPacker:
@@ -75,6 +64,8 @@ class InputPacker:
 
     def __init__(self, static_value):
         self._fields = static_value.data['input_fields']
+        self._keybinding_index_map = {name: index for index, name
+                                      in enumerate(self._fields)}
 
     def pack(self, input_):
         fields = self._fields
@@ -88,9 +79,8 @@ class InputPacker:
         values = BitField(len(fields))
         self.handler.unpack_merge(values, bytes_)
 
-        data = dict(zip(fields, values))
-
-        return InputManager(data, status_lookup=data.__getitem__)
+        return InputManager(self._keybinding_index_map,
+                            status_lookup=values.__getitem__)
 
     unpack_from = unpack
     size = handler.size

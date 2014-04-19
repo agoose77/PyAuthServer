@@ -160,8 +160,9 @@ class Network:
         ConnectionInterface.update_graph()  # @UndefinedVariable
 
     @staticmethod
-    def connect_to(peer_data, *args, **kwargs):
+    def connect_to(peer_data):
         try:
             return ConnectionInterface.get_from_graph(peer_data)
+
         except LookupError:
-            return ConnectionInterface(peer_data, *args, **kwargs)
+            return ConnectionInterface(peer_data)

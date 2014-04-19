@@ -7,3 +7,7 @@ class AuthError(NetworkError):
 
 class BlacklistError(NetworkError):
     pass
+
+
+class FlagLockingError(NetworkError):
+    pass

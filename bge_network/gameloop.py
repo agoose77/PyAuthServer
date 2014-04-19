@@ -76,7 +76,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         :param target: replicable instance'''
         if isinstance(target, Camera):
-            target.render_temporary(self.update_render)
+            with target.active_context():
+                self.update_render()
 
     def scenegraph_callback(self):
         '''Callback for scenegraph update'''

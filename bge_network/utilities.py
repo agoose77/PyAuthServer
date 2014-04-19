@@ -18,6 +18,10 @@ def mean(iterable):
     return sum(fixed[1:], first) / len(fixed)
 
 
+def approach(current_value, target_value, factor):
+    return ((1 - factor) * current_value) + (factor * target_value)
+
+
 def falloff_fraction(origin, maximum, actual, effective):
     distance = (actual - origin).length
 
