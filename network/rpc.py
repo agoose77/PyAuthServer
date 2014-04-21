@@ -80,6 +80,10 @@ class RPCInterfaceFactory:
 
                 data[arg_name] = getattr(cls, arg_value.name)
 
+            # Allow types to be marked
+            if isinstance(argument.type, lookup_type):
+                argument.type = getattr(cls, argument.type.name)
+
         return serialiser_info
 
     def check_for_marked_parameters(self):

@@ -61,9 +61,13 @@ def get_handler(value):
         callback, is_callable = handlers[value_type]
 
     except KeyError:
-        handled_superclasses = (cls for cls in value.type.__mro__
+        try:
+            handled_superclasses = (cls for cls in value.type.__mro__
                                 if cls in handlers)
 
+        except AttributeError as err:
+            raise ValueError("Invalid handler type provided: {}"
+                             .format(value.type)) from err
         try:
             value_type = next(handled_superclasses)
 

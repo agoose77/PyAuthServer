@@ -51,11 +51,11 @@ class InputManager:
                      for name in sorted(self._keybindings_to_events))
 
     def copy(self):
-        _get_binding = self._keybindings_to_events.__getitem__
+        _binding = self._keybindings_to_events.__getitem__
         _lookup = self.status_lookup
 
         sorted_bindings = sorted(self._keybindings_to_events)
-        state_tuple = (_lookup(_get_binding(name)) for name in sorted_bindings)
+        state_tuple = tuple(_lookup(_binding(name)) for name in sorted_bindings)
         indexed_bindings = {name: i for i, name in enumerate(sorted_bindings)}
         frozen_inputs = InputManager(indexed_bindings, state_tuple.__getitem__)
         return frozen_inputs

@@ -9,6 +9,8 @@ __all__ = ['Struct']
 class Struct:
     """Serialisable object with individual fields"""
 
+    __slots__ = ['_container', '_serialiser']
+
     def __init__(self):
         self._container = AttributeStorageContainer(self)
         self._container.register_storage_interfaces()

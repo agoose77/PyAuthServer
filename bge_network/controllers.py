@@ -1,6 +1,8 @@
+from network.bitfield import BitField
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles
+from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import UpdateSignal
 from network.structures import FactoryDict
@@ -24,10 +26,7 @@ from .structs import RigidBodyState
 from .timer import Timer
 from .utilities import lerp, square_falloff
 
-__all__ = ['Move', 'Controller', 'PlayerController', 'AIController']
-
-
-Move = namedtuple("Move", ("tick", "inputs", "mouse_x", "mouse_y"))
+__all__ = ['Controller', 'PlayerController', 'AIController']
 
 
 MAX_32BIT_INT = 2 ** 32 - 1
@@ -178,7 +177,7 @@ class AIController(Controller):
 class PlayerController(Controller):
     '''Player pawn controller network object'''
 
-    input_fields = []
+    movement_struct = None
     config_filepath = "inputs.conf"
 
     max_position_difference_squared = 0.5
@@ -216,11 +215,11 @@ class PlayerController(Controller):
         self._mouse_delta = smooth_x, smooth_y
         return smooth_x, smooth_y
 
-    def apply_move(self, inputs, mouse_diff_x, mouse_diff_y):
+    def apply_move(self, move):
         blackboard = self.behaviour.blackboard
 
-        blackboard['inputs'] = inputs
-        blackboard['mouse'] = mouse_diff_x, mouse_diff_y
+        blackboard['inputs'] = move.inputs
+        blackboard['mouse'] = move.mouse_x, move.mouse_y
 
         self.behaviour.update()
 
@@ -279,34 +278,17 @@ class PlayerController(Controller):
         print("{}: Correcting prediction for move {}".format(self,
                                                              correction_tick))
 
-        # Input Interface
-        lookup_dict = {}
-
-        # Input data
-        input_manager = self.inputs
-
-        # Get ordered event codes
-        keybindings = input_manager._keybindings_to_events
-        keybinding_codes = [keybindings[name] for name in sorted(keybindings)]
-
-        # Ask input manager to lookup from dict
-        get_input = lookup_dict.__getitem__
-
         # State call-backs
         apply_move = self.apply_move
         update_physics = partial(PhysicsSingleUpdateSignal.invoke,
                                  1 / WorldInfo.tick_rate, target=self.pawn)
 
-        # Re-apply later moves
-        with input_manager.using_interface(get_input):
-            # Iterate over all later moves
-            for move in self.pending_moves.values():
-                # Place inputs into input dict {code: status}
-                lookup_dict.update(zip(sorted(keybinding_codes), move.inputs))
-                # Apply move inputs
-                apply_move(input_manager, move.mouse_x, move.mouse_y)
-                # Update Physics world
-                update_physics()
+        # Iterate over all later moves and re-apply them
+        for move in self.pending_moves.values():
+            # Apply move inputs
+            apply_move(move)
+            # Update Physics world
+            update_physics()
 
     @requires_netmode(Netmodes.client)
     def client_fire(self):
@@ -336,11 +318,30 @@ class PlayerController(Controller):
         except KeyError:
             return
 
-        self.server_store_move(current_tick, self.inputs,
-                               move.mouse_x,
-                               move.mouse_y,
-                               self.pawn.position,
-                               self.pawn.rotation)
+        # Post physics state copying
+        move.position = self.pawn.position
+        move.rotation = self.pawn.rotation
+
+        # Check move
+        self.server_store_move(move)
+
+    @staticmethod
+    def create_movement_struct(*fields):
+        attributes = {}
+
+        MAXIMUM_TICK = WorldInfo._MAXIMUM_TICK
+
+        attributes['input_fields'] = fields
+        attributes['inputs'] = Attribute(type_of=InputManager, fields=fields)
+        attributes['mouse_x'] = Attribute(0.0)
+        attributes['mouse_y'] = Attribute(0.0)
+        attributes['position'] = Attribute(type_of=Vector)
+        attributes['rotation'] = Attribute(type_of=Euler)
+        attributes['tick'] = Attribute(type_of=int, max_value=MAXIMUM_TICK)
+
+        attributes['__slots__'] = Struct.__slots__.copy()
+
+        return type("MovementStruct", (Struct,), attributes)
 
     @requires_netmode(Netmodes.client)
     def destroy_microphone(self):
@@ -353,14 +354,14 @@ class PlayerController(Controller):
         time_delta = int(tick_delta * self.clock_convergence_factor)
         return time_delta
 
-    def get_corrected_state(self, position, rotation):
+    def get_corrected_state(self, move):
         '''Finds difference between local state and remote state
 
         :param position: position of state
         :param rotation: rotation of state
         :returns: None if state is within safe limits else correction'''
-        pos_difference = self.pawn.position - position
-        rot_difference = (rotation[-1] - self.pawn.rotation[-1]) ** 2
+        pos_difference = self.pawn.position - move.position
+        rot_difference = (move.rotation[-1] - self.pawn.rotation[-1]) ** 2
         rot_difference = min(rot_difference, (4 * pi ** 2) - rot_difference)
 
         if not (pos_difference.length_squared > self.max_position_difference_squared) or \
@@ -407,10 +408,12 @@ class PlayerController(Controller):
 
         :returns: keybindings'''
         class_name = self.__class__.__name__
+        assert self.movement_struct, \
+            "Movement Struct was not specified for {}".format(self.__class__)
 
         bindings = load_keybindings(self.config_filepath,
                                     class_name,
-                                    self.input_fields)
+                                    self.movement_struct.input_fields)
 
         print("Loaded {} keybindings for {}".format(len(bindings), class_name))
 
@@ -472,17 +475,25 @@ class PlayerController(Controller):
         if not (self.pawn and self.camera):
             return
 
-        # Control Mouse data
+        # Get input data
         mouse_diff_x, mouse_diff_y = self.mouse_delta
         current_tick = WorldInfo.tick
 
+        # Create movement
+        latest_move = self.movement_struct()
+
+        # Populate move
+        latest_move.tick = current_tick
+        latest_move.inputs = self.inputs.copy()
+        latest_move.mouse_x = mouse_diff_x
+        latest_move.mouse_y = mouse_diff_y
+
         # Apply move inputs
-        self.apply_move(self.inputs, mouse_diff_x, mouse_diff_y)
+        self.apply_move(latest_move)
 
         # Remember move for corrections
-        self.pending_moves[current_tick] = Move(current_tick,
-                                                self.inputs.to_tuple(),
-                                                mouse_diff_x, mouse_diff_y)
+        self.pending_moves[current_tick] = latest_move
+
         self.broadcast_voice()
 
     @PostPhysicsSignal.global_listener
@@ -526,12 +537,12 @@ class PlayerController(Controller):
 
         # Validate move
         try:
-            position, rotation = self.pending_moves[current_tick]
+            latest_move = self.pending_moves[current_tick]
 
         except KeyError:
             return
 
-        correction = self.get_corrected_state(position, rotation)
+        correction = self.get_corrected_state(latest_move)
 
         # It was a valid move
         if correction is None:
@@ -584,26 +595,20 @@ class PlayerController(Controller):
             raise FlagLockingError("{} was not locked".format(name))\
                  from err
 
-    def server_store_move(self,
-            tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-            inputs: TypeFlag(InputManager, fields=MarkAttribute("input_fields")),
-            mouse_diff_x: TypeFlag(float),
-            mouse_diff_y: TypeFlag(float),
-            position: TypeFlag(Vector),
-            rotation: TypeFlag(Euler)) -> Netmodes.server:
+    def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct"))) -> Netmodes.server:
         '''Store a client move for later processing and clock validation'''
 
         current_tick = WorldInfo.tick
         target_tick = self.maximum_clock_ahead + current_tick
+        move_tick = move.tick
 
         # If the move is too early, correct clock
-        if tick > target_tick:
-            self.update_buffered_locks(tick)
-            self.start_clock_correction(target_tick, tick)
+        if move_tick > target_tick:
+            self.update_buffered_locks(move_tick)
+            self.start_clock_correction(target_tick, move_tick)
             return
 
-        data = (inputs, mouse_diff_x, mouse_diff_y, position, rotation)
-        self.buffer.append((tick, data))
+        self.buffer.append(move)
 
     @requires_netmode(Netmodes.client)
     def setup_input(self):
@@ -651,17 +656,18 @@ class PlayerController(Controller):
         consume_move = self.buffer.popleft
 
         try:
-            tick, (inputs, mouse_diff_x, mouse_diff_y,
-                   position, rotation) = self.buffer[0]
+            buffered_move = self.buffer[0]
 
         except IndexError:
             return
 
+        move_tick = buffered_move.tick
+
         # Process any buffered locks
-        self.update_buffered_locks(tick)
+        self.update_buffered_locks(move_tick)
 
         # The tick is late, try and run a newer command
-        if tick < current_tick:
+        if move_tick < current_tick:
             # Ensure we check through to the latest tick
             consume_move()
 
@@ -669,10 +675,10 @@ class PlayerController(Controller):
                 self.update(delta_time)
 
             else:
-                self.start_clock_correction(target_tick, tick)
+                self.start_clock_correction(target_tick, move_tick)
 
         # If the tick is early, wait for it to become valid
-        elif tick > current_tick:
+        elif move_tick > current_tick:
             return
 
         # Else run the move at the present time (it's valid)
@@ -683,9 +689,10 @@ class PlayerController(Controller):
                 return
 
             # Apply move inputs
-            self.apply_move(inputs, mouse_diff_x, mouse_diff_y)
+            self.apply_move(buffered_move)
+
             # Save expected move results
-            self.pending_moves[current_tick] = position, rotation
+            self.pending_moves[current_tick] = buffered_move
 
     def update_buffered_locks(self, tick):
         '''Apply server lock changes for the jitter buffer tick'''
