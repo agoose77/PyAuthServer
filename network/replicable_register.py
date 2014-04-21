@@ -1,7 +1,9 @@
+from .attribute_register import AttributeMeta
 from .conditions import is_simulated
 from .enums import Roles, Netmodes
 from .instance_register import InstanceRegister
 from .rpc import RPCInterfaceFactory
+from .rpc_register import RPCMeta
 
 from functools import wraps
 from types import FunctionType
@@ -9,7 +11,7 @@ from types import FunctionType
 __all__ = ['ReplicableRegister']
 
 
-class ReplicableRegister(InstanceRegister):
+class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
     forced_redefinitions = {}
 

@@ -4,7 +4,7 @@ from copy import deepcopy
 from .handler_interfaces import static_description
 
 
-__all__ = ['TypeFlag', 'Attribute', 'MarkAttribute']
+__all__ = ['TypeFlag', 'Attribute', 'MarkAttribute', 'DescriptorFactory']
 
 
 MarkAttribute = namedtuple("MarkAttribute", "name")
@@ -85,3 +85,24 @@ class Attribute(TypeFlag):
 
     def get_new_value(self):
         return deepcopy(self._value)
+
+
+class DescriptorFactory:
+
+    def __init__(self, callable, *args, **kwargs):
+        self._lookup = {}
+        self.args = args
+        self.kwargs = kwargs
+        self.callable = callable
+
+    def __get__(self, instance, base):
+        if instance is None:
+            return self
+
+        if not instance in self._lookup:
+            result = self._lookup[instance] = self.callable(instance,
+                                                *self.args, **self.kwargs)
+        else:
+            result = self._lookup[instance]
+
+        return result

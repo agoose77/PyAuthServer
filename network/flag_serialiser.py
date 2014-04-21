@@ -40,27 +40,29 @@ class FlagSerialiser:
         bitfield_packer = self.bitfield_packer
         content_bits = bitfield_packer.unpack_from(bytes_)[:]
         content_data = bytes_[:bitfield_packer.size(bytes_)]
-        print("Contents", content_data)
+        print("Contents header: ", content_data)
         bytes_ = bytes_[bitfield_packer.size(bytes_):]
-        entry_names = [i[0] for i in self.non_bool_args + self.bool_args]
+        entry_names, entry_handlers = zip(*(self.non_bool_args + self.bool_args))
 
         # If there are NoneType values they will be first
         if content_bits[self.NONE_CONTENT_INDEX]:
             none_bits = bitfield_packer.unpack_from(bytes_)
             none_data = bytes_[:bitfield_packer.size(bytes_)]
-            print("None values", none_data)
+            print("None values header: ", none_data)
             bytes_ = bytes_[bitfield_packer.size(bytes_):]
 
         else:
             none_bits = [False] * self.total_contents
             none_data = None
 
-        is_bool = [i[0] for i in self.bool_args].__contains__
-        for name, included, is_none in zip(entry_names, content_bits, none_bits):
+        print()
+        for name, included, is_none, handler in zip(entry_names, content_bits,
+                                                    none_bits, entry_handlers):
             if not included:
                 continue
 
-            print("{} : {}".format(name, "None" if is_none else ("Bool" if is_bool(name) else "Default")))
+            print("{} : {}".format(name, "None" if is_none else
+                                   handler.type.__name__))
 
         print()
 

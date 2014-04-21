@@ -9,6 +9,56 @@ from copy import deepcopy
 __all__ = ['RPCInterfaceFactory', 'RPCInterface']
 
 
+class RPCInterface:
+    """Mediates RPC calls to/from peers"""
+
+    def __init__(self, function, serialiser_info):
+        # Used to isolate rpc_for_instance for each function for each instance
+        self._function_name = function.__qualname__
+        self._function_signature = signature(function)
+        self._function_call = function.__call__
+
+        # Information about RPC
+        update_wrapper(self, function)
+
+        # Get the function signature
+        self.target = self._function_signature.return_annotation
+
+        # Interface between data and bytes
+        self._binder = self._function_signature.bind
+        self._serialiser = FlagSerialiser(serialiser_info)
+
+        from .world_info import WorldInfo
+        self._worldinfo = WorldInfo
+
+    def __call__(self, *args, **kwargs):
+        # Determines if call should be executed or bounced
+        if self.target == self._worldinfo.netmode:
+            return self._function_call(*args, **kwargs)
+
+        # Store serialised argument data for later sending
+        arguments = self._binder(*args, **kwargs).arguments
+
+        try:
+            self._interface.value = self._serialiser.pack(arguments)
+        except Exception as err:
+            raise RuntimeError("Could not package RPC call: '{}'".format(
+                                        self._function_name)) from err
+
+    def execute(self, bytes_):
+        # Unpack RPC
+        try:
+            unpacked_data = self._serialiser.unpack(bytes_)
+            self._function_call(**dict(unpacked_data))
+
+        except Exception as err:
+            print("Could not invoke RPC call: '{}' - {}".format(self._function_name, err))
+
+    def register(self, interface, rpc_id):
+        self.rpc_id = rpc_id
+        self._interface = interface
+
+
 class RPCInterfaceFactory:
     """Manages instances of an RPC function for each object"""
 
@@ -127,53 +177,3 @@ class RPCInterfaceFactory:
 
     def __repr__(self):
         return "<RPC {}>".format(self.original_function.__qualname__)
-
-
-class RPCInterface:
-    """Mediates RPC calls to/from peers"""
-
-    def __init__(self, function, serialiser_info):
-        # Used to isolate rpc_for_instance for each function for each instance
-        self._function_name = function.__qualname__
-        self._function_signature = signature(function)
-        self._function_call = function.__call__
-
-        # Information about RPC
-        update_wrapper(self, function)
-
-        # Get the function signature
-        self.target = self._function_signature.return_annotation
-
-        # Interface between data and bytes
-        self._binder = self._function_signature.bind
-        self._serialiser = FlagSerialiser(serialiser_info)
-
-        from .world_info import WorldInfo
-        self._worldinfo = WorldInfo
-
-    def __call__(self, *args, **kwargs):
-        # Determines if call should be executed or bounced
-        if self.target == self._worldinfo.netmode:
-            return self._function_call(*args, **kwargs)
-
-        # Store serialised argument data for later sending
-        arguments = self._binder(*args, **kwargs).arguments
-
-        try:
-            self._interface.value = self._serialiser.pack(arguments)
-        except Exception as err:
-            raise RuntimeError("Could not package RPC call: '{}'".format(
-                                        self._function_name)) from err
-
-    def execute(self, bytes_):
-        # Unpack RPC
-        try:
-            unpacked_data = self._serialiser.unpack(bytes_)
-            self._function_call(**dict(unpacked_data))
-
-        except Exception as err:
-            print("Could not invoke RPC call: '{}' - {}".format(self._function_name, err))
-
-    def register(self, interface, rpc_id):
-        self.rpc_id = rpc_id
-        self._interface = interface

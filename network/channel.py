@@ -28,7 +28,7 @@ class Channel(NetmodeSwitch):
         self.last_replication_time = 0.0
         self.is_initial = True
         # Get network attributes
-        self.attribute_storage = replicable.attribute_storage
+        self.attribute_storage = replicable._attribute_container
         # Create a serialiser instance
         self.serialiser = FlagSerialiser(
                                      self.attribute_storage._ordered_mapping)
@@ -109,8 +109,8 @@ class ClientChannel(Channel):
         replicable = self.replicable
 
         # Create local references outside loop
-        replicable_data = replicable.attribute_storage.data
-        get_attribute = replicable.attribute_storage.get_member_by_name
+        replicable_data = self.attribute_storage.data
+        get_attribute = self.attribute_storage.get_member_by_name
         notifications = []
         notify = notifications.append
 

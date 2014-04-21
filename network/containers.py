@@ -1,10 +1,9 @@
-from .handler_interfaces import static_description
 from .descriptors import Attribute
+from .handler_interfaces import static_description
 from .rpc import RPCInterfaceFactory
-from .structures import FactoryDict
 
-from functools import partial
 from collections import OrderedDict, deque
+from functools import partial
 from inspect import getmembers
 
 __all__ = ['ValueProperty', 'StorageInterface', 'RPCStorageInterface',
@@ -68,38 +67,34 @@ class AbstractStorageContainer:
     """Abstract base class for reading and writing data values
     belonging an object"""
 
-    def __init__(self, instance):
-        self._mapping = self.get_member_instances(instance)
-        self._ordered_mapping = self.get_ordered_members()
-
+    def __init__(self, instance, mapping=None, ordered_mapping=None):
         self._lazy_name_mapping = {}
         self._storage_interfaces = {}
         self._instance = instance
 
-        self.data = self.get_default_data()
+        if mapping is None:
+            self._mapping = self.get_member_instances(instance.__class__)
+        else:
+            self._mapping = mapping
 
-    def get_default_value(self, member):
-        raise NotImplementedError
+        if ordered_mapping is None:
+            self._ordered_mapping = self.get_ordered_members(self._mapping)
+        else:
+            self._ordered_mapping = ordered_mapping
+
+        self.data = self.get_default_data()
 
     @classmethod
     def check_is_supported(cls, member):
-        raise NotImplementedError
-
-    @classmethod
-    def get_member_instances(cls, instance):
-        is_supported = cls.check_is_supported
-
-        return {name: value for name, value in getmembers(instance.__class__,
-                                                          is_supported)}
+        raise NotImplementedError()
 
     def get_default_data(self):
         initial_data = self.get_default_value
         mapping = self._mapping
         return {member: initial_data(member) for member in mapping.values()}
 
-    def get_ordered_members(self):
-        mapping = self._mapping
-        return OrderedDict((key, mapping[key]) for key in sorted(mapping))
+    def get_default_value(self, member):
+        raise NotImplementedError()
 
     def get_member_by_name(self, name):
         return self._mapping[name]
@@ -113,15 +108,12 @@ class AbstractStorageContainer:
                                           self._mapping.items() if a == member)
             return name
 
-    def register_storage_interfaces(self):
-        new_interface = self.new_storage_interface
-        store_interface = self._storage_interfaces.__setitem__
+    @classmethod
+    def get_member_instances(cls, instance_cls):
+        is_supported = cls.check_is_supported
 
-        for name, member in sorted(self._mapping.items()):
-            store_interface(member, new_interface(name, member))
-
-    def new_storage_interface(self, name, member):
-        return StorageInterface(*self.get_storage_accessors(member))
+        return {name: value for name, value in getmembers(instance_cls,
+                                                          is_supported)}
 
     def get_storage_accessors(self, member):
         getter = partial(self.data.__getitem__, member)
@@ -132,35 +124,27 @@ class AbstractStorageContainer:
     def get_storage_interface(self, member):
         return self._storage_interfaces[member]
 
+    @staticmethod
+    def get_ordered_members(mapping):
+        return OrderedDict((key, mapping[key]) for key in sorted(mapping))
 
-def cache_rpc_calls(cls):
-    container = RPCStorageContainer
-    is_supported = container.check_is_supported
-    data = container.lookup_dict[cls] = getmembers(cls, is_supported)
-    return data
+    def new_storage_interface(self, name, member):
+        return StorageInterface(*self.get_storage_accessors(member))
 
+    def register_storage_interfaces(self):
+        new_interface = self.new_storage_interface
+        store_interface = self._storage_interfaces.__setitem__
 
-def cache_attributes(cls):
-    container = AttributeStorageContainer
-    is_supported = container.check_is_supported
-    data = container.lookup_dict[cls] = getmembers(cls, is_supported)
-    return data
-
-
-class TypeCachedStorageContainer(AbstractStorageContainer):
-
-    def get_member_instances(self, instance):
-        return dict(self.lookup_dict[instance.__class__])
+        for name, member in self._ordered_mapping.items():
+            store_interface(member, new_interface(name, member))
 
 
-class RPCStorageContainer(TypeCachedStorageContainer):
+class RPCStorageContainer(AbstractStorageContainer):
     """Storage container for RPC calls
     Handles stored data only"""
 
-    lookup_dict = FactoryDict(cache_rpc_calls)
-
-    def __init__(self, instance):
-        super().__init__(instance)
+    def __init__(self, instance, *args, **kwargs):
+        super().__init__(instance, *args, **kwargs)
 
         self.functions = []
 
@@ -193,14 +177,12 @@ class RPCStorageContainer(TypeCachedStorageContainer):
         return interface
 
 
-class AttributeStorageContainer(TypeCachedStorageContainer):
+class AttributeStorageContainer(AbstractStorageContainer):
     """Storage container for Attributes
     Handles data storage, access and complaints"""
 
-    lookup_dict = FactoryDict(cache_attributes)
-
-    def __init__(self, instance, cache_func=None):
-        super().__init__(instance)
+    def __init__(self, instance, *args, **kwargs):
+        super().__init__(instance, *args, **kwargs)
 
         self.complaints = self.get_default_complaints()
 
@@ -243,4 +225,4 @@ class AttributeStorageContainer(TypeCachedStorageContainer):
         setter(default_value)
         member.name = name
 
-        return member
+        return interface

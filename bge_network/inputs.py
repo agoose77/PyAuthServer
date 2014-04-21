@@ -4,6 +4,7 @@ from network.handler_interfaces import get_handler, register_handler
 from network.structures import FactoryDict
 
 from bge import events, logic
+from collections import OrderedDict
 from contextlib import contextmanager
 
 
@@ -35,6 +36,7 @@ class InputManager:
     """Manager for user input"""
 
     def __init__(self, keybindings, status_lookup):
+        assert isinstance(keybindings, OrderedDict)
         self.status_lookup = status_lookup
         self._keybindings_to_events = keybindings
 
@@ -51,14 +53,15 @@ class InputManager:
                      for name in sorted(self._keybindings_to_events))
 
     def copy(self):
-        _binding = self._keybindings_to_events.__getitem__
-        _lookup = self.status_lookup
+        field_names = self._keybindings_to_events.keys()
+        field_codes = self._keybindings_to_events.values()
 
-        sorted_bindings = sorted(self._keybindings_to_events)
-        state_tuple = tuple(_lookup(_binding(name)) for name in sorted_bindings)
-        indexed_bindings = {name: i for i, name in enumerate(sorted_bindings)}
-        frozen_inputs = InputManager(indexed_bindings, state_tuple.__getitem__)
-        return frozen_inputs
+        get_status = self.status_lookup
+
+        indexed_fields = OrderedDict((name, i) for i, name in enumerate(field_names))
+        state_tuple = tuple(get_status(code) for code in field_codes)
+
+        return InputManager(indexed_fields, state_tuple.__getitem__)
 
     def __getattr__(self, name):
         try:
@@ -76,29 +79,36 @@ class InputManager:
             print("{}".format(binding_name))
 
 
+#==============================================================================
+# TODO: profile code
+# Latency predominantly on Server
+# Either in unpacking methods, or in attribute lookups
+# Perhaps in how Inputs are unpacked
+#==============================================================================
+
+
 class InputPacker:
 
     def __init__(self, static_value):
         self._fields = static_value.data['fields']
-        self._keybinding_index_map = {name: index for index, name
-                                      in enumerate(self._fields)
-                                      }
+        self._field_count = len(self._fields)
+
+        self._keybinding_index_map = OrderedDict((name, index) for index, name
+                                                 in enumerate(self._fields))
+
         self._packer = get_handler(TypeFlag(BitField,
                                             fields=len(self._fields)
                                             )
                                    )
 
     def pack(self, input_):
-        fields = self._fields
-        values = BitField.from_iterable([getattr(input_, name)
-                                         for name in fields])
+        values = BitField.from_iterable([getattr(input_, name) for name in
+                                         self._fields])
         return self._packer.pack(values)
 
     def unpack(self, bytes_):
-        fields = self._fields
-
-        values = BitField(len(fields))
-        self._packer.unpack_merge(values, bytes_)
+        # Unpack input states to
+        values = self._packer.unpack_from(bytes_)
 
         return InputManager(self._keybinding_index_map,
                             status_lookup=values.__getitem__)

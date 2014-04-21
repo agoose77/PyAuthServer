@@ -1,6 +1,7 @@
 from inspect import getmembers
 from bge import logic, events
 from configparser import ConfigParser, ExtendedInterpolation
+from collections import OrderedDict
 
 
 __all__ = ["load_keybindings"]
@@ -21,11 +22,12 @@ def load_keybindings(filepath, name, fields):
     parser = ConfigParser(defaults=all_events,
                           interpolation=ExtendedInterpolation())
     parser.read(filepath)
+    parser_result = parser[name]
 
     # Read binding information
     try:
-        bindings = {k: int(v) for k, v in parser[name].items()
-                    if not k.upper() in all_events and k in fields}
+        bindings = OrderedDict((field, int(parser_result[field]))
+                                for field in fields)
     except KeyError as err:
         raise LookupError("Bindings are not defined for '{}'".format(name)) from err
 

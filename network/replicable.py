@@ -42,10 +42,9 @@ class Replicable(metaclass=ReplicableRegister):
         self._static = static and instance_id is not None
 
         # Setup the attribute storage
-        self.attribute_storage = AttributeStorageContainer(self)
         self.rpc_storage = RPCStorageContainer(self)
 
-        self.attribute_storage.register_storage_interfaces()
+        self._attribute_container.register_storage_interfaces()
         self.rpc_storage.register_storage_interfaces()
 
         self.owner = None

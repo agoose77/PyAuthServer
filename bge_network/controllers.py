@@ -245,24 +245,28 @@ class PlayerController(Controller):
             print("Could not find Pawn for {}".format(self))
             return
 
+        remove_move = self.pending_moves.pop
+
         try:
-            self.pending_moves.pop(move_tick)
+            remove_move(move_tick)
 
         except KeyError:
             print("Couldn't find move to acknowledge for move {}"
                 .format(move_tick))
             return
 
-        additional_keys = [k for k in self.pending_moves if k < move_tick]
+        # Remove any older moves
+        older_moves = [k for k in self.pending_moves if k < move_tick]
 
-        for key in additional_keys:
-            self.pending_moves.pop(key)
+        for move_tick in older_moves:
+            remove_move(move_tick)
 
         return True
 
     def client_apply_correction(self,
                     correction_tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
                     correction: TypeFlag(RigidBodyState)) -> Netmodes.client:
+
         # Remove the lock at this network tick on server
         self.server_remove_buffered_lock(WorldInfo.tick, "correction")
 
@@ -364,8 +368,10 @@ class PlayerController(Controller):
         rot_difference = (move.rotation[-1] - self.pawn.rotation[-1]) ** 2
         rot_difference = min(rot_difference, (4 * pi ** 2) - rot_difference)
 
-        if not (pos_difference.length_squared > self.max_position_difference_squared) or \
-            (rot_difference > self.max_rotation_difference_squared):
+        if not (
+        (pos_difference.length_squared > self.max_position_difference_squared)
+        or (rot_difference > self.max_rotation_difference_squared)
+        ):
             return
 
         # Create correction if neccessary

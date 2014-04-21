@@ -2,7 +2,6 @@ from .bitfield import BitField
 from .descriptors import TypeFlag
 from .enums import Roles
 from .handler_interfaces import *
-from .network_struct import Struct
 from .replicable import Replicable
 from .serialiser import *
 from .world_info import WorldInfo
@@ -163,18 +162,8 @@ class ReplicableBaseHandler:
     Packs replicable references and unpacks to proxy OR reference"""
 
     def __init__(self):
-        self._packer = get_handler(TypeFlag(int,
-                                   max_value=self.maximum_replicables))
-
-    @property
-    def maximum_replicables(self):
-        return Replicable._MAXIMUM_REPLICABLES
-
-    @maximum_replicables.setter
-    def maximum_replicables(self, value):
-        Replicable._MAXIMUM_REPLICABLES = value
-
-        self._packer = get_handler(TypeFlag(int, max_value=value))
+        id_flag = TypeFlag(int, max_value=Replicable._MAXIMUM_REPLICABLES)
+        self._packer = get_handler(id_flag)
 
     def pack(self, replicable):
         # Send the instance ID
@@ -306,10 +295,14 @@ def bitfield_selector(flag):
 
     return FixedBitFieldHandler(flag.data['fields'])
 
+# Define this before Struct
 register_handler(BitField, bitfield_selector, True)
-register_handler(Roles, RolesHandler)
+
+# Handle circular dependancy
+from .network_struct import Struct
 register_handler(Struct, StructHandler, True)
 
+register_handler(Roles, RolesHandler)
 register_handler(list, ListHandler, True)
 register_handler(set, SetHandler, True)
 
