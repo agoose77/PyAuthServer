@@ -1,9 +1,10 @@
 import unittest
 
 from .bitfield import BitField
-from .descriptors import TypeFlag
+from .descriptors import Attribute, TypeFlag
 from .handler_interfaces import get_handler
 from .native_handlers import *
+from .network_struct import Struct
 from .serialiser import *
 
 
@@ -24,9 +25,31 @@ class SerialiserTest(unittest.TestCase):
     float_bytes = b'@\x90\x02\x00\x00\x00\x00\x00'
     float_value = 1024.5
 
+    struct_bytes = b'\x15\x05\x07\nTestStruct@@\x00\x00@\x00\x00\x00'
+
     bitfield_list = [False, True, False, True, False, True, True, False]
     bitfield_fixed_value = b'j'
     bitfield_variable_value = b'\x08j'
+
+    def create_struct(self):
+        class Struct_(Struct):
+            x = Attribute(0.0)
+            y = Attribute(0.0)
+            name = Attribute(type_of=str)
+
+        s = Struct_()
+        s.x = 3.0
+        s.y = 2.0
+        s.name = "TestStruct"
+        return s
+
+    def test_get_struct(self):
+        class Struct_(Struct):
+            pass
+
+        struct_flag = TypeFlag(Struct_)
+        handler_struct = get_handler(struct_flag)
+        self.assertIsInstance(handler_struct, StructHandler)
 
     def test_get_fixed_bitfield(self):
         bitfield_flag = TypeFlag(BitField, fields=len(self.bitfield_list))
@@ -77,6 +100,20 @@ class SerialiserTest(unittest.TestCase):
         handler_int = get_handler(int_flag)
 
         self.assertIs(handler_int, UInt64)
+
+    def test_pack_struct(self):
+        struct = self.create_struct()
+        handler = StructHandler(TypeFlag(type(struct)))
+        self.assertEqual(self.struct_bytes, handler.pack(struct))
+
+    def test_unpack_struct(self):
+        struct = self.create_struct()
+        handler = StructHandler(TypeFlag(type(struct)))
+        new_struct = handler.unpack_from(self.struct_bytes)
+
+        self.assertAlmostEqual(struct.x, new_struct.x)
+        self.assertAlmostEqual(struct.y, new_struct.y)
+        self.assertEqual(struct.name, new_struct.name)
 
     def test_pack_fixed_bitfield(self):
         # Get fixed handler
