@@ -1,9 +1,13 @@
-from operator import attrgetter
-from network import Signal, SignalListener
+from network.signals import Signal, SignalListener
+
 from itertools import islice
-from contextlib import contextmanager
 
 from .enums import EvaluationState
+
+
+__all__ = ["BehaviourTree", "LeafNode", "InnerNode", "ResumeableNode",
+           "SelectorNode", "ConcurrentNode", "SequenceNode", "LoopNode",
+           "SignalLeafNode", "SignalInnerNode"]
 
 
 class BehaviourTree:
@@ -223,7 +227,7 @@ class InnerNode(LeafNode):
             child.reset(blackboard)
 
 
-class ResumableNode(InnerNode):
+class ResumeableNode(InnerNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -244,7 +248,7 @@ class ResumableNode(InnerNode):
         self.resume_index = 0
 
 
-class SelectorNode(ResumableNode):
+class SelectorNode(ResumeableNode):
 
     def evaluate(self, blackboard):
         resume_index = 0 if self.should_restart else self.resume_index
@@ -275,7 +279,7 @@ class SelectorNode(ResumableNode):
         return child.state
 
 
-class ConcurrentNode(ResumableNode):
+class ConcurrentNode(ResumeableNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

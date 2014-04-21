@@ -1,18 +1,18 @@
-from .replicables import Replicable, WorldInfo
-from .data_struct import Struct
+from .bitfield import BitField
 from .descriptors import TypeFlag
 from .enums import Roles
-from .handler_interfaces import (register_handler, get_handler,
-                                 register_description, static_description)
-from .serialiser import (handler_from_byte_length, handler_from_bit_length,
-                         bits2bytes)
-from .bitfield import BitField
+from .handler_interfaces import *
+from .network_struct import Struct
+from .replicable import Replicable
+from .serialiser import *
+from .world_info import WorldInfo
 
-from functools import partial
 from inspect import signature
 
 __all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableBaseHandler',
-           'StructHandler', 'BitFieldHandler']
+           'StructHandler', 'FixedBitFieldHandler', 'VariableBitFieldHandler',
+           'type_description', 'iterable_description', 'is_variable_sized',
+           'bitfield_selector']
 
 
 def type_description(cls):
@@ -130,6 +130,7 @@ class IterableHandler:
         if not self.is_variable_sized:
             return (number_elements * element_get_size()) + count_size
 
+        # Account for variable sized elements
         for i in range(number_elements):
             shift = element_get_size(data)
             count_size += shift
@@ -143,21 +144,18 @@ class ListHandler(IterableHandler):
     iterable_cls = list
     iterable_add = list.append
 
-    def list_update(list_, data):
+    def iterable_update(list_, data):  # @NoSelf
         list_[:] = data
-
-    iterable_update = list_update
 
 
 class SetHandler(IterableHandler):
     """Handler for packing set iterables"""
-    def set_update(set_, data):
-        set_.clear()
-        set_.update(data)
-
     iterable_cls = set
     iterable_add = set.add
-    iterable_update = set_update
+
+    def iterable_update(set_, data):  # @NoSelf
+        set_.clear()
+        set_.update(data)
 
 
 class ReplicableBaseHandler:
@@ -197,7 +195,7 @@ class ReplicableBaseHandler:
             return replicable
 
         except (LookupError):
-            print("Couldn't find replicable", instance_id)
+            print("ReplicableBaseHandler: Couldn't find replicable", instance_id)
             return
 
     def size(self, bytes_=None):
@@ -226,7 +224,32 @@ class StructHandler:
         return self.size_packer.unpack_from(bytes_) + self.size_packer.size()
 
 
-class BitFieldHandler:
+class FixedBitFieldHandler:
+    """Bitfield packer for a TypeFlag which indicates the number of fields"""
+
+    def __init__(self, size):
+        self._size = size
+        self._packer = handler_from_bit_length(size)
+
+    def pack(self, field):
+        # Get the smallest needed packer for this bitfield
+        return self._packer.pack(field._value)
+
+    def unpack_from(self, bytes_):
+        data = self._packer.unpack_from(bytes_)
+        field = BitField(self._size, data)
+        return field
+
+    def unpack_merge(self, field, bytes_):
+        field._value = self._packer.unpack_from(bytes_)
+
+    def size(self, bytes_):
+        return bits2bytes(self._size)
+
+
+class VariableBitFieldHandler:
+    """Bitfield packer for a TypeFlag which does not indicate the number of
+    fields"""
 
     size_packer = get_handler(TypeFlag(int))
 
@@ -239,6 +262,7 @@ class BitFieldHandler:
         if footprint:
             field_packer = handler_from_byte_length(footprint)
             return packed_size + field_packer.pack(field._value)
+
         else:
             return packed_size
 
@@ -249,6 +273,7 @@ class BitFieldHandler:
         if field_size:
             field_packer = handler_from_bit_length(field_size)
             data = field_packer.unpack_from(bytes_[cls.size_packer.size():])
+
         else:
             data = 0
 
@@ -257,6 +282,12 @@ class BitFieldHandler:
 
     @classmethod
     def unpack_merge(cls, field, bytes_):
+        field_size = cls.size_packer.unpack_from(bytes_)
+        if field_size:
+            field_packer = handler_from_bit_length(field_size)
+            field._value = field_packer.unpack_from(bytes_[
+                                                   cls.size_packer.size():])
+
         footprint = field.footprint
         if footprint:
             field_packer = handler_from_byte_length(footprint)
@@ -268,7 +299,14 @@ class BitFieldHandler:
         field_size = cls.size_packer.unpack_from(bytes_)
         return bits2bytes(field_size) + cls.size_packer.size()
 
-register_handler(BitField, BitFieldHandler)
+
+def bitfield_selector(flag):
+    if not "fields" in flag.data:
+        return VariableBitFieldHandler
+
+    return FixedBitFieldHandler(flag.data['fields'])
+
+register_handler(BitField, bitfield_selector, True)
 register_handler(Roles, RolesHandler)
 register_handler(Struct, StructHandler, True)
 

@@ -1,6 +1,10 @@
 from bge_network import Signal
 
 
+__all__ = ["ConnectToSignal", "UIWeaponDataChangedSignal", "UIWeaponChangedSignal",
+           "UIHealthChangedSignal", "TeamSelectionQuerySignal", "TeamSelectionUpdatedSignal"]
+
+
 class ConnectToSignal(Signal):
     pass
 
@@ -14,4 +18,12 @@ class UIWeaponChangedSignal(Signal):
 
 
 class UIHealthChangedSignal(Signal):
+    pass
+
+
+class TeamSelectionUpdatedSignal(Signal):
+    pass
+
+
+class TeamSelectionQuerySignal(Signal):
     pass

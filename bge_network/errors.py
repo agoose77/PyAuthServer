@@ -1,4 +1,4 @@
-from network import NetworkError
+from network.errors import NetworkError
 
 
 class AuthError(NetworkError):

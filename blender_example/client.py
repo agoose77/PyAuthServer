@@ -1,8 +1,7 @@
-from bge_network import ClientGameLoop, Camera, WorldInfo
+from bge_network.gameloop import ClientGameLoop
 
-from replicables import *
-from client_ui import BGESystem
-from signals import ConnectToSignal
+from .client_ui import BGESystem
+from .signals import ConnectToSignal
 
 from bge import logic
 

@@ -1,5 +1,5 @@
-from .replicables import WorldInfo
 from .type_register import TypeRegister
+from .world_info import WorldInfo
 
 __all__ = ['NetmodeSwitch']
 

@@ -1,7 +1,7 @@
 from bge import render
-from mathutils import Vector, Euler
-from math import radians, sin, cos, pi, asin
 from itertools import permutations
+from math import radians, sin, cos, pi, asin
+from mathutils import Vector, Euler
 
 
 def draw_arrow(point, orientation, length=1.5, angle=30, colour=[1, 0, 0]):

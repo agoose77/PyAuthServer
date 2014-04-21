@@ -1,13 +1,13 @@
-from .packet import Packet, PacketCollection
-from .handler_interfaces import get_handler
-from .descriptors import TypeFlag
-from .decorators import netmode_switch
-from .replicables import Replicable, WorldInfo
-from .signals import (ReplicableUnregisteredSignal, ReplicableRegisteredSignal,
-                      SignalListener)
-from .enums import Roles, Protocols, Netmodes
-from .netmode_switch import NetmodeSwitch
 from .channel import Channel
+from .decorators import netmode_switch
+from .descriptors import TypeFlag
+from .enums import Roles, Protocols, Netmodes
+from .handler_interfaces import get_handler
+from .netmode_switch import NetmodeSwitch
+from .packet import Packet, PacketCollection
+from .replicable import Replicable
+from .signals import *
+from .world_info import WorldInfo
 
 from operator import attrgetter
 
@@ -55,6 +55,9 @@ class Connection(SignalListener, NetmodeSwitch):
         Create channel for replicable instance
 
         :param target: replicable that was registered"""
+        if not target.registered:
+            return
+
         self.channels[target.instance_id] = Channel(self, target)
 
     def on_delete(self):

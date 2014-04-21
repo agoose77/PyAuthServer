@@ -1,7 +1,9 @@
-from .timer import Timer
+from network.signals import SignalListener
+
 from .physics_object import PhysicsObject
 
-from network.signals import SignalListener
+
+__all__ = ['Particle']
 
 
 class Particle(PhysicsObject, SignalListener):

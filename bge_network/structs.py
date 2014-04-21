@@ -1,4 +1,6 @@
-from network import Struct, Attribute
+from network.network_struct import Struct
+from network.descriptors import Attribute
+
 from mathutils import Vector, Euler
 
 

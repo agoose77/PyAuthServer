@@ -248,7 +248,7 @@ class Delay(SignalLeafNode):
         super().__init__()
 
         self._delay = delay
-        self._timer = Timer(target_value=self._delay)
+        self._timer = Timer(end=self._delay)
 
     def on_enter(self, blackboard):
         self._timer.reset()
@@ -268,7 +268,7 @@ class RandomDelay(Delay):
 
     def on_enter(self, blackboard):
         self._timer.reset()
-        self._timer.target = randrange(*self._range)
+        self._timer.end = randrange(*self._range)
 
 
 class Alert(SignalLeafNode):

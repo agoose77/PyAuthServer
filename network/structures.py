@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 __all__ = ['FactoryDict', 'TypedList', 'TypedSet']
 
 
@@ -34,6 +33,7 @@ def FactoryDict(factory_func, dict_type=dict, provide_key=True):
     callback = missing_key if provide_key else missing
 
     return type("FactoryDict", (dict_type,), {"__missing__": callback})()
+
 
 
 class TypedIterable:

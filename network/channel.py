@@ -2,7 +2,7 @@ from .handler_interfaces import static_description, get_handler
 from .flag_serialiser import FlagSerialiser
 from .conditions import is_reliable
 from .descriptors import TypeFlag
-from .replicables import Replicable, WorldInfo
+from .replicable import Replicable
 from .decorators import netmode_switch
 from .enums import Netmodes
 from .netmode_switch import NetmodeSwitch

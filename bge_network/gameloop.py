@@ -1,19 +1,18 @@
-from .replicables import Camera
-from .signals import (PlayerInputSignal, PhysicsTickSignal,
-                      MapLoadedSignal, GameExitSignal,
-                      PostPhysicsSignal)
+from network.enums import Netmodes
+from network.network import Network
+from network.replicable import Replicable
+from network.signals import *
+from network.world_info import WorldInfo
+
+from bge import logic, events, types
+from contextlib import contextmanager
+
+from .actors import Camera
 from .physics import PhysicsSystem
+from .signals import *
 from .timer import Timer
 
-from collections import Counter
-from contextlib import contextmanager
-from functools import wraps
-from bge import logic, events, types
-from network import (Netmodes, WorldInfo, Network, Replicable,
-                     SignalListener, ReplicableRegisteredSignal,
-                     UpdateSignal, Signal, DisconnectSignal,
-                     SignalValue)
-from time import monotonic
+__all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop']
 
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
@@ -241,8 +240,12 @@ class ServerGameLoop(GameLoop):
 class ClientGameLoop(GameLoop):
 
     def on_quit(self):
-        DisconnectSignal.invoke(super().on_quit)
-        timer = Timer(1, on_target=super().on_quit)
+        quit_func = super().on_quit
+        # Try and quit gracefully
+        DisconnectSignal.invoke(quit_func)
+        # Else abort
+        timeout = Timer(0.6)
+        timeout.on_target = quit_func
 
     def create_network(self):
         WorldInfo.netmode = Netmodes.client

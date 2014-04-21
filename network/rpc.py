@@ -1,15 +1,12 @@
 from .flag_serialiser import FlagSerialiser
-from .descriptors import TypeFlag
+from .descriptors import TypeFlag, MarkAttribute
 
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from functools import update_wrapper
 from inspect import signature, Parameter
 from copy import deepcopy
 
-__all__ = ['MarkAttribute', 'RPCInterfaceFactory', 'RPCInterface']
-
-
-MarkAttribute = namedtuple("MarkAttribute", "name")
+__all__ = ['RPCInterfaceFactory', 'RPCInterface']
 
 
 class RPCInterfaceFactory:
@@ -147,7 +144,7 @@ class RPCInterface:
         self._binder = self._function_signature.bind
         self._serialiser = FlagSerialiser(serialiser_info)
 
-        from .replicables import WorldInfo
+        from .world_info import WorldInfo
         self._worldinfo = WorldInfo
 
     def __call__(self, *args, **kwargs):

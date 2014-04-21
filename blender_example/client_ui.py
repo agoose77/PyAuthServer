@@ -1,20 +1,22 @@
-from ui import (Panel, ConsoleRenderer, System, TableRenderer,
-                CENTERX, CENTERY, CENTERED, SpriteSequence)
+from network.decorators import ignore_arguments
+from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
+from network.world_info import WorldInfo
 
-from matchmaker import Matchmaker
-from bge_network import (ConnectionErrorSignal, ConnectionSuccessSignal,
-                     SignalListener, WorldInfo, ManualTimer, Timer,
-                     ReceiveMessage)
-from signals import (ConnectToSignal, UIWeaponDataChangedSignal,
-                     UIWeaponChangedSignal, UIHealthChangedSignal)
+from bge_network.controllers import PlayerController
+from bge_network.signals import ReceiveMessage
+from bge_network.timer import Timer, ManualTimer
+
+from .replication_infos import TeamReplicationInfo
+from .signals import *
+from .matchmaker import Matchmaker
+from .ui import *
+
+from bge import logic, render
+from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput
+from blf import dimensions as font_dimensions
+from copy import deepcopy
 from functools import partial
-
-import bge
-import bgui
-import blf
-
-import uuid
-import copy
+from uuid import uuid4 as random_id
 
 
 def make_gradient(colour, factor, top_down=True):
@@ -25,7 +27,7 @@ def make_gradient(colour, factor, top_down=True):
 
 def framed_element(parent, id_name, element_type, frame_options, label_options):
     name = "{}_{}".format(id_name, element_type.__name__)
-    group = bgui.Frame(parent=parent,
+    group = Frame(parent=parent,
                              name="{}_frame".format(name),
                              options=CENTERY,
                              sub_theme="RowGroup",
@@ -59,21 +61,21 @@ class ConnectPanel(Panel):
     def __init__(self, system):
         super().__init__(system, "Connect")
 
-        self.aspect = bge.render.getWindowWidth() / bge.render.getWindowHeight()
+        self.aspect = render.getWindowWidth() / render.getWindowHeight()
 
-        self.center_column = bgui.Frame(parent=self, name="center",
+        self.center_column = Frame(parent=self, name="center",
                                         size=[0.8, 0.8],
                                         options=CENTERED,
                                         sub_theme="ContentBox")
 
-        self.connect_label = bgui.Label(parent=self.center_column,
+        self.connect_label = Label(parent=self.center_column,
                                         name="label",
                                         pos=[0.0, 0.025],
                                         text="Connection Wizard",
                                         options=CENTERX,
                                         sub_theme="Title")
 
-        self.connection_row = bgui.Frame(parent=self.center_column,
+        self.connection_row = Frame(parent=self.center_column,
                                          name="connection_frame",
                                          size=[0.8, 0.08],
                                          pos=[0.0, 0.85],
@@ -81,7 +83,7 @@ class ConnectPanel(Panel):
                                          options=CENTERX)
 
         # Data input
-        self.data_row = bgui.Frame(parent=self.center_column,
+        self.data_row = Frame(parent=self.center_column,
                                    name="data_frame",
                                    size=[0.8, 0.08],
                                    pos=[0.0, 0.77],
@@ -91,14 +93,14 @@ class ConnectPanel(Panel):
         # IP input
         self.addr_label_frame, _ = framed_element(self.connection_row,
                                                "addr",
-                                               bgui.Label,
+                                               Label,
                                                dict(size=[0.3, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(text="IP Address"))
 
         self.addr_input_frame, self.addr_field = framed_element(self.connection_row,
                                                "addr",
-                                               bgui.TextInput,
+                                               TextInput,
                                                dict(size=[0.4, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
@@ -106,14 +108,14 @@ class ConnectPanel(Panel):
 
         self.port_label_frame, _ = framed_element(self.connection_row,
                                               "port",
-                                              bgui.Label,
+                                              Label,
                                               dict(size=[0.2, 1.0],
                                                    pos=[0.0, 0.5]),
                                               dict(text="Port"))
 
         self.port_input_frame, self.port_field = framed_element(self.connection_row,
                                                "port",
-                                               bgui.TextInput,
+                                               TextInput,
                                                dict(size=[0.1, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
@@ -123,7 +125,7 @@ class ConnectPanel(Panel):
 
         self.error_label_frame, _ = framed_element(self.data_row,
                                                 "error",
-                                                bgui.Label,
+                                                Label,
                                                 dict(size=[0.3, 1.0],
                                                      pos=[0.0, 0.5]),
                                                 dict(text="Information")
@@ -131,7 +133,7 @@ class ConnectPanel(Panel):
 
         self.error_message_frame, self.error_body_field = framed_element(self.data_row,
                                                   "error_msg",
-                                                  bgui.Label,
+                                                  Label,
                                                   dict(size=[0.7, 1.0],
                                                        pos=[0.0, 0.5]),
                                                   dict(text="")
@@ -139,39 +141,39 @@ class ConnectPanel(Panel):
 
         make_adjacent(self.error_label_frame, self.error_message_frame)
 
-        self.controls_row = bgui.Frame(parent=self.center_column,
+        self.controls_row = Frame(parent=self.center_column,
                                    name="server_controls", size=[0.8, 0.08],
                                    pos=[0.0, 0.69], sub_theme="ContentRow",
                                    options=CENTERX)
  
-        self.refresh_button = bgui.FrameButton(self.controls_row, "refresh_button",
+        self.refresh_button = FrameButton(self.controls_row, "refresh_button",
                                                size=[0.2, 1.0], pos=[0.0, 0.0],
                                                text="Refresh")
-        self.connect_button = bgui.FrameButton(self.controls_row, "connect_button",
+        self.connect_button = FrameButton(self.controls_row, "connect_button",
                                                size=[0.2, 1.0], pos=[0.0, 0.0],
                                                text="Connect")
 
         self.match_label_frame, _ = framed_element(self.controls_row,
                                               "matchmaker",
-                                              bgui.Label,
+                                              Label,
                                               dict(size=[0.2, 1.0],
                                                    pos=[0.0, 0.5]),
                                               dict(text="Matchmaker"))
 
         self.match_input_frame, self.match_field = framed_element(self.controls_row,
                                                "matchmaker",
-                                               bgui.TextInput,
+                                               TextInput,
                                                dict(size=[0.5, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
-                        text="http://coldcinder.co.uk/networking/matchmaker/asdsad"))
+                        text="http://coldcinder.co.uk/networking/matchmaker"))
 
         make_adjacent(self.refresh_button, self.connect_button,
                       full_size=0.3)
         make_adjacent(self.refresh_button, self.connect_button,
                       self.match_label_frame, self.match_input_frame)
 
-        self.servers_list = bgui.Frame(parent=self.center_column,
+        self.servers_list = Frame(parent=self.center_column,
                                    name="server_list", size=[0.8, 0.6],
                                    pos=[0.0, 0.09], sub_theme="ContentRow",
                                    options=CENTERX)
@@ -184,7 +186,7 @@ class ConnectPanel(Panel):
 
         self.matchmaker = Matchmaker("")
 
-        self.servers_box = bgui.ListBox(parent=self.servers_list,
+        self.servers_box = ListBox(parent=self.servers_list,
                                         name="servers",
                                         items=self.servers, padding=0.0,
                                         size=[1.0, 1.0],
@@ -193,13 +195,12 @@ class ConnectPanel(Panel):
                                               labels=self.server_headers)
 
         self.sprite = SpriteSequence(self.error_message_frame, "sprite",
-                                     bge.logic.expandPath("//themes/ui/loading_sprite.tga"),
+                                     logic.expandPath("//themes/ui/loading_sprite.tga"),
                                      length=20, loop=True,  size=[0.1, 0.6],
                                      aspect=1, relative_path=False,
                                      options=CENTERY)
-        self.sprite_timer = Timer(target_value=1 / 20,
-                                        repeat=True,
-                                        on_target=self.sprite.next_frame)
+        self.sprite_timer = Timer(end=1 / 20, repeat=True)
+        self.sprite_timer.on_target=self.sprite.next_frame
 
         # Allows input fields to accept input when not hovered
         self.connection_row.is_listener = True
@@ -250,6 +251,99 @@ class ConnectPanel(Panel):
         self.matchmaker.update()
 
 
+class TeamPanel(Panel):
+
+    def __init__(self, system):
+        super().__init__(system, "Team")
+
+        self.aspect = render.getWindowWidth() / render.getWindowHeight()
+
+        self.center_column = Frame(parent=self, name="center",
+                                        size=[0.8, 0.8],
+                                        options=CENTERED,
+                                        sub_theme="ContentBox")
+
+        self.team_label = Label(parent=self.center_column,
+                                        name="label",
+                                        pos=[0.0, 0.025],
+                                        text="Choose Team",
+                                        options=CENTERX,
+                                        sub_theme="Title")
+
+        self.selection_row = Frame(parent=self.center_column,
+                                         name="connection_frame",
+                                         size=[0.8, 0.08],
+                                         pos=[0.0, 0.85],
+                                         sub_theme="ContentRow",
+                                         options=CENTERX)
+
+        self.left_button = FrameButton(self.selection_row, "left_button",
+                                               size=[0.5, 1.0], pos=[0.0, 0.0],
+                                               text="")
+
+        self.right_button = FrameButton(self.selection_row, "right_button",
+                                               size=[0.5, 1.0], pos=[0.5, 0.0],
+                                               text="")
+
+        self.uses_mouse = True
+        self.visible = False
+
+    def display_error(self, text):
+        self.error_body_field.text = text
+
+    def do_select(self, list_box, entry):
+        data = dict(entry)
+
+        self.addr_field.text = data['address']
+        self.port_field.text = data['port']
+
+    def do_connect(self, button):
+        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
+        self.sprite.visible = True
+
+    def do_refresh(self, button):
+        self.matchmaker.url = self.match_field.text
+        self.matchmaker.perform_query(self.evaluate_servers,
+                                      self.matchmaker.server_query())
+        self.sprite.visible = True
+
+    def evaluate_servers(self, response):
+        self.servers[:] = [tuple(entry.items()) for entry in response]
+        self.display_error("Refreshed Server List" if self.servers
+                                    else "No Servers Found")
+        self.sprite.visible = False
+
+    @ConnectionSuccessSignal.global_listener
+    def on_connected(self, target):
+        self.visible = True
+
+    @TeamSelectionUpdatedSignal.global_listener
+    def on_team_selected(self, target):
+        self.visible = False
+
+    def update(self, delta_time):
+        if self.left_button.on_click:
+            return
+
+        team_replicables = WorldInfo.subclass_of(TeamReplicationInfo)
+        try:
+            left, right = team_replicables[:2]
+        except ValueError:
+            return
+
+        player_controller = PlayerController.get_local_controller()
+
+        if not player_controller:
+            return
+
+        # Save callbacks for buttons
+        self.left_button.text = left.name
+        self.right_button.text = right.name
+
+        self.left_button.on_click = ignore_arguments(partial(player_controller.set_team, left))
+        self.right_button.on_click = ignore_arguments(partial(player_controller.set_team, right))
+
+
 class TimerMixins:
 
     def __init__(self, *args, **kwargs):
@@ -272,7 +366,7 @@ class TimerMixins:
             timer.update(delta_time)
 
 
-class Notification(TimerMixins, bgui.Frame):
+class Notification(TimerMixins, Frame):
     default_size = [1.0, 0.06]
 
     def __init__(self, parent, message,
@@ -280,7 +374,7 @@ class Notification(TimerMixins, bgui.Frame):
                  fade_time=0.25,
                  font_size=35, **kwargs):
         super().__init__(parent=parent,
-                         name="notification_{}".format(uuid.uuid4()),
+                         name="notification_{}".format(random_id()),
                          size=self.default_size[:],
                          **kwargs)
 
@@ -288,11 +382,11 @@ class Notification(TimerMixins, bgui.Frame):
         self.alive_time = alive_time
         self.message = message
 
-        self.middle_bar = bgui.Frame(parent=self, name="middle_bar",
+        self.middle_bar = Frame(parent=self, name="middle_bar",
                                     size=[1, 1],
                                     options=CENTERED)
 
-        self.message_text = bgui.Label(parent=self,
+        self.message_text = Label(parent=self,
                                        name="notification_label",
                                        text=message.upper(),
                                        options=CENTERED,
@@ -315,7 +409,7 @@ class Notification(TimerMixins, bgui.Frame):
 
         if index:
             self.message_text.text = message[:index]
-            status_timer = ManualTimer(target_value=self.alive_time * 0.9)
+            status_timer = ManualTimer(end=self.alive_time * 0.9)
             status_timer.on_update = partial(self.scroll_message, status_timer)
             self.add_timer(status_timer, "scroll")
 
@@ -326,12 +420,11 @@ class Notification(TimerMixins, bgui.Frame):
 
         # Record of components
         components = [self.middle_bar, self.message_text]
-        component_colors = [copy.deepcopy(self._get_color(c))
-                            for c in components]
+        component_colors = [deepcopy(self._get_color(c)) for c in components]
         self.components = dict(zip(components, component_colors))
 
         # Add alive timer
-        status_timer = ManualTimer(target_value=self.alive_time)
+        status_timer = ManualTimer(end=self.alive_time)
         status_timer.on_target = self.alive_expired
         self.add_timer(status_timer, "status")
 
@@ -339,7 +432,7 @@ class Notification(TimerMixins, bgui.Frame):
         self.is_visible = None
 
     def get_message_widths(self, label):
-        return [(blf.dimensions(label.fontid, char * 20)[0] / 20)
+        return [(font_dimensions(label.fontid, char * 20)[0] / 20)
                 for char in label.text]
 
     def scroll_message(self, timer):
@@ -372,7 +465,7 @@ class Notification(TimerMixins, bgui.Frame):
         return [i_x + (diff_x * factor), i_y + (diff_y * factor)]
 
     def fade_opacity(self, interval=0.5, out=True):
-        fade_timer = ManualTimer(target_value=interval)
+        fade_timer = ManualTimer(end=interval)
 
         def update_fade():
             alpha = (1 - fade_timer.progress) if out else fade_timer.progress
@@ -391,13 +484,14 @@ class Notification(TimerMixins, bgui.Frame):
         self.move_to(target, self.fade_time, note_position=False)
         self.fade_opacity(self.fade_time, out=True)
 
-        death_timer = ManualTimer(target_value=self.fade_time,
-                                  on_target=self.on_cleanup)
+        death_timer = ManualTimer(end=self.fade_time)
+        death_timer.on_target = self.on_cleanup
+
         self.add_timer(death_timer, "death_timer")
 
     def move_to(self, target, interval=0.5, note_position=True):
         '''Moves notification to a new position'''
-        move_timer = ManualTimer(target_value=interval)
+        move_timer = ManualTimer(end=interval)
 
         def update_position():
             factor = move_timer.progress
@@ -456,19 +550,19 @@ class UIPanel(TimerMixins, Panel):
         main_pos = [1 - main_size[0] - self.panel_padding,
               1 - self.panel_padding - main_size[1]]
 
-        self.notifications = bgui.Frame(parent=self, name="NotificationsPanel",
+        self.notifications = Frame(parent=self, name="NotificationsPanel",
                                         size=main_size[:], pos=main_pos[:])
         self.notifications.colors = [self.faded_grey] * 4
 
-        self.weapons_box = bgui.Frame(self, "weapons", size=[main_size[0], 0.25],
+        self.weapons_box = Frame(self, "weapons", size=[main_size[0], 0.25],
                                       pos=[main_pos[0], 0.025])
 
-        self.icon_box = bgui.Frame(self.weapons_box, "icons", size=[1.0, 0.5],
+        self.icon_box = Frame(self.weapons_box, "icons", size=[1.0, 0.5],
                                    pos=[0.0, 0.5])
-        self.stats_box = bgui.Frame(self.weapons_box, "stats", size=[1.0, 0.5],
+        self.stats_box = Frame(self.weapons_box, "stats", size=[1.0, 0.5],
                                     pos=[0.0, 0.0])
 
-        self.weapon_icon = bgui.Image(self.icon_box, "icon", "",
+        self.weapon_icon = Image(self.icon_box, "icon", "",
                                       size=[0.1, 1.0], aspect=314 / 143,
                                       pos=[0.0, 0.0], options=CENTERED)
 
@@ -476,29 +570,29 @@ class UIPanel(TimerMixins, Panel):
         bar_margin = 0.025
         bar_pos = [max(1 - bar_size[0] - bar_margin, 0),  0.25]
 
-        self.icon_bar = bgui.Frame(self.icon_box, "icon_bar", size=bar_size[:],
+        self.icon_bar = Frame(self.icon_box, "icon_bar", size=bar_size[:],
                                    pos=bar_pos[:])
 
-        self.icon_shadow = bgui.Image(self.icon_bar, "icon_shadow",
+        self.icon_shadow = Image(self.icon_bar, "icon_shadow",
                                       "ui/checkers_border.tga",
                                     size=[1.6, 1.6], aspect=1.0,
                                     pos=[0.8, 0], options=CENTERY)
 
-        self.icon_back = bgui.Frame(self.icon_shadow, "icon_back",
+        self.icon_back = Frame(self.icon_shadow, "icon_back",
                                     size=[0.8, 0.8], aspect=1.0, options=CENTERED)
 
-        self.icon_middle = bgui.Frame(self.icon_back, "icon_middle",
+        self.icon_middle = Frame(self.icon_back, "icon_middle",
                                     size=[0.9, 0.9], aspect=1.0,
                                     pos=[0.0, 0], options=CENTERED)
-        self.icon_theme = bgui.Frame(self.icon_middle, "icon_theme",
+        self.icon_theme = Frame(self.icon_middle, "icon_theme",
                                     size=[1.0, 1.0], aspect=1.0,
                                     pos=[0.0, 0], options=CENTERED)
-        self.icon_checkers = bgui.Image(self.icon_middle, "icon_checkers",
+        self.icon_checkers = Image(self.icon_middle, "icon_checkers",
                                         "ui/checkers_overlay.tga",
                                         size=[1.0, 1.0], aspect=1.0,
                                         pos=[0.0, 0.0], options=CENTERED)
 
-        self.weapon_name = bgui.Label(self.icon_bar,
+        self.weapon_name = Label(self.icon_bar,
                                       name="weapon_name",
                                       text="The Spitter",
                                       pt_size=self.font_size,
@@ -508,21 +602,21 @@ class UIPanel(TimerMixins, Panel):
                                       pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
-        self.rounds_info = bgui.Frame(self.stats_box, "clips_info",
+        self.rounds_info = Frame(self.stats_box, "clips_info",
                                       pos=[0.0, 0.7], size=[0.6, 0.35])
-        self.clips_info = bgui.Frame(self.stats_box, "rounds_info",
+        self.clips_info = Frame(self.stats_box, "rounds_info",
                                      pos=[0.0, 0.2], size=[0.6, 0.35])
-        self.grenades_info = bgui.Frame(self.stats_box, "grenades_info",
+        self.grenades_info = Frame(self.stats_box, "grenades_info",
                                         pos=[0.6, 0.2], size=[0.35, 0.85])
 
-        self.frag_img = bgui.Image(self.grenades_info,
+        self.frag_img = Image(self.grenades_info,
                                    "frag_img",
                                    "ui/frag.tga",
                                    pos=[0.0, 0.0],
                                    size=[1, 0.9],
                                    aspect=41 / 92,
                                      options=CENTERY)
-        self.flashbang_img = bgui.Image(self.grenades_info,
+        self.flashbang_img = Image(self.grenades_info,
                                         "flashbang_img",
                                         "ui/flashbang.tga",
                                         pos=[0.5, 0.0],
@@ -530,12 +624,12 @@ class UIPanel(TimerMixins, Panel):
                                         aspect=41 / 92,
                                         options=CENTERY)
 
-        self.frag_info = bgui.Frame(self.frag_img, "frag_info", size=[0.6, 0.35],
+        self.frag_info = Frame(self.frag_img, "frag_info", size=[0.6, 0.35],
                                    aspect=1, pos=[0.0, 0.0], options=CENTERED)
-        self.frag_box = bgui.Frame(self.frag_info, "frag_box", size=[1, 1],
+        self.frag_box = Frame(self.frag_info, "frag_box", size=[1, 1],
                                    pos=[0.0, 0.0], options=CENTERED)
 
-        self.frag_label = bgui.Label(self.frag_box,
+        self.frag_label = Label(self.frag_box,
                                      "frag_label",
                                      "4",
                                       pt_size=self.font_size,
@@ -543,38 +637,38 @@ class UIPanel(TimerMixins, Panel):
                                       pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
-        self.flashbang_info = bgui.Frame(self.flashbang_img,
+        self.flashbang_info = Frame(self.flashbang_img,
                                          "flashbang_info",
                                         size=[0.6, 0.35],
                                         aspect=1,
                                         options=CENTERED)
 
-        self.flashbang_box = bgui.Frame(self.flashbang_info, "flashbang_box",
+        self.flashbang_box = Frame(self.flashbang_info, "flashbang_box",
                                         size=[1, 1],
                                         pos=[0.0, 0.0],
                                         options=CENTERED)
 
-        self.flashbang_label = bgui.Label(self.flashbang_box,
+        self.flashbang_label = Label(self.flashbang_box,
                                           "flashbang_label", "4",
                                           pt_size=self.font_size,
                                           options=CENTERED, pos=[0.05, 0.0],
                                           color=self.dark_grey)
 
-        self.rounds_img = bgui.Image(self.rounds_info, "rounds_img",
+        self.rounds_img = Image(self.rounds_info, "rounds_img",
                                      "ui/info_box.tga", pos=[0.0, 0.0],
                                      size=[1, 1], aspect=1.0, options=CENTERY)
-        self.clips_img = bgui.Image(self.clips_info, "clips_img",
+        self.clips_img = Image(self.clips_info, "clips_img",
                                     "ui/info_box.tga", pos=[0.0, 0.0],
                                      size=[1, 1], aspect=1.0, options=CENTERY)
 
-        self.rounds_box = bgui.Frame(self.rounds_info, "rounds_box",
+        self.rounds_box = Frame(self.rounds_info, "rounds_box",
                                      size=[0.6, 1.0], pos=[0.3, 0.0],
                                      options=CENTERY)
-        self.clips_box = bgui.Frame(self.clips_info, "clips_box",
+        self.clips_box = Frame(self.clips_info, "clips_box",
                                     size=[0.6, 1.0], pos=[0.3, 0.0],
                                     options=CENTERY)
 
-        self.rounds_label = bgui.Label(self.rounds_box,
+        self.rounds_label = Label(self.rounds_box,
                                        name="rounds_label",
                                        text="ROUNDS",
                                        pt_size=self.font_size,
@@ -582,7 +676,7 @@ class UIPanel(TimerMixins, Panel):
                                        pos=[0.05, 0.0],
                                        color=self.dark_grey)
 
-        self.clips_label = bgui.Label(self.clips_box,
+        self.clips_label = Label(self.clips_box,
                                       name="clips_label",
                                       text="CLIPS",
                                       pt_size=self.font_size,
@@ -590,7 +684,7 @@ class UIPanel(TimerMixins, Panel):
                                       pos=[0.05, 0.0],
                                       color=self.dark_grey)
 
-        self.rounds_value = bgui.Label(self.rounds_img,
+        self.rounds_value = Label(self.rounds_img,
                                        name="rounds_value",
                                        text="100",
                                        pt_size=self.font_size,
@@ -598,7 +692,7 @@ class UIPanel(TimerMixins, Panel):
                                        pos=[0.05, 0.0],
                                        color=self.dark_grey)
 
-        self.clips_value = bgui.Label(self.clips_img,
+        self.clips_value = Label(self.clips_img,
                                       name="clips_value",
                                       text="4",
                                       pt_size=self.font_size,
@@ -624,7 +718,7 @@ class UIPanel(TimerMixins, Panel):
                          "flashbangs": (self.flashbang_box, self.flashbang_label)}
         self.handled_concerns = {}
 
-        self.health_indicator = bgui.Image(self, "health",
+        self.health_indicator = Image(self, "health",
                                         "ui/health_overlay.tga",
                                         size=[1.0, 1.0],
                                         pos=[0.0, 0.0], options=CENTERED)
@@ -649,8 +743,8 @@ class UIPanel(TimerMixins, Panel):
     def theme_colour(self, value):
         self.icon_theme.colors = make_gradient(value, 1 / 3)
 
-    @ConnectionSuccessSignal.global_listener
-    def on_connect(self, target):
+    @TeamSelectionUpdatedSignal.global_listener
+    def on_team_selected(self, target):
         self.visible = True
 
     @UIHealthChangedSignal.global_listener
@@ -742,6 +836,7 @@ class BGESystem(System):
 
         self.connect_panel = ConnectPanel(self)
         self.ui_panel = UIPanel(self)
+        self.choose_team = TeamPanel(self)
 
     @ConnectionSuccessSignal.global_listener
     def invoke(self, *args, **kwargs):

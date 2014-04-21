@@ -1,63 +1,80 @@
-from replicables import *
+from network.connection_interfaces import ConnectionInterface
+from network.enums import ConnectionStatus, Netmodes
+from network.replication_rules import ReplicationRules
+from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal, UpdateSignal
+from network.world_info import WorldInfo
 
-import bge_network
-import signals
-import matchmaker
-import stats_ui
+from bge_network.actors import *
+from bge_network.controllers import Controller, PlayerController
+from bge_network.errors import AuthError, BlacklistError
+from bge_network.gameloop import ServerGameLoop
+from bge_network.signals import ActorKilledSignal
+from bge_network.timer import Timer
+from bge_network.weapons import Weapon
 
-import operator
-import functools
-import weakref
-import random
+from operator import gt as greater_than
+from random import choice, randint
+
+from .actors import *
+from .controllers import *
+from .matchmaker import BoundMatchmaker
+from .replication_infos import *
+from .signals import TeamSelectionQuerySignal
+from .weapons import BowWeapon
 
 
-class TeamDeathMatch(bge_network.ReplicationRules):
+class TeamDeathMatch(ReplicationRules):
 
     countdown_running = False
     countdown_start = 0
     minimum_players_for_countdown = 0
     player_limit = 4
+    relevant_radius_squared = 9 ** 2
 
-    ai_camera_class = bge_network.Camera
+    # AI Classes
+    ai_camera_class = Camera
     ai_controller_class = EnemyController
     ai_pawn_class = CTFPawn
     ai_replication_info_class = CTFPlayerReplicationInfo
     ai_weapon_class = BowWeapon
 
-    player_camera_class = bge_network.Camera
+    # Player Classes
+    player_camera_class = Camera
     player_controller_class = CTFPlayerController
     player_pawn_class = CTFPawn
     player_replication_info_class = CTFPlayerReplicationInfo
     player_weapon_class = BowWeapon
 
-    relevant_radius_squared = 9 ** 2
-
     @property
     def connected_players(self):
-        disconnected_status = bge_network.ConnectionStatus.pending
-        return bge_network.ConnectionInterface.by_status(disconnected_status,
-                                                         operator.gt)
+        disconnected_status = ConnectionStatus.pending
+        return ConnectionInterface.by_status(disconnected_status, greater_than)
 
     def allows_broadcast(self, sender, message):
-        return len(message) <= 255
+        return True
+
+    @TeamSelectionQuerySignal.global_listener
+    def assign_team(self, player_controller, team):
+        self.setup_player_pawn(player_controller)
+
+        team.players.add(player_controller.info)
+        player_controller.info.team = team
+        player_controller.team_changed(team)
 
     def broadcast(self, sender, message):
         if not self.allows_broadcast(sender, message):
             return
 
-        PlayerController = bge_network.PlayerController
-        for replicable in bge_network.WorldInfo.subclass_of(PlayerController):
+        for replicable in WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
-    def create_new_ai(self, controller=None):
+    def setup_ai_pawn(self, controller):
         '''This function can be called without a controller,
         in which case it establishes one.
         Used to respawn AI character pawns
 
         :param controller: options, controller instance'''
-        if controller is None:
-            controller = self.ai_controller_class()
-            controller.info = self.ai_replication_info_class()
+        controller.remove_dependencies()
 
         pawn = self.ai_pawn_class()
         camera = self.ai_camera_class()
@@ -67,19 +84,17 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.position = Vector((random.randint(-10, 10),
-                                random.randint(-10, 10), 3))
+        pawn.position = Vector((randint(-10, 10),
+                                randint(-10, 10), 3))
         return controller
 
-    def create_new_player(self, controller=None):
+    def setup_player_pawn(self, controller):
         '''This function can be called without a controller,
         in which case it establishes one.
         Used to respawn player character pawns
 
         :param controller: options, controller instance'''
-        if controller is None:
-            controller = self.player_controller_class(register=True)
-            controller.info = self.player_replication_info_class(register=True)
+        controller.remove_dependencies()
 
         pawn = self.player_pawn_class(register=True)
         camera = self.player_camera_class(register=True)
@@ -89,17 +104,24 @@ class TeamDeathMatch(bge_network.ReplicationRules):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.position = random.choice(bge_network.WorldInfo.subclass_of(SpawnPoint)
-                                      ).position
+        pawn.position = choice(WorldInfo.subclass_of(SpawnPoint)).position
 
         return controller
+
+    def create_teams(self):
+        '''Spawn teams for game mode'''
+        # Create teams
+        team_green = TeamReplicationInfo()
+        team_green.name = "Team Green"
+        team_red = TeamReplicationInfo()
+        team_red.name = "Team Red"
 
     def is_relevant(self, player_controller, replicable):
         if replicable.always_relevant:
             return True
 
         # Check by distance, then frustum checks
-        if isinstance(replicable, bge_network.Actor) and replicable.visible:
+        if isinstance(replicable, Actor) and replicable.visible:
             player_pawn = player_controller.pawn
 
             in_range = player_pawn and (replicable.position - \
@@ -113,98 +135,88 @@ class TeamDeathMatch(bge_network.ReplicationRules):
                 return True
 
         # These classes are not permitted (unless owned by client)
-        if isinstance(replicable, (bge_network.Controller,
-                                   bge_network.Weapon)):
+        if isinstance(replicable, (Controller, Weapon)):
             return False
 
         return False
 
-    @bge_network.ActorKilledSignal.global_listener
+    @ActorKilledSignal.global_listener
     def killed(self, attacker, target):
         message = "{} was killed by {}'s {}".format(target.owner, attacker,
                                                 attacker.pawn)
 
         self.broadcast(attacker, message)
 
-        target.owner.remove_dependencies()
-
         if isinstance(target.owner, self.player_controller_class):
-            self.create_new_player(target.owner)
+            self.setup_player_pawn(target.owner)
 
         else:
-            self.create_new_ai(target.owner)
+            self.setup_ai_pawn(target.owner)
 
     def on_initialised(self, **da):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
-        self.matchmaker = matchmaker.BoundMatchmaker(
-                         "http://www.coldcinder.co.uk/networking/matchmaker")
-        self.matchmaker_timer = bge_network.Timer(initial_value=10, count_down=True,
-                                                  on_target=self.update_matchmaker,
-                                                  repeat=True)
+        self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/"\
+                                          "networking/matchmaker")
+        self.matchmaker_timer = Timer(start=10, count_down=True, repeat=True)
+        self.matchmaker_timer.on_target = self.update_matchmaker
 
-        self.countdown_timer = bge_network.Timer(target_value=self.countdown_start,
-                                                 on_target=self.start_match,
-                                                 active=False)
+        self.countdown_timer = Timer(end=self.countdown_start, active=False)
+        self.countdown_timer.on_target = self.start_match
+
         self.black_list = []
+        self.create_teams()
+        self.matchmaker.register("Demo Server", "Test Map", self.player_limit, 0)
 
-        self.matchmaker.register("Demo Server", "Test Map",
-                                        self.player_limit, 0)
-
-    @bge_network.ConnectionDeletedSignal.global_listener
+    @ConnectionDeletedSignal.global_listener
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
 
         self.update_matchmaker()
 
     def post_initialise(self, connection):
-        replicable = self.create_new_player()
-        self.info.players.append(replicable.info)
+        '''Called for valid connections'''
+        # Create player controller for player
+        controller = self.player_controller_class(register=True)
+        controller.info = self.player_replication_info_class(register=True)
 
-        team = TeamInfo()
-        team.name = "Team Test"
-        team.players.add(replicable.info)
-        replicable.info.team = team
-
-        return replicable
+        return controller
 
     def pre_initialise(self, address_tuple, netmode):
-        if netmode == bge_network.Netmodes.server:
-            raise bge_network.AuthError("Peer was not a client")
+        if netmode == Netmodes.server:
+            raise AuthError("Peer was not a client")
 
         if self.connected_players >= self.player_limit:
-            raise bge_network.AuthError("Player limit reached")
+            raise AuthError("Player limit reached")
 
         ip_address, port = address_tuple
 
         if ip_address in self.black_list:
-            raise bge_network.BlacklistError()
+            raise BlacklistError("Player has been blacklisted")
 
     def start_match(self):
         self.info.match_started = True
 
-    @bge_network.UpdateSignal.global_listener
+    @UpdateSignal.global_listener
     def update(self, delta_time):
-        info = self.info
-
         players_needed = self.minimum_players_for_countdown
         countdown_running = self.countdown_timer.active
 
-        if (not (countdown_running or info.match_started) and
+        if (not (countdown_running or self.info.match_started) and
             (self.connected_players >= players_needed)):
             self.countdown_timer.reset()
 
-    @bge_network.ConnectionSuccessSignal.global_listener
+    @ConnectionSuccessSignal.global_listener
     def update_matchmaker(self):
         self.matchmaker.poll("Test Map", self.player_limit,
                              self.connected_players)
 
 
-class Server(bge_network.ServerGameLoop):
+class Server(ServerGameLoop):
 
     def create_network(self):
         network = super().create_network()
 
-        bge_network.WorldInfo.rules = TeamDeathMatch(register=True)
+        WorldInfo.rules = TeamDeathMatch(register=True)
         return network

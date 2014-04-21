@@ -1,19 +1,25 @@
-from .replicables import Actor, Pawn, Controller, Camera, Weapon, ReplicableInfo, PlayerController
-from .enums import PhysicsType
-from .signals import (PhysicsReplicatedSignal,
-                     PhysicsTickSignal, PhysicsSingleUpdateSignal,
-                     PhysicsRoleChangedSignal, MapLoadedSignal,
-                     UpdateCollidersSignal, PhysicsCopyState,
-                     PhysicsRewindSignal)
-from .structs import RigidBodyState
+from network.decorators import netmode_switch
+from network.enums import Netmodes, Roles
+from network.netmode_switch import NetmodeSwitch
+from network.replicable import Replicable
+from network.signals import SignalListener
+from network.structures import FactoryDict
+from network.type_register import TypeRegister
+from network.world_info import WorldInfo
 
 from bge import logic
-from collections import deque, defaultdict
+from collections import deque
 from contextlib import contextmanager
-from network import (WorldInfo, Netmodes, SignalListener,
-                     ReplicableUnregisteredSignal, Replicable,
-                     NetmodeSwitch, netmode_switch, TypeRegister,
-                     FactoryDict, Roles)
+
+from .actors import Actor, Camera, Pawn
+from .controllers import Controller
+from .weapons import Weapon
+from .replication_infos import ReplicationInfo
+
+from .enums import PhysicsType
+from .signals import *
+from .structs import RigidBodyState
+
 
 __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics"]
 
@@ -58,7 +64,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         :param obj: BGE proxy object'''
         controller = self.get_actor(obj, "controller", Controller)
         camera = self.get_actor(obj, "camera", Camera)
-        info = self.get_actor(obj, "info", ReplicableInfo)
+        info = self.get_actor(obj, "info", ReplicationInfo)
 
         try:
             assert not None in (camera, controller, info), "Failed to find camera, controller and info"

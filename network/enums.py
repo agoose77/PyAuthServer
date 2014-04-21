@@ -1,10 +1,10 @@
 from contextlib import contextmanager
 
-__all__ = ['Enum', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles']
+__all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles']
 
 
-class Enum(type):
-    '''Metaclass for Enums in Python'''
+class Enumeration(type):
+    '''Metaclass for Enumerations in Python'''
     def __new__(cls, name, parents, attrs):
         # Get settings
         use_bits = attrs.get('use_bits', False)
@@ -26,30 +26,30 @@ class Enum(type):
         return index in self.reverse
 
     def __repr__(self):
-        return "<Enum {}>\n{}\n".format(self.__name__,
+        return "<Enumeration {}>\n{}\n".format(self.__name__,
                                  '\n'.join("<{}: {}>".format(n, v)
                                    for v, n in self.reverse.items()))
 
 
-class ConnectionStatus(metaclass=Enum):
+class ConnectionStatus(metaclass=Enumeration):
     values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
 
-class Netmodes(metaclass=Enum):
+class Netmodes(metaclass=Enumeration):
     values = "server", "client", "listen", "single"
 
 
-class HandshakeState(metaclass=Enum):
+class HandshakeState(metaclass=Enumeration):
     values = "failure", "success", "request"
 
 
-class Protocols(metaclass=Enum):
+class Protocols(metaclass=Enumeration):
     values = ("request_disconnect", "request_handshake",
               "replication_init", "replication_del",
               "replication_update", "method_invoke")
 
 
-class Roles(metaclass=Enum):
+class Roles(metaclass=Enumeration):
     values = ("none", "dumb_proxy", "simulated_proxy",
               "autonomous_proxy", "authority")
 

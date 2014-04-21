@@ -1,13 +1,18 @@
-from mathutils import Vector, Euler, Quaternion, Matrix
+from network.descriptors import Attribute, TypeFlag
+from network.handler_interfaces import get_handler, register_description, register_handler
+from network.network_struct import Struct
+
 from itertools import chain
-from network import (Float8, Float4, register_handler,
-                     register_description, Struct, Attribute)
+from mathutils import Vector, Euler, Quaternion, Matrix
 
 
 class Euler8:
-    item_pack = Float8.pack
-    item_unpack = Float8.unpack
-    item_size = Float8.size()
+
+    packer = get_handler(TypeFlag(float, max_precision=True))
+
+    item_pack = packer.pack
+    item_unpack = packer.unpack
+    item_size = packer.size()
 
     wrapper = Euler
     wrapper_length = 3
@@ -39,9 +44,12 @@ class Euler8:
 
 
 class Euler4(Euler8):
-    item_pack = Float4.pack
-    item_unpack = Float4.unpack
-    item_size = Float4.size()
+
+    packer = get_handler(TypeFlag(float, max_precision=False))
+
+    item_pack = packer.pack
+    item_unpack = packer.unpack
+    item_size = packer.size()
 
 
 class Vector8(Euler8):

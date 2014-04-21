@@ -1,3 +1,6 @@
+__all__ = ["Proxy"]
+
+
 class Proxy(object):
     '''A proxy wrapper for another object'''
     __slots__ = ["_obj", "__weakref__"]

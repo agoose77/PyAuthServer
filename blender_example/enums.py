@@ -1,7 +1,7 @@
-import bge_network
+from network.enums import Enumeration
 
 __all__ = ['TeamRelation']
 
 
-class TeamRelation(metaclass=bge_network.Enum):
+class TeamRelation(metaclass=Enumeration):
     values = ["friendly", "enemy", "neutral"]

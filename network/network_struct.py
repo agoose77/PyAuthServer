@@ -1,9 +1,7 @@
+from copy import deepcopy
+
 from .containers import AttributeStorageContainer
 from .flag_serialiser import FlagSerialiser
-from .handler_interfaces import get_handler
-from .descriptors import TypeFlag
-
-from copy import deepcopy
 
 __all__ = ['Struct']
 

@@ -1,13 +1,19 @@
+from network.decorators import simulated
+
 from bge import logic
 from mathutils import Vector
-from network.decorators import simulated
-from network.signals import SignalListener
-from . import enums, signals, object_types, timer
+
+from .enums import PhysicsType
+from .object_types import GameObject, SocketWrapper
+from .signals import CollisionSignal, UpdateCollidersSignal
+from .timer import Timer
+
+__all__ = ["PhysicsObject"]
 
 
 class PhysicsObject:
     entity_name = ""
-    entity_class = object_types.GameObject
+    entity_class = GameObject
 
     def on_initialised(self):
         self.object = self.entity_class(self.entity_name)
@@ -38,8 +44,8 @@ class PhysicsObject:
         self.object.mapped_instance = self
 
         # Setup relationships in sockets
-        for socket_name, socket in self.sockets.items():
-            socket = object_types.SocketWrapper(socket)
+        for socket in self.sockets.values():
+            socket = SocketWrapper(socket)
             socket.mapped_instance = self
 
     @property
@@ -54,9 +60,10 @@ class PhysicsObject:
         if hasattr(self, "_timer"):
             self._timer.delete()
             del self._timer
+
         if value > 0:
-            self._timer = timer.Timer(value,
-                            on_target=self.request_unregistration)
+            self._timer = Timer(value)
+            self._timer.on_target = self.request_unregistration
 
     @property
     def colour(self):
@@ -70,8 +77,8 @@ class PhysicsObject:
     @property
     def suspended(self):
         '''The Physics state of the object'''
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
+        if self.physics in (PhysicsType.navigation_mesh,
+                            PhysicsType.no_collision):
             return True
 
         try:
@@ -86,8 +93,8 @@ class PhysicsObject:
 
     @suspended.setter
     def suspended(self, value):
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
+        if self.physics in (PhysicsType.navigation_mesh,
+                            PhysicsType.no_collision):
             return
 
         if self.object.parent:
@@ -121,8 +128,8 @@ class PhysicsObject:
 
     @simulated
     def _register_callback(self):
-        if self.physics in (enums.PhysicsType.navigation_mesh,
-                            enums.PhysicsType.no_collision):
+        if self.physics in (PhysicsType.navigation_mesh,
+                            PhysicsType.no_collision):
             return
 
         callbacks = self.object.collisionCallbacks
@@ -138,9 +145,9 @@ class PhysicsObject:
 
         if not other in self._registered:
             self._registered.add(other)
-            signals.CollisionSignal.invoke(other, True, data, target=self)
+            CollisionSignal.invoke(other, True, data, target=self)
 
-    @signals.UpdateCollidersSignal.global_listener
+    @UpdateCollidersSignal.global_listener
     @simulated
     def _update_colliders(self):
         if self.suspended:
@@ -155,7 +162,7 @@ class PhysicsObject:
         if not difference:
             return
 
-        callback = signals.CollisionSignal.invoke
+        callback = CollisionSignal.invoke
         for obj in difference:
             self._registered.remove(obj)
             if not obj.invalid:
@@ -293,7 +300,7 @@ class PhysicsObject:
 
     @property
     def has_dynamics(self):
-        return self.physics in (enums.PhysicsType.rigid_body, enums.PhysicsType.dynamic)
+        return self.physics in (PhysicsType.rigid_body, PhysicsType.dynamic)
 
     @property
     def transform(self):

@@ -1,8 +1,10 @@
-import threading
-import queue
-import time
+from queue import Queue, Empty
+from threading import Event, Thread
 
 from .proxy import Proxy
+
+
+__all__ = ["SafeProxy", "QueuedThread", "SafeThread"]
 
 
 class SafeProxy(Proxy):
@@ -11,18 +13,16 @@ class SafeProxy(Proxy):
         object.__getattribute__(self, "_obj").join()
 
 
-class QueuedThread(threading.Thread):
+class QueuedThread(Thread):
     """
     A sample thread class
     """
 
     def __init__(self):
-        threading._time = time.monotonic
+        self.in_queue = Queue()
+        self.out_queue = Queue()
 
-        self.in_queue = queue.Queue()
-        self.out_queue = queue.Queue()
-
-        self._event = threading.Event()
+        self._event = Event()
         self._poll_interval = 1 / 60
 
         super().__init__()
@@ -39,8 +39,13 @@ class QueuedThread(threading.Thread):
             try:
                 item = self.get_task(self._poll_interval, self.in_queue)
 
-            except queue.Empty:
+            except Empty:
                 continue
+
+            except Exception as err:
+                print(err)
+                break
+
             try:
                 self.handle_task(item, self.out_queue)
 
@@ -59,4 +64,5 @@ class SafeThread(QueuedThread):
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
         obj.__init__(*args, **kwargs)
+
         return SafeProxy(obj)

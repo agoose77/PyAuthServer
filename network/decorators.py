@@ -1,7 +1,8 @@
 from functools import wraps
 
 __all__ = ['reliable', 'simulated', 'signal_listener',
-           'requires_netmode', 'netmode_switch']
+           'requires_netmode', 'netmode_switch',
+           'ignore_arguments', 'annotate']
 
 
 '''API functions to modify function behaviour'''
@@ -49,13 +50,13 @@ def requires_netmode(netmode):
     ''' requiring the provided netmode context before execution
 
     :param netmode: netmode required to execute function
-    :requires: provided :py:attr:`network.replicables._WorldInfo.netmode`
+    :requires: provided :py:attr:`network.world_info._WorldInfo.netmode`
     context
     :returns: decorator that prohibits function execution
     for incorrect netmodes'''
 
     def wrapper(func):
-        from .replicables import WorldInfo
+        from .world_info import WorldInfo
 
         @wraps(func)
         def _wrapper(*args, **kwargs):

@@ -3,9 +3,10 @@ from math import ceil
 
 from .handler_interfaces import register_handler
 
-__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8',
-           'bits2bytes', 'handler_from_bit_length', 'handler_from_int',
-           'handler_from_byte_length', 'StringHandler', 'BytesHandler']
+__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4',
+           'Float8', 'bits2bytes', 'handler_from_bit_length',
+           'handler_from_int', 'handler_from_byte_length',
+           'StringHandler', 'BytesHandler', 'int_selector']
 
 
 class IStruct(PyStruct):
@@ -45,7 +46,7 @@ def handler_from_bit_length(bits):
 
         last_packer = packer
 
-    else:
+    if last_packer is None:
         raise ValueError("Integer too large to pack")
 
     return last_packer
@@ -89,10 +90,15 @@ class StringHandler(BytesHandler):
         return super().unpack(bytes_).decode()
 
 
+def int_selector(type_flag):
+    if "max_value" in type_flag.data:
+        return handler_from_int(type_flag.data["max_value"])
+
+    return handler_from_bit_length(type_flag.data.get('max_bits', 8))
+
 # Register handlers for native types
 register_handler(str, StringHandler, is_condition=True)
 register_handler(bytes, BytesHandler, is_condition=True)
-register_handler(int, lambda x: handler_from_int(x.data.get("max_value", 255)),
-                 is_condition=True)
+register_handler(int, int_selector, is_condition=True)
 register_handler(float, lambda x: (Float8 if x.data.get("max_precision")
                                    else Float4), is_condition=True)

@@ -1,7 +1,13 @@
+from collections import namedtuple
 from copy import deepcopy
+
 from .handler_interfaces import static_description
 
-__all__ = ['TypeFlag', 'Attribute']
+
+__all__ = ['TypeFlag', 'Attribute', 'MarkAttribute']
+
+
+MarkAttribute = namedtuple("MarkAttribute", "name")
 
 
 class TypeFlag:

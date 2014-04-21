@@ -1,4 +1,3 @@
-from .replicables import WorldInfo
 from .bitfield import BitField
 from .connection import Connection
 from .conversions import conversion
@@ -6,12 +5,12 @@ from .decorators import netmode_switch, ignore_arguments
 from .descriptors import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
-from .signals import (ConnectionSuccessSignal, ConnectionErrorSignal,
-                      DisconnectSignal, ConnectionDeletedSignal)
 from .handler_interfaces import get_handler
-from .packet import Packet, PacketCollection
-from .netmode_switch import NetmodeSwitch
 from .instance_register import InstanceRegister
+from .netmode_switch import NetmodeSwitch
+from .packet import Packet, PacketCollection
+from .signals import *
+from .world_info import WorldInfo
 
 from collections import deque
 from operator import eq as equals_operator
@@ -29,8 +28,9 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 255 ** 2
-        self.sequence_handler = get_handler(TypeFlag(int,
-                                            max_value=self.sequence_max_size))
+        self.sequence_handler = get_handler(
+                                TypeFlag(int, max_value=self.sequence_max_size)
+                                )
 
         # Number of packets to ack per packet
         self.ack_window = 32
@@ -68,9 +68,12 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         # Estimate available bandwidth
         self.bandwidth = conversion(1, "Mb", "B")
         self.packet_growth = conversion(0.5, "KB", "B")
+
+        # Bandwidth throttling
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
+        # Internal packet data
         self.internal_data = []
 
     def on_unregistered(self):
@@ -299,6 +302,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         # Handle received packets
         PacketCollection.iter_bytes(bytes_, self.handle_packet)
 
+
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):
 
@@ -396,6 +400,7 @@ class ClientInterface(ConnectionInterface):
         Sends netmode to server'''
         handshake_type = self.handshake_packer.pack(HandshakeState.request)
         netmode = self.netmode_packer.pack(WorldInfo.netmode)
+
         return Packet(protocol=Protocols.request_handshake,
                       payload=handshake_type + netmode,
                       reliable=True)
@@ -409,16 +414,19 @@ class ClientInterface(ConnectionInterface):
         payload = packet.payload[self.handshake_packer.size():]
 
         if handshake_type == HandshakeState.failure:
-            err_data = packet.payload[self.error_packer.size(payload):]
-            err_type = self.error_packer.unpack_from(payload)
-            err_body = self.error_packer.unpack_from(err_data)
-            err = NetworkError.from_type_name(err_type)(err_body)
+            error_body = packet.payload[self.error_packer.size(payload):]
+            error_type = self.error_packer.unpack_from(payload)
+            error_message = self.error_packer.unpack_from(error_body)
+            error_class = NetworkError.from_type_name(error_type)
 
-            ConnectionErrorSignal.invoke(err, target=self)
+            raised_error = error_class(error_message)
 
+            ConnectionErrorSignal.invoke(raised_error, target=self)
+
+        # Get remote network mode
         elif handshake_type == HandshakeState.success:
-            # Get remote network mode
             netmode = self.netmode_packer.unpack_from(payload)
+
             # If we did not have an error then we succeeded
             self.connection = Connection(netmode)
             self.on_connected()

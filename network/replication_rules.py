@@ -1,4 +1,4 @@
-from .replicables import Replicable
+from .replicable import Replicable
 from .descriptors import Attribute
 from .enums import Roles
 

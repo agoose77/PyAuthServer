@@ -1,10 +1,9 @@
-import bge
-from math import radians
-from mathutils import Vector
-from itertools import tee, islice, chain
-from collections import namedtuple, defaultdict
-from heapq import heappop, heappush
+from bge import types
+from collections import defaultdict, namedtuple 
 from functools import partial
+from heapq import heappop, heappush
+from itertools import islice, tee
+from mathutils import Vector
 
 from .kdtree import KDTree
 
@@ -343,7 +342,7 @@ class SpatialTree(KDTree):
         return node.position.data
 
 
-class NavmeshProxy(bge.types.KX_GameObject):
+class NavmeshProxy(types.KX_GameObject):
 
     def __init__(self, obj):
         self.mesh = BGENavigationMesh(self)

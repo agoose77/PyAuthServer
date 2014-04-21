@@ -1,6 +1,6 @@
 from collections import namedtuple
-from operator import itemgetter
 from functools import partial
+from operator import itemgetter
 
 from .sorted_collection import SortedCollection
 
@@ -44,7 +44,7 @@ class KDNeighbours:
             if len(self.neighbours) >= self.requested:
                 self.nearest = self.neighbours[self.requested - 1]
             return
-        
+
         if distance < self.nearest[0]:
             self.nearest = distance, node
 
@@ -55,52 +55,52 @@ class KDTree:
         self.points = points
         self.dimensions = dimensions
         self.root = self.get_root_node(points, dimensions)
-        
+
     @classmethod
     def get_root_node(cls, points, dimensions, depth=0):
         axis = depth % dimensions
-        
+
         if not points:
             return
 
         points.sort(key=itemgetter(axis))
         median = len(points) // 2
-        
+
         next_depth = depth + 1
-        
+
         return Node(position=points[median],
                     left_child=cls.get_root_node(points[:median], dimensions, next_depth),
                     right_child=cls.get_root_node(points[median + 1:], dimensions, next_depth),
                     split_axis=axis)
-    
+
     def __nn_search(self, node, point, results, depth=0):
         results.add_point((point - node.position).length_squared, node)
         if not (node.left_child or node.right_child):
             return
-    
+
         else:
             axis = node.split_axis
             axis_distance = node.position[axis] - point[axis]
 
             node_closer, node_farther = (node.left_child, node.right_child) if axis_distance > 0 else (node.right_child, node.left_child)
-            
+
             if node_closer:
                 self.__nn_search(node_closer, point, results, depth + 1)
-            
+
             if not node_farther:
                 return
-            
+
             if axis_distance ** 2 < results.nearest[0]:
                 self.__nn_search(node_farther, point, results, depth + 1)
-    
+
     def nn_search(self, point, requested=1):
         neighbours = KDNeighbours(requested)
         self.__nn_search(self.root, point, neighbours)
         if neighbours.neighbours is None:
             return neighbours.nearest
-            
+
         return neighbours.neighbours[:requested]
-        
+
     def nn_range_search(self, point, range):
         neighbours = RangedKDNeighbours(range)
         self.__nn_search(self.root, point, neighbours)

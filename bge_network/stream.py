@@ -1,23 +1,26 @@
-import itertools
-import pyaudio
-
+from itertools import islice
 from opus import encoder, decoder
+from pyaudio import paInt16, PyAudio
 from threading import Event
-from . import threads
+
+from .threads import SafeThread
 
 
-class GenericStream(threads.SafeThread):
+__all__ = ["GenericStream", "MicrophoneStream", "SpeakerStream"]
+
+
+class GenericStream(SafeThread):
 
     def __init__(self):
         super().__init__()
 
-        self.format = pyaudio.paInt16
+        self.format = paInt16
         self.channels = 1
         self.bitrate = 12000
-  #      assert not self.bitrate % 50, "Bitrate must be divisible by 50"
+        # assert not self.bitrate % 50, "Bitrate must be divisible by 50"
         self.chunk = self.bitrate // 25
 
-        self.pyaudio = pyaudio.PyAudio()
+        self.pyaudio = PyAudio()
         self.compress = False
 
         self._active = Event()
@@ -106,7 +109,7 @@ class SpeakerStream(GenericStream):
         iterator = iter(iterable)
 
         while True:
-            chunk = bytes(itertools.islice(iterator, total))
+            chunk = bytes(islice(iterator, total))
             if not chunk:
                 return
 

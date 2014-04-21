@@ -1,8 +1,8 @@
+from itertools import chain
+
+from .iterators import RenewableGenerator
 from .signals import SignalListener
 from .type_register import TypeRegister
-from .iterators import RenewableGenerator
-
-from itertools import chain
 
 __all__ = ['InstanceRegister', 'InstanceMixins']
 

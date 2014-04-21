@@ -1,4 +1,4 @@
-from network import Enum
+from network.enums import Enumeration
 
 
 __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
@@ -6,46 +6,46 @@ __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
            'AnimationMode', 'AnimationBlend']
 
 
-class PhysicsType(metaclass=Enum):
+class PhysicsType(metaclass=Enumeration):
     '''Enumeration of Physics Types'''
     values = ("static", "dynamic", "rigid_body", "soft_body", "occluder",
               "sensor", "navigation_mesh", "character", "no_collision")
 
 
-class EvaluationState(metaclass=Enum):
+class EvaluationState(metaclass=Enumeration):
     values = "success", "failure", "running", "error", "ready"
 
 
-class CameraMode(metaclass=Enum):
+class CameraMode(metaclass=Enumeration):
     values = ("first_person", "third_person")
 
 
-class MovementState(metaclass=Enum):
+class MovementState(metaclass=Enumeration):
     values = ("run", "walk", "static")
 
 
-class AIState(metaclass=Enum):
+class AIState(metaclass=Enumeration):
     values = ("idle", "alert", "engage")
 
 
-class Axis(metaclass=Enum):
+class Axis(metaclass=Enumeration):
     values = ("x", "y", "z")
 
 
-class CollisionGroups(metaclass=Enum):
+class CollisionGroups(metaclass=Enumeration):
     use_bits = True
     values = ("geometry", "pawns")
 
 
-class AnimationMode(metaclass=Enum):
+class AnimationMode(metaclass=Enumeration):
     values = ("play", "loop", "ping_pong", "stop")
 
 
-class AnimationBlend(metaclass=Enum):
+class AnimationBlend(metaclass=Enumeration):
     values = ("interpolate", "add")
 
 
-class InputEvents(metaclass=Enum):
+class InputEvents(metaclass=Enumeration):
     values = ('ACCENTGRAVEKEY', 'AKEY', 'BACKSLASHKEY', 'BACKSPACEKEY',
               'BKEY', 'CAPSLOCKKEY', 'CKEY', 'COMMAKEY', 'DELKEY',
               'DKEY', 'DOWNARROWKEY', 'EIGHTKEY', 'EKEY', 'ENDKEY',
