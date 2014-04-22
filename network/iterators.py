@@ -10,7 +10,7 @@ class RenewableGenerator:
         self._renew_func = renew_func
         self._internal = renew_func()
 
-    def reset(self):
+    def renew(self):
         self._internal = self._renew_func()
 
     def __next__(self):
@@ -18,9 +18,10 @@ class RenewableGenerator:
             return next(self._internal)
 
         except StopIteration:
-            self.reset()
+            self.renew()
+
             return next(self._internal)
 
 
 def take_first(iterable):
-    return next(iter(iterable))
+    return next(iter(iterable)) 

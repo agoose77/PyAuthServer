@@ -84,8 +84,8 @@ class InstanceRegister(TypeRegister):
 
         if not hasattr(cls, "_instances"):
             cls._instances = {}
-            cls._to_register = set()
-            cls._to_unregister = set()
+            cls._pending_registration = set()
+            cls._pending_unregistration = set()
             cls._id_generator = RenewableGenerator(cls.get_available_ids)
 
         return cls
@@ -124,74 +124,101 @@ class InstanceRegister(TypeRegister):
         return iter(free_ids)
 
     def get_entire_graph_ids(cls, instigator=None):  # @NoSelf
-        instance_ids = (k for k, v in cls._instances.items()
-                        if v != instigator)
-        register_ids = (i.instance_id for i in cls._to_register
-                        if i != instigator)
-        return chain(instance_ids, register_ids)
+        registered_ids = (k for k, v in cls._instances.items()
+                          if v != instigator)
+        pending_ids = (i.instance_id for i in cls._pending_registration
+                       if i != instigator)
+        return chain(registered_ids, pending_ids)
 
-    def get_graph_instances(cls, only_real=True):  # @NoSelf
-        if only_real:
+    def get_graph_instances(cls, only_registered=True):  # @NoSelf
+        """Find all registered instances
+        Includes instances pending registration according to argument
+
+        :param only_registered: only include registered instances"""
+        if only_registered:
             return cls._instances.values()
-        return chain(cls._instances.values(), cls._to_register)
+        return chain(cls._instances.values(), cls._pending_registration)
 
     def graph_has_instance(cls, instance_id):  # @NoSelf
+        """Checks for instance ID in registered instances
+
+        :param instance_id: ID of instance"""
         return instance_id in cls._instances
 
-    def get_from_graph(cls, instance_id, only_real=True):  # @NoSelf
+    def get_from_graph(cls, instance_id, only_registered=True):  # @NoSelf
+        """Find instance with a given ID
+        optionally includes those pending registration
+
+        :param only_registered: only search registered instances"""
         try:
             return cls._instances[instance_id]
+
         except KeyError:
             # If we don't want the other values
-            if only_real:
+            if only_registered:
                 raise LookupError
 
             try:
-                return next(i for i in cls._to_register
+                return next(i for i in cls._pending_registration
                             if i.instance_id == instance_id)
             except StopIteration:
                 raise LookupError
 
     def remove_from_entire_graph(cls, instance_id):  # @NoSelf
+        """Remove instance with a given ID from the graph
+        Prevents registration if pending
+
+        :param instance_id: ID of instance to remove"""
         if not instance_id in cls._instances:
             return
         instance = cls._instances[instance_id]
 
-        if not instance in cls._to_unregister:
-            cls._to_unregister.add(instance)
+        if not instance in cls._pending_unregistration:
+            cls._pending_unregistration.add(instance)
 
         cls._unregister_from_graph(instance)
 
-        for i in cls._to_register:
+        for i in cls._pending_registration:
             if i.instance_id != instance_id:
                 continue
 
-            cls._to_register.remove(i)
+            cls._pending_registration.remove(i)
             return i
 
     def update_graph(cls):  # @NoSelf
-        if cls._to_register:
-            for instance in cls._to_register.copy():
-                cls._register_to_graph(instance)
+        """Update internal registered instances
+        Removes and includes pending graph instances"""
+        if cls._pending_registration:
+            get_instance = cls._pending_registration.pop
+            register = cls._register_to_graph
+            while cls._pending_registration:
+                register(get_instance())
 
-        if cls._to_unregister:
-            for instance in cls._to_unregister.copy():
-                cls._unregister_from_graph(instance)
-
-        if cls._to_register or cls._to_unregister:
-            cls.update_graph()
+        if cls._pending_unregistration:
+            get_instance = cls._pending_unregistration.pop
+            unregister = cls._unregister_from_graph
+            while cls._pending_unregistration:
+                unregister(get_instance())
 
     def clear_graph(cls):  # @NoSelf
-        for instance in cls._instances.values():
-            instance.request_unregistration()
+        """Removes all internal registered instances"""
         cls.update_graph()
 
+        get_instance = cls._instances.popitem
+        while cls._instances:
+            instance = get_instance()
+            instance.request_unregistration(unregister=True)
+
     def _register_to_graph(cls, instance):  # @NoSelf
+        """Internal graph method
+        Registers an instance to the instance dict
+
+        :param instance: instance to be registered"""
         if instance.registered:
             return
 
         cls._instances[instance.instance_id] = instance
-        cls._to_register.remove(instance)
+        cls._pending_registration.remove(instance)
 
         try:
             instance.on_registered()
@@ -199,8 +226,12 @@ class InstanceRegister(TypeRegister):
             raise err
 
     def _unregister_from_graph(cls, instance):  # @NoSelf
+        """Internal graph method
+        Unregisters an instance from instance dict
+
+        :param instance: instance to be unregistered"""
         cls._instances.pop(instance.instance_id)
-        cls._to_unregister.remove(instance)
+        cls._pending_unregistration.remove(instance)
 
         try:
             instance.on_unregistered()
