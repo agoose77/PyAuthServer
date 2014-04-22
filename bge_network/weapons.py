@@ -18,6 +18,7 @@ from .inputs import BGEInputStatusLookup, InputManager
 from .object_types import *
 from .signals import *
 from .structs import RigidBodyState
+from .utilities import square_falloff
 
 __all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon', 'EmptyWeapon']
 
@@ -128,9 +129,3 @@ class ProjectileWeapon(Weapon):
 class EmptyWeapon(Weapon):
 
     ammo = Attribute(0)
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.attachment_class = EmptyAttatchment
-
