@@ -2,6 +2,7 @@ from inspect import getmembers
 from bge import logic, events
 from configparser import ConfigParser, ExtendedInterpolation
 from collections import OrderedDict
+from functools import partial
 
 
 __all__ = ["load_keybindings"]
@@ -14,8 +15,8 @@ def load_keybindings(filepath, name, fields):
     :param name: name of class bindings belong to
     :param fields: named binding fields
     :returns: dictionary of name to input codes"""
-    all_events = {x[0]: str(x[1]) for x in getmembers(events)
-                  if isinstance(x[1], int)}
+    all_events = {name: str(value) for name, value in getmembers(events)
+                  if isinstance(value, int)}
     filepath = logic.expandPath("//" + filepath)
 
     # Load into parser

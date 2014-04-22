@@ -39,10 +39,11 @@ class InstanceMixins(SignalListener):
         if not self.registered:
             return
 
-        self.__class__._to_unregister.add(self)
-
         if unregister:
             self.__class__._unregister_from_graph(self)
+
+        else:
+            self.__class__._pending_unregistration.add(self)
 
     def request_registration(self, instance_id, register=False):
         if instance_id is None:
@@ -50,10 +51,12 @@ class InstanceMixins(SignalListener):
             instance_id = self.__class__.get_next_id()
 
         self.instance_id = instance_id
-        self.__class__._to_register.add(self)
 
         if register:
             self.__class__._register_to_graph(self)
+
+        else:
+            self.__class__._pending_registration.add(self)
 
     @property
     def registered(self):
@@ -171,12 +174,12 @@ class InstanceRegister(TypeRegister):
         :param instance_id: ID of instance to remove"""
         if not instance_id in cls._instances:
             return
+
         instance = cls._instances[instance_id]
-
-        if not instance in cls._pending_unregistration:
-            cls._pending_unregistration.add(instance)
-
         cls._unregister_from_graph(instance)
+
+        if instance in cls._pending_unregistration:
+            cls._pending_unregistration.remove(instance)
 
         for i in cls._pending_registration:
             if i.instance_id != instance_id:
@@ -184,6 +187,7 @@ class InstanceRegister(TypeRegister):
 
             cls._pending_registration.remove(i)
             return i
+        return instance
 
     def update_graph(cls):  # @NoSelf
         """Update internal registered instances
@@ -206,7 +210,7 @@ class InstanceRegister(TypeRegister):
 
         get_instance = cls._instances.popitem
         while cls._instances:
-            instance = get_instance()
+            _, instance = get_instance()
             instance.request_unregistration(unregister=True)
 
     def _register_to_graph(cls, instance):  # @NoSelf
@@ -218,7 +222,6 @@ class InstanceRegister(TypeRegister):
             return
 
         cls._instances[instance.instance_id] = instance
-        cls._pending_registration.remove(instance)
 
         try:
             instance.on_registered()
@@ -231,7 +234,6 @@ class InstanceRegister(TypeRegister):
 
         :param instance: instance to be unregistered"""
         cls._instances.pop(instance.instance_id)
-        cls._pending_unregistration.remove(instance)
 
         try:
             instance.on_unregistered()

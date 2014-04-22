@@ -67,9 +67,6 @@ class Channel(NetmodeSwitch):
         :param rpc_call: rpc data (see take_rpc_calls)'''
         rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
 
-        if not self.replicable.registered:
-            return
-
         try:
             method = self.replicable.rpc_storage.functions[rpc_id]
 

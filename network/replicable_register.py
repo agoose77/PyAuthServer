@@ -12,6 +12,8 @@ __all__ = ['ReplicableRegister']
 
 
 class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
+    """Creates interfaces for RPCs and Attributes in Replicable class
+    Wraps methods in protectors for simulated decorators"""     
 
     forced_redefinitions = {}
 
