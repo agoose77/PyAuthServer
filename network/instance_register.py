@@ -20,6 +20,9 @@ class InstanceMixins(SignalListener):
         # Generator used for finding IDs
         self.allow_random_key = allow_random_key
 
+        # Initial value
+        self.instance_id = None
+
         # Run clean init function
         self.on_initialised()
 
@@ -36,9 +39,6 @@ class InstanceMixins(SignalListener):
         pass
 
     def request_unregistration(self, unregister=False):
-        if not self.registered:
-            return
-
         if unregister:
             self.__class__._unregister_from_graph(self)
 
@@ -60,16 +60,23 @@ class InstanceMixins(SignalListener):
 
     @property
     def registered(self):
-        return self._instances.get(self.instance_id) is self
+        try:
+            return self._instances[self.instance_id] is self
+
+        except KeyError:
+            return False
 
     def __bool__(self):
         return self.registered
 
     def __repr__(self):
+        class_name = self.__class__.__name__
+
         if not self.registered:
-            return "(Instance {})".format(self.__class__.__name__)
-        return "(Instance {}: id={})".format(self.__class__.__name__,
-                                                    self.instance_id)
+            return "(Instance {})".format(class_name)
+
+        else:
+            return "(Instance {}: id={})".format(class_name)
 
 
 class InstanceRegister(TypeRegister):
@@ -202,7 +209,8 @@ class InstanceRegister(TypeRegister):
             get_instance = cls._pending_unregistration.pop
             unregister = cls._unregister_from_graph
             while cls._pending_unregistration:
-                unregister(get_instance())
+                instance = get_instance()
+                unregister(instance)
 
     def clear_graph(cls):  # @NoSelf
         """Removes all internal registered instances"""
@@ -233,6 +241,9 @@ class InstanceRegister(TypeRegister):
         Unregisters an instance from instance dict
 
         :param instance: instance to be unregistered"""
+        if not instance.instance_id in cls._instances:
+            return
+
         cls._instances.pop(instance.instance_id)
 
         try:

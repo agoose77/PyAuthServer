@@ -3,7 +3,8 @@ from network.enums import Enumeration
 
 __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
            'MovementState', 'AIState', 'Axis', 'CollisionGroups',
-           'AnimationMode', 'AnimationBlend']
+           'AnimationMode', 'AnimationBlend', 'CollisionType',
+           'InputEvents']
 
 
 class PhysicsType(metaclass=Enumeration):
@@ -35,6 +36,10 @@ class Axis(metaclass=Enumeration):
 class CollisionGroups(metaclass=Enumeration):
     use_bits = True
     values = ("geometry", "pawns")
+
+
+class CollisionType(metaclass=Enumeration):
+    values = ("started", "ended")
 
 
 class AnimationMode(metaclass=Enumeration):

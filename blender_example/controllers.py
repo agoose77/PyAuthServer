@@ -8,6 +8,7 @@ from network.world_info import WorldInfo
 from bge_network.actors import Actor
 from bge_network.behaviour_tree import SequenceNode, SelectorNode
 from bge_network.controllers import AIController, PlayerController
+from bge_network.enums import CollisionType
 from bge_network.replication_infos import ReplicationInfo, PlayerReplicationInfo
 from bge_network.signals import *
 
@@ -46,16 +47,19 @@ class CTFPlayerController(PlayerController):
     def clear_inventory(self):
         for item in self.inventory:
             item.unpossessed()
+
         self.inventory.clear()
 
     @CollisionSignal.listener
-    def on_collision(self, other, is_new, data):
+    def on_collision(self, other, collision_type, collision_data):
         target = Actor.from_object(other)
-        if target is None or not is_new:
+
+        # We need a valid collision
+        if not (target and collision_type == CollisionType.started):
             return
 
         # If we can pick it up
-        if isinstance(target, CTFFlag) and target.owner_info_possessed is None:
+        if isinstance(target, CTFFlag) and target.owner is None:
             self.pickup_flag(target)
 
     def on_initialised(self):
@@ -89,11 +93,10 @@ class CTFPlayerController(PlayerController):
             UIHealthChangedSignal.invoke(self.pawn.health)
 
     def pickup_flag(self, flag):
-        flag.possessed_by(self)
-        flag.owner_info_possessed = self.info
-        flag.set_parent(self.pawn, "weapon")
-        flag.local_position = Vector()
+        # Replication specifics
         self.inventory.append(flag)
+        self.pawn.attach_flag(flag)
+        self.pawn.flag = flag
 
     @PlayerInputSignal.global_listener
     def player_update(self, delta_time):

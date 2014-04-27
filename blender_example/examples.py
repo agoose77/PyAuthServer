@@ -81,7 +81,7 @@ class Cube(bge_network.Actor):
             self.request_unregistration()
 
     @bge_network.CollisionSignal.listener
-    def on_collided(self, target, is_collision):
-        if is_collision:
+    def on_collided(self, target, collision_type, collision_data):
+        if collision_type == CollisionType.started:
             self.play_sound()
             self.handle_damage()

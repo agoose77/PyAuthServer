@@ -29,7 +29,7 @@ class TeamDeathMatch(ReplicationRules):
     countdown_start = 0
     minimum_players_for_countdown = 0
     player_limit = 4
-    relevant_radius_squared = 9 ** 2
+    relevant_radius_squared = 20 ** 2
 
     # AI Classes
     ai_camera_class = Camera
@@ -68,71 +68,38 @@ class TeamDeathMatch(ReplicationRules):
         for replicable in WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
-    def setup_ai_pawn(self, controller):
-        '''This function can be called without a controller,
-        in which case it establishes one.
-        Used to respawn AI character pawns
-
-        :param controller: options, controller instance'''
-        controller.remove_dependencies()
-
-        pawn = self.ai_pawn_class()
-        camera = self.ai_camera_class()
-        weapon = self.ai_weapon_class()
-
-        controller.possess(pawn)
-        controller.set_camera(camera)
-        controller.set_weapon(weapon)
-
-        pawn.position = Vector((randint(-10, 10),
-                                randint(-10, 10), 3))
-        return controller
-
-    def setup_player_pawn(self, controller):
-        '''This function can be called without a controller,
-        in which case it establishes one.
-        Used to respawn player character pawns
-
-        :param controller: options, controller instance'''
-        controller.remove_dependencies()
-
-        pawn = self.player_pawn_class(register=True)
-        camera = self.player_camera_class(register=True)
-        weapon = self.player_weapon_class(register=True)
-
-        controller.possess(pawn)
-        controller.set_camera(camera)
-        controller.set_weapon(weapon)
-
-        pawn.position = choice(WorldInfo.subclass_of(SpawnPoint)).position
-
-        return controller
-
     def create_teams(self):
         '''Spawn teams for game mode'''
         # Create teams
         team_green = TeamReplicationInfo()
-        team_green.name = "Team Green"
+        team_green.name = "Team Alpha"
+
         team_red = TeamReplicationInfo()
-        team_red.name = "Team Red"
+        team_red.name = "Team Bravo"
 
     def is_relevant(self, player_controller, replicable):
         if replicable.always_relevant:
             return True
 
-        # Check by distance, then frustum checks
+        # If a visible actor
         if isinstance(replicable, Actor) and replicable.visible:
             player_pawn = player_controller.pawn
 
-            in_range = player_pawn and (replicable.position - \
-                    player_pawn.position).length_squared <= \
-                    self.relevant_radius_squared
+            if player_pawn:
 
-            player_camera = player_controller.camera
+                # First check by distance
+                in_range = (replicable.position - player_pawn.position)\
+                    .length_squared <= self.relevant_radius_squared
 
-            if in_range or (player_camera and \
-                            player_camera.sees_actor(replicable)):
-                return True
+                if in_range:
+                    return True
+
+                # Otherwise by camera frustum
+                player_camera = player_controller.camera
+                if player_camera and player_camera.sees_actor(replicable):
+                    return True
+
+            return False
 
         # These classes are not permitted (unless owned by client)
         if isinstance(replicable, (Controller, Weapon)):
@@ -153,7 +120,7 @@ class TeamDeathMatch(ReplicationRules):
         else:
             self.setup_ai_pawn(target.owner)
 
-    def on_initialised(self, **da):
+    def on_initialised(self):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
@@ -197,6 +164,44 @@ class TeamDeathMatch(ReplicationRules):
 
     def start_match(self):
         self.info.match_started = True
+
+    def setup_ai_pawn(self, controller):
+        '''This function can be called without a controller,
+        in which case it establishes one.
+        Used to respawn AI character pawns
+
+        :param controller: options, controller instance'''
+        controller.forget_pawn()
+
+        pawn = self.ai_pawn_class()
+        weapon = self.ai_weapon_class()
+        camera = self.ai_camera_class()
+
+        controller.possess(pawn)
+        controller.set_camera(camera)
+        controller.set_weapon(weapon)
+
+        pawn.position = choice(WorldInfo.subclass_of(SpawnPoint)).position
+        return controller
+
+    def setup_player_pawn(self, controller):
+        '''This function can be called without a controller,
+        in which case it establishes one.
+        Used to respawn player character pawns
+
+        :param controller: options, controller instance'''
+        controller.forget_pawn()
+
+        pawn = self.player_pawn_class(register=True)
+        weapon = self.player_weapon_class(register=True)
+        camera = self.player_camera_class(register=True)
+
+        controller.possess(pawn)
+        controller.set_camera(camera)
+        controller.set_weapon(weapon)
+
+        pawn.position = choice(WorldInfo.subclass_of(SpawnPoint)).position
+        return controller
 
     @UpdateSignal.global_listener
     def update(self, delta_time):

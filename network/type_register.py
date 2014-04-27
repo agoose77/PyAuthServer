@@ -9,24 +9,19 @@ class TypeRegister(type):
             subclasses = cls.subclasses
 
         except AttributeError:
-            pass
+            return cls
 
+        # Register as a sub-type of parent
+        for parent in cls.__mro__[1:]:
+            if hasattr(parent, "subclasses"):
+                subclasses[name] = cls
+                if hasattr(cls, "register_subtype"):
+                    cls.register_subtype()
+
+        # Otherwise we're a parent type
         else:
-            is_subclass = False
-            for parent in cls.__mro__[1:]:
-                if hasattr(parent, "subclasses"):
-                    is_subclass = True
-                    break
-
-            if is_subclass:
-                func = getattr(cls, "register_subtype", None)
-                cls.subclasses[name] = cls
-
-            else:
-                func = getattr(cls, "register_type", None)
-
-            if callable(func):
-                func()
+            if hasattr(cls, "register_type"):
+                cls.register_type()
 
         return cls
 

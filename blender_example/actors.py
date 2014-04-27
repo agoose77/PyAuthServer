@@ -6,31 +6,27 @@ from network.replicable import Replicable
 from network.signals import UpdateSignal
 from network.world_info import WorldInfo
 
-from bge_network.actors import Actor, Pawn, ResourceActor, WeaponAttachment
+from bge_network.actors import Actor, Pawn, Projectile, ResourceActor, WeaponAttachment
 from bge_network.controllers import PlayerController
-from bge_network.signals import BroadcastMessage, CollisionSignal
+from bge_network.enums import CollisionType
+from bge_network.signals import ActorDamagedSignal, BroadcastMessage, CollisionSignal
 from bge_network.utilities import mean
 
 from aud import Factory, device as Device
 from bge import logic
+from mathutils import Vector
 
 from .enums import TeamRelation
 from .particles import TracerParticle
 from .signals import UIHealthChangedSignal
+from .replication_infos import TeamReplicationInfo
 
 __all__ = ["ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag",
            "Cone", "Palette", "SpawnPoint"]
 
 
-class ArrowProjectile(Actor):
+class ArrowProjectile(Projectile):
     entity_name = "Arrow"
-
-    def on_registered(self):
-        super().on_registered()
-
-        self.replicate_temporarily = True
-        self.in_flight = True
-        self.lifespan = 5
 
     @UpdateSignal.global_listener
     @simulated
@@ -44,27 +40,29 @@ class ArrowProjectile(Actor):
         TracerParticle().position = self.position - global_vel.normalized() * 2
         self.align_to(global_vel, 0.3)
 
-    @CollisionSignal.listener
-    @simulated
-    def on_collision(self, other, is_new, data):
-        target = self.from_object(other)
+    @requires_netmode(Netmodes.server)
+    def server_deal_damage(self, collision_info, hit_pawn):
+        weapon = self.owner
 
-        if not data or not is_new or not self.in_flight:
+        # If the weapon disappears before projectile
+        if not weapon:
             return
 
-        hit_normal = mean(c.hitNormal for c in data)
-        hit_position = mean(c.hitPosition for c in data)
+        # Get pawn's team
+        pawn_team = hit_pawn.info.team
 
-        if isinstance(target, Pawn) and self.owner:
-            momentum = self.mass * self.velocity.length * hit_normal
+        # Get weapon's owner (controller)
+        instigator = weapon.owner
+        instigator_team = instigator.info.team
 
-            ActorDamagedSignal.invoke(self.owner.base_damage,
-                                                  self.owner.owner,
-                                                  hit_position, momentum,
-                                                  target=target)
+        # Get team relationship
+        relationship = instigator_team.get_relationship_with(pawn_team)
 
-        self.request_unregistration()
-        self.in_flight = False
+        # If we aren't enemies
+        if relationship != TeamRelation.enemy:
+            return
+
+        super().server_deal_damage(collision_info, hit_pawn)
 
 
 class Barrel(Actor):
@@ -73,8 +71,8 @@ class Barrel(Actor):
     @CollisionSignal.listener
     @requires_netmode(Netmodes.client)
     @simulated
-    def on_collision(self, other, is_new, data):
-        if not is_new:
+    def on_collision(self, other, collision_type, collision_data):
+        if not collision_type == CollisionType.started:
             return
 
         file_path = logic.expandPath("//data/Barrel/clang.mp3")
@@ -93,11 +91,48 @@ class BowAttachment(WeaponAttachment):
 class CTFPawn(Pawn):
     entity_name = "Suzanne_Physics"
 
+    flag = Attribute(type_of=Replicable, complain=True, notify=True)
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "flag"
+
     @simulated
+    def attach_flag(self, flag):
+        # Store reference
+        self._flag = flag
+        # Network info
+        flag.possessed_by(self)
+        # Physics info
+        flag.set_parent(self, "weapon")
+        flag.local_position = Vector()
+
+    @simulated
+    def remove_flag(self):
+        self._flag = None
+        # Network info
+        self._flag.unpossessed()
+        # Physics info
+        self._flag.remove_parent()
+
+    @simulated
+    def on_flag_replicated(self, flag):
+        """Called when flag is changed"""
+        if flag is None:
+            self.remove_flag()
+
+        else:
+            self.attach_flag(flag)
+
     def on_notify(self, name):
         # play weapon effects
         if name == "health":
             UIHealthChangedSignal.invoke(self.health)
+
+        elif name == "flag":
+            self.on_flag_replicated(self.flag)
 
         else:
             super().on_notify(name)
@@ -108,11 +143,11 @@ class CTFPawn(Pawn):
         self.walk_speed = 3
         self.run_speed = 6
 
+        self._flag = None
+
 
 class CTFFlag(ResourceActor):
-    owner_info_possessed = Attribute(type_of=Replicable,
-                                     notify=True,
-                                     complain=True)
+    owner_info_possessed = Attribute(type_of=Replicable, complain=True)
 
     entity_name = "Flag"
     colours = {TeamRelation.friendly: [0, 255, 0, 1],
@@ -126,36 +161,43 @@ class CTFFlag(ResourceActor):
 
     def possessed_by(self, other):
         super().possessed_by(other)
+
+        # Network info
+        self.owner_info_possessed = other.info
+
         # Inform other players
         BroadcastMessage.invoke("{} has picked up flag"
-                                .format(other.info.name))
+                                .format(self.owner_info_possessed.name))
 
     def unpossessed(self):
         # Inform other players
-        assert self.owner.info
         BroadcastMessage.invoke("{} has dropped flag"
-                                .format(self.owner.info.name))
+                                .format(self.owner_info_possessed.name))
+
         self.owner_info_possessed = None
 
         super().unpossessed()
 
-    def on_notify(self, name):
-        if name == "owner_info_possessed":
+    @UpdateSignal.global_listener
+    @requires_netmode(Netmodes.client)
+    @simulated
+    def update(self, delta_time):
+        flag_owner_info = self.owner_info_possessed
 
-            if self.owner_info_possessed is None:
-                self.colour = self.colours[TeamRelation.neutral]
-                return
-
-            player_controller = take_first(WorldInfo.subclass_of(
-                                                     PlayerController))
-            assert player_controller.info
-            team_relation = player_controller.info.team.get_relationship_with(
-                                              self.owner_info_possessed.team)
-
-            self.colour = self.colours[team_relation]
+        if flag_owner_info is None:
+            team_relation = TeamRelation.neutral
 
         else:
-            super().on_notify(name)
+            player_controller = PlayerController.get_local_controller()
+            if not player_controller:
+                return
+            player_team = player_controller.info.team
+            if not player_team:
+                return
+            team_relation = player_team.get_relationship_with(
+                                              flag_owner_info.team)
+
+        self.colour = self.colours[team_relation]
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)

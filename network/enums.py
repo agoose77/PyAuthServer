@@ -58,7 +58,7 @@ class Roles(metaclass=Enumeration):
     def __init__(self, local, remote):
         self.local = local
         self.remote = remote
-        self.context = None
+        self.context = False
 
     def __description__(self):
         return hash((self.context, self.local, self.remote))

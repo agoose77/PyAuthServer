@@ -93,7 +93,6 @@ class HandleFirstPersonCamera(SignalLeafNode):
         # Set pawn's Z rotation
         pawn_rotation = pawn.rotation.copy()
         pawn_rotation.rotate(Euler((0, 0, delta_yaw)))
-       # pawn.rotation = pawn_rotation
 
         # Set camera's X rotation
         camera.local_rotation = Euler((current_pitch, 0, 0))
@@ -161,7 +160,8 @@ class HandleInputs(SignalLeafNode):
         if inputs.shoot:
             controller.start_fire()
 
-        if pawn.on_ground:
+        # Check if on floor TODO
+        if pawn.is_colliding:
             velocity = Vector((x_plane, y_plane, 0.0))
             velocity.length = forward_speed
 

@@ -17,6 +17,7 @@ from .object_types import *
 from .physics_object import PhysicsObject
 from .signals import *
 from .structs import RigidBodyState
+from .utilities import mean
 
 
 __all__ = ["Actor", "Camera", "Lamp", "Navmesh", "Pawn", "ResourceActor",
@@ -27,6 +28,14 @@ class Actor(Replicable, PhysicsObject):
     '''Physics enabled network object'''
 
     rigid_body_state = Attribute(RigidBodyState(), notify=True)
+
+    _position = Attribute(type_of=Vector, notify=True)
+    _rotation = Attribute(type_of=Euler, notify=True)
+    _angular = Attribute(type_of=Vector, notify=True)
+    _velocity = Attribute(type_of=Vector, notify=True)
+    _collision_group = Attribute(type_of=int, notify=True)
+    _collision_mask = Attribute(type_of=int, notify=True)
+
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
                     notify=True)
 
@@ -41,8 +50,15 @@ class Actor(Replicable, PhysicsObject):
         allowed_physics = ((self.replicate_simulated_physics or is_initial)
                         and (self.replicate_physics_to_owner or not is_owner))
 
-        if valid_role and allowed_physics:
+        if valid_role and allowed_physics and not self.parent:
             yield "rigid_body_state"
+
+            yield "_position"
+            yield "_rotation"
+            yield "_angular"
+            yield "_velocity"
+            yield "_collision_group"
+            yield "_collision_mask"
 
     def on_initialised(self):
         super().on_initialised()
@@ -63,9 +79,30 @@ class Actor(Replicable, PhysicsObject):
 
         super().on_unregistered()
 
+    @simulated
+    def on_replicated_position(self, position):
+        difference = position - self.position
+        is_minor_difference = difference.length_squared < 4
+
+        if is_minor_difference:
+            self.position += difference * 0.6
+
+        else:
+            self.position = position
+
     def on_notify(self, name):
-        if name == "rigid_body_state":
-            PhysicsReplicatedSignal.invoke(self.rigid_body_state, target=self)
+        if name == "_collision_group":
+            self.collision_group = self._collision_group
+        elif name == "_collision_mask":
+            self.collision_mask = self._collision_mask
+        elif name == "_velocity":
+            self.velocity = self._velocity.copy()
+        elif name == "_angular":
+            self.angular = self._angular.copy()
+        elif name == "_rotation":
+            self.rotation = self._rotation.copy()
+        elif name == "_position":
+            self.on_replicated_position(self._position.copy())
         else:
             super().on_notify(name)
 
@@ -237,6 +274,7 @@ class Pawn(Actor):
     alive = Attribute(True, notify=True, complain=True)
     flash_count = Attribute(0)
     health = Attribute(100, notify=True, complain=True)
+    info = Attribute(type_of=Replicable, complain=True)
     roles = Attribute(Roles(Roles.authority,
                              Roles.autonomous_proxy),
                       notify=True)
@@ -247,15 +285,18 @@ class Pawn(Actor):
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
-
+        # Only non-owners need this
         if not is_owner:
             yield "view_pitch"
             yield "flash_count"
 
+        # These will be explicitly set
         if is_complaint:
             yield "weapon_attachment_class"
             yield "alive"
+            yield "info"
 
+            # Prevent cheating
             if is_owner:
                 yield "health"
 
@@ -280,7 +321,7 @@ class Pawn(Actor):
         return self.skeleton.isPlayingAction(layer)
 
     @property
-    def on_ground(self):
+    def is_colliding(self):
         for collider in self._registered:
             if not self.from_object(collider):
                 return True
@@ -423,6 +464,50 @@ class Navmesh(Actor):
 
     def get_wall_intersection(self, from_point, to_point):
         return self.object.raycast(from_point, to_point)
+
+
+class Projectile(Actor):
+
+    def on_registered(self):
+        super().on_registered()
+
+        self.replicate_temporarily = True
+        self.in_flight = True
+        self.lifespan = 5
+
+    @CollisionSignal.listener
+    @simulated
+    def on_collision(self, other, collision_type, collision_info):
+        target = self.from_object(other)
+
+        if not (collision_type == CollisionType.started and self.in_flight):
+            return
+
+        if isinstance(target, Pawn):
+            self.server_deal_damage(collision_info, target)
+
+        self.request_unregistration()
+        self.in_flight = False
+
+    @requires_netmode(Netmodes.server)
+    def server_deal_damage(self, collision_info, hit_pawn):
+        weapon = self.owner
+
+        # If the weapon disappears before projectile
+        if not weapon:
+            return
+
+        # Get weapon's owner (controller)
+        instigator = weapon.owner
+
+        # Calculate hit information
+        hit_normal = mean(c.hitNormal for c in collision_info).normalized()
+        hit_position = mean(c.hitPosition for c in collision_info)
+        hit_velocity = self.velocity.dot(hit_normal) * hit_normal
+        hit_momentum = self.mass * hit_velocity
+
+        ActorDamagedSignal.invoke(weapon.base_damage, instigator, hit_position,
+                                  hit_momentum, target=hit_pawn)
 
 
 class WeaponAttachment(Actor):

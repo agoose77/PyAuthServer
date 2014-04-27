@@ -49,7 +49,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         self.owner = None
 
-        # Replicaton properties
+        # Replication properties
         self.relevant_to_owner = True
         self.always_relevant = False
 
@@ -148,7 +148,7 @@ class Replicable(metaclass=ReplicableRegister):
     def unpossessed(self):
         '''Called on unpossession by replicable
         May be due to death of replicable'''
-        pass
+        self.owner = None
 
     def on_registered(self):
         '''Called on registration of replicable

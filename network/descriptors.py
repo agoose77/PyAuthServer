@@ -25,7 +25,7 @@ class TypeFlag:
 
 
 class Attribute(TypeFlag):
-    __slots__ = ["notify", "complain", "name", "_instances", "_value"]
+    __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
     def __init__(self, value=None, type_of=None,
                  notify=False, complain=False, **kwargs):
@@ -34,11 +34,11 @@ class Attribute(TypeFlag):
 
         self.notify = notify
         self.complain = complain
+        self.initial_value = value
 
         self.name = None
 
         self._instances = {}
-        self._value = value
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
@@ -84,7 +84,7 @@ class Attribute(TypeFlag):
         self._instances[instance] = storage_interface
 
     def get_new_value(self):
-        return deepcopy(self._value)
+        return deepcopy(self.initial_value)
 
 
 class DescriptorFactory:

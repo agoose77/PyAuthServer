@@ -8,7 +8,7 @@ from network.type_register import TypeRegister
 from network.world_info import WorldInfo
 
 from bge import logic
-from collections import deque
+from collections import deque, OrderedDict
 from contextlib import contextmanager
 
 from .actors import Actor, Camera, Pawn
@@ -167,7 +167,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         UpdateCollidersSignal.invoke()
 
     @PhysicsCopyState.global_listener
-    def interface_state(self, source_state, target_state):
+    def copy_state(self, source_state, target_state):
         '''Copy state information from source to target
 
         :param source_state: State to copy from
@@ -186,59 +186,64 @@ class ServerPhysics(PhysicsSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._rewind_buffers = {}
-        self._rewind_keys = deque()
+        self._rewind_data = OrderedDict()
         self._rewind_length = 1 * WorldInfo.tick_rate
 
     @PhysicsRewindSignal.global_listener
     def rewind_to(self, target_tick=None):
-        try:
-            if target_tick is None:
-                target_tick = self._rewind_keys[-1]
-            tick_buffer = self._rewind_buffers[target_tick]
+        if target_tick is None:
+            target_tick = WorldInfo.tick - 1
 
-        except (IndexError, KeyError) as err:
+        try:
+            state_data = self._rewind_data[target_tick]
+
+        except KeyError as err:
             raise ValueError("Could not rewind to tick {}"
                              .format(target_tick)) from err
-
+            
         # Apply rewinding
-        for pawn, state in tick_buffer.items():
-            rigid_state = RigidBodyState.from_tuple(state)
+        copy_state = self.copy_state
+        create_state_from = RigidBodyState.from_tuple
 
-            self.interface_state(rigid_state, pawn)
+        for pawn, state in state_data.items():
+            rigid_state = create_state_from(state)
+            copy_state(rigid_state, pawn)
 
-    def store_rewind_data(self):
-        tick = WorldInfo.tick
+    def save_network_states(self):
+        copy_state = self.copy_state
+        for replicable in WorldInfo.subclass_of(Actor):
+            assert replicable.registered
+            #copy_state(replicable, replicable.rigid_body_state)
+            replicable._position = replicable.position.copy()
+            replicable._angular = replicable.angular.copy()
+            replicable._velocity = replicable.velocity.copy()
+            replicable._rotation = replicable.rotation.copy()
+            replicable._collision_group = replicable.collision_group
+            replicable._collision_mask = replicable.collision_mask
 
-        # Store data
-        self._rewind_buffers[tick] = {p: p.rigid_body_state.to_tuple()
-                                      for p in WorldInfo.subclass_of(Pawn)}
-
-        self._rewind_keys.append(tick)
+    def save_pawn_states(self, tick):
+        """Save pawn physics state for this tick"""
+        self._rewind_data[tick] = {p: p.rigid_body_state.to_tuple()
+                                   for p in WorldInfo.subclass_of(Pawn)}
 
         # Cap rewind length
-        if (tick - self._rewind_keys[0]) > self._rewind_length:
-            self._rewind_buffers.pop(self._rewind_keys[0])
-            self._rewind_keys.popleft()
+        if len(self._rewind_data) > self._rewind_length:
+            self._rewind_data.popitem(last=False)
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
         """Listener for PhysicsTickSignal
         Copy physics state to network variable for Actor instances"""
-
-        for replicable in WorldInfo.subclass_of(Actor):
-            assert replicable.registered
-            self.interface_state(replicable,
-                                 replicable.rigid_body_state)
-        self.store_rewind_data()
-
         super().update(scene, delta_time)
+
+        self.save_network_states()
+        self.save_pawn_states(WorldInfo.tick)
 
 
 @netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
-    small_correction_squared = 3
+    small_correction_squared = 2
 
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:
@@ -254,6 +259,8 @@ class ClientPhysics(PhysicsSystem):
 
         :param target_physics: Physics struct of target
         :param target: Actor instance'''
+        print("QDW")
+        return
 
         difference = target_physics.position - target.position
 
@@ -263,7 +270,7 @@ class ClientPhysics(PhysicsSystem):
 
         if small_correction:
             target.position += difference * 0.3
-            target.velocity = target_physics.velocity# + difference
+            target.velocity = target_physics.velocity
 
         else:
             target.position = target_physics.position

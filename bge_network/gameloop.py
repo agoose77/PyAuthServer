@@ -171,6 +171,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             # Whilst we have enough time in the buffer
             while (accumulator >= step_time):
+
                 # Update IO events from Blender
                 self.profile = logic.KX_ENGINE_DEBUG_SERVICES
                 self.update_blender()

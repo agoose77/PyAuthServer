@@ -23,5 +23,9 @@ class RenewableGenerator:
             return next(self._internal)
 
 
-def take_first(iterable):
-    return next(iter(iterable)) 
+def take_first(iterable, default=None):
+    """Returns first element from iterable
+
+    :param default: default value if iterable is empty
+    :returns first element or default"""
+    return next(iter(iterable), default) 

@@ -179,12 +179,14 @@ class ReplicableBaseHandler:
         instance_id = self.unpack_id(bytes_)
 
         # Return only a replicable that was created by the network
+
         try:
             replicable = WorldInfo.get_replicable(instance_id)
             return replicable
 
         except (LookupError):
-            print("ReplicableBaseHandler: Couldn't find replicable", instance_id)
+            print("ReplicableBaseHandler: Couldn't find replicable with ID "\
+                  "'{}'".format(instance_id))
             return
 
     def size(self, bytes_=None):
@@ -219,6 +221,7 @@ class FixedBitFieldHandler:
     def __init__(self, size):
         self._size = size
         self._packer = handler_from_bit_length(size)
+        self._packed_size = self._packer.size()
 
     def pack(self, field):
         # Get the smallest needed packer for this bitfield
@@ -233,7 +236,7 @@ class FixedBitFieldHandler:
         field._value = self._packer.unpack_from(bytes_)
 
     def size(self, bytes_):
-        return bits2bytes(self._size)
+        return self._packed_size
 
 
 class VariableBitFieldHandler:
@@ -286,7 +289,8 @@ class VariableBitFieldHandler:
     @classmethod
     def size(cls, bytes_):
         field_size = cls.size_packer.unpack_from(bytes_)
-        return bits2bytes(field_size) + cls.size_packer.size()
+        field_handler = handler_from_bit_length(field_size)
+        return field_handler.size() + cls.size_packer.size()
 
 
 def bitfield_selector(flag):

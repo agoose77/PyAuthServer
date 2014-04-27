@@ -3,7 +3,7 @@ from network.decorators import simulated
 from bge import logic
 from mathutils import Vector
 
-from .enums import PhysicsType
+from .enums import PhysicsType, CollisionType
 from .object_types import GameObject, SocketWrapper
 from .signals import CollisionSignal, UpdateCollidersSignal
 from .timer import Timer
@@ -145,7 +145,8 @@ class PhysicsObject:
 
         if not other in self._registered:
             self._registered.add(other)
-            CollisionSignal.invoke(other, True, data, target=self)
+            CollisionSignal.invoke(other, CollisionType.started,
+                                   data, target=self)
 
     @UpdateCollidersSignal.global_listener
     @simulated
@@ -166,7 +167,7 @@ class PhysicsObject:
         for obj in difference:
             self._registered.remove(obj)
             if not obj.invalid:
-                callback(obj, False, None, target=self)
+                callback(obj, CollisionType.ended, None, target=self)
 
     def on_unregistered(self):
         # Unregister from parent

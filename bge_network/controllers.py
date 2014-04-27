@@ -2,6 +2,7 @@ from network.bitfield import BitField
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles
+from network.iterators import take_first
 from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import UpdateSignal
@@ -41,6 +42,10 @@ class Controller(Replicable):
     info = Attribute(type_of=Replicable, complain=True)
 
     def attach_camera(self, camera):
+        """Connects camera to pawn
+
+        :param camera: camera instance"""
+        self._camera = camera
         camera.set_parent(self.pawn, "camera")
         camera.local_position = Vector()
 
@@ -56,9 +61,16 @@ class Controller(Replicable):
     def hear_voice(self, info, voice):
         pass
 
-    def on_camera_updated(self):
-        if self.camera:
-            self.attach_camera(self.camera)
+    def on_camera_replicated(self, camera):
+        """Called when camera attribute is replicated
+
+        :param camera: camera attribute"""
+        if camera:
+            self.attach_camera(camera)
+            camera.active = True
+
+        else:
+            self.remove_camera()
 
     def on_initialised(self):
         super().on_initialised()
@@ -67,23 +79,50 @@ class Controller(Replicable):
         self.effective_hear_range = 10
         self.replication_priority = 2.0
 
-    def on_pawn_updated(self):
-        if self.pawn:
-            self.pawn.register_child(self, greedy=True)
+        self._camera = None
+        self._pawn = None
+
+    def on_pawn_replicated(self, pawn):
+        if pawn:
+            self.register_listener_to_pawn(pawn)
+
+        else:
+            self.unregister_listener_to_pawn()
 
     def on_unregistered(self):
-        self.remove_dependencies()
+        # Remove player pawn
+        self.forget_pawn()
+
+        # The player is gone, remove info
+        if self.info:
+            self.info.request_unregistration()
 
         super().on_unregistered()
 
+    @requires_netmode(Netmodes.server)
     def possess(self, replicable):
         self.pawn = replicable
         self.pawn.possessed_by(self)
+
+        # Setup lookups
         self.info.pawn = replicable
+        self.pawn.info = self.info
 
-        self.on_pawn_updated()
+        self.register_listener_to_pawn(replicable)
 
-    def remove_dependencies(self):
+    def register_listener_to_pawn(self, pawn):
+        """Registers as listener for pawn events
+
+        :param pawn: pawn instance"""
+        self._pawn = pawn
+        pawn.register_child(self, greedy=True)
+
+    def remove_camera(self):
+        """Disconnects camera from pawn"""
+        self._camera.remove_parent()
+        self._camera = None
+
+    def forget_pawn(self):
         if self.pawn:
             self.pawn.request_unregistration()
             self.unpossess()
@@ -98,6 +137,7 @@ class Controller(Replicable):
 
         self.camera = self.weapon = None
 
+    @requires_netmode(Netmodes.server)
     def server_fire(self):
         self.weapon.fire(self.camera)
 
@@ -113,22 +153,33 @@ class Controller(Replicable):
             controller.hear_sound(self.weapon.shoot_sound,
                                 self.pawn.position)
 
+    @requires_netmode(Netmodes.server)
     def set_camera(self, camera):
         self.camera = camera
         self.camera.possessed_by(self)
 
-        self.on_camera_updated()
+        self.attach_camera(camera)
 
+    @requires_netmode(Netmodes.server)
     def set_weapon(self, weapon):
         self.weapon = weapon
         self.weapon.possessed_by(self)
         self.pawn.weapon_attachment_class = weapon.attachment_class
 
+    @requires_netmode(Netmodes.server)
     def unpossess(self):
-        self.pawn.unpossessed()
-        self.info.pawn = self.pawn = None
+        self.unregister_listener_to_pawn()
 
-        self.on_pawn_updated()
+        self.info.pawn = None
+        self.pawn.info = None
+
+        self.pawn.unpossessed()
+        self.pawn = None
+
+    def unregister_listener_to_pawn(self):
+        """Unregisters as listener for pawn events"""
+        self._pawn.unregister_child(self, greedy=True)
+        self._pawn = None
 
 
 class AIController(Controller):
@@ -380,13 +431,10 @@ class PlayerController(Controller):
 
         return correction
 
-    @classmethod
+    @staticmethod
     @requires_netmode(Netmodes.client)
-    def get_local_controller(cls):
-        try:
-            return WorldInfo.subclass_of(cls)[0]
-        except IndexError:
-            return None
+    def get_local_controller():
+        return take_first(WorldInfo.subclass_of(PlayerController))
 
     def hear_sound(self, sound_path: TypeFlag(str),
                    source: TypeFlag(Vector)) -> Netmodes.client:
@@ -457,11 +505,10 @@ class PlayerController(Controller):
     def on_notify(self, name):
         if name == "pawn":
             # Register as child for signals
-            self.on_pawn_updated()
+            self.on_pawn_replicated(self.pawn)
 
         elif name == "camera":
-            self.on_camera_updated()
-            self.camera.active = True
+            self.on_camera_replicated(self.camera)
 
         else:
             super().on_notify(name)
@@ -473,6 +520,7 @@ class PlayerController(Controller):
 
     def on_unregistered(self):
         super().on_unregistered()
+
         self.destroy_microphone()
 
     @PlayerInputSignal.global_listener

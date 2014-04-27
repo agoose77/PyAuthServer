@@ -36,28 +36,23 @@ def bits2bytes(bits):
     return ceil(bits / 8)
 
 
-def handler_from_bit_length(bits):
-    bytes_length = bits2bytes(bits)
-
-    last_packer = None
+def handler_from_byte_length(total_bytes):
     for packer in int_packers:
-        if packer.size() > bytes_length:
+        if packer.size() >= total_bytes:
             break
-
-        last_packer = packer
-
-    if last_packer is None:
+    else:
         raise ValueError("Integer too large to pack")
 
-    return last_packer
+    return packer
 
 
 def handler_from_int(value):
     return handler_from_bit_length(value.bit_length())
 
 
-def handler_from_byte_length(bytes_):
-    return int_sized[bytes_]
+def handler_from_bit_length(total_bits):
+    total_bytes = bits2bytes(total_bits)
+    return handler_from_byte_length(total_bytes)
 
 
 class BytesHandler:

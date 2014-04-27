@@ -186,10 +186,9 @@ class AttributeStorageContainer(AbstractStorageContainer):
 
         self.complaints = self.get_default_complaints()
 
-    @staticmethod
-    def get_descriptions_of(data):
+    def get_descriptions(self):
         return {attribute: static_description(value)
-                for attribute, value in data.items()}
+                for attribute, value in self.data.items()}
 
     def get_description_tuple(self):
         complaints = self.complaints
@@ -201,7 +200,8 @@ class AttributeStorageContainer(AbstractStorageContainer):
                      get_description(data[member]) for member in members)
 
     def get_default_descriptions(self):
-        return self.get_descriptions_of(self.get_default_data())
+        return {attribute: static_description(attribute.initial_value)
+                for attribute in self.data}
 
     def get_default_complaints(self):
         default_descriptions = self.get_default_descriptions()
