@@ -5,12 +5,12 @@ from heapq import heappop, heappush
 from itertools import islice, tee
 from mathutils import Vector
 
-from .kdtree import KDTree
+from .iterators import BidirectionalIterator
+from .meshes import PolygonMesh, PolygonTree
 
 
 forward_vector = Vector((0, 1, 0))
 EndPortal = namedtuple("EndPortal", ["left", "right"])
-BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
 
 
 def triangle_area_squared(a, b, c):
@@ -26,29 +26,6 @@ def look_ahead(iterable):
 
 def manhattan_distance_heureustic(a, b):
     return (b.position - a.position).length_squared
-
-
-class bidirectional_iter:
-    def __init__(self, collection):
-        self.collection = collection
-        self.index = -1
-
-    def __next__(self):
-        try:
-            self.index += 1
-            result = self.collection[self.index]
-        except IndexError:
-            raise StopIteration
-        return result
-
-    def __prev__(self):
-        self.index -= 1
-        if self.index < 0:
-            raise StopIteration
-        return self.collection[self.index]
-
-    def __iter__(self):
-        return self
 
 
 class Portal:
@@ -68,7 +45,8 @@ class Portal:
         first_local.rotate(rotation)
         second_local = second.copy()
         second_local.rotate(rotation)
-        return (first, second) if first_local.x < second_local.x else (second, first)
+        return (first, second) if first_local.x < second_local.x \
+            else (second, first)
 
 
 class Funnel:
@@ -91,14 +69,15 @@ class Funnel:
 
     def update(self, portals):
         portals_list = list(portals)
-        portals = bidirectional_iter(portals_list)
+        portals = BidirectionalIterator(portals_list)
         left_index = right_index = portals.index
 
         # Increment index and then return entry at index
         for portal in portals:
             # Check if left is inside of left margin
             if triangle_area_squared(self.apex, self.left, portal.left) >= 0.0:
-                # Check if left is inside of right margin or we haven't got a proper funnel
+                # Check if left is inside of right margin or
+                # we haven't got a proper funnel
                 if (self.apex == self.left) or (triangle_area_squared(
                                 self.apex, self.right, portal.left)) < 0.0:
                     # Narrow funnel
@@ -116,7 +95,8 @@ class Funnel:
             # Check if right is inside of right margin
             if triangle_area_squared(self.apex, self.right,
                                     portal.right) <= 0.0:
-                # Check if right is inside of left margin or we haven't got a proper funnel
+                # Check if right is inside of left margin or
+                # we haven't got a proper funnel
                 if (self.apex == self.right) or (triangle_area_squared(
                                 self.apex, self.left, portal.right)) > 0.0:
                     # Narrow funnel
@@ -153,8 +133,8 @@ class AStarAlgorithm:
         return reversed(result)
 
     def find_path(self, start, destination, nodes):
-        open = {start}
-        closed = set()
+        open_set = {start}
+        closed_set = set()
 
         f_scored = [(0, start)]
         g_scored = {start: 0}
@@ -162,22 +142,22 @@ class AStarAlgorithm:
         heureustic = self.heureustic
         path = {}
 
-        while open:
+        while open_set:
             current = heappop(f_scored)[1]
             if current is destination:
                 return self.reconstruct_path(destination, path)
 
-            open.remove(current)
-            closed.add(current)
+            open_set.remove(current)
+            closed_set.add(current)
 
             for neighbour in current.neighbours:
-                if neighbour in closed:
+                if neighbour in closed_set:
                     continue
 
                 tentative_g_score = g_scored[current] + (neighbour.position -
                                             current.position).length_squared
 
-                if (not neighbour in open or tentative_g_score
+                if (not neighbour in open_set or tentative_g_score
                             < g_scored[neighbour]):
                     path[neighbour] = current
                     g_scored[neighbour] = tentative_g_score
@@ -185,8 +165,8 @@ class AStarAlgorithm:
                     heappush(f_scored, (tentative_g_score +
                              heureustic(neighbour, destination), neighbour))
 
-                    if not neighbour in open:
-                        open.add(neighbour)
+                    if not neighbour in open_set:
+                        open_set.add(neighbour)
 
         raise PathNotFoundException("Couldn't find path for given points")
 
@@ -206,7 +186,6 @@ class FunnelAlgorithm:
 
     def find_path(self, source, destination, nodes):
         path = [source]
-        funnel = None
 
         get_portal = self.get_portal
 
@@ -221,8 +200,8 @@ class FunnelAlgorithm:
         # Account for last destination point
         if funnel is None:
             return []
-        path.append(destination)
 
+        path.append(destination)
         return path
 
 
@@ -234,8 +213,8 @@ class PathfinderAlgorithm:
         self.spatial_lookup = spatial_lookup
 
     def find_path(self, source, destination, nodes):
-        source_node = self.spatial_lookup.find_node(source)
-        destination_node = self.spatial_lookup.find_node(destination)
+        source_node = self.spatial_lookup(source)
+        destination_node = self.spatial_lookup(destination)
 
         try:
             path_finder = self.low_resolution.find_path
@@ -256,103 +235,17 @@ class PathfinderAlgorithm:
         return high_resolution_path
 
 
-class NavigationNode:
-
-    def __init__(self, *vertices, neighbours=None):
-        self.vertices = vertices
-        self.position = sum(vertices, Vector()) / len(vertices)
-        self.neighbours = neighbours or []
-
-    def get_common_vertices(self, other):
-        return (v for v in self.vertices if v in other.vertices)
-
-
-class BGENavigationMesh:
-
-    def __init__(self, obj):
-        self._obj = obj
-        self.mesh_nodes = {mesh_index: self.build_nodes(mesh) for mesh_index,
-                          mesh in enumerate(obj.meshes)}
-
-    def build_nodes(self, mesh):
-        points = self.get_approximate_points(mesh)
-
-        nodes = []
-        for polygon_id in range(mesh.numPolygons):
-            polygon = mesh.getPolygon(polygon_id)
-            positions = []
-            for vertex_id in range(polygon.getNumVertex()):
-                vertex_index = polygon.getVertexIndex(vertex_id)
-                material_index = polygon.material_id
-
-                point = points[material_index][vertex_index]
-                positions.append(point)
-
-            node = NavigationNode(*positions)
-            nodes.append(node)
-
-        found_neighbours = set()
-        for node in nodes:
-            for node_ in nodes:
-                if node_ is node:
-                    continue
-                if len(list(node.get_common_vertices(node_))) > 1:
-                    node.neighbours.append(node_)
-                    node_.neighbours.append(node)
-        return nodes
-
-    def get_approximate_points(self, mesh, epsilon=0.001):
-        transform = self._obj.worldTransform
-        material_points = {m_index: {v_index: (transform *
-                                    mesh.getVertex(m_index, v_index).XYZ)
-                            for v_index in range(
-                                        mesh.getVertexArrayLength(m_index))}
-                            for m_index in range(
-                                        len(mesh.materials))}
-
-        material_unique = defaultdict(dict)
-
-        for material, points in material_points.items():
-            unique_points = material_unique[material]
-            for point_id, point in points.items():
-                if point_id in unique_points:
-                    continue
-
-                # Choose one and associate all others with it
-                unique_points[point_id] = point
-                for point_id_, point_ in points.items():
-                    if (point_ - point).length_squared < epsilon:
-                        unique_points[point_id_] = point
-        return material_unique
-
-
-class SpatialTree(KDTree):
-
-    def __init__(self, polygons):
-        points = []
-        for polygon in polygons:
-            point = BoundVector(polygon.position)
-            point.data = polygon
-            points.append(point)
-
-        super().__init__(points, dimensions=3)
-
-    def find_node(self, point):
-        distance, node = self.nn_search(point)
-        return node.position.data
-
-
 class NavmeshProxy(types.KX_GameObject):
 
     def __init__(self, obj):
-        self.mesh = BGENavigationMesh(self)
-        self.polygons = self.mesh.mesh_nodes[0]
-        self.spatial_lookup = SpatialTree(self.polygons)
+        self.mesh = PolygonMesh(self)
+        self.polygons = self.mesh.mesh_polygons[0]
+        self.polygon_lookup = PolygonTree(self.polygons)
 
         astar = AStarAlgorithm()
         funnel = FunnelAlgorithm()
         finder_algorithm = PathfinderAlgorithm(astar, funnel,
-                                            self.spatial_lookup)
+                                            self.polygon_lookups.find_polygon)
 
         self.find_path = partial(finder_algorithm.find_path,
                                     nodes=self.polygons)

@@ -37,7 +37,9 @@ class EnemyController(AIController):
         self.behaviour.root = behaviour
 
 
-CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot", "run", "voice", "jump")
+CTFPlayerMovementStruct = PlayerController.create_movement_struct(
+                              "forward", "backwards", "left", "right",
+                              "shoot", "run", "voice", "jump", "debug")
 
 
 class CTFPlayerController(PlayerController):

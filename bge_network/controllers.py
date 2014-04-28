@@ -297,7 +297,6 @@ class PlayerController(Controller):
             return
 
         remove_move = self.pending_moves.pop
-
         try:
             remove_move(move_tick)
 
@@ -319,7 +318,7 @@ class PlayerController(Controller):
                     correction: TypeFlag(RigidBodyState)) -> Netmodes.client:
 
         # Remove the lock at this network tick on server
-        self.server_remove_buffered_lock(WorldInfo.tick, "correction")
+        self.server_remove_buffered_lock(correction_tick, "correction")
 
         if not self.pawn:
             print("Could not find Pawn for {}".format(self))
@@ -351,22 +350,13 @@ class PlayerController(Controller):
         self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
         self.weapon.fire(self.camera)
 
-    def client_nudge_clock(self,
-               difference:TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-               forward: TypeFlag(bool)) -> Netmodes.client:
-        # Update clock
-        WorldInfo.elapsed += (difference if forward else -difference) / WorldInfo.tick_rate
-
-        # Reply received correction
-        self.server_remove_buffered_lock(WorldInfo.tick, "clock_synch")
-
     def client_reply_ping(self,
               tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
         self.server_deduce_ping(tick)
 
     @requires_netmode(Netmodes.client)
     def client_send_move(self):
-        # Get move information
+        """Sends a Move to the server for simulation"""
         current_tick = WorldInfo.tick
         try:
             move = self.pending_moves[current_tick]
@@ -403,11 +393,6 @@ class PlayerController(Controller):
         del self.microphone
         for key in list(self.sound_channels):
             del self.sound_channels[key]
-
-    def get_clock_correction(self, current_tick, command_tick):
-        tick_delta = current_tick - command_tick
-        time_delta = int(tick_delta * self.clock_convergence_factor)
-        return time_delta
 
     def get_corrected_state(self, move):
         '''Finds difference between local state and remote state
@@ -492,8 +477,9 @@ class PlayerController(Controller):
 
         self.buffer = deque()
 
-        self.clock_convergence_factor = 1.0
-        self.maximum_clock_ahead = int(0.05 * WorldInfo.tick_rate)
+        self.buffer_length = int(0.1 * WorldInfo.tick_rate)
+        self.buffer_padding = int(0.04 * WorldInfo.tick_rate)
+        self.buffer_filling = True
 
         self.ping_influence_factor = 0.8
         self.ping_timer = Timer(1.0, repeat=True)
@@ -501,6 +487,7 @@ class PlayerController(Controller):
 
         self.setup_input()
         self.setup_microphone()
+        self.client_tick = WorldInfo.tick
 
     def on_notify(self, name):
         if name == "pawn":
@@ -582,30 +569,34 @@ class PlayerController(Controller):
     def server_check_move(self):
         """Check result of movement operation following Physics update"""
         # Get move information
-        current_tick = WorldInfo.tick
+        move_tick = self.client_tick
 
         # We are forced to acknowledge moves whose base we've already corrected
         if self.is_locked("correction"):
-            self.client_acknowledge_move(current_tick)
+           # self.client_acknowledge_move(move_tick)
             return
 
         # Validate move
         try:
-            latest_move = self.pending_moves[current_tick]
+            latest_move = self.pending_moves[move_tick]
 
         except KeyError:
             return
 
         correction = self.get_corrected_state(latest_move)
 
+        if latest_move.inputs.debug:
+            correction = RigidBodyState()
+            PhysicsCopyState.invoke(self.pawn, correction)
+
         # It was a valid move
         if correction is None:
-            self.client_acknowledge_move(current_tick)
+            self.client_acknowledge_move(move_tick)
 
         # Send the correction
         else:
             self.server_add_lock("correction")
-            self.client_apply_correction(current_tick, correction)
+            self.client_apply_correction(move_tick, correction)
 
     def server_deduce_ping(self,
            tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.server:
@@ -652,16 +643,6 @@ class PlayerController(Controller):
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct"))) -> Netmodes.server:
         '''Store a client move for later processing and clock validation'''
 
-        current_tick = WorldInfo.tick
-        target_tick = self.maximum_clock_ahead + current_tick
-        move_tick = move.tick
-
-        # If the move is too early, correct clock
-        if move_tick > target_tick:
-            self.update_buffered_locks(move_tick)
-            self.start_clock_correction(target_tick, move_tick)
-            return
-
         self.buffer.append(move)
 
     @requires_netmode(Netmodes.client)
@@ -681,13 +662,10 @@ class PlayerController(Controller):
     def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
 
-    def start_clock_correction(self, current_tick, command_tick):
+    def start_clock_correction(self, tick_delta, forwards=True):
         '''Initiate client clock correction'''
         if not self.is_locked("clock_synch"):
-            tick_difference = self.get_clock_correction(current_tick,
-                                                        command_tick)
-            self.client_nudge_clock(abs(tick_difference),
-                                    forward=current_tick > command_tick)
+            self.client_nudge_clock(tick_delta, forwards)
             self.server_add_lock("clock_synch")
 
     def start_fire(self):
@@ -705,14 +683,31 @@ class PlayerController(Controller):
     def update(self, delta_time):
         '''Validate client clock and apply moves'''
         # Aim ahead by the jitter buffer size
-        current_tick = WorldInfo.tick
-        target_tick = self.maximum_clock_ahead + current_tick
         consume_move = self.buffer.popleft
+
+        # When we run out of moves, wait till we have enough
+        buffer_length = len(self.buffer)
+
+        if not buffer_length:
+            print("Waiting for enough inputs ...")
+            self.buffer_filling = True
+
+        # Prevent too many items filling buffer
+        elif buffer_length > self.buffer_length + self.buffer_padding:
+            print("Received too many inputs, dropping ...")
+            for i in range(buffer_length - self.buffer_length):
+                consume_move()
+
+        # Clear buffer filling status when we have enough
+        if self.buffer_filling:
+            self.buffer_filling = len(self.buffer) < self.buffer_length
+            return
 
         try:
             buffered_move = self.buffer[0]
 
         except IndexError:
+            print("Ran out of moves! Filling buffer...")
             return
 
         move_tick = buffered_move.tick
@@ -720,33 +715,19 @@ class PlayerController(Controller):
         # Process any buffered locks
         self.update_buffered_locks(move_tick)
 
-        # The tick is late, try and run a newer command
-        if move_tick < current_tick:
-            # Ensure we check through to the latest tick
-            consume_move()
+        # Run the move at the present time (it's valid)
+        consume_move()
 
-            if self.buffer:
-                self.update(delta_time)
-
-            else:
-                self.start_clock_correction(target_tick, move_tick)
-
-        # If the tick is early, wait for it to become valid
-        elif move_tick > current_tick:
+        if not (self.pawn and self.camera):
             return
 
-        # Else run the move at the present time (it's valid)
-        else:
-            consume_move()
+        # Apply move inputs
+        self.apply_move(buffered_move)
 
-            if not (self.pawn and self.camera):
-                return
+        # Save expected move results
+        self.pending_moves[move_tick] = buffered_move
 
-            # Apply move inputs
-            self.apply_move(buffered_move)
-
-            # Save expected move results
-            self.pending_moves[current_tick] = buffered_move
+        self.client_tick = move_tick
 
     def update_buffered_locks(self, tick):
         '''Apply server lock changes for the jitter buffer tick'''

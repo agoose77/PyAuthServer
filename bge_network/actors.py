@@ -27,8 +27,6 @@ __all__ = ["Actor", "Camera", "Lamp", "Navmesh", "Pawn", "ResourceActor",
 class Actor(Replicable, PhysicsObject):
     '''Physics enabled network object'''
 
-    rigid_body_state = Attribute(RigidBodyState(), notify=True)
-
     _position = Attribute(type_of=Vector, notify=True)
     _rotation = Attribute(type_of=Euler, notify=True)
     _angular = Attribute(type_of=Vector, notify=True)
@@ -51,8 +49,6 @@ class Actor(Replicable, PhysicsObject):
                         and (self.replicate_physics_to_owner or not is_owner))
 
         if valid_role and allowed_physics and not self.parent:
-            yield "rigid_body_state"
-
             yield "_position"
             yield "_rotation"
             yield "_angular"

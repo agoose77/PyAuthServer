@@ -2,6 +2,9 @@ from .signals import *
 from .configuration import *
 from .inputs import *
 from .mathutils_data import *
+from .kdtree import *
+from .meshes import *
+from .navmesh import *
 from .object_types import *
 from .behaviour_tree import *
 from .draw_tools import *

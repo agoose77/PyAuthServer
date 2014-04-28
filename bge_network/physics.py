@@ -223,6 +223,7 @@ class ServerPhysics(PhysicsSystem):
 
     def save_pawn_states(self, tick):
         """Save pawn physics state for this tick"""
+        return
         self._rewind_data[tick] = {p: p.rigid_body_state.to_tuple()
                                    for p in WorldInfo.subclass_of(Pawn)}
 
