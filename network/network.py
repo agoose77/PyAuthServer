@@ -21,7 +21,7 @@ class UDPSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(UDPSocket, signals.SignalListener):
+class UnreliableSocket(signals.SignalListener, UDPSocket ):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -29,7 +29,7 @@ class UnreliableSocket(UDPSocket, signals.SignalListener):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.delay = 0.400
+        self.delay = 0.000
 
         self._buffer_out = deque()
         self._buffer_in = deque()
@@ -75,7 +75,7 @@ class Network:
         self.sent_bytes = 0
         self.received_bytes = 0
 
-        self.socket = UDPSocket(addr, port)
+        self.socket = UnreliableSocket(addr, port)
 
     @property
     def send_rate(self):

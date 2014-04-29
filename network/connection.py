@@ -283,7 +283,6 @@ class ServerConnection(Connection):
         replication_init = Protocols.replication_init  # @UndefinedVariable
         replication_update = Protocols.replication_update  # @UndefinedVariable
 
-        timestamp = WorldInfo.elapsed
         is_relevant = WorldInfo.rules.is_relevant
         connection_replicable = self.replicable
 

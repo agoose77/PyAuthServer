@@ -55,6 +55,17 @@ def handler_from_bit_length(total_bits):
     return handler_from_byte_length(total_bytes)
 
 
+class BoolHandler:
+    unpacker = UInt8.unpack_from
+
+    @classmethod
+    def unpack_from(cls, bytes_):
+        return bool(cls.unpacker(bytes_))
+
+    size = UInt8.size
+    pack = UInt8.pack
+
+
 class BytesHandler:
 
     def __init__(self, static_value):
@@ -92,6 +103,7 @@ def int_selector(type_flag):
     return handler_from_bit_length(type_flag.data.get('max_bits', 8))
 
 # Register handlers for native types
+register_handler(bool, BoolHandler)
 register_handler(str, StringHandler, is_condition=True)
 register_handler(bytes, BytesHandler, is_condition=True)
 register_handler(int, int_selector, is_condition=True)

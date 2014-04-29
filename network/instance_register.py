@@ -1,6 +1,6 @@
 from itertools import chain
 
-from .iterators import RenewableGenerator
+from .iterators import RenewableGenerator, take_first
 from .signals import SignalListener
 from .type_register import TypeRegister
 
@@ -216,9 +216,8 @@ class InstanceRegister(TypeRegister):
         """Removes all internal registered instances"""
         cls.update_graph()
 
-        get_instance = cls._instances.popitem
         while cls._instances:
-            _, instance = get_instance()
+            instance = take_first(cls._instances.values())
             instance.request_unregistration(unregister=True)
 
     def _register_to_graph(cls, instance):  # @NoSelf

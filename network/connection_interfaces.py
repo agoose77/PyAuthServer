@@ -56,7 +56,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.remote_sequence = 0
 
         # Time out for connection before it is deleted
-        self.time_out_delay = 2
+        self.time_out_delay = 4
         self.last_received = monotonic()
 
         # Simple connected status

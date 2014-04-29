@@ -19,6 +19,7 @@ from mathutils import Vector, Euler
 from .behaviour_tree import BehaviourTree
 from .configuration import load_keybindings
 from .enums import *
+from .errors import FlagLockingError
 from .inputs import BGEInputStatusLookup, InputManager
 from .object_types import *
 from .signals import *
@@ -286,9 +287,11 @@ class PlayerController(Controller):
             self.client_reply_ping(WorldInfo.tick)
             self.server_add_lock("ping")
 
-    def client_adjust_tick(self) -> Netmodes.client:
+    def client_adjust_clock(self, ticks: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+                                    forward: TypeFlag(bool)) -> Netmodes.client:
         self.server_remove_lock("clock")
-        self.client_request_time(WorldInfo.elapsed)
+        time_delta = ticks / WorldInfo.tick_rate * (2 * forward - 1)
+        WorldInfo.elapsed += time_delta
 
     def client_acknowledge_move(self,
                 move_tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
@@ -477,9 +480,12 @@ class PlayerController(Controller):
 
         self.buffer = deque()
 
-        self.buffer_length = int(0.1 * WorldInfo.tick_rate)
-        self.buffer_padding = int(0.04 * WorldInfo.tick_rate)
+        self.buffer_length = int(0.08 * WorldInfo.tick_rate)
+        self.buffer_padding = self.buffer_length
         self.buffer_filling = True
+
+        self.clock_ignore_time = 0.04
+        self.clock_snap_time = 0.4
 
         self.ping_influence_factor = 0.8
         self.ping_timer = Timer(1.0, repeat=True)
@@ -566,6 +572,15 @@ class PlayerController(Controller):
         self.locks.add(name)
 
     @requires_netmode(Netmodes.server)
+    def server_check_clock(self, move_tick):
+        tick_difference = abs(WorldInfo.tick - move_tick)
+
+        time_offset = (tick_difference * WorldInfo.tick_rate)
+        if time_offset > self.clock_ignore_time and not self.is_locked("clock"):
+            self.server_add_lock("clock")
+            self.client_adjust_clock(tick_difference, forward=(WorldInfo.tick > move_tick))
+
+    @requires_netmode(Netmodes.server)
     def server_check_move(self):
         """Check result of movement operation following Physics update"""
         # Get move information
@@ -573,7 +588,6 @@ class PlayerController(Controller):
 
         # We are forced to acknowledge moves whose base we've already corrected
         if self.is_locked("correction"):
-           # self.client_acknowledge_move(move_tick)
             return
 
         # Validate move
@@ -643,6 +657,10 @@ class PlayerController(Controller):
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct"))) -> Netmodes.server:
         '''Store a client move for later processing and clock validation'''
 
+        # Check client clock
+        self.server_check_clock(move.tick)
+
+        # Store move
         self.buffer.append(move)
 
     @requires_netmode(Netmodes.client)
@@ -700,8 +718,10 @@ class PlayerController(Controller):
 
         # Clear buffer filling status when we have enough
         if self.buffer_filling:
-            self.buffer_filling = len(self.buffer) < self.buffer_length
-            return
+            if len(self.buffer) >= self.buffer_length:
+                self.buffer_filling = False
+            else:
+                return
 
         try:
             buffered_move = self.buffer[0]

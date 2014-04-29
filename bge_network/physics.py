@@ -244,40 +244,9 @@ class ServerPhysics(PhysicsSystem):
 @netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
-    small_correction_squared = 2
-
     def get_actor(self, lookup, name, type_of):
         if not name + "_id" in lookup:
             return
 
         return super().get_actor(lookup, name, type_of)
-
-    @PhysicsReplicatedSignal.global_listener
-    def actor_replicated(self, target_physics, target):
-        '''Listener for PhysicsReplicatedSignal
-        Callback for physics state replication.
-        Applies physics struct data to physics state.
-
-        :param target_physics: Physics struct of target
-        :param target: Actor instance'''
-        print("QDW")
-        return
-
-        difference = target_physics.position - target.position
-
-        target.rotation = target_physics.rotation
-        small_correction = difference.length_squared < \
-                            self.small_correction_squared
-
-        if small_correction:
-            target.position += difference * 0.3
-            target.velocity = target_physics.velocity
-
-        else:
-            target.position = target_physics.position
-            target.velocity = target_physics.velocity
-
-        target.angular = target_physics.angular
-        target.collision_group = target_physics.collision_group
-        target.collision_mask = target_physics.collision_mask
 
