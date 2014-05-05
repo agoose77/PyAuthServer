@@ -1,4 +1,7 @@
-__all__ = ["clamp", "square_falloff", "lerp", "mean", "progress_string"]
+import ctypes
+
+__all__ = ["clamp", "square_falloff", "lerp", "mean", "progress_string",
+           "dereference_id"]
 
 
 def clamp(low, high, value):
@@ -73,3 +76,7 @@ def progress_string(factor, fidelity=10):
     :returns: progress bar like string [|||||     ]'''
     return "[{}]".format(''.join(('|' if (i / fidelity) < \
                           factor else ' ' for i in range(fidelity))))
+
+
+def dereference_id(id_):
+    return ctypes.cast(id_, ctypes.py_object).value
