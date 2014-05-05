@@ -1,6 +1,6 @@
 from itertools import chain
 
-from .iterators import RenewableGenerator, take_first
+from .iterators import RenewableGenerator, take_single
 from .signals import SignalListener
 from .type_register import TypeRegister
 
@@ -217,7 +217,7 @@ class InstanceRegister(TypeRegister):
         cls.update_graph()
 
         while cls._instances:
-            instance = take_first(cls._instances.values())
+            instance = take_single(cls._instances.values())
             instance.request_unregistration(unregister=True)
 
     def _register_to_graph(cls, instance):  # @NoSelf

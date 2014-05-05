@@ -71,11 +71,8 @@ class TeamDeathMatch(ReplicationRules):
     def create_teams(self):
         '''Spawn teams for game mode'''
         # Create teams
-        team_green = TeamReplicationInfo()
-        team_green.name = "Team Alpha"
-
-        team_red = TeamReplicationInfo()
-        team_red.name = "Team Bravo"
+        team_green = GreenTeam()
+        team_red = RedTeam()
 
     def is_relevant(self, player_controller, replicable):
         if replicable.always_relevant:

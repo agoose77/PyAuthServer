@@ -5,14 +5,18 @@ from network.signals import *
 from network.world_info import WorldInfo
 
 from bge import logic, events, types
+from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
-from .actors import Camera
+from .actors import Camera, Pawn
 from .physics import PhysicsSystem
 from .signals import *
 from .timer import Timer
 
-__all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop']
+__all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
+
+
+RewindState = namedtuple("RewindState", "position rotation animations")
 
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
@@ -232,10 +236,71 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
 class ServerGameLoop(GameLoop):
 
+    def __init__(self):
+        super().__init__()
+
+        self._rewind_data = OrderedDict()
+        self._rewind_length = 1 * WorldInfo.tick_rate
+
     def create_network(self):
         WorldInfo.netmode = Netmodes.server
 
         return Network("", 1200)
+
+    def get_pawn_states(self):
+        state_data = {p: RewindState(p.position.copy(), p.rotation.copy(),
+                         {a: p.get_animation_frame(i) for i, a in
+                          p.playing_animations.items()})
+                      for p in WorldInfo.subclass_of(Pawn)}
+        return state_data
+
+    @PhysicsRewindSignal.global_listener
+    def execute_in_past(self, callback, target_tick):
+        try:
+            past_state = self._rewind_data[target_tick]
+
+        except KeyError as err:
+            raise ValueError("Could not rewind to tick {}"
+                             .format(target_tick)) from err
+        # So we can revert to the past state
+        current_state = self.get_pawn_states()
+
+        # Apply rewinding
+        for pawn, state in past_state.items():
+            pawn.position = state.position
+            pawn.rotation = state.rotation
+
+            for animation, frame in state.animations.items():
+                pawn.play_animation(animation.name, frame, animation.end,
+                                    animation.layer, animation.priority,
+                                    animation.blend, animation.mode,
+                                    animation.weight, animation.speed,
+                                    animation.lend_mode)
+
+        self.update_scenegraph(self.current_time)
+        self.update_animations(self.current_time)
+
+        callback()
+
+        for pawn, state in current_state.items():
+            pawn.position = state.position
+            pawn.rotation = state.rotation
+
+        self.update_scenegraph(self.current_time)
+        self.update_animations(self.current_time)
+
+    def save_pawn_states(self, tick):
+        """Save pawn physics state for this tick"""
+        self._rewind_data[tick] = self.get_pawn_states()
+
+        # Cap rewind length
+        if len(self._rewind_data) > self._rewind_length:
+            self._rewind_data.popitem(last=False)
+
+    def update_scene(self, scene, current_time, delta_time):
+        super().update_scene(scene, current_time, delta_time)
+
+        self.save_pawn_states(WorldInfo.tick)
 
 
 class ClientGameLoop(GameLoop):

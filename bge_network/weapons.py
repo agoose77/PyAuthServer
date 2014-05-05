@@ -38,7 +38,7 @@ class Weapon(Replicable):
 
     @property
     def shoot_sound(self):
-        return join_path(self.data_path, "sounds/shoot.wav")
+        return join_path(self.data_path, "shoot.mp3")
 
     @property
     def icon_path(self):

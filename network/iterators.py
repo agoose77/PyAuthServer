@@ -1,4 +1,4 @@
-__all__ = ['RenewableGenerator', 'take_first']
+__all__ = ['RenewableGenerator', 'take_single']
 
 
 class RenewableGenerator:
@@ -23,9 +23,11 @@ class RenewableGenerator:
             return next(self._internal)
 
 
-def take_first(iterable, default=None):
+def take_single(iterable, default=None, reverse=False):
     """Returns first element from iterable
 
     :param default: default value if iterable is empty
     :returns first element or default"""
+    if reverse:
+        iterable = reversed(list(iterable))
     return next(iter(iterable), default) 

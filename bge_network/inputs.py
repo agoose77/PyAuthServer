@@ -3,9 +3,15 @@ from network.descriptors import TypeFlag
 from network.handler_interfaces import get_handler, register_handler
 from network.structures import FactoryDict
 
-from bge import events, logic
+from bge import events, logic, render
 from collections import OrderedDict
 from contextlib import contextmanager
+from mathutils import Vector
+
+from .utilities import clamp
+
+__all__ = ['IInputStatusLookup', 'BGEInputStatusLookup', 'MouseManager',
+           'InputManager', 'InputPacker']
 
 
 class IInputStatusLookup:
@@ -32,6 +38,60 @@ class BGEInputStatusLookup(IInputStatusLookup):
                 else logic.mouse.events)
 
 
+class MouseManager:
+
+    def __init__(self, locked=True, interpolation=1):
+        self.window_size = Vector((render.getWindowWidth(),
+                                   render.getWindowHeight()))
+        self.center = Vector(((self.window_size.x//2)/self.window_size.x,
+                              (self.window_size.y//2)/self.window_size.y))
+        self.locked = locked
+        self.interpolation = interpolation
+
+        self._delta_position = Vector((0.0, 0.0))
+        self._last_position = self.position
+
+    @property
+    def delta_position(self):
+        return self._delta_position
+
+    @property
+    def position(self):
+        return Vector(logic.mouse.position)
+
+    @position.setter
+    def position(self, position):
+        screen_x = int(position[0] * self.window_size.x)
+        screen_y = int(position[1] * self.window_size.y)
+        render.setMousePosition(screen_x, screen_y)
+
+    @property
+    def visible(self):
+        return logic.mouse.visible
+
+    @visible.setter
+    def visible(self, state):
+        logic.mouse.visible = state
+
+    def update(self):
+        self.position.x = clamp(0, 1, self.position.x)
+        self.position.y = clamp(0, 1, self.position.y)
+        delta_position = self._last_position - self.position
+
+        self._delta_position = self._delta_position.lerp(delta_position,
+                                                         self.interpolation)
+
+        if self.locked:
+            # As mouse position isn't actually (0.5, 0.5)
+            self.position = self.center.copy()
+            last_position = self.center.copy()
+
+        else:
+            last_position = self.position.copy()
+
+        self._last_position = last_position
+
+
 class InputManager:
     """Manager for user input"""
 
@@ -48,9 +108,12 @@ class InputManager:
         self.status_lookup = previous_lookup_func
 
     def to_tuple(self):
-        get_binding = self._keybindings_to_events.__getitem__
-        return tuple(self.status_lookup(get_binding(name))
-                     for name in sorted(self._keybindings_to_events))
+        return tuple(self.status_lookup(binding) for binding in
+                     self._keybindings_to_events.values())
+
+    def to_dict(self):
+        return OrderedDict((name, self.status_lookup(binding))
+                   for name, binding in self._keybindings_to_events.items())
 
     def copy(self):
         field_names = self._keybindings_to_events.keys()
@@ -74,9 +137,10 @@ class InputManager:
         return self.status_lookup(event_code)
 
     def __str__(self):
-        print("[Input Manager]")
-        for binding_name in self._keybindings_to_events.values():
-            print("{}".format(binding_name))
+        prefix = "[Input Manager] \n"
+        contents = ["  {}={}".format(name, state) for name, state in
+                    self.to_dict().items()]
+        return prefix + "\n".join(contents)
 
 
 #==============================================================================

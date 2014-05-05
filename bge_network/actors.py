@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from math import radians
 from mathutils import Vector, Euler
 
+from .animation import Animation
 from .behaviour_tree import BehaviourTree
 from .enums import *
 from .object_types import *
@@ -92,13 +93,13 @@ class Actor(Replicable, PhysicsObject):
         elif name == "_collision_mask":
             self.collision_mask = self._collision_mask
         elif name == "_velocity":
-            self.velocity = self._velocity.copy()
+            self.velocity = self._velocity
         elif name == "_angular":
-            self.angular = self._angular.copy()
+            self.angular = self._angular
         elif name == "_rotation":
-            self.rotation = self._rotation.copy()
+            self.rotation = self._rotation
         elif name == "_position":
-            self.on_replicated_position(self._position.copy())
+            self.on_replicated_position(self._position)
         else:
             super().on_notify(name)
 
@@ -312,10 +313,6 @@ class Pawn(Actor):
     def get_animation_frame(self, layer=0):
         return int(self.skeleton.getActionFrame(layer))
 
-    @simulated
-    def is_playing_animation(self, layer=0):
-        return self.skeleton.isPlayingAction(layer)
-
     @property
     def is_colliding(self):
         for collider in self._registered:
@@ -336,8 +333,10 @@ class Pawn(Actor):
         self.turn_speed = 1.0
         self.replication_update_period = 1 / 60
 
-        self.animations = BehaviourTree(self)
-        self.animations.blackboard['pawn'] = self
+        self.behaviours = BehaviourTree(self)
+        self.behaviours.blackboard['pawn'] = self
+
+        self.playing_animations = {}
 
     @simulated
     def on_notify(self, name):
@@ -353,20 +352,32 @@ class Pawn(Actor):
                     mode=AnimationMode.play, weight=0.0, speed=1.0,
                     blend_mode=AnimationBlend.interpolate):
 
-        # Define conversions from Blender animations to Network animation enum
-        ge_mode = {AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
-                AnimationMode.loop: logic.KX_ACTION_MODE_LOOP,
-                AnimationMode.ping_pong: logic.KX_ACTION_MODE_PING_PONG
+        # Define conversions from Blender behaviours to Network animation enum
+        ge_mode = {AnimationMode.play:
+                        logic.KX_ACTION_MODE_PLAY,
+                   AnimationMode.loop:
+                        logic.KX_ACTION_MODE_LOOP,
+                    AnimationMode.ping_pong:
+                        logic.KX_ACTION_MODE_PING_PONG
                 }[mode]
-        ge_blend_mode = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
-                        AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}[blend_mode]
+        ge_blend_mode = {AnimationBlend.interpolate:
+                            logic.KX_ACTION_BLEND_BLEND,
+                        AnimationBlend.add:
+                            logic.KX_ACTION_BLEND_ADD}[blend_mode]
 
-        self.skeleton.playAction(name, start, end, layer, priority, blend,
+        skeleton = self.skeleton
+
+        # Store animation
+        self.playing_animations[layer] = Animation(name, start, end, layer,
+                                               priority, blend, mode, weight,
+                                               speed, blend_mode, skeleton)
+        skeleton.playAction(name, start, end, layer, priority, blend,
                                 ge_mode, weight, speed=speed,
                                 blend_mode=ge_blend_mode)
 
     @simulated
     def stop_animation(self, layer=0):
+        self.playing_animations.pop(layer)
         self.skeleton.stopAction(layer)
 
     @property
@@ -387,12 +398,20 @@ class Pawn(Actor):
 
         # Allow remote players to determine if we are alive without seeing health
         self.update_alive_status()
-        self.animations.update()
+        self.behaviours.update()
+        self.update_animation_info()
 
     def update_alive_status(self):
         '''Update health boolean
         Runs on authority / autonomous proxy only'''
         self.alive = self.health > 0
+
+    @simulated
+    def update_animation_info(self):
+        """Updates record of playing animations"""
+        for layer, animation in self.playing_animations.items():
+            if not animation.playing:
+                self.stop_animation(layer)
 
     @simulated
     def update_weapon_attachment(self):

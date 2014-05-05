@@ -11,7 +11,8 @@ from bge_network.signals import BroadcastMessage
 
 from .enums import TeamRelation
 
-__all__ = ["CTFPlayerReplicationInfo", "GameReplicationInfo", "TeamReplicationInfo"]
+__all__ = ["CTFPlayerReplicationInfo", "GameReplicationInfo",
+           "TeamReplicationInfo", "RedTeam", "GreenTeam"]
 
 
 class CTFPlayerReplicationInfo(PlayerReplicationInfo):
@@ -56,7 +57,6 @@ class GameReplicationInfo(ReplicationInfo):
 
 class TeamReplicationInfo(ReplicationInfo):
 
-    name = Attribute(type_of=str, complain=True)
     score = Attribute(0, complain=True)
     players = Attribute(TypedSet(Replicable),
                         element_flag=TypeFlag(Replicable))
@@ -69,7 +69,15 @@ class TeamReplicationInfo(ReplicationInfo):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
         if is_complaint:
-            yield "name"
             yield "score"
 
         yield "players"
+
+
+class GreenTeam(TeamReplicationInfo):
+    name = "Green Team"
+
+
+class RedTeam(TeamReplicationInfo):
+    name = "Red Team"
+

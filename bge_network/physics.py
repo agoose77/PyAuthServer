@@ -8,7 +8,6 @@ from network.type_register import TypeRegister
 from network.world_info import WorldInfo
 
 from bge import logic
-from collections import deque, OrderedDict
 from contextlib import contextmanager
 
 from .actors import Actor, Camera, Pawn
@@ -18,7 +17,6 @@ from .replication_infos import ReplicationInfo
 
 from .enums import PhysicsType
 from .signals import *
-from .structs import RigidBodyState
 
 
 __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics"]
@@ -37,7 +35,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     def on_conversion_error(self, lookup, err):
         print("Unable to convert {}: {}".format(lookup, err))
 
-    def get_actor(self, lookup, name, type_of):
+    def spawn_actor(self, lookup, name, type_of):
         '''Create an Actor instance from a BGE proxy object
 
         :param lookup: BGE proxy object
@@ -62,9 +60,9 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
         :param pawn: Pawn object
         :param obj: BGE proxy object'''
-        controller = self.get_actor(obj, "controller", Controller)
-        camera = self.get_actor(obj, "camera", Camera)
-        info = self.get_actor(obj, "info", ReplicationInfo)
+        controller = self.spawn_actor(obj, "controller", Controller)
+        camera = self.spawn_actor(obj, "camera", Camera)
+        info = self.spawn_actor(obj, "info", ReplicationInfo)
 
         try:
             assert not None in (camera, controller, info), "Failed to find camera, controller and info"
@@ -77,7 +75,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         controller.possess(pawn)
         controller.set_camera(camera)
 
-        weapon = self.get_actor(obj, "weapon", Weapon)
+        weapon = self.spawn_actor(obj, "weapon", Weapon)
         if weapon is None:
             return
 
@@ -116,7 +114,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
         # Conversion step
         for obj in scene.objects:
-            actor = self.get_actor(obj, "replicable", Actor)
+            actor = self.spawn_actor(obj, "replicable", Actor)
 
             if actor is None:
                 continue
@@ -183,53 +181,15 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 @netmode_switch(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._rewind_data = OrderedDict()
-        self._rewind_length = 1 * WorldInfo.tick_rate
-
-    @PhysicsRewindSignal.global_listener
-    def rewind_to(self, target_tick=None):
-        if target_tick is None:
-            target_tick = WorldInfo.tick - 1
-
-        try:
-            state_data = self._rewind_data[target_tick]
-
-        except KeyError as err:
-            raise ValueError("Could not rewind to tick {}"
-                             .format(target_tick)) from err
-            
-        # Apply rewinding
-        copy_state = self.copy_state
-        create_state_from = RigidBodyState.from_tuple
-
-        for pawn, state in state_data.items():
-            rigid_state = create_state_from(state)
-            copy_state(rigid_state, pawn)
-
     def save_network_states(self):
-        copy_state = self.copy_state
+        """Saves Physics transformations to network variables"""
         for replicable in WorldInfo.subclass_of(Actor):
-            assert replicable.registered
-            #copy_state(replicable, replicable.rigid_body_state)
             replicable._position = replicable.position.copy()
             replicable._angular = replicable.angular.copy()
             replicable._velocity = replicable.velocity.copy()
             replicable._rotation = replicable.rotation.copy()
             replicable._collision_group = replicable.collision_group
             replicable._collision_mask = replicable.collision_mask
-
-    def save_pawn_states(self, tick):
-        """Save pawn physics state for this tick"""
-        return
-        self._rewind_data[tick] = {p: p.rigid_body_state.to_tuple()
-                                   for p in WorldInfo.subclass_of(Pawn)}
-
-        # Cap rewind length
-        if len(self._rewind_data) > self._rewind_length:
-            self._rewind_data.popitem(last=False)
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
@@ -238,15 +198,15 @@ class ServerPhysics(PhysicsSystem):
         super().update(scene, delta_time)
 
         self.save_network_states()
-        self.save_pawn_states(WorldInfo.tick)
 
 
 @netmode_switch(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
-    def get_actor(self, lookup, name, type_of):
+    def spawn_actor(self, lookup, name, type_of):
+        """Overrides spawning for clients to ensure only static actors spawn"""
         if not name + "_id" in lookup:
             return
 
-        return super().get_actor(lookup, name, type_of)
+        return super().spawn_actor(lookup, name, type_of)
 

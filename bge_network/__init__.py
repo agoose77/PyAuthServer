@@ -1,3 +1,4 @@
+from .animation import *
 from .signals import *
 from .configuration import *
 from .inputs import *

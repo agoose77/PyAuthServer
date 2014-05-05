@@ -1,7 +1,7 @@
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
-from network.iterators import take_first
+from network.iterators import take_single
 from network.replicable import Replicable
 from network.signals import UpdateSignal
 from network.world_info import WorldInfo
@@ -76,9 +76,12 @@ class Barrel(Actor):
         if not collision_type == CollisionType.started:
             return
 
+        player_controller = PlayerController.get_local_controller()
+
         file_path = logic.expandPath("//data/Barrel/clang.mp3")
-        factory = Factory.file(file_path)
-        return Device().play(factory)
+
+        player_controller.hear_sound(file_path, self.position, self.rotation,
+                                     self.velocity)
 
 
 class BowAttachment(WeaponAttachment):

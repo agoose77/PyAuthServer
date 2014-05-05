@@ -485,6 +485,25 @@ functions['quadratic'] = create_function("(-b + d * sqrt((b^2 - 4a*c)))/ (2a)", 
 functions['dbg'] = print
 constants['g'] = 9.8
 
+def interactive(variables=None):
+	if variables is None:
+		variables = constants
+
+	try:
+		exp=input(">>> ")
+		func=create_function(exp)
+		result = func(variables=variables)
+		print(">>>", result)
+		interactive(variables)
+	
+	except EOFError:
+		print(">>> QUIT INTERPRETER")
+		return
+
+	except Exception as err:
+		print(">>> {}".format(err))
+		interactive()
+
 def expression():
 	exp = input("Enter expression:\n")
 	args = input("Enter arguments:\n").split(' ')

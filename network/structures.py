@@ -35,7 +35,6 @@ def FactoryDict(factory_func, dict_type=dict, provide_key=True):
     return type("FactoryDict", (dict_type,), {"__missing__": callback})()
 
 
-
 class TypedIterable:
 
     def __init__(self, type_=None, iterable=None):

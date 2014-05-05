@@ -2,7 +2,7 @@ from network.bitfield import BitField
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles
-from network.iterators import take_first
+from network.iterators import take_single
 from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import UpdateSignal
@@ -20,7 +20,7 @@ from .behaviour_tree import BehaviourTree
 from .configuration import load_keybindings
 from .enums import *
 from .errors import FlagLockingError
-from .inputs import BGEInputStatusLookup, InputManager
+from .inputs import BGEInputStatusLookup, InputManager, MouseManager
 from .object_types import *
 from .signals import *
 from .stream import MicrophoneStream, SpeakerStream
@@ -32,6 +32,7 @@ __all__ = ['Controller', 'PlayerController', 'AIController']
 
 
 MAX_32BIT_INT = 2 ** 32 - 1
+TICK_FLAG = TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)
 
 
 class Controller(Replicable):
@@ -152,7 +153,8 @@ class Controller(Replicable):
                 continue
 
             controller.hear_sound(self.weapon.shoot_sound,
-                                self.pawn.position)
+                                self.pawn.position, self.pawn.rotation,
+                                self.pawn.velocity)
 
     @requires_netmode(Netmodes.server)
     def set_camera(self, camera):
@@ -205,14 +207,10 @@ class AIController(Controller):
 
         super().unpossess()
 
-    def hear_sound(self, sound_path, source):
+    def hear_sound(self, sound_path, position, rotation, velocity):
         if not (self.pawn and self.camera):
             return
         return
-        probability = square_falloff(self.pawn.position,
-                            self.hear_range,
-                            source,
-                            self.effective_hear_range)
 
     def on_initialised(self):
         super().on_initialised()
@@ -235,38 +233,6 @@ class PlayerController(Controller):
     max_position_difference_squared = 0.5
     max_rotation_difference_squared = ((2 * pi) / 60) ** 2
 
-    @property
-    def mouse_delta(self):
-        '''Returns the mouse movement since the last tick'''
-        mouse = logic.mouse
-
-        # The first tick the mouse won't be centred
-        screen_center = (0.5, 0.5)
-        mouse_position, mouse.position = mouse.position, screen_center
-        epsilon = self._mouse_epsilon
-        smooth_factor = self.mouse_smoothing
-
-        # If we have already initialised the mouse
-        if self._mouse_delta is not None:
-            mouse_diff_x = screen_center[0] - mouse_position[0]
-            mouse_diff_y = screen_center[1] - mouse_position[1]
-
-            smooth_x = lerp(self._mouse_delta[0],
-                                    mouse_diff_x, smooth_factor)
-            smooth_y = lerp(self._mouse_delta[1],
-                                    mouse_diff_y, smooth_factor)
-        else:
-            smooth_x = smooth_y = 0.0
-
-        # Handle near zero values (must be set to a number above zero)
-        if abs(smooth_x) < epsilon:
-            smooth_x = epsilon / 1000
-        if abs(smooth_y) < epsilon:
-            smooth_y = epsilon / 1000
-
-        self._mouse_delta = smooth_x, smooth_y
-        return smooth_x, smooth_y
-
     def apply_move(self, move):
         blackboard = self.behaviour.blackboard
 
@@ -287,25 +253,29 @@ class PlayerController(Controller):
             self.client_reply_ping(WorldInfo.tick)
             self.server_add_lock("ping")
 
-    def client_adjust_clock(self, ticks: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
-                                    forward: TypeFlag(bool)) -> Netmodes.client:
+    def client_adjust_clock(self, ticks: TICK_FLAG,
+            forward: TypeFlag(bool)) -> Netmodes.client:
         self.server_remove_lock("clock")
         time_delta = ticks / WorldInfo.tick_rate * (2 * forward - 1)
         WorldInfo.elapsed += time_delta
 
-    def client_acknowledge_move(self,
-                move_tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
+    def client_acknowledge_move(self, move_tick: TICK_FLAG) -> Netmodes.client:
         if not self.pawn:
             print("Could not find Pawn for {}".format(self))
             return
 
         remove_move = self.pending_moves.pop
+
         try:
             remove_move(move_tick)
 
         except KeyError:
+            # We don't mind if we've handled it already
+            if move_tick < take_single(self.pending_moves):
+                return
+
             print("Couldn't find move to acknowledge for move {}"
-                .format(move_tick))
+                  .format(move_tick))
             return
 
         # Remove any older moves
@@ -316,24 +286,22 @@ class PlayerController(Controller):
 
         return True
 
-    def client_apply_correction(self,
-                    correction_tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+    def client_apply_correction(self, correction_id: TICK_FLAG,
                     correction: TypeFlag(RigidBodyState)) -> Netmodes.client:
 
         # Remove the lock at this network tick on server
-        self.server_remove_buffered_lock(correction_tick, "correction")
+        self.server_remove_buffered_lock(correction_id, "correction")
 
         if not self.pawn:
             print("Could not find Pawn for {}".format(self))
             return
 
-        if not self.client_acknowledge_move(correction_tick):
-            print("No move found")
+        if not self.client_acknowledge_move(correction_id):
             return
 
         PhysicsCopyState.invoke(correction, self.pawn)
         print("{}: Correcting prediction for move {}".format(self,
-                                                             correction_tick))
+                                                             correction_id))
 
         # State call-backs
         apply_move = self.apply_move
@@ -350,20 +318,38 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def client_fire(self):
         self.pawn.weapon_attachment.play_fire_effects()
-        self.hear_sound(self.weapon.shoot_sound, self.pawn.position)
+        self.hear_sound(self.weapon.shoot_sound,
+                                self.pawn.position, self.pawn.rotation,
+                                self.pawn.velocity)
         self.weapon.fire(self.camera)
 
-    def client_reply_ping(self,
-              tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.client:
+    def client_reply_ping(self, tick: TICK_FLAG) -> Netmodes.client:
         self.server_deduce_ping(tick)
+
+    @requires_netmode(Netmodes.client)
+    def client_setup_input(self):
+        '''Create the input manager for the client'''
+        keybindings = self.load_keybindings()
+
+        self.inputs = InputManager(keybindings, BGEInputStatusLookup())
+        self.mouse = MouseManager(interpolation=0.6)
+
+        print("Created User Input Managers")
+
+    @requires_netmode(Netmodes.client)
+    def client_setup_sound(self):
+        '''Create the microphone for the client'''
+        self.microphone = MicrophoneStream()
+        self.audio = Device()
+        self.voice_channels = defaultdict(SpeakerStream)
 
     @requires_netmode(Netmodes.client)
     def client_send_move(self):
         """Sends a Move to the server for simulation"""
-        current_tick = WorldInfo.tick
-        try:
-            move = self.pending_moves[current_tick]
-        except KeyError:
+
+        move = self.current_move
+
+        if move is None:
             return
 
         # Post physics state copying
@@ -394,8 +380,8 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def destroy_microphone(self):
         del self.microphone
-        for key in list(self.sound_channels):
-            del self.sound_channels[key]
+        for key in list(self.voice_channels):
+            del self.voice_channels[key]
 
     def get_corrected_state(self, move):
         '''Finds difference between local state and remote state
@@ -407,10 +393,11 @@ class PlayerController(Controller):
         rot_difference = (move.rotation[-1] - self.pawn.rotation[-1]) ** 2
         rot_difference = min(rot_difference, (4 * pi ** 2) - rot_difference)
 
-        if not (
-        (pos_difference.length_squared > self.max_position_difference_squared)
-        or (rot_difference > self.max_rotation_difference_squared)
-        ):
+        position_invalid = (pos_difference.length_squared >
+                            self.max_position_difference_squared)
+        rotation_invalid = (rot_difference >
+                            self.max_rotation_difference_squared)
+        if not position_invalid or rotation_invalid:
             return
 
         # Create correction if neccessary
@@ -422,23 +409,28 @@ class PlayerController(Controller):
     @staticmethod
     @requires_netmode(Netmodes.client)
     def get_local_controller():
-        return take_first(WorldInfo.subclass_of(PlayerController))
+        return take_single(WorldInfo.subclass_of(PlayerController))
 
     def hear_sound(self, sound_path: TypeFlag(str),
-                   source: TypeFlag(Vector)) -> Netmodes.client:
+                   position: TypeFlag(Vector),
+                   rotation: TypeFlag(Euler),
+                   velocity: TypeFlag(Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
+        print(sound_path)
+        factory = Factory.file(sound_path)
+        handle = self.audio.play(factory)
 
-        intensity = square_falloff(source, self.pawn.position,
-                                   self.hear_range, self.effective_hear_range)
-        return
-        factory = Factory(sound_path)
-        return Device().play(factory)
+        source_to_pawn = (self.pawn.position - position).normalized()
+        forward = Vector((0, 1, 0))
 
-    def hear_voice(self,
-                   info: TypeFlag(Replicable),
+        handle.location = position
+        handle.velocity = velocity
+        handle.orientation = forward.rotation_difference(source_to_pawn)
+
+    def hear_voice(self, info: TypeFlag(Replicable),
                    data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.client:
-        player = self.sound_channels[info]
+        player = self.voice_channels[info]
         player.decode(data)
 
     def is_locked(self, name):
@@ -450,14 +442,14 @@ class PlayerController(Controller):
 
         :returns: keybindings'''
         class_name = self.__class__.__name__
-        assert self.movement_struct, \
-            "Movement Struct was not specified for {}".format(self.__class__)
+        assert self.movement_struct, "Move struct was not specified for {}"\
+                                    .format(self.__class__)
 
         bindings = load_keybindings(self.config_filepath,
                                     class_name,
                                     self.movement_struct.input_fields)
 
-        print("Loaded {} keybindings for {}".format(len(bindings), class_name))
+        print("Loaded {} key-bindings for {}".format(len(bindings), class_name))
 
         return bindings
 
@@ -465,10 +457,7 @@ class PlayerController(Controller):
         super().on_initialised()
 
         self.pending_moves = OrderedDict()
-
-        self.mouse_smoothing = 0.6
-        self._mouse_delta = None
-        self._mouse_epsilon = 0.001
+        self.current_move = None
 
         self.behaviour = BehaviourTree(self,
                               default={"controller": self})
@@ -478,6 +467,7 @@ class PlayerController(Controller):
                                           dict_type=OrderedDict,
                                           provide_key=False)
 
+        # Queued moves
         self.buffer = deque()
 
         self.buffer_length = int(0.08 * WorldInfo.tick_rate)
@@ -487,13 +477,13 @@ class PlayerController(Controller):
         self.clock_ignore_time = 0.04
         self.clock_snap_time = 0.4
 
+        # Ping estimation
         self.ping_influence_factor = 0.8
         self.ping_timer = Timer(1.0, repeat=True)
         self.ping_timer.on_target = self.calculate_ping
 
-        self.setup_input()
-        self.setup_microphone()
-        self.client_tick = WorldInfo.tick
+        self.client_setup_input()
+        self.client_setup_sound()
 
     def on_notify(self, name):
         if name == "pawn":
@@ -522,15 +512,22 @@ class PlayerController(Controller):
         if not (self.pawn and self.camera):
             return
 
+        # Update audio
+        self.audio.listener_location = self.pawn.position
+        self.audio.listener_velocity = self.pawn.velocity
+        self.audio.listener_orientation = self.pawn.rotation.to_quaternion()
+        self.audio.distance_model = __import__("aud").AUD_DISTANCE_MODEL_LINEAR
+
+        self.mouse.update()
+
         # Get input data
-        mouse_diff_x, mouse_diff_y = self.mouse_delta
-        current_tick = WorldInfo.tick
+        mouse_diff_x, mouse_diff_y = self.mouse.delta_position
 
         # Create movement
         latest_move = self.movement_struct()
 
         # Populate move
-        latest_move.tick = current_tick
+        latest_move.tick = WorldInfo.tick
         latest_move.inputs = self.inputs.copy()
         latest_move.mouse_x = mouse_diff_x
         latest_move.mouse_y = mouse_diff_y
@@ -539,7 +536,8 @@ class PlayerController(Controller):
         self.apply_move(latest_move)
 
         # Remember move for corrections
-        self.pending_moves[current_tick] = latest_move
+        self.pending_moves[latest_move.tick] = latest_move
+        self.current_move = latest_move
 
         self.broadcast_voice()
 
@@ -552,8 +550,7 @@ class PlayerController(Controller):
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
         ReceiveMessage.invoke(message_string)
 
-    def send_voice_server(self,
-              data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
+    def send_voice_server(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
         info = self.info
         for controller in WorldInfo.subclass_of(Controller):
             if controller is self:
@@ -561,8 +558,7 @@ class PlayerController(Controller):
 
             controller.hear_voice(info, data)
 
-    def server_add_buffered_lock(self,
-            tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+    def server_add_buffered_lock(self, tick: TICK_FLAG,
             name: TypeFlag(str)) -> Netmodes.server:
         '''Add a server lock with respect for the dejittering latency'''
         self.buffered_locks[tick][name] = True
@@ -571,7 +567,6 @@ class PlayerController(Controller):
         '''Flag a variable as locked on the server'''
         self.locks.add(name)
 
-    @requires_netmode(Netmodes.server)
     def server_check_clock(self, move_tick):
         tick_difference = abs(WorldInfo.tick - move_tick)
 
@@ -584,36 +579,32 @@ class PlayerController(Controller):
     def server_check_move(self):
         """Check result of movement operation following Physics update"""
         # Get move information
-        move_tick = self.client_tick
+        current_move = self.current_move
 
         # We are forced to acknowledge moves whose base we've already corrected
         if self.is_locked("correction"):
             return
 
         # Validate move
-        try:
-            latest_move = self.pending_moves[move_tick]
-
-        except KeyError:
+        if current_move is None:
             return
 
-        correction = self.get_corrected_state(latest_move)
+        correction = self.get_corrected_state(current_move)
 
-        if latest_move.inputs.debug:
+        if current_move.inputs.debug:
             correction = RigidBodyState()
             PhysicsCopyState.invoke(self.pawn, correction)
 
         # It was a valid move
         if correction is None:
-            self.client_acknowledge_move(move_tick)
+            self.client_acknowledge_move(current_move.tick)
 
         # Send the correction
         else:
             self.server_add_lock("correction")
-            self.client_apply_correction(move_tick, correction)
+            self.client_apply_correction(current_move.tick, correction)
 
-    def server_deduce_ping(self,
-           tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)) -> Netmodes.server:
+    def server_deduce_ping(self, tick: TICK_FLAG) -> Netmodes.server:
         '''Callback to determine ping for a client
         Called by client_reply_ping(tick)
         Unlocks the ping synchronisation lock
@@ -630,20 +621,19 @@ class PlayerController(Controller):
     def server_fire(self):
         print("Rolling back by {:.3f} seconds".format(self.info.ping))
 
-        if 0:
+        if True:
             latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
-            PhysicsRewindSignal.invoke(WorldInfo.tick - latency_ticks)
+            physics_callback = super().server_fire
+            PhysicsRewindSignal.invoke(physics_callback,
+                                       WorldInfo.tick - latency_ticks)
 
-        super().server_fire()
+        else:
+            super().server_fire()
 
-        if 0:
-            PhysicsRewindSignal.invoke()
-
-    def server_remove_buffered_lock(self,
-            tick: TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK),
+    def server_remove_buffered_lock(self, move_tick: TICK_FLAG,
             name: TypeFlag(str)) -> Netmodes.server:
         '''Remove a server lock with respect for the dejittering latency'''
-        self.buffered_locks[tick][name] = False
+        self.buffered_locks[move_tick][name] = False
 
     def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
         '''Flag a variable as unlocked on the server'''
@@ -662,20 +652,6 @@ class PlayerController(Controller):
 
         # Store move
         self.buffer.append(move)
-
-    @requires_netmode(Netmodes.client)
-    def setup_input(self):
-        '''Create the input manager for the client'''
-        keybindings = self.load_keybindings()
-
-        self.inputs = InputManager(keybindings, BGEInputStatusLookup())
-        print("Created input manager")
-
-    @requires_netmode(Netmodes.client)
-    def setup_microphone(self):
-        '''Create the microphone for the client'''
-        self.microphone = MicrophoneStream()
-        self.sound_channels = defaultdict(SpeakerStream)
 
     def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         self.info.name = name
@@ -705,23 +681,23 @@ class PlayerController(Controller):
 
         # When we run out of moves, wait till we have enough
         buffer_length = len(self.buffer)
+        buffer_limit = (self.buffer_length + self.buffer_padding)
 
         if not buffer_length:
             print("Waiting for enough inputs ...")
             self.buffer_filling = True
 
         # Prevent too many items filling buffer
-        elif buffer_length > self.buffer_length + self.buffer_padding:
+        elif buffer_length > buffer_limit:
             print("Received too many inputs, dropping ...")
-            for i in range(buffer_length - self.buffer_length):
+            for _ in range(buffer_length - self.buffer_length):
                 consume_move()
 
         # Clear buffer filling status when we have enough
         if self.buffer_filling:
-            if len(self.buffer) >= self.buffer_length:
-                self.buffer_filling = False
-            else:
+            if len(self.buffer) < self.buffer_length:
                 return
+            self.buffer_filling = False
 
         try:
             buffered_move = self.buffer[0]
@@ -747,7 +723,7 @@ class PlayerController(Controller):
         # Save expected move results
         self.pending_moves[move_tick] = buffered_move
 
-        self.client_tick = move_tick
+        self.current_move = buffered_move
 
     def update_buffered_locks(self, tick):
         '''Apply server lock changes for the jitter buffer tick'''
