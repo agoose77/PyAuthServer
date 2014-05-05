@@ -1,4 +1,4 @@
-import ctypes
+import _ctypes
 
 __all__ = ["clamp", "square_falloff", "lerp", "mean", "progress_string",
            "dereference_id"]
@@ -79,4 +79,4 @@ def progress_string(factor, fidelity=10):
 
 
 def dereference_id(id_):
-    return ctypes.cast(id_, ctypes.py_object).value
+    return _ctypes.PyObj_FromPtr(id_)
