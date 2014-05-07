@@ -6,11 +6,29 @@ from itertools import islice, tee
 from mathutils import Vector
 
 from .iterators import BidirectionalIterator
-from .meshes import PolygonMesh, PolygonTree
+from .kdtree import KDTree
+from .meshes import BGEMesh
 
 
 forward_vector = Vector((0, 1, 0))
 EndPortal = namedtuple("EndPortal", ["left", "right"])
+BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
+
+
+class PolygonKDTree(KDTree):
+
+    def __init__(self, polygons):
+        points = []
+        for polygon in polygons:
+            point = BoundVector(polygon.position)
+            point.data = polygon
+            points.append(point)
+
+        super().__init__(points, dimensions=3)
+
+    def find_node(self, point):
+        _, node = self.nn_search(point)
+        return node.position.data
 
 
 def triangle_area_squared(a, b, c):
@@ -238,9 +256,8 @@ class PathfinderAlgorithm:
 class NavmeshProxy(types.KX_GameObject):
 
     def __init__(self, obj):
-        self.mesh = PolygonMesh(self)
-        self.polygons = self.mesh.mesh_polygons[0]
-        self.polygon_lookup = PolygonTree(self.polygons)
+        self.mesh = BGEMesh(self.meshes[0])
+        self.polygon_lookup = PolygonKDTree(self.mesh.polygons)
 
         astar = AStarAlgorithm()
         funnel = FunnelAlgorithm()

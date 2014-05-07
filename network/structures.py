@@ -20,7 +20,7 @@ def operation_in_place(operation):
     return wrapper
 
 
-def FactoryDict(factory_func, dict_type=dict, provide_key=True):
+def FactoryDict(factory_func, dict_type=dict, provide_key=True, instantiate=True):
 
     def missing_key(self, key):
         value = self[key] = factory_func(key)
@@ -32,7 +32,11 @@ def FactoryDict(factory_func, dict_type=dict, provide_key=True):
 
     callback = missing_key if provide_key else missing
 
-    return type("FactoryDict", (dict_type,), {"__missing__": callback})()
+    dict_cls = type("FactoryDict", (dict_type,), {"__missing__": callback})
+
+    if instantiate:
+        return dict_cls()
+    return dict_cls
 
 
 class TypedIterable:
