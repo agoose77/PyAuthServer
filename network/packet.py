@@ -24,12 +24,12 @@ class PacketCollection:
     @property
     def reliable_members(self):
         '''The "reliable" members of this packet collection'''
-        return (m for m in self.members if m.reliable)
+        return [m for m in self.members if m.reliable]
 
     @property
     def unreliable_members(self):
         '''The "unreliable" members of this packet collection'''
-        return (m for m in self.members if not m.reliable)
+        return [m for m in self.members if not m.reliable]
 
     @property
     def size(self):
@@ -56,7 +56,7 @@ class PacketCollection:
             member.on_not_ack()
 
     def to_bytes(self):
-        return b''.join(m.to_bytes() for m in self.members)
+        return b''.join([m.to_bytes() for m in self.members])
 
     @classmethod
     def iter_bytes(cls, bytes_, callback):

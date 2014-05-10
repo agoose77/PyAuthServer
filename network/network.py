@@ -1,11 +1,11 @@
 from .connection_interfaces import ConnectionInterface
+from .decorators import ignore_arguments
 from .enums import ConnectionStatus
+from .signals import SignalListener, UpdateSignal
 
 from collections import deque
 from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
 from time import monotonic
-
-from . import signals
 
 __all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
 
@@ -21,7 +21,7 @@ class UDPSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(signals.SignalListener, UDPSocket ):
+class UnreliableSocket(SignalListener, UDPSocket):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -30,15 +30,11 @@ class UnreliableSocket(signals.SignalListener, UDPSocket ):
         super().__init__(*args, **kwargs)
 
         self.delay = 0.000
-
         self._buffer_out = deque()
-        self._buffer_in = deque()
 
-    @signals.UpdateSignal.global_listener
-    def cb(self, dt):
-        self.poll()
-
-    def poll(self):
+    @UpdateSignal.global_listener
+    @ignore_arguments
+    def delayed_send(self):
         systime = monotonic()
         sendable = []
 

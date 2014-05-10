@@ -15,9 +15,9 @@ from .animation import Animation
 from .behaviour_tree import BehaviourTree
 from .enums import *
 from .object_types import *
-from .physics_object import PhysicsObject
+from .object_types import BGEActorBase, BGEPhysicsObject 
+from .resources import ResourceManager
 from .signals import *
-from .structs import RigidBodyState
 from .utilities import mean
 
 
@@ -25,7 +25,7 @@ __all__ = ["Actor", "Camera", "Lamp", "Navmesh", "Pawn", "ResourceActor",
            "WeaponAttachment"]
 
 
-class Actor(Replicable, PhysicsObject):
+class Actor(BGEActorBase, Replicable):
     '''Physics enabled network object'''
 
     _position = Attribute(type_of=Vector, notify=True)
@@ -37,6 +37,10 @@ class Actor(Replicable, PhysicsObject):
 
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
                     notify=True)
+
+    @property
+    def resources(self):
+        return ResourceManager.load_resource(self.__class__.__name__)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -122,7 +126,6 @@ class ResourceActor(Actor):
 
 class Camera(Actor):
 
-    entity_class = CameraObject
     entity_name = "Camera"
 
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
@@ -430,7 +433,6 @@ class Pawn(Actor):
 class Lamp(Actor):
     roles = Roles(Roles.authority, Roles.simulated_proxy)
 
-    entity_class = LampObject
     entity_name = "Lamp"
 
     def on_initialised(self):
@@ -468,7 +470,6 @@ class Lamp(Actor):
 class Navmesh(Actor):
     roles = Roles(Roles.authority, Roles.none)
 
-    entity_class = NavmeshObject
     entity_name = "Navmesh"
 
     def draw(self):

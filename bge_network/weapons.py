@@ -16,6 +16,7 @@ from os.path import join as join_path
 from .enums import *
 from .inputs import BGEInputStatusLookup, InputManager
 from .object_types import *
+from .resources import ResourceManager
 from .signals import *
 from .structs import RigidBodyState
 from .utilities import square_falloff
@@ -33,16 +34,16 @@ class Weapon(Replicable):
                 >= (self.shoot_interval * WorldInfo.tick_rate))
 
     @property
-    def data_path(self):
-        return join_path(self._data_path, self.__class__.__name__)
+    def resources(self):
+        return ResourceManager.load_resource(self.__class__.__name__)
 
     @property
     def shoot_sound(self):
-        return join_path(self.data_path, "shoot.mp3")
+        return "shoot.mp3"
 
     @property
     def icon_path(self):
-        return join_path(self.data_path, "icon/icon.tga")
+        return "icon.tga"
 
     def consume_ammo(self):
         self.ammo -= 1
@@ -59,7 +60,6 @@ class Weapon(Replicable):
     def on_initialised(self):
         super().on_initialised()
 
-        self._data_path = logic.expandPath("//data")
         self.shoot_interval = 0.5
         self.last_fired_tick = 0
         self.max_ammo = 70

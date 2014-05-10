@@ -7,7 +7,7 @@ from mathutils import Vector
 
 from .iterators import BidirectionalIterator
 from .kdtree import KDTree
-from .meshes import BGEMesh
+from .mesh import BGEMesh
 
 
 forward_vector = Vector((0, 1, 0))

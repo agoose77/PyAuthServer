@@ -46,15 +46,22 @@ class RPCInterface:
                                         self._function_name)) from err
 
     def execute(self, bytes_):
+        """Execute RPC from bytes_
+        :param bytes_: Byte stream of RPC call"""
         # Unpack RPC
         try:
             unpacked_data = self._serialiser.unpack(bytes_)
             self._function_call(**dict(unpacked_data))
 
         except Exception as err:
-            print("Could not invoke RPC call: '{}' - {}".format(self._function_name, err))
+            print("Could not invoke RPC call: '{}' - {}"
+                  .format(self._function_name, err))
 
     def register(self, interface, rpc_id):
+        """Register individual RPC interface for a class Instance
+
+        :param interface: interface to write rpc calls to
+        :param rpc_id: rpc call ID"""
         self.rpc_id = rpc_id
         self._interface = interface
 
@@ -63,7 +70,6 @@ class RPCInterfaceFactory:
     """Manages instances of an RPC function for each object"""
 
     def __init__(self, function):
-        # Information about RPC
         update_wrapper(self, function)
 
         self._by_instance = {}
@@ -103,12 +109,14 @@ class RPCInterfaceFactory:
 
         # Create information for the serialiser
         if self._serialiser_parameters is None:
-            self._serialiser_parameters = self.get_serialiser_parameters(instance.__class__)
+            self._serialiser_parameters = self.get_serialiser_parameters(
+                                                     instance.__class__)
 
-        self._by_instance[instance] = RPCInterface(bound_function,
-                                       self._serialiser_parameters)
+        self._by_instance[instance] = interface = RPCInterface(bound_function,
+                                                   self._serialiser_parameters)
 
-        return self._by_instance[instance]
+        interface.__self__ = instance
+        return interface
 
     def get_serialiser_parameters(self, cls):
         """Returns modified parameter dictionary
@@ -151,6 +159,9 @@ class RPCInterfaceFactory:
 
     @staticmethod
     def order_arguments(signature):
+        """Orders the parameters to the function
+
+        :param signature: function signature"""
         parameter_values = signature.parameters.values()
         empty_parameter = Parameter.empty
 

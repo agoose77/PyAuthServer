@@ -82,8 +82,16 @@ def netmode_switch(netmode):
     return wrapper
 
 
-def ignore_arguments(func):
-    @wraps(func)
+def ignore_arguments(func, provide_self=True):
+    """Calls decorated function without arguments
+
+    :param provide_self: whether the function permits instance argument
+    :returns: decorated function"""
+    def self_wrapper(self, *args, **kwargs):
+        return func(self)
+
     def wrapper(*args, **kwargs):
         return func()
-    return wrapper
+
+    decorator = self_wrapper if provide_self else wrapper
+    return wraps(func)(decorator)

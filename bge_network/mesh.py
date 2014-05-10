@@ -1,16 +1,16 @@
 from network.iterators import take_single
 from network.structures import FactoryDict
 
-from collections import Counter, defaultdict
-from itertools import chain
+from collections import Counter
 from mathutils import Vector, geometry
 
-from game_system import IVertex, IPolygon, IMesh
+from game_system.mesh import IVertex, IPolygon, IMesh
 
 from .kdtree import KDTree
 from .utilities import mean
 
-__all__ = ['Polygon', 'PolygonMesh', 'PolygonTree', 'BoundVector', 'BGEMesh']
+__all__ = ['BGEPolygon', 'BGEVertexTree', 'BGEVertexGroup', 'BoundVector',
+           'BGEMesh']
 
 
 BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
@@ -104,7 +104,6 @@ class BGEPolygon(IPolygon):
     def get_neighbours(self, shared_vertices=2):
         neighbour_counts = Counter([p for v in self._vertices
                                     for p in v.polygons if not p is self])
-        #print(self._vertices[0]._members)
         return [p for p, c in neighbour_counts.items() if c == shared_vertices]
 
     @property

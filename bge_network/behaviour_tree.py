@@ -237,12 +237,16 @@ class ResumeableNode(InnerNode):
 
     @property
     def resume_index(self):
-        ''':returns: index to resume from upon next evaluation''' 
+        ''':returns: index to resume from upon next evaluation'''
         return self._resume_index
 
     @resume_index.setter
     def resume_index(self, value):
         self._resume_index = value
+
+    @property
+    def resume_child(self):
+        return self.children[self.resume_index]
 
     def on_exit(self, blackboard):
         self.resume_index = 0
@@ -274,7 +278,7 @@ class SelectorNode(ResumeableNode):
         # Copy child's state
         if remembered_resume:
             self.resume_index = index + resume_index
-            child = self.children[self.resume_index]
+            child = self.resume_child
 
         return child.state
 
@@ -319,7 +323,7 @@ class ConcurrentNode(ResumeableNode):
             # At the limit we then return the last/ last running child's status
             if failed_total == failure_limit:
                 if remembered_resume:
-                    return self.children[self.resume_index].state
+                    return self.resume_child.state
 
                 else:
                     return child.state

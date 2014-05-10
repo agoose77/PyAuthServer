@@ -1,4 +1,5 @@
-__all__ = ["is_reliable", "is_simulated", "is_signal_listener"]
+__all__ = ["is_reliable", "is_simulated", "is_signal_listener",
+           "is_annotatable", "get_annotation"]
 
 '''API Helper functions for internal operations'''
 
@@ -25,6 +26,10 @@ def is_signal_listener(func):
     :param func: function to evaluate
     :returns: result of condition'''
     return "signals" in func.__annotations__
+
+
+def is_annotatable(func):
+    return hasattr(func, "__annotations__")
 
 
 def get_annotation(func, name, default=None):

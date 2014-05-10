@@ -346,7 +346,8 @@ class ServerInterface(ConnectionInterface):
                 # Yield a reliable packet
                 return Packet(protocol=Protocols.request_handshake,
                               payload=handshake_type + err_name + err_body,
-                              on_success=ignore_arguments(self.on_failure))
+                              on_success=ignore_arguments(self.on_failure,
+                                                          provide_self=False))
 
         else:
             # Send acknowledgement
@@ -354,7 +355,8 @@ class ServerInterface(ConnectionInterface):
                                     HandshakeState.success)
             return Packet(protocol=Protocols.request_handshake,
                           payload=handshake_type + self.netmode_packer.pack(WorldInfo.netmode),
-                          on_success=ignore_arguments(self.on_connected))
+                          on_success=ignore_arguments(self.on_connected,
+                                                      provide_self=False))
 
     def handle_handshake(self, packet):
         """Receives a handshake packet
@@ -392,7 +394,8 @@ class ClientInterface(ConnectionInterface):
     @DisconnectSignal.global_listener
     def disconnect_from_server(self, quit_callback):
         packet = Packet(Protocols.request_disconnect,
-                        on_success=ignore_arguments(quit_callback))
+                        on_success=ignore_arguments(quit_callback,
+                                                    provide_self=False))
         self.internal_data.append(packet)
 
     def send_handshake(self):

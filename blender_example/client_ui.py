@@ -5,6 +5,7 @@ from network.world_info import WorldInfo
 from bge_network.controllers import PlayerController
 from bge_network.signals import ReceiveMessage
 from bge_network.timer import Timer, ManualTimer
+from bge_network.resources import ResourceManager
 
 from .replication_infos import TeamReplicationInfo
 from .signals import *
@@ -19,13 +20,16 @@ from functools import partial
 from uuid import uuid4 as random_id
 
 
-def make_gradient(colour, factor, top_down=True):
-    by_factor = [v * factor  if i != 3 else v for i, v in enumerate(colour)]
-    result = [by_factor, by_factor, colour, colour]
-    return result if top_down else list(reversed(result))
+def create_gradient(colour, factor, top_down=True):
+    shifted_colour = [v * factor  if i != 3 else v for i, v in enumerate(colour)]
+    gradient_corners = [shifted_colour, shifted_colour, colour, colour]
+    if not top_down:
+        gradient_corners.reverse()
+    return gradient_corners
 
 
-def framed_element(parent, id_name, element_type, frame_options, label_options):
+def create_framed_element(parent, id_name, element_type, frame_options,
+                          label_options):
     name = "{}_{}".format(id_name, element_type.__name__)
     group = Frame(parent=parent,
                              name="{}_frame".format(name),
@@ -33,15 +37,20 @@ def framed_element(parent, id_name, element_type, frame_options, label_options):
                              sub_theme="RowGroup",
                              **frame_options)
 
-    label_options.update(dict(parent=group, name="{}".format(name), options=CENTERED))
+    label_options.update(dict(parent=group,
+                              name="{}".format(name),
+                              options=CENTERED))
+
     try:
         element = element_type(**label_options)
+
     except ZeroDivisionError:
         element = element_type(size=[1, 1], **label_options)
+
     return group, element
 
 
-def make_adjacent(*elements, full_size=None):
+def create_adjacent(*elements, full_size=None):
     pos = elements[0]._base_pos
 
     if full_size:
@@ -54,6 +63,22 @@ def make_adjacent(*elements, full_size=None):
                 element._base_size[1]]
         element._update_position(size[:], pos[:])
         pos = [pos[0] + size[0], pos[1]]
+
+
+def set_color(component, color):
+    try:
+        component.colors[:] = color
+
+    except AttributeError:
+        component.color[:] = color[0]
+
+
+def get_color(component):
+    try:
+        return component.colors
+
+    except AttributeError:
+        return [component.color]
 
 
 class ConnectPanel(Panel):
@@ -91,39 +116,39 @@ class ConnectPanel(Panel):
                                    options=CENTERX)
 
         # IP input
-        self.addr_label_frame, _ = framed_element(self.connection_row,
+        self.addr_label_frame, _ = create_framed_element(self.connection_row,
                                                "addr",
                                                Label,
                                                dict(size=[0.3, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(text="IP Address"))
 
-        self.addr_input_frame, self.addr_field = framed_element(self.connection_row,
-                                               "addr",
+        self.addr_input_frame,self.addr_field = create_framed_element(
+                  self.connection_row, "addr",
                                                TextInput,
                                                dict(size=[0.4, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
                                                     text="localhost"))
 
-        self.port_label_frame, _ = framed_element(self.connection_row,
+        self.port_label_frame, _ = create_framed_element(self.connection_row,
                                               "port",
                                               Label,
                                               dict(size=[0.2, 1.0],
                                                    pos=[0.0, 0.5]),
                                               dict(text="Port"))
 
-        self.port_input_frame, self.port_field = framed_element(self.connection_row,
-                                               "port",
+        self.port_input_frame, self.port_field = create_framed_element(
+                    self.connection_row, "port",
                                                TextInput,
                                                dict(size=[0.1, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
                                                     text="1200"))
-        make_adjacent(self.addr_label_frame, self.addr_input_frame,
+        create_adjacent(self.addr_label_frame, self.addr_input_frame,
                       self.port_label_frame, self.port_input_frame)
 
-        self.error_label_frame, _ = framed_element(self.data_row,
+        self.error_label_frame, _ = create_framed_element(self.data_row,
                                                 "error",
                                                 Label,
                                                 dict(size=[0.3, 1.0],
@@ -131,7 +156,8 @@ class ConnectPanel(Panel):
                                                 dict(text="Information")
                                                 )
 
-        self.error_message_frame, self.error_body_field = framed_element(self.data_row,
+        self.error_message_frame, self.error_body_field = create_framed_element(
+                                                 self.data_row,
                                                   "error_msg",
                                                   Label,
                                                   dict(size=[0.7, 1.0],
@@ -139,7 +165,7 @@ class ConnectPanel(Panel):
                                                   dict(text="")
                                                   )
 
-        make_adjacent(self.error_label_frame, self.error_message_frame)
+        create_adjacent(self.error_label_frame, self.error_message_frame)
 
         self.controls_row = Frame(parent=self.center_column,
                                    name="server_controls", size=[0.8, 0.08],
@@ -153,14 +179,14 @@ class ConnectPanel(Panel):
                                                size=[0.2, 1.0], pos=[0.0, 0.0],
                                                text="Connect")
 
-        self.match_label_frame, _ = framed_element(self.controls_row,
+        self.match_label_frame, _ = create_framed_element(self.controls_row,
                                               "matchmaker",
                                               Label,
                                               dict(size=[0.2, 1.0],
                                                    pos=[0.0, 0.5]),
                                               dict(text="Matchmaker"))
 
-        self.match_input_frame, self.match_field = framed_element(self.controls_row,
+        self.match_input_frame, self.match_field = create_framed_element(self.controls_row,
                                                "matchmaker",
                                                TextInput,
                                                dict(size=[0.5, 1.0],
@@ -168,9 +194,9 @@ class ConnectPanel(Panel):
                                                dict(allow_empty=False,
                         text="http://coldcinder.co.uk/networking/matchmaker"))
 
-        make_adjacent(self.refresh_button, self.connect_button,
+        create_adjacent(self.refresh_button, self.connect_button,
                       full_size=0.3)
-        make_adjacent(self.refresh_button, self.connect_button,
+        create_adjacent(self.refresh_button, self.connect_button,
                       self.match_label_frame, self.match_input_frame)
 
         self.servers_list = Frame(parent=self.center_column,
@@ -194,13 +220,14 @@ class ConnectPanel(Panel):
         self.servers_box.renderer = TableRenderer(self.servers_box,
                                               labels=self.server_headers)
 
+        # Loading sprite
         self.sprite = SpriteSequence(self.error_message_frame, "sprite",
                                      logic.expandPath("//themes/ui/loading_sprite.tga"),
                                      length=20, loop=True,  size=[0.1, 0.6],
                                      aspect=1, relative_path=False,
                                      options=CENTERY)
         self.sprite_timer = Timer(end=1 / 20, repeat=True)
-        self.sprite_timer.on_target=self.sprite.next_frame
+        self.sprite_timer.on_target = self.sprite.next_frame
 
         # Allows input fields to accept input when not hovered
         self.connection_row.is_listener = True
@@ -215,12 +242,6 @@ class ConnectPanel(Panel):
     def display_error(self, text):
         self.error_body_field.text = text
 
-    def do_select(self, list_box, entry):
-        data = dict(entry)
-
-        self.addr_field.text = data['address']
-        self.port_field.text = data['port']
-
     def do_connect(self, button):
         ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
         self.sprite.visible = True
@@ -230,6 +251,12 @@ class ConnectPanel(Panel):
         self.matchmaker.perform_query(self.evaluate_servers,
                                       self.matchmaker.server_query())
         self.sprite.visible = True
+
+    def do_select(self, list_box, entry):
+        data = dict(entry)
+
+        self.addr_field.text = data['address']
+        self.port_field.text = data['port']
 
     def evaluate_servers(self, response):
         self.servers[:] = [tuple(entry.items()) for entry in response]
@@ -291,12 +318,6 @@ class TeamPanel(Panel):
     def display_error(self, text):
         self.error_body_field.text = text
 
-    def do_select(self, list_box, entry):
-        data = dict(entry)
-
-        self.addr_field.text = data['address']
-        self.port_field.text = data['port']
-
     def do_connect(self, button):
         ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
         self.sprite.visible = True
@@ -306,6 +327,12 @@ class TeamPanel(Panel):
         self.matchmaker.perform_query(self.evaluate_servers,
                                       self.matchmaker.server_query())
         self.sprite.visible = True
+
+    def do_select(self, list_box, entry):
+        data = dict(entry)
+
+        self.addr_field.text = data['address']
+        self.port_field.text = data['port']
 
     def evaluate_servers(self, response):
         self.servers[:] = [tuple(entry.items()) for entry in response]
@@ -336,12 +363,16 @@ class TeamPanel(Panel):
         if not player_controller:
             return
 
-        # Save callbacks for buttons
+        # Save call-backs for buttons
         self.left_button.text = left.name
         self.right_button.text = right.name
 
-        self.left_button.on_click = ignore_arguments(partial(player_controller.set_team, left))
-        self.right_button.on_click = ignore_arguments(partial(player_controller.set_team, right))
+        self.left_button.on_click = ignore_arguments(
+                                    partial(player_controller.set_team, left),
+                                    provide_self=False)
+        self.right_button.on_click = ignore_arguments(
+                                    partial(player_controller.set_team, right),
+                                    provide_self=False)
 
 
 class TimerMixins:
@@ -353,11 +384,11 @@ class TimerMixins:
 
     def add_timer(self, timer, name=""):
         '''Registers a timer for monitoring'''
-        def on_stop():
+        def _on_stop():
             timer.delete()
             self._timers.remove(timer)
 
-        timer.on_stop = on_stop
+        timer.on_stop = _on_stop
         self._timers.append(timer)
 
     def update(self, delta_time):
@@ -420,7 +451,7 @@ class Notification(TimerMixins, Frame):
 
         # Record of components
         components = [self.middle_bar, self.message_text]
-        component_colors = [deepcopy(self._get_color(c)) for c in components]
+        component_colors = [deepcopy(get_color(c)) for c in components]
         self.components = dict(zip(components, component_colors))
 
         # Add alive timer
@@ -443,18 +474,6 @@ class Notification(TimerMixins, Frame):
         self.message_text.text = message[shift_index:
                                          shift_index + message_limit]
 
-    def _set_color(self, component, color):
-        try:
-            component.colors[:] = color
-        except AttributeError:
-            component.color[:] = color[0]
-
-    def _get_color(self, component):
-        try:
-            return component.colors
-        except AttributeError:
-            return [component.color]
-
     def _interpolate(self, target, factor):
         factor = min(max(0.0, factor), 1.0)
         i_x, i_y = self.initial_position
@@ -472,7 +491,7 @@ class Notification(TimerMixins, Frame):
             for (component, colour) in self.components.items():
                 new_colour = [[corner[0], corner[1], corner[2], alpha * corner[3]]
                               for corner in colour]
-                self._set_color(component, new_colour)
+                set_color(component, new_colour)
 
         fade_timer.on_update = update_fade
         self.add_timer(fade_timer, "fade_{}".format("out" if out else "in"))
@@ -491,18 +510,16 @@ class Notification(TimerMixins, Frame):
 
     def move_to(self, target, interval=0.5, note_position=True):
         '''Moves notification to a new position'''
-        move_timer = ManualTimer(end=interval)
 
         def update_position():
             factor = move_timer.progress
             self.position = self._interpolate(target, factor)
 
-        target_cb = lambda: setattr(self, "initial_position", self._base_pos[:])
-
+        move_timer = ManualTimer(end=interval)
         move_timer.on_update = update_position
+
         if note_position:
-            #move_timer.on_target = target_cb
-            target_cb()
+            self.initial_position = self._base_pos[:]
 
         self.add_timer(move_timer, "mover")
 
@@ -519,7 +536,8 @@ class Notification(TimerMixins, Frame):
         if callable(self.is_visible):
             _visible = self.visible
             self.visible = self.is_visible()
-            if self.visible and not _visible:
+            became_visible = self.visible and not self._visible
+            if became_visible:
                 self.fade_opacity(self.fade_time, out=False)
 
         super().update(delta_time)
@@ -550,9 +568,9 @@ class UIPanel(TimerMixins, Panel):
         main_pos = [1 - main_size[0] - self.panel_padding,
               1 - self.panel_padding - main_size[1]]
 
-        self.notifications = Frame(parent=self, name="NotificationsPanel",
+        self.notifications_frame = Frame(parent=self, name="NotificationsPanel",
                                         size=main_size[:], pos=main_pos[:])
-        self.notifications.colors = [self.faded_grey] * 4
+        self.notifications_frame.colors = [self.faded_grey] * 4
 
         self.weapons_box = Frame(self, "weapons", size=[main_size[0], 0.25],
                                       pos=[main_pos[0], 0.025])
@@ -731,43 +749,50 @@ class UIPanel(TimerMixins, Panel):
 
     def create_glow_animation(self, entry):
         glow = ManualTimer(1, repeat=True)
-        glow.on_update = partial(self.fading_animation, entry, glow)
         self.add_timer(glow, "glow")
+
+        glow.on_update = partial(self.update_error_colour,
+                                 entry, glow)
         return glow
 
     @property
-    def theme_colour(self):
+    def icon_colour(self):
         return self.icon_theme.colors[0]
 
-    @theme_colour.setter
-    def theme_colour(self, value):
-        self.icon_theme.colors = make_gradient(value, 1 / 3)
+    @icon_colour.setter
+    def icon_colour(self, value):
+        self.icon_theme.colors = create_gradient(value, 1 / 3)
 
     @TeamSelectionUpdatedSignal.global_listener
     def on_team_selected(self, target):
         self.visible = True
 
     @UIHealthChangedSignal.global_listener
-    def health_changed(self, health):
+    def on_health_changed(self, health):
         self.health_indicator.color[-1] = 1 - (health/100)
 
     @UIWeaponChangedSignal.global_listener
-    def weapon_changed(self, weapon):
-        self.weapon_name.text = weapon.__class__.__name__
-        self.weapon_icon.update_image(weapon.icon_path)
-        self.theme_colour = weapon.theme_colour
+    def on_weapon_changed(self, weapon):
+        weapon_name = weapon.__class__.__name__
+        icon_relative_path = weapon.resources["icon"][weapon.icon_path]
+        icon_path = ResourceManager.from_relative_path(icon_relative_path)
 
-    def fading_animation(self, entry, timer):
+        self.weapon_name.text = weapon_name
+        self.weapon_icon.update_image(icon_path)
+        self.icon_colour = weapon.theme_colour
+
+    def update_error_colour(self, entry, timer):
         err = (self.error_red[0], self.error_red[1],
                self.error_red[2], 1 - timer.progress)
         entry.colors = [err] * 4
 
     def update(self, delta_time):
-        for notification in self._notifications[:]:
-            if notification.name in self.notifications._children:
-                notification.update(delta_time)
+        concern_tag = "0"
 
-        # Handle sliding up when deleting notifications
+        for notification in self._notifications[:]:
+            notification.update(delta_time)
+
+        # Handle sliding up when deleting notifications_frame
         y_shift = Notification.default_size[1] + self.entry_padding
         for index, notification in enumerate(self._notifications):
             intended_y = self.start_position[1] - (index * y_shift)
@@ -779,30 +804,36 @@ class UIPanel(TimerMixins, Panel):
             notification.move_to([self.start_position[0], intended_y])
 
         # Create any alert timers
+        create_notification = self.create_notification
+        create_glow = self.create_glow_animation
+        concerns = self.handled_concerns
+
         for name, (field, label) in self.entries.items():
-            if label.text == "0":
-                if not name in self.handled_concerns:
-                    ReceiveMessage.invoke("Ran out of {}!".format(name), alive_time=10)
-                    self.handled_concerns[name] = self.create_glow_animation(
-                                                                         field)
+            if label.text != concern_tag or name in concerns:
+                continue
+
+            create_notification("Ran out of {}!".format(name),
+                                 alive_time=10)
+            concerns[name] = create_glow(field)
 
         # Check for handled timers
         handled = []
-        for name, timer in self.handled_concerns.items():
+        for name, timer in concerns.items():
             field, label = self.entries[name]
 
-            if label.text != "0":
+            # Concern is no longer valid
+            if label.text != concern_tag:
                 timer.stop()
                 handled.append(name)
 
         # Remove handled UI timers
         for handled_name in handled:
-            self.handled_concerns.pop(handled_name)
+            concerns.pop(handled_name)
 
         super().update(delta_time)
 
     @ReceiveMessage.global_listener
-    def add_notification(self, message, alive_time=5.0):
+    def create_notification(self, message, alive_time=5.0):
         if self._notifications:
             position = self._notifications[-1].initial_position
             position = [position[0], position[1] -
@@ -814,19 +845,19 @@ class UIPanel(TimerMixins, Panel):
         # Apply padding
         position[1] -= self.entry_padding
 
-        notification = Notification(self.notifications, message, pos=position,
+        notification = Notification(self.notifications_frame, message, pos=position,
                                     alive_time=alive_time, font_size=self.font_size)
         notification.visible = False
 
         self._notifications.append(notification)
         notification.on_death = lambda: self.delete_notification(notification)
         notification.is_visible = lambda: bool(notification.position[1] >
-                                               self.notifications.position[1])
+                                               self.notifications_frame.position[1])
         return notification
 
     def delete_notification(self, notification):
         self._notifications.remove(notification)
-        self.notifications._remove_widget(notification)
+        self.notifications_frame._remove_widget(notification)
 
 
 class BGESystem(System):

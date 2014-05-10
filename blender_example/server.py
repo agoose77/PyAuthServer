@@ -8,10 +8,12 @@ from bge_network.actors import *
 from bge_network.controllers import Controller, PlayerController
 from bge_network.errors import AuthError, BlacklistError
 from bge_network.gameloop import ServerGameLoop
+from bge_network.resources import ResourceManager
 from bge_network.signals import ActorKilledSignal
 from bge_network.timer import Timer
 from bge_network.weapons import Weapon
 
+from bge import logic
 from operator import gt as greater_than
 from random import choice, randint
 
@@ -21,6 +23,8 @@ from .matchmaker import BoundMatchmaker
 from .replication_infos import *
 from .signals import TeamSelectionQuerySignal
 from .weapons import BowWeapon
+
+ResourceManager.data_path = logic.expandPath("//data")
 
 
 class TeamDeathMatch(ReplicationRules):

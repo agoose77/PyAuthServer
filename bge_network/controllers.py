@@ -11,7 +11,7 @@ from network.world_info import WorldInfo
 
 from aud import Factory, device as Device
 from bge import logic, types
-from collections import deque, defaultdict, namedtuple, OrderedDict
+from collections import deque, defaultdict, OrderedDict
 from functools import partial
 from math import pi
 from mathutils import Vector, Euler
@@ -22,11 +22,12 @@ from .enums import *
 from .errors import FlagLockingError
 from .inputs import BGEInputStatusLookup, InputManager, MouseManager
 from .object_types import *
+from .resources import ResourceManager
 from .signals import *
 from .stream import MicrophoneStream, SpeakerStream
 from .structs import RigidBodyState
 from .timer import Timer
-from .utilities import lerp, square_falloff
+from .utilities import lerp
 
 __all__ = ['Controller', 'PlayerController', 'AIController']
 
@@ -148,12 +149,15 @@ class Controller(Replicable):
         if self.pawn.flash_count > 255:
             self.pawn.flash_count = 0
 
+        weapon_sound = self.weapon.resources['sounds'][self.weapon.shoot_sound]
+
         for controller in WorldInfo.subclass_of(Controller):
             if controller == self:
                 continue
 
-            controller.hear_sound(self.weapon.shoot_sound,
-                                self.pawn.position, self.pawn.rotation,
+            controller.hear_sound(weapon_sound,
+                                self.pawn.position,
+                                self.pawn.rotation,
                                 self.pawn.velocity)
 
     @requires_netmode(Netmodes.server)
@@ -318,9 +322,13 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def client_fire(self):
         self.pawn.weapon_attachment.play_fire_effects()
-        self.hear_sound(self.weapon.shoot_sound,
-                                self.pawn.position, self.pawn.rotation,
-                                self.pawn.velocity)
+
+        weapon_sounds = self.weapon.resources['sounds']
+        shoot_sound = weapon_sounds[self.weapon.shoot_sound]
+
+        self.hear_sound(shoot_sound,
+                        self.pawn.position, self.pawn.rotation,
+                        self.pawn.velocity)
         self.weapon.fire(self.camera)
 
     def client_reply_ping(self, tick: TICK_FLAG) -> Netmodes.client:
@@ -411,13 +419,15 @@ class PlayerController(Controller):
     def get_local_controller():
         return take_single(WorldInfo.subclass_of(PlayerController))
 
-    def hear_sound(self, sound_path: TypeFlag(str),
+    def hear_sound(self, resource: TypeFlag(str),
                    position: TypeFlag(Vector),
                    rotation: TypeFlag(Euler),
                    velocity: TypeFlag(Vector)) -> Netmodes.client:
         if not (self.pawn and self.camera):
             return
-        print(sound_path)
+
+        sound_path = ResourceManager.from_relative_path(resource)
+
         factory = Factory.file(sound_path)
         handle = self.audio.play(factory)
 

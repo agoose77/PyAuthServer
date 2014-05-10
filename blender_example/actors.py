@@ -9,7 +9,7 @@ from network.world_info import WorldInfo
 from bge_network.actors import Actor, Pawn, Projectile, ResourceActor, WeaponAttachment
 from bge_network.controllers import PlayerController
 from bge_network.enums import CollisionType
-from bge_network.meshes import PolygonMesh
+from bge_network.mesh import BGEMesh
 from bge_network.signals import ActorDamagedSignal, BroadcastMessage, CollisionSignal
 from bge_network.utilities import mean
 
@@ -78,10 +78,9 @@ class Barrel(Actor):
 
         player_controller = PlayerController.get_local_controller()
 
-        file_path = logic.expandPath("//data/Barrel/clang.mp3")
-
-        player_controller.hear_sound(file_path, self.position, self.rotation,
-                                     self.velocity)
+        collision_sound = self.resources['sounds']['clang.mp3']
+        player_controller.hear_sound(collision_sound, self.position,
+                                    self.rotation, self.velocity)
 
 
 class BowAttachment(WeaponAttachment):

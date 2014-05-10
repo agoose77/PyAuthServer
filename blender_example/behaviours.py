@@ -134,17 +134,17 @@ def fire_behind_shelter():
 
 class DebugState(SignalLeafNode):
 
-    def __init__(self, child):
+    def __init__(self, child, enabled=True):
         super().__init__()
+
         self.child = child
+        self.enabled = enabled
 
     def evaluate(self, bb):
-        st = self.child.evaluate(bb)
-        x = self.child.children[0]._message
-        if st == EvaluationState.running and 0:
-            print("Running", self.child.children[self.child.resume_index])
-        #print("'", x, "'", EvaluationState[st])
-        return st
+        child_state = self.child.evaluate(bb)
+        if child_state == EvaluationState.running and self.enabled:
+            print("Running", self.child.resume_child)
+        return child_state
 
 
 class StateModifier(SequenceNode, SignalInnerNode):
@@ -289,6 +289,7 @@ class FindCeiling(SignalLeafNode):
         climbable_height = 10
         upwards = Vector((0, 0, climbable_height))
         hit_obj, hit_pos, hit_normal = blackboard['pawn'].trace_ray(upwards)
+
         if not hit_obj:
             return EvaluationState.failure
 
