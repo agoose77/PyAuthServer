@@ -1,4 +1,4 @@
-__all__ = ['RenewableGenerator', 'take_single']
+__all__ = ['RenewableGenerator', 'take_single', 'partition_iterable']
 
 
 class RenewableGenerator:
@@ -31,3 +31,16 @@ def take_single(iterable, default=None, reverse=False):
     if reverse:
         iterable = reversed(list(iterable))
     return next(iter(iterable), default) 
+
+
+def partition_iterable(iterable, length, steps=None):
+    """Partitions an iterable into fixed length parts
+
+    :param iterable: iterable object
+    :param length: length of slice
+    :param steps: number of slices
+    :returns: list of partition elements"""
+    if steps is None:
+        steps = len(iterable)
+
+    return [iterable[i * length: (i + 1 ) * length] for i in range(steps)]

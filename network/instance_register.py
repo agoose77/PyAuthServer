@@ -15,7 +15,6 @@ class InstanceMixins(SignalListener):
 
     def __init__(self, instance_id=None, register=False,
                  allow_random_key=False, **kwargs):
-        super().__init__()
 
         # Generator used for finding IDs
         self.allow_random_key = allow_random_key
@@ -28,6 +27,8 @@ class InstanceMixins(SignalListener):
 
         # Add to register queue
         self.request_registration(instance_id, register)
+
+        super().__init__()
 
     def on_initialised(self):
         pass
@@ -47,7 +48,8 @@ class InstanceMixins(SignalListener):
 
     def request_registration(self, instance_id, register=False):
         if instance_id is None:
-            assert self.allow_random_key, "No key specified"
+            if not self.allow_random_key:
+                raise ValueError("No key specified")
             instance_id = self.__class__.get_next_id()
 
         self.instance_id = instance_id
@@ -90,6 +92,7 @@ class InstanceRegister(TypeRegister):
 
     def __new__(self, name, parents, cls_attrs):
         parents += (InstanceMixins,)
+
         cls = super().__new__(self, name, parents, cls_attrs)
 
         if not hasattr(cls, "_instances"):

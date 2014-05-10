@@ -2,6 +2,7 @@ from .bitfield import BitField
 from .descriptors import TypeFlag
 from .enums import Roles
 from .handler_interfaces import *
+from .iterators import partition_iterable
 from .replicable import Replicable
 from .serialiser import *
 from .world_info import WorldInfo
@@ -54,9 +55,13 @@ class RolesHandler:
 
     @classmethod
     def pack(cls, roles):
+        """Pack roles for client
+        Switches remote and local roles
+
+        :param roles: role enum
+        :returms: packed roles (bytes)"""
         pack = cls.packer.pack
-        with roles.switched():
-            return pack(roles.local) + pack(roles.remote)
+        return pack(roles.remote) + pack(roles.local)
 
     @classmethod
     def unpack_from(cls, bytes_):
@@ -83,8 +88,10 @@ class IterableHandler:
             raise TypeError("Unable to pack iterable without\
                              full type information") from err
 
+        int_flag = TypeFlag(int)
+
         self.element_packer = get_handler(element_flag)
-        self.count_packer = get_handler(TypeFlag(int))
+        self.count_packer = get_handler(int_flag)
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
     def pack(self, iterable):
@@ -102,15 +109,14 @@ class IterableHandler:
         # Fixed length unpacking
         if not self.is_variable_sized:
             element_size = element_get_size()
-            return self.iterable_cls(element_unpack(data[i * element_size:
-                                        (i + 1) * element_size])
-                                        for i in range(size))
+            partitioned_iterable = partition_iterable(data, element_size, size)
+            return self.iterable_cls(partitioned_iterable)
 
         # Variable length unpacking
         elements = self.iterable_cls()
         add = self.__class__.iterable_add
 
-        for i in range(size):
+        for _ in range(size):
             shift = element_get_size(data)
             add(elements, element_unpack(data))
             data = data[shift:]

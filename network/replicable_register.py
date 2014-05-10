@@ -26,12 +26,10 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
             return super().__new__(self, cls_name, bases, cls_dict)
 
         # Include certain RPCs for redefinition
-        for parent_cls in bases:
-            if not parent_cls in self.forced_redefinitions:
-                continue
-
+        for parent_cls in set(bases).intersection(self.forced_redefinitions):
             rpc_functions = self.forced_redefinitions[parent_cls]
             for name, function in rpc_functions.items():
+                # Only redefine inherited rpc calls
                 if name in cls_dict:
                     continue
 

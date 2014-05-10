@@ -48,8 +48,7 @@ class Actor(BGEActorBase, Replicable):
         remote_role = self.roles.remote
 
         # If simulated, send rigid body state
-        valid_role = ((remote_role == Roles.simulated_proxy) or
-                     (remote_role == Roles.autonomous_proxy and not is_owner))
+        valid_role = (remote_role == Roles.simulated_proxy)
         allowed_physics = ((self.replicate_simulated_physics or is_initial)
                         and (self.replicate_physics_to_owner or not is_owner))
 

@@ -7,13 +7,16 @@ class Enumeration(type):
     '''Metaclass for Enumerations in Python'''
     def __new__(cls, name, parents, attrs):
         # Get settings
-        use_bits = attrs.get('use_bits', False)
-        reverse_map = attrs['reverse'] = {}
-        # Set the new values
-        for index, key in enumerate(attrs["values"]):
-            value = index if not use_bits else (2 ** index)
-            attrs[key] = value
-            reverse_map[value] = key
+        get_index = (lambda x: 2 ** x if attrs.get('use_bits', False)
+                     else x)
+
+        values = attrs['values']
+
+        forward_mapping = {v: get_index(i) for i, v in enumerate(values)}
+        reverse_mapping = {i: v for v, i in forward_mapping.items()}
+
+        attrs.update(forward_mapping)
+        attrs['reverse'] = reverse_mapping
 
         # Return new class
         return super().__new__(cls, name, parents, attrs)
@@ -36,7 +39,7 @@ class ConnectionStatus(metaclass=Enumeration):
 
 
 class Netmodes(metaclass=Enumeration):
-    values = "server", "client", "listen", "single"
+    values = "server", "client"
 
 
 class HandshakeState(metaclass=Enumeration):
@@ -69,18 +72,18 @@ class Roles(metaclass=Enumeration):
                                                  self.__class__[self.remote])
 
     @contextmanager
+    def set_context(self, owner):
+        self.context = owner
+        switched = self.remote == Roles.autonomous_proxy and not owner
+        if switched:
+            self.remote = Roles.simulated_proxy
+        yield
+        if switched:
+            self.remote = Roles.autonomous_proxy
+        self.context = None
+
+    @contextmanager
     def switched(self):
         self.remote, self.local = self.local, self.remote
-
-        if self.local == Roles.autonomous_proxy and not self.context:
-            self.local = self.simulated_proxy
-            fix_autonomous = True
-
-        else:
-            fix_autonomous = False
-
         yield
-
-        if fix_autonomous:
-            self.local = Roles.autonomous_proxy
         self.remote, self.local = self.local, self.remote
