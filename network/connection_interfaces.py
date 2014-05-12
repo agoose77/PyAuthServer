@@ -27,17 +27,18 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
     def on_initialised(self):
         # Maximum sequence number value
-        self.sequence_max_size = 255 ** 2
+        self.sequence_max_size = 2 ** 16
         self.sequence_handler = get_handler(
                                 TypeFlag(int, max_value=self.sequence_max_size)
                                 )
 
         # Number of packets to ack per packet
-        self.ack_window = 32
+        self.ack_window = conversion(8, "B", "b")
 
         # BitField and bitfield size
         self.ack_bitfield = BitField(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(BitField))
+        self.ack_packer = get_handler(TypeFlag(BitField,
+                                               fields=self.ack_window))
 
         # Additional data
         self.netmode_packer = get_handler(TypeFlag(int))

@@ -4,7 +4,7 @@ from .enums import ConnectionStatus
 from .signals import SignalListener, UpdateSignal
 
 from collections import deque
-from socket import (socket, AF_INET, SOCK_DGRAM, error as socket_error)
+from socket import socket, AF_INET, SOCK_DGRAM
 from time import monotonic
 
 __all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
@@ -71,15 +71,19 @@ class Network:
         self.sent_bytes = 0
         self.received_bytes = 0
 
-        self.socket = UnreliableSocket(addr, port)
+        self.socket = UDPSocket(addr, port)
 
     @property
     def send_rate(self):
-        return (self.delta_sent / (monotonic() - self._delta_timestamp))
+        return (self._delta_sent / (monotonic() - self._delta_timestamp))
 
     @property
     def receive_rate(self):
-        return (self.delta_received / (monotonic() - self._delta_timestamp))
+        return (self._delta_received / (monotonic() - self._delta_timestamp))
+
+    @property
+    def metric_age(self):
+        return monotonic() - self._delta_timestamp
 
     def reset_metrics(self):
         self._delta_timestamp = monotonic()
@@ -88,23 +92,28 @@ class Network:
     def stop(self):
         self.socket.close()
 
-    def send_to(self, *args, **kwargs):
+    def send_to(self, data, address):
         '''Overrides send_to method to record sent time'''
-        result = self.socket.sendto(*args, **kwargs)
+        data_length = self.socket.sendto(data, address)
 
-        self.sent_bytes += result
-        self._delta_sent += result
-
-        return result
+        self.sent_bytes += data_length
+        self._delta_sent += data_length
+        return data_length
 
     def receive_from(self, buff_size=63553):
         '''A partial function for receive_from
         Used in iter(func, sentinel)'''
         try:
-            return self.socket.recvfrom(buff_size)
+            data = self.socket.recvfrom(buff_size)
 
-        except socket_error:
+        except BlockingIOError:
             return
+
+        data_length = len(data)
+
+        self.received_bytes += data_length
+        self._delta_received += data_length
+        return data
 
     def receive(self):
         '''Receive all data from socket'''
@@ -123,11 +132,6 @@ class Network:
 
             # Dispatch data to connection
             connection.receive(bytes_)
-
-            # Update metrics
-            byte_length = len(bytes_)
-            self.received_bytes += byte_length
-            self._delta_received += byte_length
 
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()  # @UndefinedVariable

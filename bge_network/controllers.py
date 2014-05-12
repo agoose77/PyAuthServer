@@ -15,6 +15,7 @@ from collections import deque, defaultdict, OrderedDict
 from functools import partial
 from math import pi
 from mathutils import Vector, Euler
+from time import monotonic
 
 from .behaviour_tree import BehaviourTree
 from .configuration import load_keybindings
@@ -358,6 +359,7 @@ class PlayerController(Controller):
         move = self.current_move
 
         if move is None:
+            print("No move!")
             return
 
         # Post physics state copying
@@ -399,13 +401,13 @@ class PlayerController(Controller):
         :returns: None if state is within safe limits else correction'''
         pos_difference = self.pawn.position - move.position
         rot_difference = (move.rotation[-1] - self.pawn.rotation[-1]) ** 2
-        rot_difference = min(rot_difference, (4 * pi ** 2) - rot_difference)
+        rot_difference = min(rot_difference, (4 * (pi ** 2)) - rot_difference)
 
         position_invalid = (pos_difference.length_squared >
                             self.max_position_difference_squared)
         rotation_invalid = (rot_difference >
                             self.max_rotation_difference_squared)
-        if not position_invalid or rotation_invalid:
+        if not (position_invalid or rotation_invalid):
             return
 
         # Create correction if neccessary
@@ -480,8 +482,11 @@ class PlayerController(Controller):
         # Queued moves
         self.buffer = deque()
 
-        self.buffer_length = int(0.08 * WorldInfo.tick_rate)
-        self.buffer_padding = self.buffer_length
+        self.base_dejitter_ticks = round(0.1 * WorldInfo.tick_rate)
+        self.limit_further_ticks = round(0.2 * WorldInfo.tick_rate)
+
+        self.further_dejitter_ticks = 0
+
         self.buffer_filling = True
 
         self.clock_ignore_time = 0.04
@@ -691,23 +696,31 @@ class PlayerController(Controller):
 
         # When we run out of moves, wait till we have enough
         buffer_length = len(self.buffer)
-        buffer_limit = (self.buffer_length + self.buffer_padding)
+        buffer_minimum = self.base_dejitter_ticks + self.further_dejitter_ticks
 
         if not buffer_length:
-            print("Waiting for enough inputs ...")
+            print("Waiting for enough inputs ...{}".format(WorldInfo.tick))
             self.buffer_filling = True
 
         # Prevent too many items filling buffer
-        elif buffer_length > buffer_limit:
+        elif buffer_length > 2 * buffer_minimum:
             print("Received too many inputs, dropping ...")
-            for _ in range(buffer_length - self.buffer_length):
+            for _ in range(buffer_length - buffer_minimum):
                 consume_move()
 
         # Clear buffer filling status when we have enough
         if self.buffer_filling:
-            if len(self.buffer) < self.buffer_length:
+            if len(self.buffer) < buffer_minimum:
                 return
+
+            self.further_dejitter_ticks += round(0.05 * WorldInfo.tick_rate)
             self.buffer_filling = False
+            if self.further_dejitter_ticks > self.limit_further_ticks:
+                self.further_dejitter_ticks = self.limit_further_ticks
+            new_buffer_minimum = self.further_dejitter_ticks + \
+                                    self.base_dejitter_ticks
+
+            #print(new_buffer_minimum)
 
         try:
             buffered_move = self.buffer[0]

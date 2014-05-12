@@ -524,7 +524,7 @@ class TextInput(Widget):
 			isfloat = False
 		
 		if callable(self.on_validate):
-			error = self.on_validate(temp)
+			error = not self.on_validate(temp)
 			
 		else:
 			if self.type == BGUI_INPUT_TEXT:

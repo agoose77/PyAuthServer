@@ -61,8 +61,8 @@ class MouseManager:
 
     @position.setter
     def position(self, position):
-        screen_x = int(position[0] * self.window_size.x)
-        screen_y = int(position[1] * self.window_size.y)
+        screen_x = round(position[0] * self.window_size.x)
+        screen_y = round(position[1] * self.window_size.y)
         render.setMousePosition(screen_x, screen_y)
 
     @property

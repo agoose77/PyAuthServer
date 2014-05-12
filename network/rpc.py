@@ -45,6 +45,9 @@ class RPCInterface:
             raise RuntimeError("Could not package RPC call: '{}'".format(
                                         self._function_name)) from err
 
+    def __repr__(self):
+        return "<RPC Interface {}>".format(self._function_name)
+
     def execute(self, bytes_):
         """Execute RPC from bytes_
         :param bytes_: Byte stream of RPC call"""
@@ -187,4 +190,4 @@ class RPCInterfaceFactory:
                          .format(function.__qualname__, parameter_name))
 
     def __repr__(self):
-        return "<RPC {}>".format(self.original_function.__qualname__)
+        return "<RPC Factory {}>".format(self.original_function.__qualname__)

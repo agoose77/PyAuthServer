@@ -6,6 +6,7 @@ from bge_network.controllers import PlayerController
 from bge_network.signals import ReceiveMessage
 from bge_network.timer import Timer, ManualTimer
 from bge_network.resources import ResourceManager
+from bge_network.utilities import lerp
 
 from .replication_infos import TeamReplicationInfo
 from .signals import *
@@ -13,10 +14,12 @@ from .matchmaker import Matchmaker
 from .ui import *
 
 from bge import logic, render
-from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput
+from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput, BGUI_INPUT_INTEGER
 from blf import dimensions as font_dimensions
 from copy import deepcopy
 from functools import partial
+from time import monotonic
+from socket import inet_aton
 from uuid import uuid4 as random_id
 
 
@@ -65,20 +68,51 @@ def create_adjacent(*elements, full_size=None):
         pos = [pos[0] + size[0], pos[1]]
 
 
-def set_color(component, color):
+def set_colour(widget, colour):
+    """Set the colours of a widget
+
+    :param widget: BGUI widget
+    :param colour: list of new colours"""
     try:
-        component.colors[:] = color
+        widget.colors[:] = colour
 
     except AttributeError:
-        component.color[:] = color[0]
+        widget.color[:] = colour[0]
 
 
-def get_color(component):
+def get_colour(widget):
+    """Get the colours of a widget
+
+    :param widget: BGUI widget
+    :returns: widget colours list"""
     try:
-        return component.colors
+        return widget.colors
 
     except AttributeError:
-        return [component.color]
+        return [widget.color]
+
+
+class DeltaTimeDecorator:
+
+    def __init__(self, func):
+        self.func = func
+        self.last_time = monotonic()
+
+    def __call__(self, *args, **kwargs):
+        now = monotonic()
+        delta_time = now - self.last_time
+        self.last_time = now
+        self.func(delta_time, *args, **kwargs)
+
+
+class FrameRateDecorator:
+
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        average_fps = bge.logic.getAverageFrameRate()
+        self.func(average_fps, *args, **kwargs)
 
 
 class ConnectPanel(Panel):
@@ -123,13 +157,27 @@ class ConnectPanel(Panel):
                                                     pos=[0.0, 0.5]),
                                                dict(text="IP Address"))
 
-        self.addr_input_frame,self.addr_field = create_framed_element(
+        self.addr_input_frame, self.addr_field = create_framed_element(
                   self.connection_row, "addr",
                                                TextInput,
                                                dict(size=[0.4, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
                                                     text="localhost"))
+
+        def _validate_ip(str_):
+            if str_ == "localhost":
+                return True
+
+            try:
+                inet_aton(str_)
+
+            except (OSError, AssertionError):
+                return False
+
+            return True
+
+        self.addr_field.on_validate = _validate_ip
 
         self.port_label_frame, _ = create_framed_element(self.connection_row,
                                               "port",
@@ -144,9 +192,10 @@ class ConnectPanel(Panel):
                                                dict(size=[0.1, 1.0],
                                                     pos=[0.0, 0.5]),
                                                dict(allow_empty=False,
-                                                    text="1200"))
+                                                    text="1200",
+                                                    type=BGUI_INPUT_INTEGER))
         create_adjacent(self.addr_label_frame, self.addr_input_frame,
-                      self.port_label_frame, self.port_input_frame)
+                        self.port_label_frame, self.port_input_frame)
 
         self.error_label_frame, _ = create_framed_element(self.data_row,
                                                 "error",
@@ -171,7 +220,7 @@ class ConnectPanel(Panel):
                                    name="server_controls", size=[0.8, 0.08],
                                    pos=[0.0, 0.69], sub_theme="ContentRow",
                                    options=CENTERX)
- 
+
         self.refresh_button = FrameButton(self.controls_row, "refresh_button",
                                                size=[0.2, 1.0], pos=[0.0, 0.0],
                                                text="Refresh")
@@ -220,61 +269,156 @@ class ConnectPanel(Panel):
         self.servers_box.renderer = TableRenderer(self.servers_box,
                                               labels=self.server_headers)
 
-        # Loading sprite
+        # Load sprite resource
+        ui_resource = ResourceManager.load_resource("UI")
+        sprite_image = ui_resource['sprites']['loading_sprite.tga']
+
+        # Create sprite
         self.sprite = SpriteSequence(self.error_message_frame, "sprite",
-                                     logic.expandPath("//themes/ui/loading_sprite.tga"),
-                                     length=20, loop=True,  size=[0.1, 0.6],
-                                     aspect=1, relative_path=False,
-                                     options=CENTERY)
-        self.sprite_timer = Timer(end=1 / 20, repeat=True)
+                         sprite_image, length=20, loop=True,  size=[0.1, 0.6],
+                         aspect=1, relative_path=False, options=CENTERY)
+
+        # Update sprite
+        self.sprite_timer = Timer(end=0.05, repeat=True)
         self.sprite_timer.on_target = self.sprite.next_frame
 
         # Allows input fields to accept input when not hovered
         self.connection_row.is_listener = True
 
+        # Create event handlers
         self.connect_button.on_click = self.do_connect
         self.refresh_button.on_click = self.do_refresh
-        self.servers_box.on_select = self.do_select
+        self.servers_box.on_select = self.do_select_server
 
+        # Set configuration for sysetms
         self.uses_mouse = True
         self.sprite.visible = False
 
-    def display_error(self, text):
+    @property
+    def address(self):
+        if self.addr_field.invalid:
+            return None
+        return self.addr_field.text
+
+    @address.setter
+    def address(self, address):
+        self.addr_field.text = address
+
+    @property
+    def port(self):
+        if self.port_field.invalid:
+            return None
+        return int(self.port_field.text)
+
+    @port.setter
+    def port(self, port):
+        self.port_field.text = str(port)
+
+    @property
+    def matchmaker_address(self):
+        if self.match_field.invalid:
+            return None
+        return self.match_field.text
+
+    def show_message(self, text):
+        """Writes message text to panel
+
+        :param text: text to display
+        """
         self.error_body_field.text = text
 
     def do_connect(self, button):
-        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
+        """Callback for connection button
+        Invokes a connection signal
+
+        :param button: button that was pressed
+        """
+
+        errors = []
+        if self.address is None:
+            errors.append("address")
+
+        if self.port is None:
+            errors.append("port")
+
+        if errors:
+            tail, *head = errors
+
+            if not head:
+                error_string = tail
+
+            else:
+                error_string = "{} and {}".format(tail, head[0])
+
+            self.show_message("Invalid {}".format(error_string))
+            return
+
+        ConnectToSignal.invoke(self.address, self.port)
         self.sprite.visible = True
 
     def do_refresh(self, button):
-        self.matchmaker.url = self.match_field.text
-        self.matchmaker.perform_query(self.evaluate_servers,
+        """Callback for refresh button
+        Performs a matchmaker refresh query
+
+        :param button: button that was pressed
+        """
+        if self.matchmaker_address is None:
+            self.show_message("Invalid matchmaker address")
+            return
+
+        self.matchmaker.url = self.matchmaker_address
+        self.matchmaker.perform_query(self.on_matchmaker_response,
                                       self.matchmaker.server_query())
         self.sprite.visible = True
 
-    def do_select(self, list_box, entry):
-        data = dict(entry)
+    def do_select_server(self, list_box, entry):
+        """Callback for server selection
+        Updates address and port fields with selection
 
-        self.addr_field.text = data['address']
-        self.port_field.text = data['port']
+        :param list_box: list box containing entry
+        :param entry: server entry that was selected
+        """
+        selection_data = dict(entry)
 
-    def evaluate_servers(self, response):
-        self.servers[:] = [tuple(entry.items()) for entry in response]
-        self.display_error("Refreshed Server List" if self.servers
-                                    else "No Servers Found")
-        self.sprite.visible = False
+        self.address = selection_data['address']
+        self.port = selection_data['port']
 
     @ConnectionSuccessSignal.global_listener
-    def on_connected(self, target):
+    def disable(self):
+        """Callback for connection success
+        Sets panel invisible
+        """
         self.visible = False
 
     @ConnectionErrorSignal.global_listener
-    def on_error_occurred(self, error, target, signal):
-        self.display_error(str(error))
+    def on_connection_failure(self, error):
+        """Callback for connection failure
+        Writes error to display
+
+        :param error: error that occurred
+        """
+        error_string = str(error)
+        self.show_message(error_string)
+
+        self.sprite.visible = False
+
+    def on_matchmaker_response(self, response):
+        """Callback for matchmaker response
+        Updates internal server list and writes status to display
+
+        :param response: matchmaker response dictionary
+        """
+        self.servers[:] = [tuple(entry.items()) for entry in response]
+        self.show_message("Refreshed Server List" if self.servers else
+                          "No Servers Found")
+
         self.sprite.visible = False
 
     def update(self, delta_time):
-#         self.connect_button.frozen = self.port_field.invalid
+        """Updates matchmaker queue
+
+        :param delta_time: time since last update
+        """
         self.matchmaker.update()
 
 
@@ -315,37 +459,16 @@ class TeamPanel(Panel):
         self.uses_mouse = True
         self.visible = False
 
-    def display_error(self, text):
-        self.error_body_field.text = text
-
-    def do_connect(self, button):
-        ConnectToSignal.invoke(self.addr_field.text, int(self.port_field.text))
-        self.sprite.visible = True
-
-    def do_refresh(self, button):
-        self.matchmaker.url = self.match_field.text
-        self.matchmaker.perform_query(self.evaluate_servers,
-                                      self.matchmaker.server_query())
-        self.sprite.visible = True
-
-    def do_select(self, list_box, entry):
-        data = dict(entry)
-
-        self.addr_field.text = data['address']
-        self.port_field.text = data['port']
-
-    def evaluate_servers(self, response):
-        self.servers[:] = [tuple(entry.items()) for entry in response]
-        self.display_error("Refreshed Server List" if self.servers
-                                    else "No Servers Found")
-        self.sprite.visible = False
-
     @ConnectionSuccessSignal.global_listener
-    def on_connected(self, target):
+    def enable(self):
+        """Callback for connection success
+        Sets panel visible"""
         self.visible = True
 
     @TeamSelectionUpdatedSignal.global_listener
-    def on_team_selected(self, target):
+    def disable(self):
+        """Callback for team selection
+        Sets panel invisible"""
         self.visible = False
 
     def update(self, delta_time):
@@ -398,50 +521,41 @@ class TimerMixins:
 
 
 class Notification(TimerMixins, Frame):
-    default_size = [1.0, 0.06]
 
-    def __init__(self, parent, message,
-                 alive_time=5.0,
-                 fade_time=0.25,
-                 font_size=35, **kwargs):
-        super().__init__(parent=parent,
-                         name="notification_{}".format(random_id()),
-                         size=self.default_size[:],
-                         **kwargs)
+    def __init__(self, parent, message, alive_time=5.0, scroll_time=None,
+                 fade_time=0.25, font_size=35, **kwargs):
+
+        random_name = "notification_{}".format(random_id())
+        super().__init__(parent=parent, name=random_name, **kwargs)
+
+        if scroll_time is None:
+            scroll_time = alive_time * 0.9
 
         self.fade_time = fade_time
         self.alive_time = alive_time
+        self.scroll_time = scroll_time
         self.message = message
+
+        has_lifespan = self.alive_time > 0.0
 
         self.middle_bar = Frame(parent=self, name="middle_bar",
                                     size=[1, 1],
                                     options=CENTERED)
 
-        self.message_text = Label(parent=self,
-                                       name="notification_label",
-                                       text=message.upper(),
-                                       options=CENTERED,
-                                       pos=[0.0, 0.0],
-                                       pt_size=font_size, color=[0.1, 0.1, 0.1, 1])
+        self.message_text = Label(parent=self, name="notification_label",
+                                   text=message.upper(), options=CENTERED,
+                                   pos=[0.0, 0.0], pt_size=font_size,
+                                   color=[0.1, 0.1, 0.1, 1])
 
         # Determine if overflowing
-        width_running = 0
-        notification_width = self.size[0]
-        message_widths = self.get_message_widths(self.message_text)
+        self.message_index_end = self.message_overflow_index
 
-        for index, width in enumerate(message_widths):
-            width_running += width
-            if width_running >= notification_width:
-                break
-        else:
-            index = None
-
-        self.message_index_end = index
-
-        if index:
-            self.message_text.text = message[:index]
-            status_timer = ManualTimer(end=self.alive_time * 0.9)
-            status_timer.on_update = partial(self.scroll_message, status_timer)
+        # If we do overflow
+        if self.message_index_end:
+            self.message_text.text = message[:self.message_index_end]
+            status_timer = ManualTimer(end=self.scroll_time,
+                                       repeat=not has_lifespan)
+            status_timer.on_update = partial(self._shift_message, status_timer)
             self.add_timer(status_timer, "scroll")
 
         self.middle_bar.colors = [[1, 1, 1, 0.6]] * 4
@@ -451,72 +565,98 @@ class Notification(TimerMixins, Frame):
 
         # Record of components
         components = [self.middle_bar, self.message_text]
-        component_colors = [deepcopy(get_color(c)) for c in components]
+        component_colors = [deepcopy(get_colour(c)) for c in components]
         self.components = dict(zip(components, component_colors))
 
         # Add alive timer
-        status_timer = ManualTimer(end=self.alive_time)
-        status_timer.on_target = self.alive_expired
-        self.add_timer(status_timer, "status")
+        if has_lifespan:
+            status_timer = ManualTimer(end=self.alive_time)
+            status_timer.on_target = self.on_expired
+            self.add_timer(status_timer, "status")
 
         self.on_death = None
         self.is_visible = None
 
-    def get_message_widths(self, label):
+    def _shift_message(self, timer):
+        """Scrolls message text according to timer
+
+        :param timer: Timer instance
+        """
+        message = self.message
+        character_limit = self.message_index_end
+
+        maximum_offset = len(message) - character_limit
+        message_offset = round(timer.progress * maximum_offset)
+
+        self.message_text.text = message[message_offset:
+                                         message_offset + character_limit]
+
+    @property
+    def message_overflow_index(self):
+        width_running = 0
+        notification_width = self.size[0]
+        message_widths = self.get_blf_message_widths(self.message_text)
+
+        for index, width in enumerate(message_widths):
+            width_running += width
+            if width_running >= notification_width:
+                return index
+
+    def fade(self, interval=0.5, out=True):
+        """Fades notification in/out
+
+        :param interval: time interval
+        :param out: fade out[|fade in]
+        """
+
+        def _update_fade():
+            """Interpolate between initial alpha and target alpha"""
+            alpha = (1 - fade_timer.progress) if out else fade_timer.progress
+            for (component, colours) in self.components.items():
+
+                colour = []
+                for corner in colours:
+                    new_corner = corner.copy()
+                    new_corner[-1] *= alpha
+
+                    colour.append(new_corner)
+
+                set_colour(component, colour)
+
+        fade_timer = ManualTimer(end=interval)
+        fade_timer.on_update = _update_fade
+
+        self.add_timer(fade_timer, "fader_{}".format("out" if out else "in"))
+
+    def get_blf_message_widths(self, label):
+        """Determines the width of a label in pixels
+
+        :param label: BGUI label instance
+        """
         return [(font_dimensions(label.fontid, char * 20)[0] / 20)
                 for char in label.text]
 
-    def scroll_message(self, timer):
-        message = self.message
-        message_limit = self.message_index_end
-        max_shift = len(message) - message_limit
-        shift_index = round(timer.progress * max_shift)
-        self.message_text.text = message[shift_index:
-                                         shift_index + message_limit]
+    def move_to(self, position, interval=0.5, note_position=True):
+        """Moves notification to a new position
 
-    def _interpolate(self, target, factor):
-        factor = min(max(0.0, factor), 1.0)
-        i_x, i_y = self.initial_position
+        :param position: position to move towards
+        :param interval: duration of movement
+        :param note_position: start from current position(optional)
+        """
 
-        diff_x = target[0] - i_x
-        diff_y = target[1] - i_y
-
-        return [i_x + (diff_x * factor), i_y + (diff_y * factor)]
-
-    def fade_opacity(self, interval=0.5, out=True):
-        fade_timer = ManualTimer(end=interval)
-
-        def update_fade():
-            alpha = (1 - fade_timer.progress) if out else fade_timer.progress
-            for (component, colour) in self.components.items():
-                new_colour = [[corner[0], corner[1], corner[2], alpha * corner[3]]
-                              for corner in colour]
-                set_color(component, new_colour)
-
-        fade_timer.on_update = update_fade
-        self.add_timer(fade_timer, "fade_{}".format("out" if out else "in"))
-
-    def alive_expired(self):
-        # Update position
-        target = [self.initial_position[0] + 0.2, self.initial_position[1]]
-
-        self.move_to(target, self.fade_time, note_position=False)
-        self.fade_opacity(self.fade_time, out=True)
-
-        death_timer = ManualTimer(end=self.fade_time)
-        death_timer.on_target = self.on_cleanup
-
-        self.add_timer(death_timer, "death_timer")
-
-    def move_to(self, target, interval=0.5, note_position=True):
-        '''Moves notification to a new position'''
-
-        def update_position():
+        def _interpolate_position():
+            """Interpolate between initial position and target position"""
+            initial = self.initial_position
             factor = move_timer.progress
-            self.position = self._interpolate(target, factor)
+
+            x_initial, y_initial = initial
+            x_final, y_final = position
+
+            self.position = [lerp(x_initial, x_final, factor),
+                        lerp(y_initial, y_final, factor)]
 
         move_timer = ManualTimer(end=interval)
-        move_timer.on_update = update_position
+        move_timer.on_update = _interpolate_position
 
         if note_position:
             self.initial_position = self._base_pos[:]
@@ -524,21 +664,38 @@ class Notification(TimerMixins, Frame):
         self.add_timer(move_timer, "mover")
 
     def on_cleanup(self):
-        '''Remove any circular references'''
+        """Remove any circular references"""
         _on_death = self.on_death
         del self.on_death
         del self.is_visible
         if callable(_on_death):
             _on_death()
 
+    def on_expired(self):
+        """Callback for notification expiry"""
+        # Update position
+        target = [self.initial_position[0] + 0.2, self.initial_position[1]]
+
+        self.move_to(target, self.fade_time, note_position=False)
+        self.fade(self.fade_time, out=True)
+
+        death_timer = ManualTimer(end=self.fade_time)
+        death_timer.on_target = self.on_cleanup
+
+        self.add_timer(death_timer, "death_timer")
+
     def update(self, delta_time):
-        '''Update all active timers'''
+        """Update all active timers
+        Handle visibility transitions
+
+        :param delta_time: time since last update
+        """
         if callable(self.is_visible):
             _visible = self.visible
             self.visible = self.is_visible()
             became_visible = self.visible and not self._visible
             if became_visible:
-                self.fade_opacity(self.fade_time, out=False)
+                self.fade(self.fade_time, out=False)
 
         super().update(delta_time)
 
@@ -551,8 +708,10 @@ class UIPanel(TimerMixins, Panel):
         self._notifications = []
         self._free_slot = []
 
-        self.start_position = [1 - Notification.default_size[0],
-                               1 - Notification.default_size[1]]
+        self._notification_size = [1.0, 0.06]
+
+        self.start_position = [1 - self._notification_size[0],
+                               1 - self._notification_size[1]]
         self.entry_padding = 0.02
         self.panel_padding = 0.01
 
@@ -561,7 +720,7 @@ class UIPanel(TimerMixins, Panel):
         self.light_grey = [0.3, 0.3, 0.3, 1]
         self.faded_grey = [0.3, 0.3, 0.3, 0.3]
         self.faded_white = [1, 1, 1, 0.6]
-        self.error_red = [1, 0.05, 0.05, 1]
+        self.concern_colour = [1, 0.05, 0.05, 1]
         self.font_size = 32
 
         main_size = [0.2, 0.8]
@@ -571,6 +730,17 @@ class UIPanel(TimerMixins, Panel):
         self.notifications_frame = Frame(parent=self, name="NotificationsPanel",
                                         size=main_size[:], pos=main_pos[:])
         self.notifications_frame.colors = [self.faded_grey] * 4
+
+        # Framerate graph
+        self.graph = Graph(self, "GRAPH", size=[0.1, 0.1], options=CENTERED,
+                           resolution=0.1, scale=60)
+        self.graph_scale = Label(self.graph, "GraphLabel", text="",
+                                 pos=[-0.1, 0.85], pt_size=20)
+        self.graph_base = Label(self.graph, "GraphBase", text="0",
+                                pos=[-0.07, 0.00], pt_size=20)
+
+        callback_framerate = FrameRateDecorator(self.graph.plot)
+        self.plot_framerate = DeltaTimeDecorator(callback_framerate)
 
         self.weapons_box = Frame(self, "weapons", size=[main_size[0], 0.25],
                                       pos=[main_pos[0], 0.025])
@@ -742,18 +912,24 @@ class UIPanel(TimerMixins, Panel):
                                         pos=[0.0, 0.0], options=CENTERED)
         self.health_indicator.color[-1] = 0.0
 
-    @UIWeaponDataChangedSignal.global_listener
-    def update_entry(self, name, value):
-        value_field = self.entries[name][1]
-        value_field.text = str(value)
+    def _create_concern_animation(self, widget):
+        """Creates a colour changing animation for a BGUI widget
 
-    def create_glow_animation(self, entry):
-        glow = ManualTimer(1, repeat=True)
-        self.add_timer(glow, "glow")
+        :param widget: BGUI widget
+        """
+        def _update_colour():
+            """Interpolate the alpha channel of a widgets colour
+            Set other channels to error colour
+            """
+            colour = self.concern_colour.copy()
+            colour[-1] = 1 - timer.progress
+            widget.colors = [colour] * 4
 
-        glow.on_update = partial(self.update_error_colour,
-                                 entry, glow)
-        return glow
+        timer = ManualTimer(1.0, repeat=True)
+        timer.on_update = _update_colour
+
+        self.add_timer(timer, "concern_timer")
+        return timer
 
     @property
     def icon_colour(self):
@@ -763,77 +939,16 @@ class UIPanel(TimerMixins, Panel):
     def icon_colour(self, value):
         self.icon_theme.colors = create_gradient(value, 1 / 3)
 
-    @TeamSelectionUpdatedSignal.global_listener
-    def on_team_selected(self, target):
-        self.visible = True
-
-    @UIHealthChangedSignal.global_listener
-    def on_health_changed(self, health):
-        self.health_indicator.color[-1] = 1 - (health/100)
-
-    @UIWeaponChangedSignal.global_listener
-    def on_weapon_changed(self, weapon):
-        weapon_name = weapon.__class__.__name__
-        icon_relative_path = weapon.resources["icon"][weapon.icon_path]
-        icon_path = ResourceManager.from_relative_path(icon_relative_path)
-
-        self.weapon_name.text = weapon_name
-        self.weapon_icon.update_image(icon_path)
-        self.icon_colour = weapon.theme_colour
-
-    def update_error_colour(self, entry, timer):
-        err = (self.error_red[0], self.error_red[1],
-               self.error_red[2], 1 - timer.progress)
-        entry.colors = [err] * 4
-
-    def update(self, delta_time):
-        concern_tag = "0"
-
-        for notification in self._notifications[:]:
-            notification.update(delta_time)
-
-        # Handle sliding up when deleting notifications_frame
-        y_shift = Notification.default_size[1] + self.entry_padding
-        for index, notification in enumerate(self._notifications):
-            intended_y = self.start_position[1] - (index * y_shift)
-            position_y = notification.initial_position[1]
-
-            if (position_y == intended_y):
-                continue
-
-            notification.move_to([self.start_position[0], intended_y])
-
-        # Create any alert timers
-        create_notification = self.create_notification
-        create_glow = self.create_glow_animation
-        concerns = self.handled_concerns
-
-        for name, (field, label) in self.entries.items():
-            if label.text != concern_tag or name in concerns:
-                continue
-
-            create_notification("Ran out of {}!".format(name),
-                                 alive_time=10)
-            concerns[name] = create_glow(field)
-
-        # Check for handled timers
-        handled = []
-        for name, timer in concerns.items():
-            field, label = self.entries[name]
-
-            # Concern is no longer valid
-            if label.text != concern_tag:
-                timer.stop()
-                handled.append(name)
-
-        # Remove handled UI timers
-        for handled_name in handled:
-            concerns.pop(handled_name)
-
-        super().update(delta_time)
-
     @ReceiveMessage.global_listener
-    def create_notification(self, message, alive_time=5.0):
+    def create_notification(self, message, *args, **kwargs):
+        """Creates and adds a Notification instance to the UI
+
+        :param message: message to display
+        :param *args: additional arguments
+        :param **kwargs: additional keyword arguments
+        :returns: Notification instance
+        """
+
         if self._notifications:
             position = self._notifications[-1].initial_position
             position = [position[0], position[1] -
@@ -845,19 +960,161 @@ class UIPanel(TimerMixins, Panel):
         # Apply padding
         position[1] -= self.entry_padding
 
-        notification = Notification(self.notifications_frame, message, pos=position,
-                                    alive_time=alive_time, font_size=self.font_size)
+        notification = Notification(self.notifications_frame, *args,
+                                    pos=position, message=message,
+                                    font_size=self.font_size,
+                                    size=self._notification_size,
+                                    **kwargs)
+
+        # Catch death event
+        notification.on_death = lambda: self.delete_notification(notification)
+        notification.is_visible = lambda: bool(notification.position[1] >
+                                          self.notifications_frame.position[1])
         notification.visible = False
 
         self._notifications.append(notification)
-        notification.on_death = lambda: self.delete_notification(notification)
-        notification.is_visible = lambda: bool(notification.position[1] >
-                                               self.notifications_frame.position[1])
         return notification
 
     def delete_notification(self, notification):
+        """Removes notification from the UI
+
+        :param notification: Notification instance
+        """
         self._notifications.remove(notification)
         self.notifications_frame._remove_widget(notification)
+
+    @TeamSelectionUpdatedSignal.global_listener
+    def enable(self, target):
+        """Callback for team selection
+        Sets panel visible
+        """
+        self.visible = True
+
+    def is_concerning(self, name, field, label):
+        """Test for UI entry concern status
+
+        :param name: name of entry
+        :param field: drawn field of entry
+        :param label: text label of entry
+        :returns: result boolean
+        """
+        if label.text == "0":
+            return True
+
+    @UIHealthChangedSignal.global_listener
+    def on_health_changed(self, health, full_health=100):
+        """Callback for health change
+
+        :param health: health value
+        :param full_health: full health value (optional)
+        """
+        health_fraction = health / full_health
+        self.health_indicator.color[-1] = 1 - health_fraction
+
+    @UIWeaponChangedSignal.global_listener
+    def on_weapon_changed(self, weapon):
+        """Callback for weapon change
+
+        :param weapon: weapon instance
+        """
+        weapon_name = weapon.__class__.__name__
+        icon_relative_path = weapon.resources["icon"][weapon.icon_path]
+        icon_path = ResourceManager.from_relative_path(icon_relative_path)
+
+        # Set name of new weapon
+        self.weapon_name.text = weapon_name
+
+        # Set icon of new weapon
+        self.weapon_icon.update_image(icon_path)
+
+        # Set colour of checker board background
+        self.icon_colour = weapon.theme_colour
+
+    def raise_concern(self, name, field, label):
+        """Callback for UI entry which invokes a concern
+
+        :param name: name of entry
+        :param field: drawn field of entry
+        :param label: text label of entry
+        """
+        self.create_notification("Ran out of {}!".format(name), alive_time=10)
+
+    def update(self, delta_time):
+        """Update game user interface
+
+        :param delta_time: time since last update
+        """
+        # Update a copy, so that we don't mutate whilst iterating
+        for notification in self._notifications[:]:
+            notification.update(delta_time)
+
+        # Update positions due to deletion/addition
+        self.update_positions()
+
+        # Update any animation for alertable resources
+        self.update_concerns()
+
+        self.plot_framerate()
+        self.graph_scale.text = str(self.graph.scale)
+
+        super().update(delta_time)
+
+    def update_concerns(self):
+        """Considers all registered entries for concerns"""
+        # Create any alert timers
+        create_concern = self._create_concern_animation
+        concerns = self.handled_concerns
+        is_concerning = self.is_concerning
+        raise_concern = self.raise_concern
+
+        for name, (field, label) in self.entries.items():
+            if name in concerns or not is_concerning(name, field, label):
+                continue
+
+            raise_concern(name, field, label)
+            concerns[name] = create_concern(field)
+
+        # Check for handled timers
+        handled = []
+        for name, timer in concerns.items():
+            field, label = self.entries[name]
+
+            # Concern is no longer valid
+            if not is_concerning(name, field, label):
+                timer.stop()
+                handled.append(name)
+
+        # Remove handled UI timers
+        for handled_name in handled:
+            concerns.pop(handled_name)
+
+    @UIWeaponDataChangedSignal.global_listener
+    def update_entry(self, name, value):
+        """Update value of a registered entry
+
+        :param name: name of registered entry
+        :param value: new value for entry
+        """
+        value_field = self.entries[name][1]
+        value_field.text = str(value)
+
+    def update_positions(self):
+        """Update notification positions to account for individual changes"""
+        # Handle sliding up when deleting notifications_frame
+
+        x_offset, y_offset = self.start_position
+
+        for index, notification in enumerate(self._notifications):
+            y_step = self.entry_padding + notification._base_size[1]
+
+            calculated_y = y_offset - (index * y_step)
+            position_y = notification.initial_position[1]
+
+            if (position_y == calculated_y):
+                continue
+
+            new_position = [x_offset, calculated_y]
+            notification.move_to(new_position)
 
 
 class BGESystem(System):
@@ -865,10 +1122,11 @@ class BGESystem(System):
     def __init__(self):
         super().__init__()
 
+        self.choose_team = TeamPanel(self)
         self.connect_panel = ConnectPanel(self)
         self.ui_panel = UIPanel(self)
-        self.choose_team = TeamPanel(self)
 
     @ConnectionSuccessSignal.global_listener
-    def invoke(self, *args, **kwargs):
-        ReceiveMessage.invoke("Connected to server", alive_time=4)
+    def invoke(self, target):
+        ReceiveMessage.invoke("Connected to {}".format(target.instance_id),
+                              alive_time=-1, scroll_time=4)

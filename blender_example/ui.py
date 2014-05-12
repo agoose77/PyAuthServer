@@ -1,10 +1,13 @@
 import bge
 import bgui
 
+from bgl import *
+
 from os import path, listdir
 
 from collections import OrderedDict
 from network import SignalListener
+from math import ceil
 
 CENTERY = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERX
@@ -70,7 +73,7 @@ class TableRenderer(bgui.ListBoxRenderer):
         return self.frame
 
 
-class System(bgui.System, SignalListener):
+class System(SignalListener, bgui.System):
 
     def __init__(self):
         theme_path = bge.logic.expandPath("//themes")
@@ -215,3 +218,184 @@ class Panel(SignalListener, bgui.Frame):
 
     def update(self, delta_time):
         pass
+
+
+class Graph(bgui.Frame):
+    """Graph widget"""
+    theme_section = 'Graph'
+    theme_options = {
+                'Color1': (0, 0, 0, 0.5),
+                'Color2': (0, 0, 0, 0),
+                'Color3': (0, 0, 0, 0),
+                'Color4': (0, 0, 0, 0),
+                'BorderSize': 1,
+                'BorderColor': (0, 0, 0, 1),
+                }
+
+    def __init__(self, parent, name, border=None, aspect=None, size=[1,1],\
+            pos=[0,0], sub_theme='', options=bgui.BGUI_DEFAULT, resolution=1.0,\
+            scale=None, length=1.0):
+        """
+        :param parent: the widget's parent
+        :param name: the name of the widget
+        :param aspect: constrain the widget size to a specified aspect ratio
+        :param size: a tuple containing the width and height
+        :param pos: a tuple containing the x and y position
+        :param sub_theme: name of a sub_theme defined in the theme file (similar to CSS classes)
+        :param options: various other options
+
+        """
+        super().__init__(parent, name, border, aspect, size, pos,
+                        sub_theme, options)
+
+        self._scale = scale
+        self._resolution = resolution
+        self._length = length
+
+        self._points = []
+        self._frame_time = 0.0
+        self._start_height = 0
+
+    @property
+    def scale(self):
+        if self._points and self._scale is None:
+            return ceil(max((y_value for y_value, _ in self._points)))
+        return self._scale
+
+    @scale.setter
+    def scale(self, scale):
+        self._scale = scale
+
+    @property
+    def length(self):
+        return self._length
+
+    @length.setter
+    def length(self, length):
+        self._length = length
+
+    @property
+    def resolution(self):
+        return self._resolution
+
+    @resolution.setter
+    def resolution(self, resolution):
+        self._resolution = resolution
+
+    def add_vertex(self, vertex, delta_time):
+        self._points.append((vertex, delta_time))
+        self._frame_time += delta_time
+
+    def remove_vertex(self):
+        point, delta_time = self._points.pop(0)
+        self._frame_time -= delta_time
+        self._start_height = point
+
+    def update_scrolling(self):
+        while self._points and (self._frame_time - self._points[0][1] >
+                               self._length):
+            self.remove_vertex()
+
+    def plot(self, vertex, delta_time):
+        self.add_vertex(vertex, delta_time)
+        self.update_scrolling()
+
+    def _draw_frame(self):
+        # Enable alpha blending
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+        # Enable polygon offset
+        glEnable(GL_POLYGON_OFFSET_FILL)
+        glPolygonOffset(1.0, 1.0)
+
+        glBegin(GL_QUADS)
+        for i in range(4):
+            glColor4f(self.colors[i][0], self.colors[i][1], self.colors[i][2], self.colors[i][3])
+            glVertex2f(self.gl_position[i][0], self.gl_position[i][1])
+        glEnd()
+
+        glDisable(GL_POLYGON_OFFSET_FILL)
+
+    def _get_straddling_points(self, time):
+        total_frame_time = 0.0
+        previous_frame = None
+        frame = None
+
+        for point, delta_time in self._points:
+            frame = point, total_frame_time
+            if total_frame_time >= time:
+                return previous_frame, frame
+
+            previous_frame = point, total_frame_time
+            total_frame_time += delta_time
+
+    def _draw_points(self):
+        glColor4f(1,1,1,1)
+        glBegin(GL_LINE_STRIP)
+
+        x_size, y_size = self._size
+        x_pos, y_pos = self._position
+        window_time = self.length
+        scale_factor = self.scale
+
+        if not self._points:
+            return
+
+        glVertex2f(x_pos, min(self._start_height / self.scale, 1) * y_size + y_pos)
+
+        steps = round(x_size * self.resolution)
+
+        for step in range(steps):
+            x_i_pos = round(step / self.resolution)
+            time = (x_i_pos / x_size) * window_time
+
+            result = self._get_straddling_points(time)
+
+            if result is None:
+                continue
+
+            previous_frame, next_frame = result
+
+            if previous_frame is None:
+                continue
+
+            next_y_coordinate, next_time = next_frame
+            previous_y_coordinate, previous_time = previous_frame
+
+            time_difference = next_time - previous_time
+            time_to_step = time - previous_time
+            position_difference = next_y_coordinate - previous_y_coordinate
+
+            lerp_y_factor = (time_to_step / time_difference)
+            lerp_y_value = previous_y_coordinate + position_difference * lerp_y_factor
+
+            lerp_y_scaled = min(lerp_y_value / scale_factor, 1) * y_size
+
+            glVertex2f(x_i_pos + x_pos, y_pos + lerp_y_scaled)
+
+        glEnd()
+
+    def _draw_border(self):
+        r, g, b, a = self.border_color
+        glColor4f(r, g, b, a)
+        glPolygonMode(GL_FRONT, GL_LINE)
+        glLineWidth(self.border)
+
+        glBegin(GL_QUADS)
+        for i in range(4):
+            glVertex2f(self.gl_position[i][0], self.gl_position[i][1])
+
+        glEnd()
+
+        glLineWidth(1.0)
+        glPolygonMode(GL_FRONT, GL_FILL)
+
+    def _draw(self):
+        """Draw the frame"""
+        self._draw_frame()
+        self._draw_points()
+        if self.border > 0:
+            self._draw_border()
+
+        bgui.Widget._draw(self)

@@ -80,6 +80,17 @@ class Actor(BGEActorBase, Replicable):
         super().on_unregistered()
 
     @simulated
+    def get_direction(self, axis):
+        vect = [0, 0, 0]
+        if axis == Axis.x:
+            vect[0] = 1
+        elif axis == Axis.y:
+            vect[1] = 1
+        elif axis == Axis.z:
+            vect[2] = 1
+        return Vector(self.object.getAxisVect(vect))
+
+    @simulated
     def on_replicated_position(self, position):
         difference = position - self.position
         is_minor_difference = difference.length_squared < 4

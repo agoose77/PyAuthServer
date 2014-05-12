@@ -17,9 +17,11 @@ __all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
 
 
 RewindState = namedtuple("RewindState", "position rotation animations")
-
+from network.connection_interfaces import ConnectionInterface
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
+
+    render = True
 
     def __init__(self):
         super().__init__()
@@ -41,6 +43,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.current_time = 0.0
         self.last_sent_time = 0
         self.network_tick_rate = 25
+
+        self.metric_interval = 0.10
 
         self.profile = logic.KX_ENGINE_DEBUG_SERVICES
         self.can_quit = SignalValue(self.check_quit())
@@ -102,9 +106,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         Replicable.update_graph()
         Signal.update_graph()
 
-    def update_scene(self, scene, current_time, delta_time):
+    def update_scene(self, scene, delta_time):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
-        self.update_logic_bricks(current_time)
+        self.update_logic_bricks(self.current_time)
 
         if scene == self.network_scene:
             self.update_graphs()
@@ -131,24 +135,29 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.update_graphs()
 
             self.profile = logic.KX_ENGINE_DEBUG_ANIMATIONS
-            self.update_animations(current_time)
+            self.update_animations(self.current_time)
 
             self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
-            is_full_update = ((current_time - self.last_sent_time)
+            is_full_update = ((self.current_time - self.last_sent_time)
                                >= (1 / self.network_tick_rate))
 
             if is_full_update:
-                self.last_sent_time = current_time
+                self.last_sent_time = self.current_time
 
             self.network_system.send(is_full_update)
+
+            if self.network_system.metric_age >= self.metric_interval:
+                #print(self.network_system.send_rate, " : ", self.network_system.receive_rate, len(ConnectionInterface))
+                self.network_system.reset_metrics()
+
             self.update_graphs()
 
         else:
             self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
-            self.update_physics(current_time, delta_time)
+            self.update_physics(self.current_time, delta_time)
 
             self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)
-            self.update_scenegraph(current_time)
+            self.update_scenegraph(self.current_time)
 
     def on_quit(self):
         self.can_quit.value = True
@@ -188,7 +197,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
                 # Update all scenes
                 for scene in self.scenes:
-                    self.update_scene(scene, current_time, step_time)
+                    self.update_scene(scene, step_time)
 
                 # End of frame updates
                 self.profile = logic.KX_ENGINE_DEBUG_SERVICES
@@ -197,13 +206,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 self.update_mouse()
                 self.update_scenes()
 
-                if self.use_tick_rate:
+                if self.use_tick_rate and self.render:
                     self.update_render()
 
                 self.current_time += step_time
                 accumulator -= step_time
 
-            if not self.use_tick_rate:
+            if not self.use_tick_rate and self.render:
                 self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
                 self.update_render()
 
@@ -235,6 +244,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
 
 class ServerGameLoop(GameLoop):
+
+    render = False
 
     def __init__(self):
         super().__init__()
@@ -297,8 +308,8 @@ class ServerGameLoop(GameLoop):
         if len(self._rewind_data) > self._rewind_length:
             self._rewind_data.popitem(last=False)
 
-    def update_scene(self, scene, current_time, delta_time):
-        super().update_scene(scene, current_time, delta_time)
+    def update_scene(self, scene, delta_time):
+        super().update_scene(scene, delta_time)
 
         self.save_pawn_states(WorldInfo.tick)
 

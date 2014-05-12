@@ -12,7 +12,12 @@ class BGEResourceManager(IResourceManager):
 
     def load_resource(self, name):
         resource_folder = path.join(self.data_path, name)
-        _, *resource_groups = list(walk(resource_folder))
+        try:
+            _, *resource_groups = list(walk(resource_folder))
+
+        except ValueError as err:
+            raise LookupError("{} could not be found in data path"
+                              .format(name)) from err
 
         resources = {}
         for file_path, _, files in resource_groups:

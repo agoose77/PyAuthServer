@@ -8,6 +8,8 @@ from .network_struct import Struct
 from .serialiser import *
 
 
+__all__ = ["SerialiserTest", "run_tests"]
+
 class SerialiserTest(unittest.TestCase):
 
     int_value_8bit = 178
@@ -25,7 +27,7 @@ class SerialiserTest(unittest.TestCase):
     float_bytes = b'@\x90\x02\x00\x00\x00\x00\x00'
     float_value = 1024.5
 
-    struct_bytes = b'\x15\x05\x07\nTestStruct@@\x00\x00@\x00\x00\x00'
+    struct_bytes = b'\x14\x07\nTestStruct@@\x00\x00@\x00\x00\x00'
 
     bitfield_list = [False, True, False, True, False, True, True, False]
     bitfield_fixed_value = b'j'
@@ -179,5 +181,5 @@ class SerialiserTest(unittest.TestCase):
                          self.float_value)
 
 
-def main():
+def run_tests():
     unittest.main(module="network.testing", exit=False)

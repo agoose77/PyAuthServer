@@ -21,7 +21,7 @@ def lerp(a, b, factor):
     :param b: second term
     :param factor: interpolation factor
     :returns: interpolated value'''
-    return a + (b - a) * factor
+    return a + (b - a) * clamp(0, 1, factor)
 
 
 def mean(iterable):
