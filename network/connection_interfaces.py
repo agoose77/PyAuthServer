@@ -268,22 +268,22 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
-    def receive(self, bytes_):
+    def receive(self, bytes_string):
         """Handles received bytes from peer
 
-        :param bytes_: data from peer"""
+        :param bytes_string: data from peer"""
 
         # Get the sequence id
-        sequence = self.sequence_handler.unpack_from(bytes_)
-        bytes_ = bytes_[self.sequence_handler.size():]
+        sequence = self.sequence_handler.unpack_from(bytes_string)
+        bytes_string = bytes_string[self.sequence_handler.size():]
 
         # Get the base value for the bitfield
-        ack_base = self.sequence_handler.unpack_from(bytes_)
-        bytes_ = bytes_[self.sequence_handler.size():]
+        ack_base = self.sequence_handler.unpack_from(bytes_string)
+        bytes_string = bytes_string[self.sequence_handler.size():]
 
         # Read the acknowledgement bitfield
-        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_)
-        bytes_ = bytes_[self.ack_packer.size(bytes_):]
+        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_string)
+        bytes_string = bytes_string[self.ack_packer.size(bytes_string):]
 
         # Dictionary of packets waiting for acknowledgement
         self.update_reliable_info(ack_base, self.ack_bitfield)
@@ -301,7 +301,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.last_received = monotonic()
 
         # Handle received packets
-        PacketCollection.iter_bytes(bytes_, self.handle_packet)
+        PacketCollection.iter_bytes(bytes_string, self.handle_packet)
 
 
 @netmode_switch(Netmodes.server)  # @UndefinedVariable
@@ -439,8 +439,8 @@ class ClientInterface(ConnectionInterface):
             err = NetworkError("Failed to determine handshake protocol")
             ConnectionErrorSignal.invoke(err, target=self)
 
-    def receive(self, bytes_):
-        super().receive(bytes_)
+    def receive(self, bytes_string):
+        super().receive(bytes_string)
 
         if self.connection:
             self.connection.received_all()

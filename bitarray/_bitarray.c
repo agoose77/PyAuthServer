@@ -1609,7 +1609,7 @@ bitarray_frombytes(bitarrayobject *self, PyObject *string)
     Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(frombytes_doc,
+PyDoc_STRVAR(frombytes_stringdoc,
 "frombytes(bytes)\n\
 \n\
 Append from a byte string, interpreted as machine values.");
@@ -1622,7 +1622,7 @@ bitarray_tobytes(bitarrayobject *self)
     return PyString_FromStringAndSize(self->ob_item, Py_SIZE(self));
 }
 
-PyDoc_STRVAR(tobytes_doc,
+PyDoc_STRVAR(tobytes_stringdoc,
 "tobytes() -> bytes\n\
 \n\
 Return the byte representation of the bitarray.\n\
@@ -2453,7 +2453,7 @@ bitarray_methods[] = {
     {"fromfile",     (PyCFunction) bitarray_fromfile,    METH_VARARGS,
      fromfile_doc},
     {"frombytes",    (PyCFunction) bitarray_frombytes,   METH_O,
-     frombytes_doc},
+     frombytes_stringdoc},
     {"index",        (PyCFunction) bitarray_index,       METH_VARARGS,
      index_doc},
     {"insert",       (PyCFunction) bitarray_insert,      METH_VARARGS,
@@ -2484,7 +2484,7 @@ bitarray_methods[] = {
     {"tolist",       (PyCFunction) bitarray_tolist,      METH_NOARGS,
      tolist_doc},
     {"tobytes",      (PyCFunction) bitarray_tobytes,     METH_NOARGS,
-     tobytes_doc},
+     tobytes_stringdoc},
     {"to01",         (PyCFunction) bitarray_to01,        METH_NOARGS,
      to01_doc},
     {"unpack",       (PyCFunction) bitarray_unpack,      METH_VARARGS |
@@ -2983,7 +2983,7 @@ bits2bytes(PyObject *self, PyObject *v)
     return PyLong_FromLongLong(BYTES(n));
 }
 
-PyDoc_STRVAR(bits2bytes_doc,
+PyDoc_STRVAR(bits2bytes_stringdoc,
 "bits2bytes(n) -> int\n\
 \n\
 Return the number of bytes necessary to store n bits.");
@@ -3012,7 +3012,7 @@ tuple(sizeof(void *),\n\
 
 static PyMethodDef module_functions[] = {
     {"bitdiff",    (PyCFunction) bitdiff,    METH_VARARGS, bitdiff_doc   },
-    {"bits2bytes", (PyCFunction) bits2bytes, METH_O,       bits2bytes_doc},
+    {"bits2bytes", (PyCFunction) bits2bytes, METH_O,       bits2bytes_stringdoc},
     {"_sysinfo",   (PyCFunction) sysinfo,    METH_NOARGS,  sysinfo_doc   },
     {NULL,         NULL}  /* sentinel */
 };

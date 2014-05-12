@@ -38,8 +38,8 @@ class Matchmaker(SignalListener):
 
     def perform_query(self, callback=None, data=None, is_json=True):
         if data is not None:
-            bytes_data = [(a.encode(), str(b).encode()) for (a, b) in data]
-            parsed_data = parse.urlencode(bytes_data).encode()
+            bytes_stringdata = [(a.encode(), str(b).encode()) for (a, b) in data]
+            parsed_data = parse.urlencode(bytes_stringdata).encode()
 
         else:
             parsed_data = None

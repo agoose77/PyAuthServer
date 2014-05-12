@@ -13,16 +13,16 @@ __all__ = ["SerialiserTest", "run_tests"]
 class SerialiserTest(unittest.TestCase):
 
     int_value_8bit = 178
-    int_bytes_8bit = b'\xb2'
+    int_bytes_string8bit = b'\xb2'
 
     int_value_16bit = 41593
-    int_bytes_16bit = b'\xa2y'
+    int_bytes_string16bit = b'\xa2y'
 
     int_value_32bit = 1938475617
-    int_bytes_32bit = b's\x8a\xcaa'
+    int_bytes_string32bit = b's\x8a\xcaa'
 
     int_value_64bit = 12398745609812398176
-    int_bytes_64bit = b'\xac\x111p\xd5MP`'
+    int_bytes_string64bit = b'\xac\x111p\xd5MP`'
 
     float_bytes = b'@\x90\x02\x00\x00\x00\x00\x00'
     float_value = 1024.5
@@ -142,34 +142,34 @@ class SerialiserTest(unittest.TestCase):
 
     def test_pack_int_64bit(self):
         self.assertEqual(UInt64.pack(self.int_value_64bit),
-                         self.int_bytes_64bit)
+                         self.int_bytes_string64bit)
 
     def test_pack_int_32bit(self):
         self.assertEqual(UInt32.pack(self.int_value_32bit),
-                         self.int_bytes_32bit)
+                         self.int_bytes_string32bit)
 
     def test_pack_int_16bit(self):
         self.assertEqual(UInt16.pack(self.int_value_16bit),
-                         self.int_bytes_16bit)
+                         self.int_bytes_string16bit)
 
     def test_pack_int_8bit(self):
         self.assertEqual(UInt8.pack(self.int_value_8bit),
-                         self.int_bytes_8bit)
+                         self.int_bytes_string8bit)
 
     def test_unpack_int_64bit(self):
-        self.assertEqual(UInt64.unpack(self.int_bytes_64bit),
+        self.assertEqual(UInt64.unpack(self.int_bytes_string64bit),
                          self.int_value_64bit)
 
     def test_unpack_int_32bit(self):
-        self.assertEqual(UInt32.unpack(self.int_bytes_32bit),
+        self.assertEqual(UInt32.unpack(self.int_bytes_string32bit),
                          self.int_value_32bit)
 
     def test_unpack_int_16bit(self):
-        self.assertEqual(UInt16.unpack(self.int_bytes_16bit),
+        self.assertEqual(UInt16.unpack(self.int_bytes_string16bit),
                          self.int_value_16bit)
 
     def test_unpack_int_8bit(self):
-        self.assertEqual(UInt8.unpack(self.int_bytes_8bit),
+        self.assertEqual(UInt8.unpack(self.int_bytes_string8bit),
                          self.int_value_8bit)
 
     def test_pack_float(self):

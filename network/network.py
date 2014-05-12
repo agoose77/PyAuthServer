@@ -121,7 +121,7 @@ class Network:
         get_connection = ConnectionInterface.get_from_graph  # @UndefinedVariable @IgnorePep8
 
         # Receives all incoming data
-        for bytes_, addr in iter(self.receive_from, None):
+        for bytes_string, addr in iter(self.receive_from, None):
             # Find existing connection for address
             try:
                 connection = get_connection(addr)
@@ -131,7 +131,7 @@ class Network:
                 connection = ConnectionInterface(addr)
 
             # Dispatch data to connection
-            connection.receive(bytes_)
+            connection.receive(bytes_string)
 
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()  # @UndefinedVariable
