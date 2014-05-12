@@ -1,0 +1,1276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_network.replicables &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bge_network.replicables</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">network</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">bge_data</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">structs</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">behaviour_tree</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">configuration</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">enums</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">inputs</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">utilities</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">timer</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">draw_tools</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">stream</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">physics_object</span>
+
+<span class="kn">import</span> <span class="nn">aud</span>
+<span class="kn">import</span> <span class="nn">bge</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">mathutils</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+
+<span class="kn">from</span> <span class="nn">bge</span> <span class="kn">import</span> <span class="n">logic</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+
+<span class="n">Move</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span><span class="s">&quot;Move&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s">&quot;tick&quot;</span><span class="p">,</span> <span class="s">&quot;inputs&quot;</span><span class="p">,</span> <span class="s">&quot;mouse_x&quot;</span><span class="p">,</span> <span class="s">&quot;mouse_y&quot;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="Controller"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller">[docs]</a><span class="k">class</span> <span class="nc">Controller</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span><span class="p">))</span>
+    <span class="n">pawn</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">camera</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">weapon</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">replication_priority</span> <span class="o">=</span> <span class="mf">2.0</span>
+
+<div class="viewcode-block" id="Controller.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hear_range</span> <span class="o">=</span> <span class="mi">15</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">effective_hear_range</span> <span class="o">=</span> <span class="mi">10</span>
+</div>
+<div class="viewcode-block" id="Controller.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_complaint</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;pawn&quot;</span>
+            <span class="k">yield</span> <span class="s">&quot;camera&quot;</span>
+            <span class="k">yield</span> <span class="s">&quot;weapon&quot;</span>
+            <span class="k">yield</span> <span class="s">&quot;info&quot;</span>
+</div>
+<div class="viewcode-block" id="Controller.on_unregistered"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">remove_camera</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unpossess</span><span class="p">()</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_unregistered</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Controller.hear_voice"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.hear_voice">[docs]</a>    <span class="k">def</span> <span class="nf">hear_voice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">voice</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Controller.possess"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.possess">[docs]</a>    <span class="k">def</span> <span class="nf">possess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicable</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="n">replicable</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">netmode</span> <span class="o">==</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="n">replicable</span>
+
+        <span class="c"># Register as child for signals</span>
+        <span class="n">replicable</span><span class="o">.</span><span class="n">register_child</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Controller.remove_camera"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.remove_camera">[docs]</a>    <span class="k">def</span> <span class="nf">remove_camera</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">unpossessed</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Controller.server_fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.server_fire">[docs]</a>    <span class="k">def</span> <span class="nf">server_fire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">fire</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">)</span>
+        <span class="c"># Update flash count (for client-side fire effects)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">flash_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">flash_count</span> <span class="o">&gt;</span> <span class="mi">255</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">flash_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">controller</span> <span class="ow">in</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">subclass_of</span><span class="p">(</span><span class="n">Controller</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">controller</span> <span class="o">==</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">controller</span><span class="o">.</span><span class="n">hear_sound</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">shoot_sound</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Controller.set_camera"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.set_camera">[docs]</a>    <span class="k">def</span> <span class="nf">set_camera</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">set_parent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">,</span> <span class="s">&quot;camera&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span> <span class="o">=</span> <span class="n">camera</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Controller.set_weapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.set_weapon">[docs]</a>    <span class="k">def</span> <span class="nf">set_weapon</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weapon</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span> <span class="o">=</span> <span class="n">weapon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Controller.setup_weapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.setup_weapon">[docs]</a>    <span class="k">def</span> <span class="nf">setup_weapon</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weapon</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_weapon</span><span class="p">(</span><span class="n">weapon</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">weapon_attachment_class</span> <span class="o">=</span> <span class="n">weapon</span><span class="o">.</span><span class="n">attachment_class</span>
+</div>
+<div class="viewcode-block" id="Controller.unpossess"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Controller.unpossess">[docs]</a>    <span class="k">def</span> <span class="nf">unpossess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">unpossessed</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div></div>
+<div class="viewcode-block" id="ReplicableInfo"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ReplicableInfo">[docs]</a><span class="k">class</span> <span class="nc">ReplicableInfo</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span><span class="p">))</span>
+
+<div class="viewcode-block" id="ReplicableInfo.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ReplicableInfo.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">always_relevant</span> <span class="o">=</span> <span class="bp">True</span>
+
+</div></div>
+<div class="viewcode-block" id="AIReplicationInfo"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIReplicationInfo">[docs]</a><span class="k">class</span> <span class="nc">AIReplicationInfo</span><span class="p">(</span><span class="n">ReplicableInfo</span><span class="p">):</span>
+
+    <span class="n">pawn</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AIReplicationInfo.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIReplicationInfo.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_complain</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;pawn&quot;</span>
+
+</div></div>
+<div class="viewcode-block" id="PlayerReplicationInfo"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerReplicationInfo">[docs]</a><span class="k">class</span> <span class="nc">PlayerReplicationInfo</span><span class="p">(</span><span class="n">AIReplicationInfo</span><span class="p">):</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">ping</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PlayerReplicationInfo.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerReplicationInfo.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complain</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_complain</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;name&quot;</span>
+
+        <span class="k">yield</span> <span class="s">&quot;ping&quot;</span>
+
+</div></div>
+<div class="viewcode-block" id="AIController"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController">[docs]</a><span class="k">class</span> <span class="nc">AIController</span><span class="p">(</span><span class="n">Controller</span><span class="p">):</span>
+
+<div class="viewcode-block" id="AIController.get_visible"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController.get_visible">[docs]</a>    <span class="k">def</span> <span class="nf">get_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ignore_self</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">sees</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">sees_actor</span>
+        <span class="n">my_pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+
+        <span class="k">for</span> <span class="n">actor</span> <span class="ow">in</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">subclass_of</span><span class="p">(</span><span class="n">Pawn</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">actor</span> <span class="o">==</span> <span class="n">my_pawn</span> <span class="ow">and</span> <span class="n">ignore_self</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="k">elif</span> <span class="n">sees</span><span class="p">(</span><span class="n">actor</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">actor</span>
+</div>
+<div class="viewcode-block" id="AIController.unpossess"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController.unpossess">[docs]</a>    <span class="k">def</span> <span class="nf">unpossess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;controller&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">unpossess</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AIController.hear_sound"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController.hear_sound">[docs]</a>    <span class="k">def</span> <span class="nf">hear_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sound_path</span><span class="p">,</span> <span class="n">source</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">return</span>
+        <span class="n">probability</span> <span class="o">=</span> <span class="n">utilities</span><span class="o">.</span><span class="n">falloff_fraction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">hear_range</span><span class="p">,</span>
+                            <span class="n">source</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">effective_hear_range</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AIController.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera_mode</span> <span class="o">=</span> <span class="n">enums</span><span class="o">.</span><span class="n">CameraMode</span><span class="o">.</span><span class="n">first_person</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">=</span> <span class="n">behaviour_tree</span><span class="o">.</span><span class="n">BehaviourTree</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;controller&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+</div>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="AIController.update"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.AIController.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="PlayerController"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController">[docs]</a><span class="k">class</span> <span class="nc">PlayerController</span><span class="p">(</span><span class="n">Controller</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Player pawn controller network object&#39;&#39;&#39;</span>
+
+    <span class="n">input_fields</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">move_error_limit</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="o">**</span> <span class="mi">2</span>
+    <span class="n">config_filepath</span> <span class="o">=</span> <span class="s">&quot;inputs.conf&quot;</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PlayerController.mouse_delta"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.mouse_delta">[docs]</a>    <span class="k">def</span> <span class="nf">mouse_delta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Returns the mouse movement since the last tick&#39;&#39;&#39;</span>
+        <span class="n">mouse</span> <span class="o">=</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">mouse</span>
+
+        <span class="c"># The first tick the mouse won&#39;t be centred</span>
+        <span class="n">screen_center</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">mouse_position</span><span class="p">,</span> <span class="n">mouse</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">mouse</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">screen_center</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_epsilon</span>
+        <span class="n">smooth_factor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mouse_smoothing</span>
+
+        <span class="c"># If we have already initialised the mouse</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_delta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">mouse_diff_x</span> <span class="o">=</span> <span class="n">screen_center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">mouse_position</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">mouse_diff_y</span> <span class="o">=</span> <span class="n">screen_center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mouse_position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">smooth_x</span> <span class="o">=</span> <span class="n">utilities</span><span class="o">.</span><span class="n">lerp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mouse_delta</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                    <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">smooth_factor</span><span class="p">)</span>
+            <span class="n">smooth_y</span> <span class="o">=</span> <span class="n">utilities</span><span class="o">.</span><span class="n">lerp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mouse_delta</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                    <span class="n">mouse_diff_y</span><span class="p">,</span> <span class="n">smooth_factor</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">smooth_x</span> <span class="o">=</span> <span class="n">smooth_y</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="c"># Handle near zero values (must be set to a number above zero)</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">smooth_x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">epsilon</span><span class="p">:</span>
+            <span class="n">smooth_x</span> <span class="o">=</span> <span class="n">epsilon</span> <span class="o">/</span> <span class="mi">1000</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">smooth_y</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">epsilon</span><span class="p">:</span>
+            <span class="n">smooth_y</span> <span class="o">=</span> <span class="n">epsilon</span> <span class="o">/</span> <span class="mi">1000</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_delta</span> <span class="o">=</span> <span class="n">smooth_x</span><span class="p">,</span> <span class="n">smooth_y</span>
+        <span class="k">return</span> <span class="n">smooth_x</span><span class="p">,</span> <span class="n">smooth_y</span>
+</div>
+<div class="viewcode-block" id="PlayerController.apply_move"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.apply_move">[docs]</a>    <span class="k">def</span> <span class="nf">apply_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">):</span>
+        <span class="n">blackboard</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">blackboard</span>
+
+        <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;inputs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">inputs</span>
+        <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;mouse&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.calculate_ping"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.calculate_ping">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_ping</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">(</span><span class="s">&quot;ping&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_reply_ping</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server_add_lock</span><span class="p">(</span><span class="s">&quot;ping&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.client_adjust_tick"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_adjust_tick">[docs]</a>    <span class="k">def</span> <span class="nf">client_adjust_tick</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_remove_lock</span><span class="p">(</span><span class="s">&quot;clock&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_request_time</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">elapsed</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.client_acknowledge_move"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_acknowledge_move">[docs]</a>    <span class="k">def</span> <span class="nf">client_acknowledge_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move_tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span>
+                                <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Could not find Pawn for {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">move_tick</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Couldn&#39;t find move to acknowledge for move {}&quot;</span>
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">move_tick</span><span class="p">))</span>
+            <span class="k">return</span>
+
+        <span class="n">additional_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span> <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="n">move_tick</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">additional_keys</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="PlayerController.client_apply_correction"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_apply_correction">[docs]</a>    <span class="k">def</span> <span class="nf">client_apply_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">correction_tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span>
+                               <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">),</span>
+                                <span class="n">correction</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">structs</span><span class="o">.</span><span class="n">RigidBodyState</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Could not find Pawn for {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="k">return</span>
+
+        <span class="c"># Remove the lock at this network tick on server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_remove_buffered_lock</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span><span class="p">,</span> <span class="s">&quot;correction&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_acknowledge_move</span><span class="p">(</span><span class="n">correction_tick</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;No move found&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">signals</span><span class="o">.</span><span class="n">PhysicsCopyState</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">correction</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;{}: Correcting prediction for move {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                             <span class="n">correction_tick</span><span class="p">))</span>
+
+        <span class="c"># Interface inputs with existing ones</span>
+        <span class="n">lookup_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">apply_move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_move</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">using_interface</span><span class="p">(</span><span class="n">lookup_dict</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">move</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="c"># Place inputs into input manager</span>
+                <span class="n">inputs_zip</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">keybindings</span><span class="p">),</span> <span class="n">move</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+                <span class="n">lookup_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">inputs_zip</span><span class="p">)</span>
+
+                <span class="n">apply_move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="n">move</span><span class="o">.</span><span class="n">mouse_x</span><span class="p">,</span> <span class="n">move</span><span class="o">.</span><span class="n">mouse_y</span><span class="p">)</span>
+                <span class="n">signals</span><span class="o">.</span><span class="n">PhysicsSingleUpdateSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span><span class="p">,</span>
+                                                         <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.client_fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_fire">[docs]</a>    <span class="k">def</span> <span class="nf">client_fire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">play_fire_effects</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hear_sound</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">shoot_sound</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">fire</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.client_nudge_clock"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_nudge_clock">[docs]</a>    <span class="k">def</span> <span class="nf">client_nudge_clock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">difference</span><span class="p">:</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">),</span>
+                           <span class="n">forward</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">bool</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="c"># Update clock</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">forward</span> <span class="o">*</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">WorldInfo</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">+=</span> <span class="p">(</span><span class="n">difference</span> <span class="o">*</span> <span class="n">sign</span><span class="p">)</span> <span class="o">/</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span>
+
+        <span class="c"># Reply received correction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_remove_buffered_lock</span><span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span><span class="p">,</span> <span class="s">&quot;clock_synch&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.client_reply_ping"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_reply_ping">[docs]</a>    <span class="k">def</span> <span class="nf">client_reply_ping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_deduce_ping</span><span class="p">(</span><span class="n">tick</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.client_send_move"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.client_send_move">[docs]</a>    <span class="k">def</span> <span class="nf">client_send_move</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Get move information</span>
+        <span class="n">current_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="p">[</span><span class="n">current_tick</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_store_move</span><span class="p">(</span><span class="n">current_tick</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span>
+                               <span class="n">move</span><span class="o">.</span><span class="n">mouse_x</span><span class="p">,</span>
+                               <span class="n">move</span><span class="o">.</span><span class="n">mouse_y</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">rotation</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.destroy_microphone"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.destroy_microphone">[docs]</a>    <span class="k">def</span> <span class="nf">destroy_microphone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">microphone</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sound_channels</span><span class="p">):</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">sound_channels</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="PlayerController.get_clock_correction"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.get_clock_correction">[docs]</a>    <span class="k">def</span> <span class="nf">get_clock_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_tick</span><span class="p">,</span> <span class="n">command_tick</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">((</span><span class="n">current_tick</span> <span class="o">-</span> <span class="n">command_tick</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">clock_convergence_factor</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.get_corrected_state"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.get_corrected_state">[docs]</a>    <span class="k">def</span> <span class="nf">get_corrected_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">):</span>
+        <span class="n">pos_difference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="n">position</span>
+
+        <span class="k">if</span> <span class="n">pos_difference</span><span class="o">.</span><span class="n">length_squared</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">move_error_limit</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Create correction if neccessary</span>
+        <span class="n">correction</span> <span class="o">=</span> <span class="n">structs</span><span class="o">.</span><span class="n">RigidBodyState</span><span class="p">()</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">PhysicsCopyState</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">,</span> <span class="n">correction</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">correction</span>
+</div>
+<div class="viewcode-block" id="PlayerController.hear_sound"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.hear_sound">[docs]</a>    <span class="k">def</span> <span class="nf">hear_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sound_path</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span>
+                   <span class="n">source</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="n">probability</span> <span class="o">=</span> <span class="n">utilities</span><span class="o">.</span><span class="n">falloff_fraction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">hear_range</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">effective_hear_range</span><span class="p">)</span>
+        <span class="k">return</span>
+        <span class="n">factory</span> <span class="o">=</span> <span class="n">aud</span><span class="o">.</span><span class="n">Factory</span><span class="o">.</span><span class="n">file</span><span class="p">(</span><span class="n">sound_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">aud</span><span class="o">.</span><span class="n">device</span><span class="p">()</span><span class="o">.</span><span class="n">play</span><span class="p">(</span><span class="n">factory</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.hear_voice"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.hear_voice">[docs]</a>    <span class="k">def</span> <span class="nf">hear_voice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Replicable</span><span class="p">),</span>
+                        <span class="n">data</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">bytes</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="n">player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sound_channels</span><span class="p">[</span><span class="n">info</span><span class="p">]</span>
+        <span class="n">player</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.is_locked"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.is_locked">[docs]</a>    <span class="k">def</span> <span class="nf">is_locked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">locks</span>
+</div>
+<div class="viewcode-block" id="PlayerController.load_keybindings"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.load_keybindings">[docs]</a>    <span class="k">def</span> <span class="nf">load_keybindings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bindings</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_filepath</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">input_fields</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Loaded {} keybindings&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bindings</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">bindings</span>
+</div>
+<div class="viewcode-block" id="PlayerController.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_input</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_microphone</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera_setup</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mouse_smoothing</span> <span class="o">=</span> <span class="mf">0.6</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_delta</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_epsilon</span> <span class="o">=</span> <span class="mf">0.001</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span> <span class="o">=</span> <span class="n">behaviour_tree</span><span class="o">.</span><span class="n">BehaviourTree</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">behaviour</span><span class="o">.</span><span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;controller&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">locks</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffered_locks</span> <span class="o">=</span> <span class="n">FactoryDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span>
+                                          <span class="n">dict_type</span><span class="o">=</span><span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">,</span>
+                                          <span class="n">provide_key</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">clock_convergence_factor</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maximum_clock_ahead</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ping_timer</span> <span class="o">=</span> <span class="n">timer</span><span class="o">.</span><span class="n">Timer</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">on_target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">calculate_ping</span><span class="p">,</span>
+                                    <span class="n">repeat</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ping_influence_factor</span> <span class="o">=</span> <span class="mf">0.8</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_pawn</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="PlayerController.on_notify"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;pawn&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_pawn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_last_pawn</span><span class="o">.</span><span class="n">unpossessed</span><span class="p">()</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">possess</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_last_pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">unpossess</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;camera&quot;</span><span class="p">:</span>
+            <span class="c">#assert self.pawn</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_camera</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">active</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;weapon&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_weapon</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.on_unregistered"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_unregistered</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">destroy_microphone</span><span class="p">()</span>
+</div>
+    <span class="nd">@signals.PlayerInputSignal.global_listener</span>
+<div class="viewcode-block" id="PlayerController.player_update"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.player_update">[docs]</a>    <span class="k">def</span> <span class="nf">player_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Update function for client instance&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="c"># Control Mouse data</span>
+        <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mouse_delta</span>
+        <span class="n">current_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+
+        <span class="c"># Apply move inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">)</span>
+
+        <span class="c"># Remember move for corrections</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="p">[</span><span class="n">current_tick</span><span class="p">]</span> <span class="o">=</span> <span class="n">Move</span><span class="p">(</span><span class="n">current_tick</span><span class="p">,</span>
+                 <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">to_tuple</span><span class="p">(),</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">broadcast_voice</span><span class="p">()</span>
+</div>
+    <span class="nd">@signals.PostPhysicsSignal.global_listener</span>
+<div class="viewcode-block" id="PlayerController.post_physics"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.post_physics">[docs]</a>    <span class="k">def</span> <span class="nf">post_physics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Post move to server and receive corrections&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_send_move</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_check_move</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PlayerController.receive_broadcast"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.receive_broadcast">[docs]</a>    <span class="k">def</span> <span class="nf">receive_broadcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_string</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="n">BroadcastMessage</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">message_string</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.send_voice_server"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.send_voice_server">[docs]</a>    <span class="k">def</span> <span class="nf">send_voice_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">bytes</span><span class="p">,</span>
+                                            <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span>
+        <span class="k">for</span> <span class="n">controller</span> <span class="ow">in</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">subclass_of</span><span class="p">(</span><span class="n">Controller</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">controller</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">controller</span><span class="o">.</span><span class="n">hear_voice</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_deduce_ping"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_deduce_ping">[docs]</a>    <span class="k">def</span> <span class="nf">server_deduce_ping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="n">round_trip_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span> <span class="o">-</span> <span class="n">tick</span>
+        <span class="n">round_trip_time</span> <span class="o">=</span> <span class="n">round_trip_tick</span> <span class="o">/</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">ping</span> <span class="o">=</span> <span class="p">(((</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">ping_influence_factor</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">ping</span><span class="p">)</span>
+                          <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ping_influence_factor</span> <span class="o">*</span> <span class="n">round_trip_time</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_remove_lock</span><span class="p">(</span><span class="s">&quot;ping&quot;</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.server_fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_fire">[docs]</a>    <span class="k">def</span> <span class="nf">server_fire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Rolling back by {:.3f} seconds&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">ping</span><span class="p">))</span>
+        <span class="c">#signals.PhysicsRewindSignal.invoke(WorldInfo.elapsed - self.info.ping)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">server_fire</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_remove_lock"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_remove_lock">[docs]</a>    <span class="k">def</span> <span class="nf">server_remove_lock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&#39;&#39;&#39;Flag a variable as unlocked on the server&#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">locks</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;{} was not locked&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_add_lock"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_add_lock">[docs]</a>    <span class="k">def</span> <span class="nf">server_add_lock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&#39;&#39;&#39;Flag a variable as locked on the server&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">locks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_remove_buffered_lock"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_remove_buffered_lock">[docs]</a>    <span class="k">def</span> <span class="nf">server_remove_buffered_lock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">),</span>
+                                    <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&#39;&#39;&#39;Remove a server lock with respect for the jitter offset&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffered_locks</span><span class="p">[</span><span class="n">tick</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_add_buffered_lock"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_add_buffered_lock">[docs]</a>    <span class="k">def</span> <span class="nf">server_add_buffered_lock</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">),</span>
+                                    <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&#39;&#39;&#39;Add a server lock with respect for the jitter offset&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffered_locks</span><span class="p">[</span><span class="n">tick</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="PlayerController.server_store_move"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_store_move">[docs]</a>    <span class="k">def</span> <span class="nf">server_store_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">_MAXIMUM_TICK</span><span class="p">),</span>
+                                <span class="n">inputs</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">InputManager</span><span class="p">,</span>
+                                <span class="n">input_fields</span><span class="o">=</span><span class="n">MarkAttribute</span><span class="p">(</span><span class="s">&quot;input_fields&quot;</span><span class="p">)),</span>
+                                <span class="n">mouse_diff_x</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span>
+                                <span class="n">mouse_diff_y</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span>
+                                <span class="n">position</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">),</span>
+                                <span class="n">rotation</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&#39;&#39;&#39;Store a client move for later processing and clock validation&#39;&#39;&#39;</span>
+
+        <span class="n">current_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+        <span class="n">target_tick</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">maximum_clock_ahead</span> <span class="o">+</span> <span class="n">current_tick</span>
+
+        <span class="c"># If the move is too early, correct clock</span>
+        <span class="k">if</span> <span class="n">tick</span> <span class="o">&gt;</span> <span class="n">target_tick</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_buffered_locks</span><span class="p">(</span><span class="n">tick</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start_clock_correction</span><span class="p">(</span><span class="n">target_tick</span><span class="p">,</span> <span class="n">tick</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tick</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.server_check_move"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.server_check_move">[docs]</a>    <span class="k">def</span> <span class="nf">server_check_move</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check result of movement operation following Physics update&quot;&quot;&quot;</span>
+        <span class="c"># Get move information</span>
+        <span class="n">current_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+
+        <span class="c"># We are forced to acknowledge moves whose base we&#39;ve already corrected</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">(</span><span class="s">&quot;correction&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_acknowledge_move</span><span class="p">(</span><span class="n">current_tick</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c"># Validate move</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="p">[</span><span class="n">current_tick</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">correction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_corrected_state</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">)</span>
+
+        <span class="c"># It was a valid move</span>
+        <span class="k">if</span> <span class="n">correction</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_acknowledge_move</span><span class="p">(</span><span class="n">current_tick</span><span class="p">)</span>
+
+        <span class="c"># Send the correction</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server_add_lock</span><span class="p">(</span><span class="s">&quot;correction&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_apply_correction</span><span class="p">(</span><span class="n">current_tick</span><span class="p">,</span> <span class="n">correction</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.setup_input"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.setup_input">[docs]</a>    <span class="k">def</span> <span class="nf">setup_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Create the input manager for the client&#39;&#39;&#39;</span>
+        <span class="n">keybindings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_keybindings</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">InputManager</span><span class="p">(</span><span class="n">keybindings</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Created input manager&quot;</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerController.setup_microphone"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.setup_microphone">[docs]</a>    <span class="k">def</span> <span class="nf">setup_microphone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Create the microphone for the client&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">microphone</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">MicrophoneStream</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sound_channels</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">SpeakerStream</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.set_name"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.set_name">[docs]</a>    <span class="k">def</span> <span class="nf">set_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+</div>
+<div class="viewcode-block" id="PlayerController.start_clock_correction"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.start_clock_correction">[docs]</a>    <span class="k">def</span> <span class="nf">start_clock_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_tick</span><span class="p">,</span> <span class="n">command_tick</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Initiate client clock correction&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_locked</span><span class="p">(</span><span class="s">&quot;clock_synch&quot;</span><span class="p">):</span>
+            <span class="n">tick_difference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_clock_correction</span><span class="p">(</span><span class="n">current_tick</span><span class="p">,</span> <span class="n">command_tick</span><span class="p">)</span>
+            <span class="n">nudge_forward</span> <span class="o">=</span> <span class="n">current_tick</span> <span class="o">&gt;</span> <span class="n">command_tick</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_nudge_clock</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">tick_difference</span><span class="p">),</span> <span class="n">forward</span><span class="o">=</span><span class="n">nudge_forward</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server_add_lock</span><span class="p">(</span><span class="s">&quot;clock_synch&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerController.start_fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.start_fire">[docs]</a>    <span class="k">def</span> <span class="nf">start_fire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon</span><span class="o">.</span><span class="n">can_fire</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_fire</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_fire</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PlayerController.broadcast_voice"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.broadcast_voice">[docs]</a>    <span class="k">def</span> <span class="nf">broadcast_voice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Dump voice information and encode it for the server&#39;&#39;&#39;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">microphone</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_voice_server</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="PlayerController.update"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Validate client clock and apply moves&#39;&#39;&#39;</span>
+        <span class="c"># Aim ahead by the jitter buffer size</span>
+        <span class="n">current_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+        <span class="n">target_tick</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">maximum_clock_ahead</span> <span class="o">+</span> <span class="n">current_tick</span>
+        <span class="n">consume_move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">popleft</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tick</span><span class="p">,</span> <span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">,</span>
+                   <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Process any buffered locks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_buffered_locks</span><span class="p">(</span><span class="n">tick</span><span class="p">)</span>
+
+        <span class="c"># The tick is late, try and run a newer command</span>
+        <span class="k">if</span> <span class="n">tick</span> <span class="o">&lt;</span> <span class="n">current_tick</span><span class="p">:</span>
+            <span class="c"># Ensure we check through to the latest tick</span>
+            <span class="n">consume_move</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">start_clock_correction</span><span class="p">(</span><span class="n">target_tick</span><span class="p">,</span> <span class="n">tick</span><span class="p">)</span>
+
+        <span class="c"># If the tick is early, wait for it to become valid</span>
+        <span class="k">elif</span> <span class="n">tick</span> <span class="o">&gt;</span> <span class="n">current_tick</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Else run the move at the present time (it&#39;s valid)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">consume_move</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera</span><span class="p">):</span>
+                <span class="k">return</span>
+
+            <span class="c"># Apply move inputs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">apply_move</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="n">mouse_diff_y</span><span class="p">)</span>
+            <span class="c"># Save expected move results</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pending_moves</span><span class="p">[</span><span class="n">current_tick</span><span class="p">]</span> <span class="o">=</span> <span class="n">position</span><span class="p">,</span> <span class="n">rotation</span>
+</div>
+<div class="viewcode-block" id="PlayerController.update_buffered_locks"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.PlayerController.update_buffered_locks">[docs]</a>    <span class="k">def</span> <span class="nf">update_buffered_locks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tick</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Apply server lock changes for the jitter buffer tick&#39;&#39;&#39;</span>
+        <span class="n">removed_keys</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tick_</span><span class="p">,</span> <span class="n">locks</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffered_locks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">tick_</span> <span class="o">&gt;</span> <span class="n">tick</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="k">for</span> <span class="n">lock_name</span><span class="p">,</span> <span class="n">add_lock</span> <span class="ow">in</span> <span class="n">locks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">add_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">server_add_lock</span><span class="p">(</span><span class="n">lock_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">server_remove_lock</span><span class="p">(</span><span class="n">lock_name</span><span class="p">)</span>
+
+            <span class="n">removed_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tick_</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">removed_keys</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">buffered_locks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Actor"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor">[docs]</a><span class="k">class</span> <span class="nc">Actor</span><span class="p">(</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">physics_object</span><span class="o">.</span><span class="n">PhysicsObject</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Physics enabled network object&#39;&#39;&#39;</span>
+
+    <span class="n">rigid_body_state</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">structs</span><span class="o">.</span><span class="n">RigidBodyState</span><span class="p">(),</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span><span class="p">),</span>
+                    <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Actor.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="n">remote_role</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span>
+
+        <span class="c"># If simulated, send rigid body state</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">remote_role</span> <span class="o">==</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span><span class="p">)</span> <span class="ow">or</span> \
+            <span class="p">(</span><span class="n">remote_role</span> <span class="o">==</span> <span class="n">Roles</span><span class="o">.</span><span class="n">dumb_proxy</span><span class="p">)</span> <span class="ow">or</span> \
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span> <span class="o">==</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_owner</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_simulated_physics</span> <span class="ow">or</span> <span class="n">is_initial</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="s">&quot;rigid_body_state&quot;</span>
+</div>
+<div class="viewcode-block" id="Actor.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera_radius</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_simulated_physics</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">always_relevant</span> <span class="o">=</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="Actor.on_unregistered"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Unregister any actor children</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_unregistered</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Actor.on_notify"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;rigid_body_state&quot;</span><span class="p">:</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">PhysicsReplicatedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rigid_body_state</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Actor.trace_ray"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.trace_ray">[docs]</a>    <span class="k">def</span> <span class="nf">trace_ray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_vector</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">*</span> <span class="n">local_vector</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">rayCast</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Actor.align_to"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Actor.align_to">[docs]</a>    <span class="k">def</span> <span class="nf">align_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">enums</span><span class="o">.</span><span class="n">Axis</span><span class="o">.</span><span class="n">y</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">alignAxisToVect</span><span class="p">(</span><span class="n">vector</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Weapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon">[docs]</a><span class="k">class</span> <span class="nc">Weapon</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span><span class="p">))</span>
+    <span class="n">ammo</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mi">70</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Weapon.can_fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.can_fire">[docs]</a>    <span class="k">def</span> <span class="nf">can_fire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ammo</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_fired_tick</span><span class="p">)</span>
+                <span class="o">&gt;=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shoot_interval</span> <span class="o">*</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span><span class="p">))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Weapon.data_path"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.data_path">[docs]</a>    <span class="k">def</span> <span class="nf">data_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Weapon.shoot_sound"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.shoot_sound">[docs]</a>    <span class="k">def</span> <span class="nf">shoot_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s">&quot;sounds/shoot.wav&quot;</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Weapon.icon_path"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.icon_path">[docs]</a>    <span class="k">def</span> <span class="nf">icon_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_path</span><span class="p">,</span> <span class="s">&quot;icon/icon.tga&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Weapon.consume_ammo"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.consume_ammo">[docs]</a>    <span class="k">def</span> <span class="nf">consume_ammo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ammo</span> <span class="o">-=</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="Weapon.fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.fire">[docs]</a>    <span class="k">def</span> <span class="nf">fire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consume_ammo</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_fired_tick</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick</span>
+</div>
+<div class="viewcode-block" id="Weapon.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">yield</span> <span class="s">&quot;ammo&quot;</span>
+</div>
+<div class="viewcode-block" id="Weapon.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Weapon.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_path</span> <span class="o">=</span> <span class="n">logic</span><span class="o">.</span><span class="n">expandPath</span><span class="p">(</span><span class="s">&quot;//data&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shoot_interval</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_fired_tick</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_ammo</span> <span class="o">=</span> <span class="mi">70</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maximum_range</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">effective_range</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_damage</span> <span class="o">=</span> <span class="mi">40</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachment_class</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div></div>
+<div class="viewcode-block" id="TraceWeapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.TraceWeapon">[docs]</a><span class="k">class</span> <span class="nc">TraceWeapon</span><span class="p">(</span><span class="n">Weapon</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TraceWeapon.fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.TraceWeapon.fire">[docs]</a>    <span class="k">def</span> <span class="nf">fire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fire</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">trace_shot</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="TraceWeapon.trace_shot"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.TraceWeapon.trace_shot">[docs]</a>    <span class="k">def</span> <span class="nf">trace_shot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="n">hit_object</span><span class="p">,</span> <span class="n">hit_position</span><span class="p">,</span> <span class="n">hit_normal</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">trace_ray</span><span class="p">(</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">maximum_range</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hit_object</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">replicable</span> <span class="o">=</span> <span class="n">Actor</span><span class="o">.</span><span class="n">from_object</span><span class="p">(</span><span class="n">hit_object</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">replicable</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="o">.</span><span class="n">pawn</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">replicable</span><span class="p">,</span> <span class="n">Pawn</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="n">hit_vector</span> <span class="o">=</span> <span class="p">(</span><span class="n">hit_position</span> <span class="o">-</span> <span class="n">camera</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+        <span class="n">falloff</span> <span class="o">=</span> <span class="n">utilities</span><span class="o">.</span><span class="n">falloff_fraction</span><span class="p">(</span><span class="n">camera</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">maximum_range</span><span class="p">,</span>
+                                    <span class="n">hit_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_range</span><span class="p">)</span>
+        <span class="n">damage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_damage</span> <span class="o">*</span> <span class="n">falloff</span>
+        <span class="n">momentum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="n">hit_vector</span><span class="o">.</span><span class="n">normalized</span><span class="p">()</span> <span class="o">*</span> <span class="n">falloff</span>
+
+        <span class="n">signals</span><span class="o">.</span><span class="n">ActorDamagedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">damage</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">owner</span><span class="p">,</span> <span class="n">hit_position</span><span class="p">,</span>
+                                <span class="n">momentum</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">replicable</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="ProjectileWeapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ProjectileWeapon">[docs]</a><span class="k">class</span> <span class="nc">ProjectileWeapon</span><span class="p">(</span><span class="n">Weapon</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ProjectileWeapon.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ProjectileWeapon.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectile_class</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectile_velocity</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ProjectileWeapon.fire"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ProjectileWeapon.fire">[docs]</a>    <span class="k">def</span> <span class="nf">fire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fire</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectile_shot</span><span class="p">(</span><span class="n">camera</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="ProjectileWeapon.projectile_shot"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.ProjectileWeapon.projectile_shot">[docs]</a>    <span class="k">def</span> <span class="nf">projectile_shot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="n">projectile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">projectile_class</span><span class="p">()</span>
+        <span class="n">forward_vector</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">forward_vector</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">camera</span><span class="o">.</span><span class="n">rotation</span><span class="p">)</span>
+        <span class="n">projectile</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">forward_vector</span> <span class="o">*</span> <span class="mf">6.0</span>
+        <span class="n">projectile</span><span class="o">.</span><span class="n">rotation</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">rotation</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">projectile</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">projectile_velocity</span>
+        <span class="n">projectile</span><span class="o">.</span><span class="n">owner</span> <span class="o">=</span> <span class="bp">self</span>
+
+</div></div>
+<div class="viewcode-block" id="EmptyWeapon"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.EmptyWeapon">[docs]</a><span class="k">class</span> <span class="nc">EmptyWeapon</span><span class="p">(</span><span class="n">Weapon</span><span class="p">):</span>
+
+    <span class="n">ammo</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EmptyWeapon.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.EmptyWeapon.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachment_class</span> <span class="o">=</span> <span class="n">EmptyAttatchment</span>
+
+</div></div>
+<div class="viewcode-block" id="WeaponAttachment"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.WeaponAttachment">[docs]</a><span class="k">class</span> <span class="nc">WeaponAttachment</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">none</span><span class="p">))</span>
+
+<div class="viewcode-block" id="WeaponAttachment.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.WeaponAttachment.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_simulated_physics</span> <span class="o">=</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="WeaponAttachment.play_fire_effects"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.WeaponAttachment.play_fire_effects">[docs]</a>    <span class="k">def</span> <span class="nf">play_fire_effects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+</div></div>
+<div class="viewcode-block" id="EmptyAttatchment"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.EmptyAttatchment">[docs]</a><span class="k">class</span> <span class="nc">EmptyAttatchment</span><span class="p">(</span><span class="n">WeaponAttachment</span><span class="p">):</span>
+
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Empty.002&quot;</span>
+
+</div>
+<div class="viewcode-block" id="Camera"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera">[docs]</a><span class="k">class</span> <span class="nc">Camera</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+
+    <span class="n">entity_class</span> <span class="o">=</span> <span class="n">bge_data</span><span class="o">.</span><span class="n">CameraObject</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Camera&quot;</span>
+
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span><span class="p">),</span>
+                    <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span> <span class="o">==</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">getCurrentScene</span><span class="p">()</span><span class="o">.</span><span class="n">active_camera</span>
+
+    <span class="nd">@active.setter</span>
+<div class="viewcode-block" id="Camera.active"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.active">[docs]</a>    <span class="k">def</span> <span class="nf">active</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+            <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">getCurrentScene</span><span class="p">()</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lens</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">lens</span>
+
+    <span class="nd">@lens.setter</span>
+<div class="viewcode-block" id="Camera.lens"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.lens">[docs]</a>    <span class="k">def</span> <span class="nf">lens</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">lens</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fov</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">fov</span>
+
+    <span class="nd">@fov.setter</span>
+<div class="viewcode-block" id="Camera.fov"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.fov">[docs]</a>    <span class="k">def</span> <span class="nf">fov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">fov</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">((</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">rotation</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">worldOrientation</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rotation</span>
+
+    <span class="nd">@rotation.setter</span>
+<div class="viewcode-block" id="Camera.rotation"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.rotation">[docs]</a>    <span class="k">def</span> <span class="nf">rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rot</span><span class="p">):</span>
+        <span class="n">rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">((</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">rotation</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">rot</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">worldOrientation</span> <span class="o">=</span> <span class="n">rotation</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">local_rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">((</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">rotation</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">localOrientation</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rotation</span>
+
+    <span class="nd">@local_rotation.setter</span>
+<div class="viewcode-block" id="Camera.local_rotation"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.local_rotation">[docs]</a>    <span class="k">def</span> <span class="nf">local_rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rot</span><span class="p">):</span>
+        <span class="n">rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">((</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">rotation</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">rot</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">localOrientation</span> <span class="o">=</span> <span class="n">rotation</span>
+</div>
+<div class="viewcode-block" id="Camera.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">enums</span><span class="o">.</span><span class="n">CameraMode</span><span class="o">.</span><span class="n">third_person</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="o">=</span> <span class="mf">2.0</span>
+</div>
+<div class="viewcode-block" id="Camera.possessed_by"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.possessed_by">[docs]</a>    <span class="k">def</span> <span class="nf">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_camera_perspective</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Camera.draw"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">orientation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotation</span><span class="o">.</span><span class="n">to_matrix</span><span class="p">()</span> <span class="o">*</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Matrix</span><span class="o">.</span><span class="n">Rotation</span><span class="p">(</span><span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span>
+                                                                <span class="mi">3</span><span class="p">,</span> <span class="s">&quot;X&quot;</span><span class="p">)</span>
+
+        <span class="n">circle_size</span> <span class="o">=</span> <span class="mf">0.20</span>
+
+        <span class="n">upwards_orientation</span> <span class="o">=</span> <span class="n">orientation</span> <span class="o">*</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Matrix</span><span class="o">.</span><span class="n">Rotation</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">90</span><span class="p">),</span>
+                                                            <span class="mi">3</span><span class="p">,</span> <span class="s">&quot;X&quot;</span><span class="p">)</span>
+        <span class="n">upwards_vector</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">(</span><span class="n">upwards_orientation</span><span class="o">.</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">sideways_orientation</span> <span class="o">=</span> <span class="n">orientation</span> <span class="o">*</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Matrix</span><span class="o">.</span><span class="n">Rotation</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="o">-</span><span class="mi">90</span><span class="p">),</span>
+                                                            <span class="mi">3</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">)</span>
+        <span class="n">sideways_vector</span> <span class="o">=</span> <span class="p">(</span><span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">(</span><span class="n">sideways_orientation</span><span class="o">.</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">forwards_vector</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">(</span><span class="n">orientation</span><span class="o">.</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_arrow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">colour</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_arrow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">upwards_vector</span> <span class="o">*</span> <span class="n">circle_size</span><span class="p">,</span>
+                <span class="n">upwards_orientation</span><span class="p">,</span> <span class="n">colour</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_arrow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">sideways_vector</span> <span class="o">*</span> <span class="n">circle_size</span><span class="p">,</span>
+                <span class="n">sideways_orientation</span><span class="p">,</span> <span class="n">colour</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_circle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">circle_size</span><span class="p">)</span>
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_box</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">orientation</span><span class="p">)</span>
+        <span class="n">draw_tools</span><span class="o">.</span><span class="n">draw_square_pyramid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">forwards_vector</span> <span class="o">*</span> <span class="mf">0.4</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span>
+                            <span class="n">colour</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">angle</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fov</span><span class="p">,</span> <span class="n">incline</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Camera.render_temporary"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.render_temporary">[docs]</a>    <span class="k">def</span> <span class="nf">render_temporary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">render_func</span><span class="p">):</span>
+        <span class="n">cam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="n">cam</span><span class="o">.</span><span class="n">scene</span>
+
+        <span class="n">old_camera</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span>
+        <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="n">cam</span>
+        <span class="n">render_func</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">old_camera</span><span class="p">:</span>
+            <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="n">old_camera</span>
+</div>
+<div class="viewcode-block" id="Camera.setup_camera_perspective"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.setup_camera_perspective">[docs]</a>    <span class="k">def</span> <span class="nf">setup_camera_perspective</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">enums</span><span class="o">.</span><span class="n">CameraMode</span><span class="o">.</span><span class="n">first_person</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">local_position</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">local_position</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Camera.sees_actor"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.sees_actor">[docs]</a>    <span class="k">def</span> <span class="nf">sees_actor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actor</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">radius</span> <span class="o">=</span> <span class="n">actor</span><span class="o">.</span><span class="n">camera_radius</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">radius</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">pointInsideFrustum</span><span class="p">(</span><span class="n">actor</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">sphereInsideFrustum</span><span class="p">(</span><span class="n">actor</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">OUTSIDE</span>
+</div>
+    <span class="nd">@simulated</span>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="Camera.update"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Camera.trace"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.trace">[docs]</a>    <span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_coord</span><span class="p">,</span> <span class="n">y_coord</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">getScreenRay</span><span class="p">(</span><span class="n">x_coord</span><span class="p">,</span> <span class="n">y_coord</span><span class="p">,</span> <span class="n">distance</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Camera.trace_ray"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Camera.trace_ray">[docs]</a>    <span class="k">def</span> <span class="nf">trace_ray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">*</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">distance</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">rayCast</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">distance</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Pawn"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn">[docs]</a><span class="k">class</span> <span class="nc">Pawn</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">view_pitch</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">flash_count</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">weapon_attachment_class</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">type_of</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="n">Replicable</span><span class="p">),</span>
+                                        <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                        <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">health</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">alive</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span><span class="p">),</span>
+                    <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">replication_update_period</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">60</span>
+
+<div class="viewcode-block" id="Pawn.conditions"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_owner</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;view_pitch&quot;</span>
+
+        <span class="k">if</span> <span class="n">is_complaint</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;weapon_attachment_class&quot;</span>
+            <span class="k">yield</span> <span class="s">&quot;alive&quot;</span>
+
+            <span class="k">if</span> <span class="n">is_owner</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="s">&quot;health&quot;</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="s">&quot;flash_count&quot;</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.create_weapon_attachment"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.create_weapon_attachment">[docs]</a>    <span class="k">def</span> <span class="nf">create_weapon_attachment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">set_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;weapon&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">unpossessed</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">local_position</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Vector</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">local_rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Pawn.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navmesh_object</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Non owner attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_flash_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">walk_speed</span> <span class="o">=</span> <span class="mf">4.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_speed</span> <span class="o">=</span> <span class="mf">7.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">turn_speed</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">animation_tolerance</span> <span class="o">=</span> <span class="mf">0.5</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">animations</span> <span class="o">=</span> <span class="n">behaviour_tree</span><span class="o">.</span><span class="n">BehaviourTree</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">animations</span><span class="o">.</span><span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;pawn&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.on_notify"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># play weapon effects</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;weapon_attachment_class&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_weapon_attachment</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment_class</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_notify</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Pawn.on_unregistered"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.on_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_unregistered</span><span class="p">()</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.play_animation"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.play_animation">[docs]</a>    <span class="k">def</span> <span class="nf">play_animation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">blend</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">enums</span><span class="o">.</span><span class="n">AnimationMode</span><span class="o">.</span><span class="n">play</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                    <span class="n">blend_mode</span><span class="o">=</span><span class="n">enums</span><span class="o">.</span><span class="n">AnimationBlend</span><span class="o">.</span><span class="n">interpolate</span><span class="p">):</span>
+
+        <span class="c"># Define conversions from Blender animations to Network animation enum</span>
+        <span class="n">ge_mode</span> <span class="o">=</span> <span class="p">{</span><span class="n">enums</span><span class="o">.</span><span class="n">AnimationMode</span><span class="o">.</span><span class="n">play</span><span class="p">:</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_PLAY</span><span class="p">,</span>
+                <span class="n">enums</span><span class="o">.</span><span class="n">AnimationMode</span><span class="o">.</span><span class="n">loop</span><span class="p">:</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_LOOP</span><span class="p">,</span>
+                <span class="n">enums</span><span class="o">.</span><span class="n">AnimationMode</span><span class="o">.</span><span class="n">ping_pong</span><span class="p">:</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_PING_PONG</span>
+                <span class="p">}[</span><span class="n">mode</span><span class="p">]</span>
+        <span class="n">ge_blend_mode</span> <span class="o">=</span> <span class="p">{</span><span class="n">enums</span><span class="o">.</span><span class="n">AnimationBlend</span><span class="o">.</span><span class="n">interpolate</span><span class="p">:</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_BLEND_BLEND</span><span class="p">,</span>
+                        <span class="n">enums</span><span class="o">.</span><span class="n">AnimationBlend</span><span class="o">.</span><span class="n">add</span><span class="p">:</span> <span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_BLEND_ADD</span><span class="p">}[</span><span class="n">blend_mode</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">skeleton</span><span class="o">.</span><span class="n">playAction</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">blend</span><span class="p">,</span>
+                                <span class="n">ge_mode</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="n">speed</span><span class="p">,</span>
+                                <span class="n">blend_mode</span><span class="o">=</span><span class="n">ge_blend_mode</span><span class="p">)</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.is_playing_animation"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.is_playing_animation">[docs]</a>    <span class="k">def</span> <span class="nf">is_playing_animation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">skeleton</span><span class="o">.</span><span class="n">isPlayingAction</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.get_animation_frame"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.get_animation_frame">[docs]</a>    <span class="k">def</span> <span class="nf">get_animation_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skeleton</span><span class="o">.</span><span class="n">getActionFrame</span><span class="p">(</span><span class="n">layer</span><span class="p">))</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.stop_animation"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.stop_animation">[docs]</a>    <span class="k">def</span> <span class="nf">stop_animation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skeleton</span><span class="o">.</span><span class="n">stopAction</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Pawn.skeleton"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.skeleton">[docs]</a>    <span class="k">def</span> <span class="nf">skeleton</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">childrenRecursive</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">bge</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">BL_ArmatureObject</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">child</span>
+</div>
+    <span class="nd">@signals.ActorDamagedSignal.listener</span>
+<div class="viewcode-block" id="Pawn.take_damage"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.take_damage">[docs]</a>    <span class="k">def</span> <span class="nf">take_damage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">damage</span><span class="p">,</span> <span class="n">instigator</span><span class="p">,</span> <span class="n">hit_position</span><span class="p">,</span> <span class="n">momentum</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">health</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">health</span> <span class="o">-</span> <span class="n">damage</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</div>
+    <span class="nd">@simulated</span>
+    <span class="nd">@UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="Pawn.update"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_weapon_attachment</span><span class="p">()</span>
+
+        <span class="c"># Allow remote players to determine if we are alive without seeing health</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_alive_status</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">animations</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Pawn.update_alive_status"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.update_alive_status">[docs]</a>    <span class="k">def</span> <span class="nf">update_alive_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Update health boolean</span>
+<span class="sd">        Runs on authority / autonomous proxy only&#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alive</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">health</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</div>
+    <span class="nd">@simulated</span>
+<div class="viewcode-block" id="Pawn.update_weapon_attachment"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Pawn.update_weapon_attachment">[docs]</a>    <span class="k">def</span> <span class="nf">update_weapon_attachment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_count</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_flash_count</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">play_fire_effects</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_flash_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">weapon_attachment</span><span class="o">.</span><span class="n">local_rotation</span> <span class="o">=</span> <span class="n">mathutils</span><span class="o">.</span><span class="n">Euler</span><span class="p">(</span>
+                                                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">view_pitch</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                                                        <span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Lamp"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Lamp">[docs]</a><span class="k">class</span> <span class="nc">Lamp</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span><span class="p">)</span>
+
+    <span class="n">entity_class</span> <span class="o">=</span> <span class="n">bge_data</span><span class="o">.</span><span class="n">LampObject</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Lamp&quot;</span>
+
+<div class="viewcode-block" id="Lamp.on_initialised"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Lamp.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_intensity</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">energy</span>
+
+    <span class="nd">@intensity.setter</span>
+<div class="viewcode-block" id="Lamp.intensity"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Lamp.intensity">[docs]</a>    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">energy</span> <span class="o">=</span> <span class="n">energy</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span>
+
+    <span class="nd">@active.setter</span>
+<div class="viewcode-block" id="Lamp.active"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Lamp.active">[docs]</a>    <span class="k">def</span> <span class="nf">active</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Modifies the lamp state by setting the intensity to a placeholder</span>
+
+<span class="sd">        :param state: enabled state&#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">state</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_intensity</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">)):</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_intensity</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_intensity</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_intensity</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">intensity</span><span class="p">,</span> <span class="bp">None</span>
+
+</div></div>
+<div class="viewcode-block" id="Navmesh"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Navmesh">[docs]</a><span class="k">class</span> <span class="nc">Navmesh</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">none</span><span class="p">)</span>
+
+    <span class="n">entity_class</span> <span class="o">=</span> <span class="n">bge_data</span><span class="o">.</span><span class="n">NavmeshObject</span>
+    <span class="n">entity_name</span> <span class="o">=</span> <span class="s">&quot;Navmesh&quot;</span>
+
+<div class="viewcode-block" id="Navmesh.draw"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Navmesh.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">bge</span><span class="o">.</span><span class="n">logic</span><span class="o">.</span><span class="n">RM_TRIS</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Navmesh.find_path"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Navmesh.find_path">[docs]</a>    <span class="k">def</span> <span class="nf">find_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_point</span><span class="p">,</span> <span class="n">to_point</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">findPath</span><span class="p">(</span><span class="n">from_point</span><span class="p">,</span> <span class="n">to_point</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Navmesh.get_wall_intersection"><a class="viewcode-back" href="../../bge_network.html#bge_network.replicables.Navmesh.get_wall_intersection">[docs]</a>    <span class="k">def</span> <span class="nf">get_wall_intersection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_point</span><span class="p">,</span> <span class="n">to_point</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">raycast</span><span class="p">(</span><span class="n">from_point</span><span class="p">,</span> <span class="n">to_point</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bindings Module &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="index.html" />
+    <link rel="next" title="blender_example Package" href="blender_example.html" />
+    <link rel="prev" title="Welcome to trunk’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="blender_example.html" title="blender_example Package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to trunk’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-bindings">
+<span id="bindings-module"></span><h1>bindings Module<a class="headerlink" href="#module-bindings" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="bindings.bind_all">
+<tt class="descclassname">bindings.</tt><tt class="descname">bind_all</tt><big>(</big><em>mc</em>, <em>builtin_only=False</em>, <em>stoplist=</em><span class="optional">[</span><span class="optional">]</span>, <em>verbose=False</em><big>)</big><a class="reference internal" href="_modules/bindings.html#bind_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bindings.bind_all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively apply constant binding to functions in a module or class.</p>
+<p>Use as the last line of the module (after everything is defined, but
+before test code).  In modules that need modifiable globals, set
+builtin_only to True.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="bindings.make_constants">
+<tt class="descclassname">bindings.</tt><tt class="descname">make_constants</tt><big>(</big><em>builtin_only=False</em>, <em>stoplist=</em><span class="optional">[</span><span class="optional">]</span>, <em>verbose=False</em><big>)</big><a class="reference internal" href="_modules/bindings.html#make_constants"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bindings.make_constants" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a decorator for optimizing global references.</p>
+<p>Replaces global references with their currently defined values.
+If not defined, the dynamic (runtime) global lookup is left undisturbed.
+If builtin_only is True, then only builtins are optimized.
+Variable names in the stoplist are also left undisturbed.
+Also, folds constant attr lookups and tuples of constants.
+If verbose is True, prints each substitution as is occurs</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to trunk&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="blender_example.html"
+                        title="next chapter">blender_example Package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/bindings.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="blender_example.html" title="blender_example Package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to trunk’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,173 @@
+a="""KX_CollisionData.cpp
+KX_KetsjiLogicBrickLoop.cpp
+KX_KetsjiLogicLoop.cpp
+KX_KetsjiSetupTools.cpp
+KX_PythonLogicLoop.cpp
+KX_ResourceManager.cpp
+KX_PythonLogicLoop.h
+KX_ResourceManager.h
+KX_KetsjiSetupTools.h
+KX_KetsjiLogicLoop.h
+KX_KetsjiLogicBrickLoop.h
+KX_EngineCallbackData.h
+KX_CollisionData.h"""
+
+b="""BL_Action.cpp
+	BL_ActionManager.cpp
+	BL_BlenderShader.cpp
+	BL_Material.cpp
+	BL_Shader.cpp
+	BL_Texture.cpp
+	KX_ArmatureSensor.cpp
+	KX_BlenderMaterial.cpp
+	KX_Camera.cpp
+	KX_CameraActuator.cpp
+	KX_CameraIpoSGController.cpp
+	KX_CharacterWrapper.cpp
+	KX_ConstraintActuator.cpp
+	KX_ConstraintWrapper.cpp
+	KX_ConvertPhysicsObjects.cpp
+	KX_Dome.cpp
+	KX_EmptyObject.cpp
+	KX_FontObject.cpp
+	KX_GameActuator.cpp
+	KX_GameObject.cpp
+	KX_IpoConvert.cpp
+	KX_IPO_SGController.cpp
+	KX_IpoActuator.cpp
+	KX_KetsjiEngine.cpp
+	KX_KetsjiLogicLoop.cpp
+	KX_KetsjiLogicBrickLoop.cpp
+	KX_KetsjiSetupTools.cpp
+	KX_Light.cpp
+	KX_LightIpoSGController.cpp
+	KX_MaterialIpoController.cpp
+	KX_MeshProxy.cpp
+	KX_MotionState.cpp
+	KX_MouseFocusSensor.cpp
+	KX_NavMeshObject.cpp
+	KX_NearSensor.cpp
+	KX_ObColorIpoSGController.cpp
+	KX_ObjectActuator.cpp
+	KX_ObstacleSimulation.cpp
+	KX_OrientationInterpolator.cpp
+	KX_ParentActuator.cpp
+	KX_PolyProxy.cpp
+	KX_PositionInterpolator.cpp
+	KX_PyConstraintBinding.cpp
+	KX_PyMath.cpp
+	KX_PythonInit.cpp
+	KX_PythonInitTypes.cpp
+	KX_PythonMain.cpp
+	KX_PythonSeq.cpp
+	KX_PythonLogicLoop.cpp
+	KX_RadarSensor.cpp
+	KX_RayCast.cpp
+	KX_RayEventManager.cpp
+	KX_RaySensor.cpp
+	KX_ResourceManager.cpp
+	KX_SCA_AddObjectActuator.cpp
+	KX_SCA_DynamicActuator.cpp
+	KX_SCA_EndObjectActuator.cpp
+	KX_SCA_ReplaceMeshActuator.cpp
+	KX_SG_BoneParentNodeRelationship.cpp
+	KX_SG_NodeRelationships.cpp
+	KX_ScalarInterpolator.cpp
+	KX_ScalingInterpolator.cpp
+	KX_Scene.cpp
+	KX_SceneActuator.cpp
+	KX_SoundActuator.cpp
+	KX_StateActuator.cpp
+	KX_SteeringActuator.cpp
+	KX_TimeCategoryLogger.cpp
+	KX_TimeLogger.cpp
+	KX_TouchEventManager.cpp
+	KX_TouchSensor.cpp
+	KX_TrackToActuator.cpp
+	KX_VehicleWrapper.cpp
+	KX_VertexProxy.cpp
+	KX_VisibilityActuator.cpp
+	KX_WorldInfo.cpp
+	KX_WorldIpoController.cpp
+
+	BL_Action.h
+	BL_ActionManager.h
+	BL_BlenderShader.h
+	BL_Material.h
+	BL_Shader.h
+	BL_Texture.h
+	KX_ArmatureSensor.h
+	KX_BlenderMaterial.h
+	KX_Camera.h
+	KX_CameraActuator.h
+	KX_CameraIpoSGController.h
+	KX_CharacterWrapper.h
+	KX_ClientObjectInfo.h
+	KX_ConstraintActuator.h
+	KX_ConstraintWrapper.h
+	KX_ConvertPhysicsObject.h
+	KX_Dome.h
+	KX_EmptyObject.h
+	KX_FontObject.h
+	KX_GameActuator.h
+	KX_GameObject.h
+	KX_IInterpolator.h
+	KX_IpoConvert.h
+	KX_IPOTransform.h
+	KX_IPO_SGController.h
+	KX_IScalarInterpolator.h
+	KX_ISceneConverter.h
+	KX_ISystem.h
+	KX_IpoActuator.h
+	KX_KetsjiEngine.h
+	KX_Light.h
+	KX_LightIpoSGController.h
+	KX_MaterialIpoController.h
+	KX_MeshProxy.h
+	KX_MotionState.h
+	KX_MouseFocusSensor.h
+	KX_NavMeshObject.h
+	KX_NearSensor.h
+	KX_ObColorIpoSGController.h
+	KX_ObjectActuator.h
+	KX_ObstacleSimulation.h
+	KX_OrientationInterpolator.h
+	KX_ParentActuator.h
+	KX_PhysicsEngineEnums.h
+	KX_PolyProxy.h
+	KX_PositionInterpolator.h
+	KX_PyConstraintBinding.h
+	KX_PyMath.h
+	KX_PythonInit.h
+	KX_PythonInitTypes.h
+	KX_PythonMain.h
+	KX_PythonSeq.h
+	KX_RadarSensor.h
+	KX_RayCast.h
+	KX_RayEventManager.h
+	KX_RaySensor.h
+	KX_SCA_AddObjectActuator.h
+	KX_SCA_DynamicActuator.h
+	KX_SCA_EndObjectActuator.h
+	KX_SCA_ReplaceMeshActuator.h
+	KX_SG_BoneParentNodeRelationship.h
+	KX_SG_NodeRelationships.h
+	KX_ScalarInterpolator.h
+	KX_ScalingInterpolator.h
+	KX_Scene.h
+	KX_SceneActuator.h
+	KX_SoundActuator.h
+	KX_StateActuator.h
+	KX_SteeringActuator.h
+	KX_TimeCategoryLogger.h
+	KX_TimeLogger.h
+	KX_TouchEventManager.h
+	KX_TouchSensor.h
+	KX_TrackToActuator.h
+	KX_VehicleWrapper.h
+	KX_VertexProxy.h
+	KX_VisibilityActuator.h
+	KX_WorldInfo.h
+	KX_WorldIpoController.h"""
+
+print(set([x.strip() for x in a.split("\n")]).difference([b.strip() for x in b.split("\n")]))
