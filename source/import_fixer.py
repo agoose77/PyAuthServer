@@ -1,6 +1,5 @@
 import sys
 from unittest.mock import Mock
-import builtins
 
 __all__ = ["modules"]
 
