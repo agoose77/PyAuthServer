@@ -45,3 +45,18 @@ setup(name='blender_example',
           # 'something else?',
           ],
       )
+setup(name='game_sysytem',
+      version='1.0',
+      description="Game System package",
+      long_description="",
+      author='Angus Hollands',
+      author_email='goosey15@gmail.com',
+      license='TODO',
+      packages=['game_system'],
+      zip_safe=False,
+      install_requires=[
+          # 'Sphinx',
+          # ^^^ Not sure if this is needed on readthedocs.org
+          # 'something else?',
+          ],
+      )
