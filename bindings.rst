@@ -1,7 +1,0 @@
-bindings Module
-===============
-
-.. automodule:: bindings
-    :members:
-    :undoc-members:
-    :show-inheritance:
