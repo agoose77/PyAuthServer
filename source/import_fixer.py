@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import Mock
+from mock import Mock
 
 __all__ = ["modules"]
 
