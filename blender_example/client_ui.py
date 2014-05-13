@@ -963,7 +963,7 @@ class UIPanel(TimerMixins, Panel):
         notification = Notification(self.notifications_frame, *args,
                                     pos=position, message=message,
                                     font_size=self.font_size,
-                                    size=self._notification_size,
+                                    size=self._notification_size[:],
                                     **kwargs)
 
         # Catch death event
@@ -1101,11 +1101,10 @@ class UIPanel(TimerMixins, Panel):
     def update_positions(self):
         """Update notification positions to account for individual changes"""
         # Handle sliding up when deleting notifications_frame
-
         x_offset, y_offset = self.start_position
 
         for index, notification in enumerate(self._notifications):
-            y_step = self.entry_padding + notification._base_size[1]
+            y_step = self.entry_padding + self._notification_size[1]
 
             calculated_y = y_offset - (index * y_step)
             position_y = notification.initial_position[1]

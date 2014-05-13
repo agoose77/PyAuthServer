@@ -11,14 +11,14 @@ __all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4',
 
 class IStruct(PyStruct):
 
-    def size(self, bytes_=None):
+    def size(self, bytes_string=None):
         return super().size
 
-    def unpack(self, bytes_):
-        return super().unpack(bytes_)[0]
+    def unpack(self, bytes_string):
+        return super().unpack(bytes_string)[0]
 
-    def unpack_from(self, bytes_):
-        return super().unpack_from(bytes_)[0]
+    def unpack_from(self, bytes_string):
+        return super().unpack_from(bytes_string)[0]
 
 
 UInt32 = IStruct("!I")
@@ -59,8 +59,8 @@ class BoolHandler:
     unpacker = UInt8.unpack_from
 
     @classmethod
-    def unpack_from(cls, bytes_):
-        return bool(cls.unpacker(bytes_))
+    def unpack_from(cls, bytes_string):
+        return bool(cls.unpacker(bytes_string))
 
     size = UInt8.size
     pack = UInt8.pack
@@ -72,19 +72,19 @@ class BytesHandler:
         header_max_value = static_value.data.get("max_length", 255)
         self.packer = handler_from_int(header_max_value)
 
-    def pack(self, bytes_):
-        return self.packer.pack(len(bytes_)) + bytes_
+    def pack(self, bytes_string):
+        return self.packer.pack(len(bytes_string)) + bytes_string
 
-    def size(self, bytes_):
-        length = self.packer.unpack_from(bytes_)
+    def size(self, bytes_string):
+        length = self.packer.unpack_from(bytes_string)
         return length + self.packer.size()
 
-    def unpack(self, bytes_):
-        return bytes_[self.packer.size():]
+    def unpack(self, bytes_string):
+        return bytes_string[self.packer.size():]
 
-    def unpack_from(self, bytes_):
-        length = self.size(bytes_)
-        return self.unpack(bytes_[:length])
+    def unpack_from(self, bytes_string):
+        length = self.size(bytes_string)
+        return self.unpack(bytes_string[:length])
 
 
 class StringHandler(BytesHandler):
@@ -92,8 +92,8 @@ class StringHandler(BytesHandler):
     def pack(self, str_):
         return super().pack(str_.encode())
 
-    def unpack(self, bytes_):
-        return super().unpack(bytes_).decode()
+    def unpack(self, bytes_string):
+        return super().unpack(bytes_string).decode()
 
 
 def int_selector(type_flag):

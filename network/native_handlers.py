@@ -28,8 +28,8 @@ def is_variable_sized(packer):
     size_func = packer.size
     size_signature = signature(size_func)
     parameter_list = list(size_signature.parameters.keys())
-    bytes_arg = size_signature.parameters[parameter_list[-1]]
-    return bytes_arg.default is bytes_arg.empty
+    bytes_stringarg = size_signature.parameters[parameter_list[-1]]
+    return bytes_stringarg.default is bytes_stringarg.empty
 
 
 class ReplicableTypeHandler:
@@ -41,13 +41,13 @@ class ReplicableTypeHandler:
         return cls.string_packer.pack(cls_.type_name)
 
     @classmethod
-    def unpack_from(cls, bytes_):
-        name = cls.string_packer.unpack_from(bytes_)
+    def unpack_from(cls, bytes_string):
+        name = cls.string_packer.unpack_from(bytes_string)
         return Replicable.from_type_name(name)  # @UndefinedVariable
 
     @classmethod
-    def size(cls, bytes_=None):
-        return cls.string_packer.size(bytes_)
+    def size(cls, bytes_string=None):
+        return cls.string_packer.size(bytes_string)
 
 
 class RolesHandler:
@@ -64,13 +64,13 @@ class RolesHandler:
         return pack(roles.remote) + pack(roles.local)
 
     @classmethod
-    def unpack_from(cls, bytes_):
+    def unpack_from(cls, bytes_string):
         packer = cls.packer
-        return Roles(packer.unpack_from(bytes_),
-                     packer.unpack_from(bytes_[packer.size():]))
+        return Roles(packer.unpack_from(bytes_string),
+                     packer.unpack_from(bytes_string[packer.size():]))
 
     @classmethod
-    def size(cls, bytes_=None):
+    def size(cls, bytes_string=None):
         return 2 * cls.packer.size()
 
 
@@ -100,9 +100,9 @@ class IterableHandler:
         packed_elements = b''.join(element_pack(x) for x in iterable)
         return element_count + packed_elements
 
-    def unpack_from(self, bytes_):
-        size = self.count_packer.unpack_from(bytes_)
-        data = bytes_[self.count_packer.size():]
+    def unpack_from(self, bytes_string):
+        size = self.count_packer.unpack_from(bytes_string)
+        data = bytes_string[self.count_packer.size():]
         element_get_size = self.element_packer.size
         element_unpack = self.element_packer.unpack_from
 
@@ -123,13 +123,13 @@ class IterableHandler:
 
         return elements
 
-    def unpack_merge(self, iterable, bytes_):
-        self.__class__.iterable_update(iterable, self.unpack_from(bytes_))
+    def unpack_merge(self, iterable, bytes_string):
+        self.__class__.iterable_update(iterable, self.unpack_from(bytes_string))
 
-    def size(self, bytes_):
+    def size(self, bytes_string):
         count_size = self.count_packer.size()
-        number_elements = self.count_packer.unpack_from(bytes_)
-        data = bytes_[count_size:]
+        number_elements = self.count_packer.unpack_from(bytes_string)
+        data = bytes_string[count_size:]
         element_get_size = self.element_packer.size
 
         if not self.is_variable_sized:
@@ -178,11 +178,11 @@ class ReplicableBaseHandler:
     def pack_id(self, id_):
         return self._packer.pack(id_)
 
-    def unpack_id(self, bytes_):
-        return self._packer.unpack_from(bytes_)
+    def unpack_id(self, bytes_string):
+        return self._packer.unpack_from(bytes_string)
 
-    def unpack_from(self, bytes_):
-        instance_id = self.unpack_id(bytes_)
+    def unpack_from(self, bytes_string):
+        instance_id = self.unpack_id(bytes_string)
 
         # Return only a replicable that was created by the network
 
@@ -195,7 +195,7 @@ class ReplicableBaseHandler:
                   "'{}'".format(instance_id))
             return
 
-    def size(self, bytes_=None):
+    def size(self, bytes_string=None):
         return self._packer.size()
 
 
@@ -206,19 +206,19 @@ class StructHandler:
         self.size_packer = get_handler(TypeFlag(int))
 
     def pack(self, struct):
-        bytes_ = struct.to_bytes()
-        return self.size_packer.pack(len(bytes_)) + bytes_
+        bytes_string = struct.to_bytes()
+        return self.size_packer.pack(len(bytes_string)) + bytes_string
 
-    def unpack_from(self, bytes_):
+    def unpack_from(self, bytes_string):
         struct = self.struct_cls()
-        self.unpack_merge(struct, bytes_)
+        self.unpack_merge(struct, bytes_string)
         return struct
 
-    def unpack_merge(self, struct, bytes_):
-        struct.read_bytes(bytes_[self.size_packer.size():])
+    def unpack_merge(self, struct, bytes_string):
+        struct.read_bytes(bytes_string[self.size_packer.size():])
 
-    def size(self, bytes_):
-        return self.size_packer.unpack_from(bytes_) + self.size_packer.size()
+    def size(self, bytes_string):
+        return self.size_packer.unpack_from(bytes_string) + self.size_packer.size()
 
 
 class FixedBitFieldHandler:
@@ -233,15 +233,15 @@ class FixedBitFieldHandler:
         # Get the smallest needed packer for this bitfield
         return self._packer.pack(field._value)
 
-    def unpack_from(self, bytes_):
-        data = self._packer.unpack_from(bytes_)
+    def unpack_from(self, bytes_string):
+        data = self._packer.unpack_from(bytes_string)
         field = BitField(self._size, data)
         return field
 
-    def unpack_merge(self, field, bytes_):
-        field._value = self._packer.unpack_from(bytes_)
+    def unpack_merge(self, field, bytes_string):
+        field._value = self._packer.unpack_from(bytes_string)
 
-    def size(self, bytes_):
+    def size(self, bytes_string):
         return self._packed_size
 
 
@@ -265,12 +265,12 @@ class VariableBitFieldHandler:
             return packed_size
 
     @classmethod
-    def unpack_from(cls, bytes_):
-        field_size = cls.size_packer.unpack_from(bytes_)
+    def unpack_from(cls, bytes_string):
+        field_size = cls.size_packer.unpack_from(bytes_string)
 
         if field_size:
             field_packer = handler_from_bit_length(field_size)
-            data = field_packer.unpack_from(bytes_[cls.size_packer.size():])
+            data = field_packer.unpack_from(bytes_string[cls.size_packer.size():])
 
         else:
             data = 0
@@ -279,22 +279,22 @@ class VariableBitFieldHandler:
         return field
 
     @classmethod
-    def unpack_merge(cls, field, bytes_):
-        field_size = cls.size_packer.unpack_from(bytes_)
+    def unpack_merge(cls, field, bytes_string):
+        field_size = cls.size_packer.unpack_from(bytes_string)
         if field_size:
             field_packer = handler_from_bit_length(field_size)
-            field._value = field_packer.unpack_from(bytes_[
+            field._value = field_packer.unpack_from(bytes_string[
                                                    cls.size_packer.size():])
 
         footprint = field.footprint
         if footprint:
             field_packer = handler_from_byte_length(footprint)
             field._value = field_packer.unpack_from(
-                                bytes_[cls.size_packer.size():])
+                                bytes_string[cls.size_packer.size():])
 
     @classmethod
-    def size(cls, bytes_):
-        field_size = cls.size_packer.unpack_from(bytes_)
+    def size(cls, bytes_string):
+        field_size = cls.size_packer.unpack_from(bytes_string)
         field_handler = handler_from_bit_length(field_size)
         return field_handler.size() + cls.size_packer.size()
 

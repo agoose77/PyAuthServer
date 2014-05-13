@@ -99,10 +99,10 @@ class ClientChannel(Channel):
         :returns: replication priority"""
         return self.replicable.replication_priority
 
-    def set_attributes(self, bytes_):
+    def set_attributes(self, bytes_string):
         '''Unpacks byte stream and updates attributes
 
-        :param bytes_: byte stream of attribute'''
+        :param bytes\_: byte stream of attribute'''
         replicable = self.replicable
 
         # Create local references outside loop
@@ -111,7 +111,7 @@ class ClientChannel(Channel):
         notifications = []
         notify = notifications.append
 
-        for attribute_name, value in self.serialiser.unpack(bytes_,
+        for attribute_name, value in self.serialiser.unpack(bytes_string,
                                                             replicable_data):
             attribute = get_attribute(attribute_name)
             # Store new value

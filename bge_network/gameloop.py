@@ -17,7 +17,7 @@ __all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
 
 
 RewindState = namedtuple("RewindState", "position rotation animations")
-from network.connection_interfaces import ConnectionInterface
+
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
@@ -245,7 +245,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
 class ServerGameLoop(GameLoop):
 
-    render = False
+    #render = False
 
     def __init__(self):
         super().__init__()

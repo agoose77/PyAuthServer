@@ -36,13 +36,17 @@ class PacketCollection:
         return len(self.to_bytes())
 
     def to_reliable(self):
-        '''Returns a PacketCollection instance,
-        comprised of only reliable members'''
+        '''Create PacketCollection of reliable members
+
+        :rtype: :py:class:`network.packet.PacketCollection`
+        '''
         return self.__class__(self.reliable_members)
 
     def to_unreliable(self):
-        '''Returns a PacketCollection instance,
-        comprised of only unreliable members'''
+        '''Create PacketCollection of unreliable members
+
+        :rtype: :py:class:`network.packet.PacketCollection`
+        '''
         return self.__class__(self.unreliable_members)
 
     def on_ack(self):
@@ -51,24 +55,35 @@ class PacketCollection:
             member.on_ack()
 
     def on_not_ack(self):
-        '''Callback for assumption of packet loss'''
+        """Callback for assumption of a lost packet"""
         for member in self.reliable_members:
             member.on_not_ack()
 
     def to_bytes(self):
+        """Writes collection contents to bytes""" 
         return b''.join([m.to_bytes() for m in self.members])
 
     @classmethod
-    def iter_bytes(cls, bytes_, callback):
-        while bytes_:
+    def iter_bytes(cls, bytes_string, callback):
+        """Iterates over packets within a byte stream
+
+        :param bytes_string: byte stream
+        :param callback: callable object to handle created packets"""
+        while bytes_string:
             packet = Packet()
-            bytes_ = packet.take_from(bytes_)
+            bytes_string = packet.take_from(bytes_string)
             callback(packet)
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_string):
+        """Creates PacketCollection instance
+        Populates with packets in byte stream
+
+        :param bytes_string: bytes stream
+        :rtype: :py:class:`network.packet.PacketCollection`
+        """
         collection = cls()
-        cls.iter_bytes(bytes_, collection.members.append)
+        cls.iter_bytes(bytes_string, collection.members.append)
 
         return collection
 
@@ -85,7 +100,7 @@ class PacketCollection:
         return iter(self.members)
 
     __radd__ = __add__
-    __bytes__ = to_bytes
+    __bytes_string_ = to_bytes
 
 
 class Packet:
@@ -113,52 +128,75 @@ class Packet:
 
     @property
     def size(self):
+        """Length of packet when reduced to bytes"""
         return len(self.to_bytes())
 
     def on_ack(self):
-        '''Called when packet is acknowledged'''
+        """Called when packet is acknowledged.
+
+        Invokes on_success callback if this packet is reliable
+        """
         if self.reliable and callable(self.on_success):
             self.on_success(self)
 
     def on_not_ack(self):
-        '''Called when packet is dropped'''
+        """Called when packet is considered dropped.
+
+        Invokes on_failure callback if this packet is reliable
+        """
         if callable(self.on_failure):
             self.on_failure(self)
 
     @lru_cache()
     def to_bytes(self):
-        '''Converts packet into bytes'''
+        """Reduces packet into bytes
+
+        :rtype: bytes
+        """
         data = self.protocol_handler.pack(self.protocol) + self.payload
         return self.size_handler.pack(len(data)) + data
 
-    def from_bytes(self, bytes_):
-        '''Returns packet instance after population
-        Takes data from bytes, returns Packet()'''
-        self.take_from(bytes_)
+    def from_bytes(self, bytes_string):
+        """Creates packet instance from bytes
+
+        :param bytes_string: bytes stream
+        :rtype: :py:class:`network.packet.Packet`
+        """
+        self.take_from(bytes_string)
         return self
 
-    def take_from(self, bytes_):
-        '''Populates packet instance with data
-        Returns new slice of bytes string'''
+    def take_from(self, bytes_string):
+        """Populates packet instance with data.
+
+        Offsets returned bytes by length of packet
+
+        :param bytes_string: bytes stream
+        :rtype: bytes
+        """
         length_handler = self.size_handler
         protocol_handler = self.protocol_handler
 
-        length = length_handler.unpack_from(bytes_)
+        length = length_handler.unpack_from(bytes_string)
         shift = length_handler.size()
 
-        self.protocol = protocol_handler.unpack_from(bytes_[shift:])
+        self.protocol = protocol_handler.unpack_from(bytes_string[shift:])
         proto_shift = protocol_handler.size()
 
-        self.payload = bytes_[shift + proto_shift:shift + length]
+        self.payload = bytes_string[shift + proto_shift:shift + length]
         self.reliable = False
 
-        return bytes_[shift + length:]
+        return bytes_string[shift + length:]
 
     def __add__(self, other):
+        """Concatenates two Packets
+
+        :param other: Packet instance
+        :rtype: :py:class:`network.packet.PacketCollection`
+        """
         return PacketCollection(members=self.members + other.members)
 
     def __str__(self):
-        '''Printable version of a packet'''
+        """String representation of Packet"""
         to_console = ["[Packet]"]
         for key in self.__slots__:
             if key.startswith("_"):
@@ -168,4 +206,4 @@ class Packet:
         return '\n'.join(to_console)
 
     __radd__ = __add__
-    __bytes__ = to_bytes
+    __bytes_string_ = to_bytes

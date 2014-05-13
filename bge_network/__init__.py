@@ -1,3 +1,6 @@
+"""BGE networking game library
+Extends network library for BGE types in a game engine environment
+"""
 from .animation import *
 from .signals import *
 from .configuration import *

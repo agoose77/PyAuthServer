@@ -1,4 +1,4 @@
 PyAuthServer
 ============
 
-Python Multiplayer Game library
+Authoritative Python Multiplayer Library

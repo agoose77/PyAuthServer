@@ -65,7 +65,9 @@ class Replicable(metaclass=ReplicableRegister):
     def uppermost(self):
         '''Walks the successive owner of each Replicable to find highest parent
 
-        :returns: uppermost parent'''
+        :returns: uppermost parent
+        :rtype: :py:class:`network.replicable.Replicable` or \
+        :py:class:`None`'''
         last = None
         replicable = self
 
@@ -81,10 +83,16 @@ class Replicable(metaclass=ReplicableRegister):
 
     @classmethod
     def create_or_return(cls, base_cls, instance_id, register=True):
-        '''Called by the replication system, assumes non static if creating
-        Creates a replicable if it is not already instantiated
+        '''Creates a replicable if it is not already registered.
 
-        :param base_cls: base class of replicable to instantiate
+        Called by the replication system to establish
+        :py:class:`network.replicable.Replicable` references.
+
+        If the instance_id is registered, take precedence over non-static
+        instances.
+
+        :param base_cls: subclass class of\
+        :py:class:`network.replicable.Replicable` to instantiate
         :param register: if registration should occur immediately'''
         # Try and match an existing instance
         try:
@@ -108,18 +116,21 @@ class Replicable(metaclass=ReplicableRegister):
 
     @classmethod
     def get_id_iterable(cls):
-        '''Returns iterable up to maximum replicable count
+        '''Create iterator up to maximum replicable count
 
-        :returns: range up to maximum ID'''
+        :returns: range up to maximum ID
+        :rtype: iterable'''
         return range(cls._MAXIMUM_REPLICABLES)
 
     def request_registration(self, instance_id, register=False):
-        '''Handles registration of instances
-        Modifies behaviour to allow network priority over local instances
+        '''Handles registration of instances.
+
+        Modifies behaviour to allow network priority over local instances.
+
         Handles edge cases such as static replicables
 
         :param instance_id: instance id to register with
-        :param verbose: if verbose debugging should occur'''
+        :param register: if registration should be immediate'''
         # This is not static or replicated then it's local
         if instance_id is None:
             self._local_authority = True
@@ -146,12 +157,14 @@ class Replicable(metaclass=ReplicableRegister):
         self.owner = other
 
     def unpossessed(self):
-        '''Called on unpossession by replicable
+        '''Called on unpossession by replicable.
+
         May be due to death of replicable'''
         self.owner = None
 
     def on_registered(self):
-        '''Called on registration of replicable
+        '''Called on registration of replicable.
+
         Registers instance to type list'''
         super().on_registered()
 
@@ -159,7 +172,8 @@ class Replicable(metaclass=ReplicableRegister):
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):
-        '''Called on unregistration of replicable
+        '''Called on unregistration of replicable.
+
         Removes instance from type list'''
         self.unpossessed()
 
@@ -177,10 +191,12 @@ class Replicable(metaclass=ReplicableRegister):
                                                  self.__class__.__name__))
 
     def conditions(self, is_owner, is_complaint, is_initial):
-        '''Condition generator that determines replicated attributes
+        '''Condition generator that determines replicated attributes.
+
         Attributes yielded are still subject to conditions before sending
 
-        :param is_owner: if the current replicator is the owner
+        :param is_owner: if the current :py:class:`network.channel.Channel`\
+        is the owner
         :param is_complaint: if any complaining variables have been changed
         :param is_initial: if this is the first replication for this target '''
         if is_complaint or is_initial:
@@ -189,17 +205,20 @@ class Replicable(metaclass=ReplicableRegister):
             yield "torn_off"
 
     def __description__(self):
-        '''Returns a hash-like description for this replicable
-        Used to check if the value of a replicated reference has changed'''
+        '''Returns a hash-like description for this replicable.
+
+        Used by replication system to determine if reference has changed
+        :rtype: int'''
         return hash(self.instance_id)
 
     def __repr__(self):
-        if not self.registered:
-            return "(Replicable {})".format(
-                    self.__class__.__name__)
+        class_name = self.__class__.__name__
 
-        return ("(Replicable {0}: id={1.instance_id})"
-                .format(self.__class__.__name__, self))
+        if not self.registered:
+            return "(Replicable {})".format(class_name)
+
+        return ("(Replicable {0}: id={1.instance_id})".format(class_name,
+                                                              self))
 
 
 # Circular Reference on attribute

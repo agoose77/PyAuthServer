@@ -48,12 +48,12 @@ class RPCInterface:
     def __repr__(self):
         return "<RPC Interface {}>".format(self._function_name)
 
-    def execute(self, bytes_):
-        """Execute RPC from bytes_
-        :param bytes_: Byte stream of RPC call"""
+    def execute(self, bytes_string):
+        """Execute RPC from bytes_string
+        :param bytes_string: Byte stream of RPC call"""
         # Unpack RPC
         try:
-            unpacked_data = self._serialiser.unpack(bytes_)
+            unpacked_data = self._serialiser.unpack(bytes_string)
             self._function_call(**dict(unpacked_data))
 
         except Exception as err:

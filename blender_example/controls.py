@@ -2,7 +2,7 @@ from bge_network import *
 from mathutils import Vector, Euler
 from math import radians, sin, cos, copysign
 
-from behaviours import *
+from .behaviours import *
 
 
 def camera_control():
