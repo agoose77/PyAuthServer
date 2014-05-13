@@ -1,0 +1,240 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>blender_example.controls &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for blender_example.controls</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">bge_network</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">mathutils</span> <span class="kn">import</span> <span class="n">Vector</span><span class="p">,</span> <span class="n">Euler</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">radians</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span>
+
+<span class="kn">from</span> <span class="nn">behaviours</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<div class="viewcode-block" id="camera_control"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.camera_control">[docs]</a><span class="k">def</span> <span class="nf">camera_control</span><span class="p">():</span>
+    <span class="n">play_state</span> <span class="o">=</span> <span class="n">SequenceNode</span><span class="p">(</span>
+                              <span class="n">GetPawn</span><span class="p">(),</span>
+                              <span class="n">GetCamera</span><span class="p">(),</span>
+                              <span class="n">HasMouse</span><span class="p">(),</span>
+                              <span class="n">HandleMouseYaw</span><span class="p">(),</span>
+                              <span class="n">SelectorNode</span><span class="p">(</span>
+                                           <span class="n">SequenceNode</span><span class="p">(</span>
+                                                        <span class="n">IsThirdPerson</span><span class="p">(),</span>
+                                                        <span class="n">HandleThirdPersonCamera</span><span class="p">()</span>
+                                                        <span class="p">),</span>
+                                           <span class="n">HandleFirstPersonCamera</span><span class="p">()</span>
+                                           <span class="p">)</span>
+                              <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">play_state</span>
+
+</div>
+<div class="viewcode-block" id="inputs_control"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.inputs_control">[docs]</a><span class="k">def</span> <span class="nf">inputs_control</span><span class="p">():</span>
+    <span class="n">play_state</span> <span class="o">=</span> <span class="n">SequenceNode</span><span class="p">(</span>
+                              <span class="n">GetPawn</span><span class="p">(),</span>
+                              <span class="n">HasInputs</span><span class="p">(),</span>
+                              <span class="n">HandleInputs</span><span class="p">()</span>
+                              <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">play_state</span>
+
+</div>
+<div class="viewcode-block" id="HasInputs"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HasInputs">[docs]</a><span class="k">class</span> <span class="nc">HasInputs</span><span class="p">(</span><span class="n">ConditionNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HasInputs.condition"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HasInputs.condition">[docs]</a>    <span class="k">def</span> <span class="nf">condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;inputs&quot;</span> <span class="ow">in</span> <span class="n">blackboard</span>
+
+</div></div>
+<div class="viewcode-block" id="HasMouse"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HasMouse">[docs]</a><span class="k">class</span> <span class="nc">HasMouse</span><span class="p">(</span><span class="n">ConditionNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HasMouse.condition"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HasMouse.condition">[docs]</a>    <span class="k">def</span> <span class="nf">condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;mouse&quot;</span> <span class="ow">in</span> <span class="n">blackboard</span>
+
+</div></div>
+<div class="viewcode-block" id="HandleMouseYaw"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleMouseYaw">[docs]</a><span class="k">class</span> <span class="nc">HandleMouseYaw</span><span class="p">(</span><span class="n">SignalLeafNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HandleMouseYaw.evaluate"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleMouseYaw.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="n">mouse_diff_x</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;mouse&#39;</span><span class="p">]</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;pawn&#39;</span><span class="p">]</span>
+
+        <span class="n">pawn</span><span class="o">.</span><span class="n">angular</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">mouse_diff_x</span> <span class="o">*</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">pawn</span><span class="o">.</span><span class="n">turn_speed</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span>
+
+</div></div>
+<div class="viewcode-block" id="IsThirdPerson"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.IsThirdPerson">[docs]</a><span class="k">class</span> <span class="nc">IsThirdPerson</span><span class="p">(</span><span class="n">ConditionNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="IsThirdPerson.condition"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.IsThirdPerson.condition">[docs]</a>    <span class="k">def</span> <span class="nf">condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;camera&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">camera</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">CameraMode</span><span class="o">.</span><span class="n">third_person</span>
+
+</div></div>
+<div class="viewcode-block" id="HandleFirstPersonCamera"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleFirstPersonCamera">[docs]</a><span class="k">class</span> <span class="nc">HandleFirstPersonCamera</span><span class="p">(</span><span class="n">SignalLeafNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HandleFirstPersonCamera.evaluate"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleFirstPersonCamera.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">mouse_diff_y</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;mouse&#39;</span><span class="p">]</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;pawn&#39;</span><span class="p">]</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;camera&#39;</span><span class="p">]</span>
+
+        <span class="n">look_speed</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">look_limit</span> <span class="o">=</span> <span class="n">radians</span><span class="p">(</span><span class="mi">45</span><span class="p">)</span>
+
+        <span class="n">rotation_delta</span> <span class="o">=</span> <span class="n">mouse_diff_y</span> <span class="o">*</span> <span class="n">look_speed</span>
+
+        <span class="n">new_pitch</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">view_pitch</span> <span class="o">+</span> <span class="n">rotation_delta</span>
+        <span class="n">new_pitch</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">look_limit</span><span class="p">,</span> <span class="n">new_pitch</span><span class="p">))</span>
+
+        <span class="n">pawn</span><span class="o">.</span><span class="n">view_pitch</span> <span class="o">=</span> <span class="n">new_pitch</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">rotation</span> <span class="o">=</span> <span class="n">Euler</span><span class="p">((</span><span class="n">new_pitch</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span>
+
+</div></div>
+<div class="viewcode-block" id="HandleThirdPersonCamera"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleThirdPersonCamera">[docs]</a><span class="k">class</span> <span class="nc">HandleThirdPersonCamera</span><span class="p">(</span><span class="n">SignalLeafNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HandleThirdPersonCamera.evaluate"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleThirdPersonCamera.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">mouse_diff_y</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;mouse&#39;</span><span class="p">]</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;pawn&#39;</span><span class="p">]</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;camera&#39;</span><span class="p">]</span>
+
+        <span class="n">look_speed</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">look_limit</span> <span class="o">=</span> <span class="n">radians</span><span class="p">(</span><span class="mi">45</span><span class="p">)</span>
+
+        <span class="n">rotation_delta</span> <span class="o">=</span> <span class="n">mouse_diff_y</span> <span class="o">*</span> <span class="n">look_speed</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">view_pitch</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">Euler</span><span class="p">((</span><span class="n">rotation_delta</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
+
+        <span class="n">minimum_y</span> <span class="o">=</span> <span class="o">-</span><span class="n">camera</span><span class="o">.</span><span class="n">offset</span>
+        <span class="n">maximum_y</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">look_limit</span><span class="p">)</span> <span class="o">*</span> <span class="o">-</span><span class="n">camera</span><span class="o">.</span><span class="n">offset</span>
+
+        <span class="n">minimum_z</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">maximum_z</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">look_limit</span><span class="p">)</span> <span class="o">*</span> <span class="n">camera</span><span class="o">.</span><span class="n">offset</span>
+
+        <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">maximum_y</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">minimum_y</span><span class="p">,</span>
+                                            <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">maximum_z</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">minimum_z</span><span class="p">,</span>
+                                            <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">z</span><span class="p">))</span>
+
+        <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">offset</span>
+
+        <span class="n">rotation</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">rotation_difference</span><span class="p">(</span>
+                          <span class="n">camera</span><span class="o">.</span><span class="n">local_position</span><span class="p">)</span><span class="o">.</span><span class="n">inverted</span><span class="p">()</span><span class="o">.</span><span class="n">to_euler</span><span class="p">()</span>
+        <span class="n">rotation</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">camera</span><span class="o">.</span><span class="n">local_rotation</span> <span class="o">=</span> <span class="n">rotation</span>
+
+        <span class="k">return</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span>
+
+</div></div>
+<div class="viewcode-block" id="HandleInputs"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleInputs">[docs]</a><span class="k">class</span> <span class="nc">HandleInputs</span><span class="p">(</span><span class="n">SignalLeafNode</span><span class="p">):</span>
+
+<div class="viewcode-block" id="HandleInputs.evaluate"><a class="viewcode-back" href="../../blender_example.html#blender_example.controls.HandleInputs.evaluate">[docs]</a>    <span class="k">def</span> <span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blackboard</span><span class="p">):</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;inputs&#39;</span><span class="p">]</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;pawn&#39;</span><span class="p">]</span>
+        <span class="n">controller</span> <span class="o">=</span> <span class="n">blackboard</span><span class="p">[</span><span class="s">&#39;controller&#39;</span><span class="p">]</span>
+
+        <span class="n">y_plane</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">forward</span> <span class="o">-</span> <span class="n">inputs</span><span class="o">.</span><span class="n">backwards</span>
+        <span class="n">x_plane</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">right</span> <span class="o">-</span> <span class="n">inputs</span><span class="o">.</span><span class="n">left</span>
+
+        <span class="n">movement_mode</span> <span class="o">=</span> <span class="n">MovementState</span><span class="o">.</span><span class="n">run</span> <span class="k">if</span> <span class="n">inputs</span><span class="o">.</span><span class="n">run</span> \
+                                <span class="k">else</span> <span class="n">MovementState</span><span class="o">.</span><span class="n">walk</span>
+        <span class="k">if</span> <span class="n">movement_mode</span> <span class="o">==</span> <span class="n">MovementState</span><span class="o">.</span><span class="n">walk</span><span class="p">:</span>
+            <span class="n">forward_speed</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">walk_speed</span>
+
+        <span class="k">elif</span> <span class="n">movement_mode</span> <span class="o">==</span> <span class="n">MovementState</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+            <span class="n">forward_speed</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">run_speed</span>
+
+        <span class="k">if</span> <span class="n">inputs</span><span class="o">.</span><span class="n">shoot</span><span class="p">:</span>
+            <span class="n">controller</span><span class="o">.</span><span class="n">start_fire</span><span class="p">()</span>
+
+        <span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="n">x_plane</span><span class="p">,</span> <span class="n">y_plane</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="n">velocity</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="n">forward_speed</span>
+
+        <span class="n">pawn</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">xy</span> <span class="o">=</span> <span class="n">velocity</span><span class="o">.</span><span class="n">xy</span>
+
+        <span class="k">return</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.rpc &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.rpc</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.flag_serialiser</span> <span class="kn">import</span> <span class="n">FlagSerialiser</span>
+<span class="kn">from</span> <span class="nn">.descriptors</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">update_wrapper</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">signature</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;MarkAttribute&#39;</span><span class="p">,</span> <span class="s">&#39;RPCInterfaceFactory&#39;</span><span class="p">,</span> <span class="s">&#39;RPCInterface&#39;</span><span class="p">]</span>
+
+
+<span class="n">MarkAttribute</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">&quot;MarkAttribute&quot;</span><span class="p">,</span> <span class="s">&quot;name&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RPCInterfaceFactory"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterfaceFactory">[docs]</a><span class="k">class</span> <span class="nc">RPCInterfaceFactory</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;Manages instances of an RPC function for each object&#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">):</span>
+        <span class="c"># Information about RPC</span>
+        <span class="n">update_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">function</span> <span class="o">=</span> <span class="n">function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_by_instance</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">base</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">instance</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_by_instance</span><span class="p">[</span><span class="n">instance</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RPCInterfaceFactory.create_rpc_interface"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterfaceFactory.create_rpc_interface">[docs]</a>    <span class="k">def</span> <span class="nf">create_rpc_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="n">bound_function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_class_arguments</span><span class="p">(</span><span class="n">bound_function</span><span class="p">,</span> <span class="n">instance</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_by_instance</span><span class="p">[</span><span class="n">instance</span><span class="p">]</span> <span class="o">=</span> <span class="n">RPCInterface</span><span class="p">(</span><span class="n">bound_function</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_by_instance</span><span class="p">[</span><span class="n">instance</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="RPCInterfaceFactory.update_class_arguments"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterfaceFactory.update_class_arguments">[docs]</a>    <span class="k">def</span> <span class="nf">update_class_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="n">function_signature</span> <span class="o">=</span> <span class="n">signature</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+        <span class="n">function_arguments</span> <span class="o">=</span> <span class="n">RPCInterface</span><span class="o">.</span><span class="n">order_arguments</span><span class="p">(</span><span class="n">function_signature</span><span class="p">)</span>
+        <span class="n">lookup_type</span> <span class="o">=</span> <span class="n">MarkAttribute</span>
+        <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">function_arguments</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">argument</span><span class="o">.</span><span class="n">data</span>
+            <span class="k">for</span> <span class="n">arg_name</span><span class="p">,</span> <span class="n">arg_value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg_value</span><span class="p">,</span> <span class="n">lookup_type</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">arg_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">arg_value</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;RPC {}&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">.</span><span class="n">__qualname__</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="RPCInterface"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterface">[docs]</a><span class="k">class</span> <span class="nc">RPCInterface</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Mediates RPC calls to/from peers&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">):</span>
+
+        <span class="c"># Used to isolate rpc_for_instance for each function for each instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_function_name</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">__qualname__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_function_signature</span> <span class="o">=</span> <span class="n">signature</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_function_call</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">__call__</span>
+
+        <span class="c"># Information about RPC</span>
+        <span class="n">update_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+        <span class="c"># Get the function signature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_function_signature</span><span class="o">.</span><span class="n">return_annotation</span>
+
+        <span class="c"># Interface between data and bytes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_binder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_function_signature</span><span class="o">.</span><span class="n">bind</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serialiser</span> <span class="o">=</span> <span class="n">FlagSerialiser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order_arguments</span><span class="p">(</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">_function_signature</span><span class="p">))</span>
+
+        <span class="kn">from</span> <span class="nn">.replicables</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worldinfo</span> <span class="o">=</span> <span class="n">WorldInfo</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Determines if call should be executed or bounced</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_worldinfo</span><span class="o">.</span><span class="n">netmode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_function_call</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c"># Store serialised argument data for later sending</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_binder</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interface</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serialiser</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RPCInterface.execute"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterface.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="c"># Unpack RPC</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">unpacked_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serialiser</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_function_call</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="n">unpacked_data</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Error invoking {}: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_function_name</span><span class="p">,</span> <span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="RPCInterface.order_arguments"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterface.order_arguments">[docs]</a>    <span class="k">def</span> <span class="nf">order_arguments</span><span class="p">(</span><span class="n">signature</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">((</span><span class="n">value</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                           <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">annotation</span><span class="p">,</span> <span class="n">TypeFlag</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="RPCInterface.register"><a class="viewcode-back" href="../../network.html#network.rpc.RPCInterface.register">[docs]</a>    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interface</span><span class="p">,</span> <span class="n">rpc_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rpc_id</span> <span class="o">=</span> <span class="n">rpc_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interface</span> <span class="o">=</span> <span class="n">interface</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

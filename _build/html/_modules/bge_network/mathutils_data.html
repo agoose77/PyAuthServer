@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_network.mathutils_data &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bge_network.mathutils_data</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">mathutils</span> <span class="kn">import</span> <span class="n">Vector</span><span class="p">,</span> <span class="n">Euler</span><span class="p">,</span> <span class="n">Quaternion</span><span class="p">,</span> <span class="n">Matrix</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
+<span class="kn">from</span> <span class="nn">network</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Float8</span><span class="p">,</span> <span class="n">Float4</span><span class="p">,</span> <span class="n">register_handler</span><span class="p">,</span>
+                     <span class="n">register_description</span><span class="p">,</span> <span class="n">Struct</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Euler8"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler8">[docs]</a><span class="k">class</span> <span class="nc">Euler8</span><span class="p">:</span>
+    <span class="n">item_pack</span> <span class="o">=</span> <span class="n">Float8</span><span class="o">.</span><span class="n">pack</span>
+    <span class="n">item_unpack</span> <span class="o">=</span> <span class="n">Float8</span><span class="o">.</span><span class="n">unpack</span>
+    <span class="n">item_size</span> <span class="o">=</span> <span class="n">Float8</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Euler</span>
+    <span class="n">wrapper_length</span> <span class="o">=</span> <span class="mi">3</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Euler8.pack"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler8.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">euler</span><span class="p">):</span>
+        <span class="n">pack</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_pack</span>
+        <span class="k">return</span> <span class="n">b</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pack</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">euler</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Euler8.unpack"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler8.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">packer_size</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_size</span>
+        <span class="n">unpack</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_unpack</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">wrapper</span><span class="p">((</span><span class="n">unpack</span><span class="p">(</span><span class="n">bytes_</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">packer_size</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> \
+                          <span class="n">packer_size</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">wrapper_length</span><span class="p">)))</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Euler8.unpack_merge"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler8.unpack_merge">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_merge</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">euler</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">packer_size</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_size</span>
+        <span class="n">unpack</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_unpack</span>
+        <span class="n">euler</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">(</span><span class="n">unpack</span><span class="p">(</span><span class="n">bytes_</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">packer_size</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">packer_size</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">wrapper_length</span><span class="p">))</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Euler8.size"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler8.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">item_size</span> <span class="o">*</span> <span class="n">cls</span><span class="o">.</span><span class="n">wrapper_length</span>
+</div>
+    <span class="n">unpack_from</span> <span class="o">=</span> <span class="n">unpack</span>
+
+</div>
+<div class="viewcode-block" id="Euler4"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Euler4">[docs]</a><span class="k">class</span> <span class="nc">Euler4</span><span class="p">(</span><span class="n">Euler8</span><span class="p">):</span>
+    <span class="n">item_pack</span> <span class="o">=</span> <span class="n">Float4</span><span class="o">.</span><span class="n">pack</span>
+    <span class="n">item_unpack</span> <span class="o">=</span> <span class="n">Float4</span><span class="o">.</span><span class="n">unpack</span>
+    <span class="n">item_size</span> <span class="o">=</span> <span class="n">Float4</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="Vector8"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Vector8">[docs]</a><span class="k">class</span> <span class="nc">Vector8</span><span class="p">(</span><span class="n">Euler8</span><span class="p">):</span>
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Vector</span>
+
+</div>
+<div class="viewcode-block" id="Vector4"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Vector4">[docs]</a><span class="k">class</span> <span class="nc">Vector4</span><span class="p">(</span><span class="n">Euler4</span><span class="p">):</span>
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Vector</span>
+
+</div>
+<div class="viewcode-block" id="Quaternion4"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Quaternion4">[docs]</a><span class="k">class</span> <span class="nc">Quaternion4</span><span class="p">(</span><span class="n">Euler4</span><span class="p">):</span>
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Quaternion</span>
+    <span class="n">wrapper_length</span> <span class="o">=</span> <span class="mi">4</span>
+
+</div>
+<div class="viewcode-block" id="Quaternion8"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Quaternion8">[docs]</a><span class="k">class</span> <span class="nc">Quaternion8</span><span class="p">(</span><span class="n">Euler8</span><span class="p">):</span>
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Quaternion</span>
+    <span class="n">wrapper_length</span> <span class="o">=</span> <span class="mi">4</span>
+
+</div>
+<div class="viewcode-block" id="Matrix4"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Matrix4">[docs]</a><span class="k">class</span> <span class="nc">Matrix4</span><span class="p">(</span><span class="n">Euler4</span><span class="p">):</span>
+    <span class="n">item_pack</span> <span class="o">=</span> <span class="n">Vector4</span><span class="o">.</span><span class="n">pack</span>
+    <span class="n">item_unpack</span> <span class="o">=</span> <span class="n">Vector4</span><span class="o">.</span><span class="n">unpack</span>
+    <span class="n">item_size</span> <span class="o">=</span> <span class="n">Vector4</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+    <span class="n">wrapper_length</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">Matrix</span>
+
+</div>
+<div class="viewcode-block" id="Matrix8"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.Matrix8">[docs]</a><span class="k">class</span> <span class="nc">Matrix8</span><span class="p">(</span><span class="n">Matrix4</span><span class="p">):</span>
+    <span class="n">item_pack</span> <span class="o">=</span> <span class="n">Vector8</span><span class="o">.</span><span class="n">pack</span>
+    <span class="n">item_unpack</span> <span class="o">=</span> <span class="n">Vector8</span><span class="o">.</span><span class="n">unpack</span>
+    <span class="n">item_size</span> <span class="o">=</span> <span class="n">Vector8</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="matrix_description"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.matrix_description">[docs]</a><span class="k">def</span> <span class="nf">matrix_description</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">chain</span><span class="o">.</span><span class="n">from_iterable</span><span class="p">(</span><span class="n">obj</span><span class="p">)))</span>
+
+</div>
+<div class="viewcode-block" id="mathutils_description"><a class="viewcode-back" href="../../bge_network.html#bge_network.mathutils_data.mathutils_description">[docs]</a><span class="k">def</span> <span class="nf">mathutils_description</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+<span class="c"># Register packers</span></div>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Vector</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">attr</span><span class="p">:</span> <span class="n">Vector8</span> <span class="k">if</span> \
+             <span class="n">attr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;max_precision&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">Vector4</span><span class="p">,</span> <span class="n">is_condition</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Euler</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">attr</span><span class="p">:</span> <span class="n">Euler8</span> <span class="k">if</span> \
+             <span class="n">attr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;max_precision&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">Euler4</span><span class="p">,</span> <span class="n">is_condition</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Quaternion</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">attr</span><span class="p">:</span> <span class="n">Quaternion8</span> <span class="k">if</span> \
+         <span class="n">attr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;max_precision&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">Quaternion4</span><span class="p">,</span> <span class="n">is_condition</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Matrix</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">attr</span><span class="p">:</span> <span class="n">Matrix8</span> <span class="k">if</span> \
+         <span class="n">attr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;max_precision&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">Matrix4</span><span class="p">,</span> <span class="n">is_condition</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c"># Register custom hash-like descriptions</span>
+<span class="n">register_description</span><span class="p">(</span><span class="n">Vector</span><span class="p">,</span> <span class="n">mathutils_description</span><span class="p">)</span>
+<span class="n">register_description</span><span class="p">(</span><span class="n">Euler</span><span class="p">,</span> <span class="n">mathutils_description</span><span class="p">)</span>
+<span class="n">register_description</span><span class="p">(</span><span class="n">Quaternion</span><span class="p">,</span> <span class="n">mathutils_description</span><span class="p">)</span>
+<span class="n">register_description</span><span class="p">(</span><span class="n">Matrix</span><span class="p">,</span> <span class="n">matrix_description</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

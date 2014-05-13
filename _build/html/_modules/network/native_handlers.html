@@ -1,0 +1,273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.native_handlers &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.native_handlers</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.replicables</span> <span class="kn">import</span> <span class="n">Replicable</span><span class="p">,</span> <span class="n">WorldInfo</span>
+<span class="kn">from</span> <span class="nn">.data_struct</span> <span class="kn">import</span> <span class="n">Struct</span>
+<span class="kn">from</span> <span class="nn">.descriptors</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">Roles</span>
+<span class="kn">from</span> <span class="nn">.handler_interfaces</span> <span class="kn">import</span> <span class="p">(</span><span class="n">register_handler</span><span class="p">,</span> <span class="n">get_handler</span><span class="p">,</span>
+                                 <span class="n">register_description</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.serialiser</span> <span class="kn">import</span> <span class="p">(</span><span class="n">handler_from_byte_length</span><span class="p">,</span> <span class="n">handler_from_bit_length</span><span class="p">,</span>
+                         <span class="n">bits2bytes</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.bitfield</span> <span class="kn">import</span> <span class="n">BitField</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;ReplicableTypeHandler&#39;</span><span class="p">,</span> <span class="s">&#39;RolesHandler&#39;</span><span class="p">,</span> <span class="s">&#39;ReplicableBaseHandler&#39;</span><span class="p">,</span>
+           <span class="s">&#39;StructHandler&#39;</span><span class="p">,</span> <span class="s">&#39;BitFieldHandler&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">type_description</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">type_name</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReplicableTypeHandler"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableTypeHandler">[docs]</a><span class="k">class</span> <span class="nc">ReplicableTypeHandler</span><span class="p">:</span>
+
+    <span class="n">string_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ReplicableTypeHandler.pack"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableTypeHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">cls_</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">cls_</span><span class="o">.</span><span class="n">type_name</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ReplicableTypeHandler.unpack"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableTypeHandler.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">from_type_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c"># @UndefinedVariable</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ReplicableTypeHandler.size"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableTypeHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+</div>
+    <span class="n">unpack_from</span> <span class="o">=</span> <span class="n">unpack</span>
+
+</div>
+<div class="viewcode-block" id="RolesHandler"><a class="viewcode-back" href="../../network.html#network.native_handlers.RolesHandler">[docs]</a><span class="k">class</span> <span class="nc">RolesHandler</span><span class="p">:</span>
+    <span class="n">packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RolesHandler.pack"><a class="viewcode-back" href="../../network.html#network.native_handlers.RolesHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">roles</span><span class="p">):</span>
+        <span class="n">pack</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">packer</span><span class="o">.</span><span class="n">pack</span>
+        <span class="k">with</span> <span class="n">roles</span><span class="o">.</span><span class="n">switched</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">pack</span><span class="p">(</span><span class="n">roles</span><span class="o">.</span><span class="n">local</span><span class="p">)</span> <span class="o">+</span> <span class="n">pack</span><span class="p">(</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RolesHandler.unpack"><a class="viewcode-back" href="../../network.html#network.native_handlers.RolesHandler.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">packer</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">packer</span>
+        <span class="k">return</span> <span class="n">Roles</span><span class="p">(</span><span class="n">packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">),</span>
+                     <span class="n">packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">[</span><span class="n">packer</span><span class="o">.</span><span class="n">size</span><span class="p">():]))</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RolesHandler.size"><a class="viewcode-back" href="../../network.html#network.native_handlers.RolesHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">cls</span><span class="o">.</span><span class="n">packer</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+</div>
+    <span class="n">unpack_from</span> <span class="o">=</span> <span class="n">unpack</span>
+
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler">[docs]</a><span class="k">class</span> <span class="nc">ReplicableBaseHandler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Handler for packing replicable proxy</span>
+<span class="sd">    Packs replicable references and unpacks to proxy OR reference&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span>
+                                   <span class="n">max_value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">maximum_replicables</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">maximum_replicables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">_MAXIMUM_REPLICABLES</span>
+
+    <span class="nd">@maximum_replicables.setter</span>
+<div class="viewcode-block" id="ReplicableBaseHandler.maximum_replicables"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.maximum_replicables">[docs]</a>    <span class="k">def</span> <span class="nf">maximum_replicables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">Replicable</span><span class="o">.</span><span class="n">_MAXIMUM_REPLICABLES</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">value</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler.pack"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicable</span><span class="p">):</span>
+        <span class="c"># Send the instance ID</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pack_id</span><span class="p">(</span><span class="n">replicable</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler.pack_id"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.pack_id">[docs]</a>    <span class="k">def</span> <span class="nf">pack_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">id_</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">id_</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler.unpack_id"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.unpack_id">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler.unpack"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+
+        <span class="c"># Return only a replicable that was created by the network</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">replicable</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">get_replicable</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">replicable</span>
+
+        <span class="k">except</span> <span class="p">(</span><span class="ne">LookupError</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Couldn&#39;t find replicable&quot;</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">)</span>
+            <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="ReplicableBaseHandler.size"><a class="viewcode-back" href="../../network.html#network.native_handlers.ReplicableBaseHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_packer</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+</div>
+    <span class="n">unpack_from</span> <span class="o">=</span> <span class="n">unpack</span>
+
+</div>
+<div class="viewcode-block" id="StructHandler"><a class="viewcode-back" href="../../network.html#network.native_handlers.StructHandler">[docs]</a><span class="k">class</span> <span class="nc">StructHandler</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">static_value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">struct_cls</span> <span class="o">=</span> <span class="n">static_value</span><span class="o">.</span><span class="n">type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+
+<div class="viewcode-block" id="StructHandler.pack"><a class="viewcode-back" href="../../network.html#network.native_handlers.StructHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">struct</span><span class="p">):</span>
+        <span class="n">bytes_</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bytes_</span><span class="p">))</span> <span class="o">+</span> <span class="n">bytes_</span>
+</div>
+<div class="viewcode-block" id="StructHandler.unpack_from"><a class="viewcode-back" href="../../network.html#network.native_handlers.StructHandler.unpack_from">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">struct_cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unpack_merge</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">struct</span>
+</div>
+<div class="viewcode-block" id="StructHandler.unpack_merge"><a class="viewcode-back" href="../../network.html#network.native_handlers.StructHandler.unpack_merge">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">struct</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">struct</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">bytes_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">size</span><span class="p">():])</span>
+</div>
+<div class="viewcode-block" id="StructHandler.size"><a class="viewcode-back" href="../../network.html#network.native_handlers.StructHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="BitFieldHandler"><a class="viewcode-back" href="../../network.html#network.native_handlers.BitFieldHandler">[docs]</a><span class="k">class</span> <span class="nc">BitFieldHandler</span><span class="p">:</span>
+
+    <span class="n">size_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BitFieldHandler.pack"><a class="viewcode-back" href="../../network.html#network.native_handlers.BitFieldHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+        <span class="c"># Get the smallest needed packer for this bitfield</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">footprint</span>
+        <span class="n">packed_size</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">_size</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">footprint</span><span class="p">:</span>
+            <span class="n">field_packer</span> <span class="o">=</span> <span class="n">handler_from_byte_length</span><span class="p">(</span><span class="n">footprint</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">packed_size</span> <span class="o">+</span> <span class="n">field_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">_value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">packed_size</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BitFieldHandler.unpack"><a class="viewcode-back" href="../../network.html#network.native_handlers.BitFieldHandler.unpack">[docs]</a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">field_size</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">field_size</span><span class="p">:</span>
+            <span class="n">field_packer</span> <span class="o">=</span> <span class="n">handler_from_bit_length</span><span class="p">(</span><span class="n">field_size</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">field_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">size</span><span class="p">():])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">field</span> <span class="o">=</span> <span class="n">BitField</span><span class="p">(</span><span class="n">field_size</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">field</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BitFieldHandler.unpack_merge"><a class="viewcode-back" href="../../network.html#network.native_handlers.BitFieldHandler.unpack_merge">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_merge</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">footprint</span>
+        <span class="k">if</span> <span class="n">footprint</span><span class="p">:</span>
+            <span class="n">field_packer</span> <span class="o">=</span> <span class="n">handler_from_byte_length</span><span class="p">(</span><span class="n">footprint</span><span class="p">)</span>
+            <span class="n">field</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">field_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span>
+                                <span class="n">bytes_</span><span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">size</span><span class="p">():])</span>
+</div>
+    <span class="n">unpack_from</span> <span class="o">=</span> <span class="n">unpack</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BitFieldHandler.size"><a class="viewcode-back" href="../../network.html#network.native_handlers.BitFieldHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_</span><span class="p">):</span>
+        <span class="n">field_size</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">bits2bytes</span><span class="p">(</span><span class="n">field_size</span><span class="p">)</span> <span class="o">+</span> <span class="n">cls</span><span class="o">.</span><span class="n">size_packer</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+</div></div>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">BitField</span><span class="p">,</span> <span class="n">BitFieldHandler</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Roles</span><span class="p">,</span> <span class="n">RolesHandler</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Struct</span><span class="p">,</span> <span class="n">StructHandler</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+
+<span class="n">ReplicableHandler</span> <span class="o">=</span> <span class="n">ReplicableBaseHandler</span><span class="p">()</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">ReplicableHandler</span><span class="p">)</span>
+<span class="n">register_handler</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">Replicable</span><span class="p">),</span> <span class="n">ReplicableTypeHandler</span><span class="p">)</span>
+<span class="n">register_description</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">Replicable</span><span class="p">),</span> <span class="n">type_description</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

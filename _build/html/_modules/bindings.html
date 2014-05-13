@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bindings &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bindings</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">opcode</span> <span class="kn">import</span> <span class="n">opmap</span><span class="p">,</span> <span class="n">HAVE_ARGUMENT</span><span class="p">,</span> <span class="n">EXTENDED_ARG</span>
+<span class="nb">globals</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">opmap</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">_make_constants</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">builtin_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stoplist</span><span class="o">=</span><span class="p">[],</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;optimizing&#39;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">co</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">__code__</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span>        <span class="c"># Jython doesn&#39;t have a func_code attribute.</span>
+    <span class="n">newcode</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">co</span><span class="o">.</span><span class="n">co_code</span><span class="p">)</span>
+    <span class="n">newconsts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">co</span><span class="o">.</span><span class="n">co_consts</span><span class="p">)</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_names</span>
+    <span class="n">codelen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">newcode</span><span class="p">)</span>
+
+    <span class="kn">import</span> <span class="nn">builtins</span>
+    <span class="n">env</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">builtins</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">builtin_only</span><span class="p">:</span>
+        <span class="n">stoplist</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">stoplist</span><span class="p">)</span>
+        <span class="n">stoplist</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">__globals__</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">env</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">__globals__</span><span class="p">)</span>
+
+    <span class="c"># First pass converts global lookups into constants</span>
+    <span class="n">changed</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">codelen</span><span class="p">:</span>
+        <span class="n">opcode</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">opcode</span> <span class="ow">in</span> <span class="p">(</span><span class="n">EXTENDED_ARG</span><span class="p">,</span> <span class="n">STORE_GLOBAL</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">f</span>    <span class="c"># for simplicity, only optimize common cases</span>
+        <span class="k">if</span> <span class="n">opcode</span> <span class="o">==</span> <span class="n">LOAD_GLOBAL</span><span class="p">:</span>
+            <span class="n">oparg</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">co</span><span class="o">.</span><span class="n">co_names</span><span class="p">[</span><span class="n">oparg</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">env</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">stoplist</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">env</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">newconsts</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="n">value</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">newconsts</span><span class="p">)</span>
+                    <span class="n">newconsts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">LOAD_CONST</span>
+                <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">&amp;</span> <span class="mh">0xFF</span>
+                <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span> <span class="o">&gt;&gt;</span> <span class="mi">8</span>
+                <span class="n">changed</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s">&#39;--&gt;&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">opcode</span> <span class="o">&gt;=</span> <span class="n">HAVE_ARGUMENT</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+
+    <span class="c"># Second pass folds tuples of constants and constant attribute lookups</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">codelen</span><span class="p">:</span>
+
+        <span class="n">newtuple</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">LOAD_CONST</span><span class="p">:</span>
+            <span class="n">oparg</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span>
+            <span class="n">newtuple</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newconsts</span><span class="p">[</span><span class="n">oparg</span><span class="p">])</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">3</span>
+
+        <span class="n">opcode</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">newtuple</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">opcode</span> <span class="o">&gt;=</span> <span class="n">HAVE_ARGUMENT</span><span class="p">:</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">2</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">opcode</span> <span class="o">==</span> <span class="n">LOAD_ATTR</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">newtuple</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">oparg</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">names</span><span class="p">[</span><span class="n">oparg</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">deletions</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">elif</span> <span class="n">opcode</span> <span class="o">==</span> <span class="n">BUILD_TUPLE</span><span class="p">:</span>
+            <span class="n">oparg</span> <span class="o">=</span> <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">oparg</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">newtuple</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">deletions</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">newtuple</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">newtuple</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">reljump</span> <span class="o">=</span> <span class="n">deletions</span> <span class="o">*</span> <span class="mi">3</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">reljump</span><span class="p">]</span> <span class="o">=</span> <span class="n">JUMP_FORWARD</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">reljump</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">reljump</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFF</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="n">reljump</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">reljump</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">8</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">newconsts</span><span class="p">)</span>
+        <span class="n">newconsts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">LOAD_CONST</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="o">&amp;</span> <span class="mh">0xFF</span>
+        <span class="n">newcode</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">8</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">3</span>
+        <span class="n">changed</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;new folded constant:&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">changed</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">f</span>
+
+    <span class="n">codestr</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">newcode</span><span class="p">)</span>
+    <span class="n">codeobj</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">co</span><span class="p">)(</span><span class="n">co</span><span class="o">.</span><span class="n">co_argcount</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_kwonlyargcount</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_nlocals</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_stacksize</span><span class="p">,</span>
+                    <span class="n">co</span><span class="o">.</span><span class="n">co_flags</span><span class="p">,</span> <span class="n">codestr</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">newconsts</span><span class="p">),</span> <span class="n">co</span><span class="o">.</span><span class="n">co_names</span><span class="p">,</span>
+                    <span class="n">co</span><span class="o">.</span><span class="n">co_varnames</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_filename</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span>
+                    <span class="n">co</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_lnotab</span><span class="p">,</span> <span class="n">co</span><span class="o">.</span><span class="n">co_freevars</span><span class="p">,</span>
+                    <span class="n">co</span><span class="o">.</span><span class="n">co_cellvars</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">f</span><span class="p">)(</span><span class="n">codeobj</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">__globals__</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">__defaults__</span><span class="p">,</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">__closure__</span><span class="p">)</span>
+
+<span class="n">_make_constants</span> <span class="o">=</span> <span class="n">_make_constants</span><span class="p">(</span><span class="n">_make_constants</span><span class="p">)</span> <span class="c"># optimize thyself!</span>
+
+<div class="viewcode-block" id="bind_all"><a class="viewcode-back" href="../bindings.html#bindings.bind_all">[docs]</a><span class="k">def</span> <span class="nf">bind_all</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="n">builtin_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stoplist</span><span class="o">=</span><span class="p">[],</span>  <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Recursively apply constant binding to functions in a module or class.</span>
+
+<span class="sd">    Use as the last line of the module (after everything is defined, but</span>
+<span class="sd">    before test code).  In modules that need modifiable globals, set</span>
+<span class="sd">    builtin_only to True.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">FunctionType</span><span class="p">,</span> <span class="n">ModuleType</span>
+
+    <span class="k">def</span> <span class="nf">_bind_all</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="n">builtin_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stoplist</span><span class="o">=</span><span class="p">[],</span>  <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="p">(</span><span class="n">ModuleType</span><span class="p">,</span> <span class="nb">type</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">mc</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+          <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="ow">is</span> <span class="n">FunctionType</span><span class="p">:</span>
+              <span class="n">newv</span> <span class="o">=</span> <span class="n">_make_constants</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span>  <span class="n">verbose</span><span class="p">)</span>
+              <span class="nb">setattr</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">newv</span><span class="p">)</span>
+          <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+              <span class="n">_bind_all</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span> <span class="c"># allow: bind_all(globals())</span>
+      <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mc</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="ow">is</span> <span class="n">FunctionType</span><span class="p">:</span>
+            <span class="n">newv</span> <span class="o">=</span> <span class="n">_make_constants</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span>  <span class="n">verbose</span><span class="p">)</span>
+            <span class="n">mc</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">newv</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+            <span class="n">_bind_all</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_bind_all</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+</div>
+<span class="nd">@_make_constants</span>
+<div class="viewcode-block" id="make_constants"><a class="viewcode-back" href="../bindings.html#bindings.make_constants">[docs]</a><span class="k">def</span> <span class="nf">make_constants</span><span class="p">(</span><span class="n">builtin_only</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stoplist</span><span class="o">=</span><span class="p">[],</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Return a decorator for optimizing global references.</span>
+
+<span class="sd">    Replaces global references with their currently defined values.</span>
+<span class="sd">    If not defined, the dynamic (runtime) global lookup is left undisturbed.</span>
+<span class="sd">    If builtin_only is True, then only builtins are optimized.</span>
+<span class="sd">    Variable names in the stoplist are also left undisturbed.</span>
+<span class="sd">    Also, folds constant attr lookups and tuples of constants.</span>
+<span class="sd">    If verbose is True, prints each substitution as is occurs</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">builtin_only</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">make_constants</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The bind_constants decorator must have arguments.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">_make_constants</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">builtin_only</span><span class="p">,</span> <span class="n">stoplist</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+
+<span class="c">## --------- Example call -----------------------------------------</span>
+</div>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="sd">&#39;&#39;&#39;@make_constants(verbose=True, stoplist=[&#39;random&#39;])</span>
+<span class="sd">def sample(population, k):</span>
+<span class="sd">    &quot;Choose k unique random elements from a population sequence.&quot;</span>
+
+<span class="sd">    if not isinstance(population, (list, tuple, str)):</span>
+<span class="sd">        raise TypeError(&#39;Cannot handle type&#39;, type(population))</span>
+<span class="sd">    n = len(population)</span>
+<span class="sd">    if not 0 &lt;= k &lt;= n:</span>
+<span class="sd">        raise ValueError(&quot;sample larger than population&quot;)</span>
+<span class="sd">    result = [None] * k</span>
+<span class="sd">    pool = list(population)</span>
+<span class="sd">    for i in range(k):         # invariant:  non-selected at [0,n-i)</span>
+<span class="sd">        j = int(random.random() * (n-i))</span>
+<span class="sd">        result[i] = pool[j]</span>
+<span class="sd">        pool[j] = pool[n-i-1]   # move non-selected item into vacancy</span>
+<span class="sd">    return result&#39;&#39;&#39;</span>
+
+
+<span class="sd">&quot;&quot;&quot; Output from the example call:</span>
+
+<span class="sd">isinstance --&gt; &lt;built-in function isinstance&gt;</span>
+<span class="sd">list --&gt; &lt;class &#39;list&#39;&gt;</span>
+<span class="sd">tuple --&gt; &lt;class &#39;tuple&#39;&gt;</span>
+<span class="sd">str --&gt; &lt;class &#39;str&#39;&gt;</span>
+<span class="sd">TypeError --&gt; &lt;class &#39;TypeError&#39;&gt;</span>
+<span class="sd">type --&gt; &lt;class &#39;type&#39;&gt;</span>
+<span class="sd">len --&gt; &lt;built-in function len&gt;</span>
+<span class="sd">ValueError --&gt; &lt;class &#39;ValueError&#39;&gt;</span>
+<span class="sd">list --&gt; &lt;class &#39;list&#39;&gt;</span>
+<span class="sd">range --&gt; &lt;class &#39;range&#39;&gt;</span>
+<span class="sd">int --&gt; &lt;class &#39;int&#39;&gt;</span>
+<span class="sd">new folded constant: (&lt;class &#39;list&#39;&gt;, &lt;class &#39;tuple&#39;&gt;, &lt;class &#39;str&#39;&gt;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

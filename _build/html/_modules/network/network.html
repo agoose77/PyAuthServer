@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.network &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.network</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.connection_interfaces</span> <span class="kn">import</span> <span class="n">ConnectionInterface</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">ConnectionStatus</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">socket</span> <span class="kn">import</span> <span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">error</span> <span class="k">as</span> <span class="n">socket_error</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">monotonic</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">signals</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;UDPSocket&#39;</span><span class="p">,</span> <span class="s">&#39;UnreliableSocket&#39;</span><span class="p">,</span> <span class="s">&#39;Network&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="UDPSocket"><a class="viewcode-back" href="../../network.html#network.network.UDPSocket">[docs]</a><span class="k">class</span> <span class="nc">UDPSocket</span><span class="p">(</span><span class="n">socket</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Non blocking socket class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Network socket initialiser&#39;&#39;&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_DGRAM</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setblocking</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="UnreliableSocket"><a class="viewcode-back" href="../../network.html#network.network.UnreliableSocket">[docs]</a><span class="k">class</span> <span class="nc">UnreliableSocket</span><span class="p">(</span><span class="n">UDPSocket</span><span class="p">,</span> <span class="n">signals</span><span class="o">.</span><span class="n">SignalListener</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Non blocking socket class</span>
+<span class="sd">    A SignalListener which applies artificial latency</span>
+<span class="sd">    to outgoing packets&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">=</span> <span class="mf">0.400</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_in</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+
+    <span class="nd">@signals.UpdateSignal.global_listener</span>
+<div class="viewcode-block" id="UnreliableSocket.cb"><a class="viewcode-back" href="../../network.html#network.network.UnreliableSocket.cb">[docs]</a>    <span class="k">def</span> <span class="nf">cb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UnreliableSocket.poll"><a class="viewcode-back" href="../../network.html#network.network.UnreliableSocket.poll">[docs]</a>    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">systime</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span>
+        <span class="n">sendable</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c"># Check if we can send delayed data</span>
+        <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">systime</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">:</span>
+                <span class="n">sendable</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c"># Send the delayed data</span>
+        <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">sendable</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+            <span class="n">args_</span><span class="p">,</span> <span class="n">kwargs_</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">sendto</span><span class="p">(</span><span class="o">*</span><span class="n">args_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs_</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="UnreliableSocket.sendto"><a class="viewcode-back" href="../../network.html#network.network.UnreliableSocket.sendto">[docs]</a>    <span class="k">def</span> <span class="nf">sendto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Store data for delay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">monotonic</span><span class="p">(),</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+</div></div>
+<div class="viewcode-block" id="Network"><a class="viewcode-back" href="../../network.html#network.network.Network">[docs]</a><span class="k">class</span> <span class="nc">Network</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Network management class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Network socket initialiser&#39;&#39;&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sent_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">received_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="n">UDPSocket</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Network.send_rate"><a class="viewcode-back" href="../../network.html#network.network.Network.send_rate">[docs]</a>    <span class="k">def</span> <span class="nf">send_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sent_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span><span class="p">))</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Network.receive_rate"><a class="viewcode-back" href="../../network.html#network.network.Network.receive_rate">[docs]</a>    <span class="k">def</span> <span class="nf">receive_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">received_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Network.stop"><a class="viewcode-back" href="../../network.html#network.network.Network.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Network.send_to"><a class="viewcode-back" href="../../network.html#network.network.Network.send_to">[docs]</a>    <span class="k">def</span> <span class="nf">send_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Overrides send_to method to record sent time&#39;&#39;&#39;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">sendto</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sent_bytes</span> <span class="o">+=</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="Network.receive_from"><a class="viewcode-back" href="../../network.html#network.network.Network.receive_from">[docs]</a>    <span class="k">def</span> <span class="nf">receive_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buff_size</span><span class="o">=</span><span class="mi">63553</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;A partial function for receive_from</span>
+<span class="sd">        Used in iter(func, sentinel)&#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">recvfrom</span><span class="p">(</span><span class="n">buff_size</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">socket_error</span><span class="p">:</span>
+            <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="Network.receive"><a class="viewcode-back" href="../../network.html#network.network.Network.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Receive all data from socket&#39;&#39;&#39;</span>
+        <span class="c"># Get connections</span>
+        <span class="n">get_connection</span> <span class="o">=</span> <span class="n">ConnectionInterface</span><span class="o">.</span><span class="n">get_from_graph</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+
+        <span class="c"># Receives all incoming data</span>
+        <span class="k">for</span> <span class="n">bytes_</span><span class="p">,</span> <span class="n">addr</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">receive_from</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="c"># Find existing connection for address</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">get_connection</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+
+            <span class="c"># Create a new interface to handle connection</span>
+            <span class="k">except</span> <span class="ne">LookupError</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">ConnectionInterface</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+
+            <span class="c"># Dispatch data to connection</span>
+            <span class="n">connection</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">received_bytes</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bytes_</span><span class="p">)</span>
+
+        <span class="c"># Apply any changes to the Connection interface</span>
+        <span class="n">ConnectionInterface</span><span class="o">.</span><span class="n">update_graph</span><span class="p">()</span>  <span class="c"># @UndefinedVariable</span>
+</div>
+<div class="viewcode-block" id="Network.send"><a class="viewcode-back" href="../../network.html#network.network.Network.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_update</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Send all connection data and update timeouts&#39;&#39;&#39;</span>
+        <span class="n">send_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_to</span>
+        <span class="n">disconnected_state</span> <span class="o">=</span> <span class="n">ConnectionStatus</span><span class="o">.</span><span class="n">disconnected</span>  <span class="c"># @UndefinedVariable @IgnorePep8</span>
+
+        <span class="c"># Send all queued data</span>
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">ConnectionInterface</span><span class="p">:</span>
+
+            <span class="c"># If the connection should be removed (timeout or explicit)</span>
+            <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">status</span> <span class="o">&lt;</span> <span class="n">disconnected_state</span><span class="p">:</span>
+                <span class="n">connection</span><span class="o">.</span><span class="n">request_unregistration</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="c"># Give the option to send nothing</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">full_update</span><span class="p">)</span>
+
+            <span class="c"># If returns data, send it</span>
+            <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">send_func</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+
+        <span class="c"># Delete dead connections</span>
+        <span class="n">ConnectionInterface</span><span class="o">.</span><span class="n">update_graph</span><span class="p">()</span>  <span class="c"># @UndefinedVariable</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Network.connect_to"><a class="viewcode-back" href="../../network.html#network.network.Network.connect_to">[docs]</a>    <span class="k">def</span> <span class="nf">connect_to</span><span class="p">(</span><span class="n">peer_data</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ConnectionInterface</span><span class="p">(</span><span class="n">peer_data</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

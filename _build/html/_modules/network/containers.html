@@ -1,0 +1,333 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.containers &mdash; PyAuthServer 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.containers</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.handler_interfaces</span> <span class="kn">import</span> <span class="n">static_description</span>
+<span class="kn">from</span> <span class="nn">.descriptors</span> <span class="kn">import</span> <span class="n">Attribute</span>
+<span class="kn">from</span> <span class="nn">.rpc</span> <span class="kn">import</span> <span class="n">RPCInterfaceFactory</span>
+<span class="kn">from</span> <span class="nn">.factory_dict</span> <span class="kn">import</span> <span class="n">FactoryDict</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;ValueProperty&#39;</span><span class="p">,</span> <span class="s">&#39;StorageInterface&#39;</span><span class="p">,</span> <span class="s">&#39;RPCStorageInterface&#39;</span><span class="p">,</span>
+           <span class="s">&#39;AttributeStorageInterface&#39;</span><span class="p">,</span> <span class="s">&#39;AbstractStorageContainer&#39;</span><span class="p">,</span>
+           <span class="s">&#39;RPCStorageContainer&#39;</span><span class="p">,</span> <span class="s">&#39;AttributeStorageContainer&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ValueProperty"><a class="viewcode-back" href="../../network.html#network.containers.ValueProperty">[docs]</a><span class="k">class</span> <span class="nc">ValueProperty</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Property wrapper about data item</span>
+<span class="sd">    Handles __get__ and __set__ calls by</span>
+<span class="sd">    callbacks on the host class</span>
+<span class="sd">    @requires: Host methods get_value(), set_value(arg)&quot;&quot;&quot;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">base</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">instance</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="n">instance</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="StorageInterface"><a class="viewcode-back" href="../../network.html#network.containers.StorageInterface">[docs]</a><span class="k">class</span> <span class="nc">StorageInterface</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Interface for reading and writing a data value</span>
+<span class="sd">    @var value: Property descriptor with settable and gettable value&quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;get_value&quot;</span><span class="p">,</span> <span class="s">&quot;set_value&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_value</span> <span class="o">=</span> <span class="n">getter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_value</span> <span class="o">=</span> <span class="n">setter</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">ValueProperty</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="RPCStorageInterface"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageInterface">[docs]</a><span class="k">class</span> <span class="nc">RPCStorageInterface</span><span class="p">(</span><span class="n">StorageInterface</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;RPC storage interface</span>
+<span class="sd">    Proxy for data storage only&quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="n">StorageInterface</span><span class="o">.</span><span class="n">__slots__</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setter</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">setter</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="AttributeStorageInterface"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageInterface">[docs]</a><span class="k">class</span> <span class="nc">AttributeStorageInterface</span><span class="p">(</span><span class="n">StorageInterface</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Attribute storage interface</span>
+<span class="sd">    Proxy for data storage, access and complaint status&quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="n">StorageInterface</span><span class="o">.</span><span class="n">__slots__</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;set_complaint&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">,</span> <span class="n">complaint</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_complaint</span> <span class="o">=</span> <span class="n">complaint</span>
+
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer">[docs]</a><span class="k">class</span> <span class="nc">AbstractStorageContainer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Abstract base class for reading and writing data values</span>
+<span class="sd">    belonging an object&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_member_instances</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ordered_mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ordered_members</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_name_mapping</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage_interfaces</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="n">instance</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_data</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AbstractStorageContainer.get_default_value"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_default_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AbstractStorageContainer.check_is_supported"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.check_is_supported">[docs]</a>    <span class="k">def</span> <span class="nf">check_is_supported</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AbstractStorageContainer.get_member_instances"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_member_instances">[docs]</a>    <span class="k">def</span> <span class="nf">get_member_instances</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="n">is_supported</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">check_is_supported</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span>
+                                                          <span class="n">is_supported</span><span class="p">)}</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_default_data"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_default_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">initial_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_value</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">member</span><span class="p">:</span> <span class="n">initial_data</span><span class="p">(</span><span class="n">member</span><span class="p">)</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">mapping</span><span class="o">.</span><span class="n">values</span><span class="p">()}</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_ordered_members"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_ordered_members">[docs]</a>    <span class="k">def</span> <span class="nf">get_ordered_members</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">mapping</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_member_by_name"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_member_by_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_member_by_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_name_by_member"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_name_by_member">[docs]</a>    <span class="k">def</span> <span class="nf">get_name_by_member</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_name_mapping</span><span class="p">[</span><span class="n">member</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lazy_name_mapping</span><span class="p">[</span><span class="n">member</span><span class="p">]</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">member</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">name</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.register_storage_interfaces"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.register_storage_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">register_storage_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">new_interface</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_storage_interface</span>
+        <span class="n">store_interface</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_interfaces</span><span class="o">.</span><span class="n">__setitem__</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">store_interface</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">new_interface</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">member</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.new_storage_interface"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.new_storage_interface">[docs]</a>    <span class="k">def</span> <span class="nf">new_storage_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">StorageInterface</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">get_storage_accessors</span><span class="p">(</span><span class="n">member</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_storage_accessors"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_storage_accessors">[docs]</a>    <span class="k">def</span> <span class="nf">get_storage_accessors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="n">getter</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">,</span> <span class="n">member</span><span class="p">)</span>
+        <span class="n">setter</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">,</span> <span class="n">member</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">getter</span><span class="p">,</span> <span class="n">setter</span>
+</div>
+<div class="viewcode-block" id="AbstractStorageContainer.get_storage_interface"><a class="viewcode-back" href="../../network.html#network.containers.AbstractStorageContainer.get_storage_interface">[docs]</a>    <span class="k">def</span> <span class="nf">get_storage_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_interfaces</span><span class="p">[</span><span class="n">member</span><span class="p">]</span>
+
+</div></div>
+<span class="k">def</span> <span class="nf">cache_rpc_calls</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">is_supported</span> <span class="o">=</span> <span class="n">RPCStorageContainer</span><span class="o">.</span><span class="n">check_is_supported</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">RPCStorageContainer</span><span class="o">.</span><span class="n">lookup_dict</span><span class="p">[</span><span class="n">cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_supported</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span> <span class="nf">cache_attributes</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="n">is_supported</span> <span class="o">=</span> <span class="n">AttributeStorageContainer</span><span class="o">.</span><span class="n">check_is_supported</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">AttributeStorageContainer</span><span class="o">.</span><span class="n">lookup_dict</span><span class="p">[</span><span class="n">cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_supported</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">class</span> <span class="nc">TypeCachedStorageContainer</span><span class="p">(</span><span class="n">AbstractStorageContainer</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">get_member_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lookup_dict</span><span class="p">[</span><span class="n">instance</span><span class="o">.</span><span class="n">__class__</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="RPCStorageContainer"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer">[docs]</a><span class="k">class</span> <span class="nc">RPCStorageContainer</span><span class="p">(</span><span class="n">TypeCachedStorageContainer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Storage container for RPC calls</span>
+<span class="sd">    Handles stored data only&quot;&quot;&quot;</span>
+
+    <span class="n">lookup_dict</span> <span class="o">=</span> <span class="n">FactoryDict</span><span class="p">(</span><span class="n">cache_rpc_calls</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="RPCStorageContainer.check_is_supported"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer.check_is_supported">[docs]</a>    <span class="k">def</span> <span class="nf">check_is_supported</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">RPCInterfaceFactory</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCStorageContainer.get_default_data"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer.get_default_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">deque</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">_add_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">member</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+
+<div class="viewcode-block" id="RPCStorageContainer.store_rpc"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer.store_rpc">[docs]</a>    <span class="k">def</span> <span class="nf">store_rpc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCStorageContainer.interface_register"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer.interface_register">[docs]</a>    <span class="k">def</span> <span class="nf">interface_register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_add_call</span><span class="p">,</span> <span class="n">instance</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCStorageContainer.new_storage_interface"><a class="viewcode-back" href="../../network.html#network.containers.RPCStorageContainer.new_storage_interface">[docs]</a>    <span class="k">def</span> <span class="nf">new_storage_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="n">rpc_instance</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">create_rpc_interface</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instance</span><span class="p">)</span>
+        <span class="n">rpc_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">store_rpc</span><span class="p">(</span><span class="n">rpc_instance</span><span class="p">)</span>
+
+        <span class="n">adder_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_add_call</span><span class="p">,</span> <span class="n">rpc_instance</span><span class="p">)</span>
+
+        <span class="n">interface</span> <span class="o">=</span> <span class="n">RPCStorageInterface</span><span class="p">(</span><span class="n">adder_func</span><span class="p">)</span>
+        <span class="n">rpc_instance</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">interface</span><span class="p">,</span> <span class="n">rpc_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">interface</span>
+
+</div></div>
+<div class="viewcode-block" id="AttributeStorageContainer"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer">[docs]</a><span class="k">class</span> <span class="nc">AttributeStorageContainer</span><span class="p">(</span><span class="n">TypeCachedStorageContainer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Storage container for Attributes</span>
+<span class="sd">    Handles data storage, access and complaints&quot;&quot;&quot;</span>
+
+    <span class="n">lookup_dict</span> <span class="o">=</span> <span class="n">FactoryDict</span><span class="p">(</span><span class="n">cache_attributes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">cache_func</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">complaints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_complaints</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="AttributeStorageContainer.get_descriptions_of"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.get_descriptions_of">[docs]</a>    <span class="k">def</span> <span class="nf">get_descriptions_of</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">static_description</span><span class="o">=</span><span class="n">static_description</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">attribute</span><span class="p">:</span> <span class="n">static_description</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+</div>
+<div class="viewcode-block" id="AttributeStorageContainer.get_description_tuple"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.get_description_tuple">[docs]</a>    <span class="k">def</span> <span class="nf">get_description_tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">static_description</span><span class="o">=</span><span class="n">static_description</span><span class="p">):</span>
+        <span class="n">complaints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">complaints</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">members</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ordered_mapping</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">complaints</span><span class="p">[</span><span class="n">member</span><span class="p">]</span> <span class="k">if</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">complaints</span> <span class="k">else</span>
+                     <span class="n">static_description</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">member</span><span class="p">])</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AttributeStorageContainer.get_default_descriptions"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.get_default_descriptions">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_descriptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_descriptions_of</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_default_data</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="AttributeStorageContainer.get_default_complaints"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.get_default_complaints">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_complaints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">default_descriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_descriptions</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">default_descriptions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">complain</span><span class="p">}</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AttributeStorageContainer.check_is_supported"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.check_is_supported">[docs]</a>    <span class="k">def</span> <span class="nf">check_is_supported</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">Attribute</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AttributeStorageContainer.get_default_value"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.get_default_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_default_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">attribute</span><span class="o">.</span><span class="n">get_new_value</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AttributeStorageContainer.new_storage_interface"><a class="viewcode-back" href="../../network.html#network.containers.AttributeStorageContainer.new_storage_interface">[docs]</a>    <span class="k">def</span> <span class="nf">new_storage_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span><span class="p">):</span>
+        <span class="n">getter</span><span class="p">,</span> <span class="n">setter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_storage_accessors</span><span class="p">(</span><span class="n">member</span><span class="p">)</span>
+
+        <span class="n">complain_setter</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">complaints</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">,</span> <span class="n">member</span><span class="p">)</span>
+        <span class="n">interface</span> <span class="o">=</span> <span class="n">AttributeStorageInterface</span><span class="p">(</span><span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">,</span> <span class="n">complain_setter</span><span class="p">)</span>
+        <span class="n">default_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_value</span><span class="p">(</span><span class="n">member</span><span class="p">)</span>
+
+        <span class="n">member</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instance</span><span class="p">,</span> <span class="n">interface</span><span class="p">)</span>
+        <span class="n">setter</span><span class="p">(</span><span class="n">default_value</span><span class="p">)</span>
+        <span class="n">member</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="k">return</span> <span class="n">member</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>
