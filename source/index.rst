@@ -6,11 +6,14 @@
 Welcome to PyAuthServer's documentation!
 ========================================
 
-Contents:
+Modules:
 
 .. toctree::
    :maxdepth: 2
-
+   :ref:`network library <network>`
+   :ref:`BGE network library <bge_network>`
+   :ref:`BGE Game Project library <blender_example>`
+   :ref:`Game Project Interfaces <game_system>`
 
 
 Indices and tables

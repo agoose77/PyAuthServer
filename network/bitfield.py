@@ -14,7 +14,7 @@ class BitField:
         :param iterable: source iterable
         :requires: fixed length iterable object
         :returns: BitField instance of length equal to ``len(iterable)``
-        :code:bitfield=`Bitfield.from_iterable() `'''
+        ``Bitfield.from_iterable()``'''
         size = len(iterable)
         field = cls(size)
         field[:size] = iterable
