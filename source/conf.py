@@ -20,7 +20,7 @@ import sys, os
 
 pa = os.path.abspath(".")
 sys.path.insert(0, pa)
-raise Exception("{}".format(sys.version))
+
 import import_fixer
 
 # -- General configuration -----------------------------------------------------
