@@ -300,7 +300,8 @@ mathutils = dict(Vector=MockBase.factory("Vector"),
                  geometry=Mock(name="Geometry"))
 
 modules = [("bge", ge_logic), ("mathutils", mathutils),
-            "aud", ("bgl", {x: Mock() for x in bgl}), "blf"]
+            "aud", ("bgl", {x: Mock() for x in bgl}), "blf",
+            "opus", "pyaudio"]
 
 
 for module_name in modules:
