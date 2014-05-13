@@ -1,4 +1,5 @@
 *.blend
+*.blend*
 build/
 source/_build/
 __pycache__/
