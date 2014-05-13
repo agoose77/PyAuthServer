@@ -1,4 +1,5 @@
 *.blend
-_build/
+build/
+source/_build/
 __pycache__/
 *.pyc
