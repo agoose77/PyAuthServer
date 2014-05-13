@@ -45,7 +45,7 @@ setup(name='blender_example',
           # 'something else?',
           ],
       )
-setup(name='game_sysytem',
+setup(name='game_system',
       version='1.0',
       description="Game System package",
       long_description="",
