@@ -20,8 +20,7 @@ def type_description(cls):
 
 
 def iterable_description(iterable):
-    desc = static_description
-    return hash(tuple(desc(x) for x in iterable))
+    return hash(tuple(iterable))
 
 
 def is_variable_sized(packer):

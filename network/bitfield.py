@@ -77,12 +77,12 @@ class BitField:
                 self._value &= ~(1 << index)
 
     def clear(self):
-        '''Clears the BitField to zero'''
+        """Clears the BitField to zero"""
         self._value = 0
 
     def resize(self, size):
-        '''Resizes the BitField
+        """Resizes the BitField
 
-        :param size: new size of BitField instance'''
+        :param size: new size of BitField instance"""
         self._size = size
         self.footprint = bits2bytes(self._size)

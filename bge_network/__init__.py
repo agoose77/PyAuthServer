@@ -5,7 +5,7 @@ from .animation import *
 from .signals import *
 from .configuration import *
 from .inputs import *
-from .mathutils_data import *
+from .mathutils_handlers import *
 from .kdtree import *
 from .mesh import *
 from .navmesh import *

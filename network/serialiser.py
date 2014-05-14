@@ -37,6 +37,10 @@ def bits2bytes(bits):
 
 
 def handler_from_byte_length(total_bytes):
+    """Find the smallest handler needed to pack a number of bytes
+
+    :param total_bytes: number of bytes needed to pack
+    :rtype: :py:class:`network.serialiser.IStruct`"""
     for packer in int_packers:
         if packer.size() >= total_bytes:
             break
@@ -102,10 +106,13 @@ def int_selector(type_flag):
 
     return handler_from_bit_length(type_flag.data.get('max_bits', 8))
 
+
+def float_selector(type_flag):
+    return Float8 if type_flag.data.get("max_precision") else Float4
+
 # Register handlers for native types
 register_handler(bool, BoolHandler)
-register_handler(str, StringHandler, is_condition=True)
-register_handler(bytes, BytesHandler, is_condition=True)
-register_handler(int, int_selector, is_condition=True)
-register_handler(float, lambda x: (Float8 if x.data.get("max_precision")
-                                   else Float4), is_condition=True)
+register_handler(str, StringHandler, is_callable=True)
+register_handler(bytes, BytesHandler, is_callable=True)
+register_handler(int, int_selector, is_callable=True)
+register_handler(float, float_selector, is_callable=True)

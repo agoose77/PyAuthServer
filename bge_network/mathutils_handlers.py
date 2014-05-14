@@ -1,9 +1,15 @@
-from network.descriptors import Attribute, TypeFlag
-from network.handler_interfaces import get_handler, register_description, register_handler
-from network.network_struct import Struct
+"""Serialiser data for Mathutils types"""
 
+from network.descriptors import TypeFlag
+from network.handler_interfaces import (get_handler, register_description,
+                                        register_handler)
+
+from functools import partial
 from itertools import chain
 from mathutils import Vector, Euler, Quaternion, Matrix
+
+__all__ = ["Euler4", "Euler8", "Vector4", "Vector8", "Quaternion4",
+           "Quaternion8", "Matrix4", "Matrix8"]
 
 
 class Euler8:
@@ -24,16 +30,16 @@ class Euler8:
 
     @classmethod
     def unpack(cls, bytes_string):
-        packer_size = cls.item_size
+        item_size = cls.item_size
         unpack = cls.item_unpack
-        return cls.wrapper((unpack(bytes_string[i * packer_size: (i + 1) * \
-                          packer_size]) for i in range(cls.wrapper_length)))
+        return cls.wrapper((unpack(bytes_string[i * item_size: (i + 1) * \
+                          item_size]) for i in range(cls.wrapper_length)))
 
     @classmethod
     def unpack_merge(cls, euler, bytes_string):
-        packer_size = cls.item_size
+        item_size = cls.item_size
         unpack = cls.item_unpack
-        euler[:] = (unpack(bytes_string[i * packer_size: (i + 1) * packer_size])
+        euler[:] = (unpack(bytes_string[i * item_size: (i + 1) * item_size])
                     for i in range(cls.wrapper_length))
 
     @classmethod
@@ -88,21 +94,33 @@ def matrix_description(obj):
     return hash(tuple(chain.from_iterable(obj)))
 
 
-def mathutils_description(obj):
+def vector_description(obj):
     return hash(tuple(obj))
 
+
+def precision_switch(low, high, type_flag):
+    return high if type_flag.data.get("max_precision") else low
+
+
 # Register packers
-register_handler(Vector, lambda attr: Vector8 if \
-             attr.data.get("max_precision") else Vector4, is_condition=True)
-register_handler(Euler, lambda attr: Euler8 if \
-             attr.data.get("max_precision") else Euler4, is_condition=True)
-register_handler(Quaternion, lambda attr: Quaternion8 if \
-         attr.data.get("max_precision") else Quaternion4, is_condition=True)
-register_handler(Matrix, lambda attr: Matrix8 if \
-         attr.data.get("max_precision") else Matrix4, is_condition=True)
+register_handler(Vector,
+                 partial(precision_switch, Vector4, Vector8),
+                 is_callable=True)
+
+register_handler(Euler,
+                 partial(precision_switch, Euler4, Euler8),
+                 is_callable=True)
+
+register_handler(Quaternion,
+                 partial(precision_switch, Quaternion4, Quaternion8),
+                 is_callable=True)
+
+register_handler(Matrix,
+                 partial(precision_switch, Matrix4, Matrix8),
+                 is_callable=True)
 
 # Register custom hash-like descriptions
-register_description(Vector, mathutils_description)
-register_description(Euler, mathutils_description)
-register_description(Quaternion, mathutils_description)
+register_description(Vector, vector_description)
+register_description(Euler, vector_description)
+register_description(Quaternion, vector_description)
 register_description(Matrix, matrix_description)
