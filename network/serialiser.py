@@ -36,6 +36,15 @@ def bits2bytes(bits):
     return ceil(bits / 8)
 
 
+def float_selector(type_flag):
+    return Float8 if type_flag.data.get("max_precision") else Float4
+
+
+def handler_from_bit_length(total_bits):
+    total_bytes = bits2bytes(total_bits)
+    return handler_from_byte_length(total_bytes)
+
+
 def handler_from_byte_length(total_bytes):
     """Find the smallest handler needed to pack a number of bytes
 
@@ -54,9 +63,11 @@ def handler_from_int(value):
     return handler_from_bit_length(value.bit_length())
 
 
-def handler_from_bit_length(total_bits):
-    total_bytes = bits2bytes(total_bits)
-    return handler_from_byte_length(total_bytes)
+def int_selector(type_flag):
+    if "max_value" in type_flag.data:
+        return handler_from_int(type_flag.data["max_value"])
+
+    return handler_from_bit_length(type_flag.data.get('max_bits', 8))
 
 
 class BoolHandler:
@@ -98,17 +109,6 @@ class StringHandler(BytesHandler):
 
     def unpack(self, bytes_string):
         return super().unpack(bytes_string).decode()
-
-
-def int_selector(type_flag):
-    if "max_value" in type_flag.data:
-        return handler_from_int(type_flag.data["max_value"])
-
-    return handler_from_bit_length(type_flag.data.get('max_bits', 8))
-
-
-def float_selector(type_flag):
-    return Float8 if type_flag.data.get("max_precision") else Float4
 
 # Register handlers for native types
 register_handler(bool, BoolHandler)

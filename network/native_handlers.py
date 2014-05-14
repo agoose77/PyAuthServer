@@ -11,11 +11,18 @@ from inspect import signature
 
 __all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableBaseHandler',
            'StructHandler', 'FixedBitFieldHandler', 'VariableBitFieldHandler',
-           'type_description', 'iterable_description', 'is_variable_sized',
+           'class_type_description', 'iterable_description', 'is_variable_sized',
            'bitfield_selector']
 
 
-def type_description(cls):
+def bitfield_selector(type_flag):
+    if not "fields" in type_flag.data:
+        return VariableBitFieldHandler
+
+    return FixedBitFieldHandler(type_flag.data['fields'])
+
+
+def class_type_description(cls):
     return hash(cls.type_name)
 
 
@@ -298,12 +305,6 @@ class VariableBitFieldHandler:
         return field_handler.size() + cls.size_packer.size()
 
 
-def bitfield_selector(flag):
-    if not "fields" in flag.data:
-        return VariableBitFieldHandler
-
-    return FixedBitFieldHandler(flag.data['fields'])
-
 # Define this before Struct
 register_handler(BitField, bitfield_selector, True)
 
@@ -319,6 +320,6 @@ ReplicableHandler = ReplicableBaseHandler()
 register_handler(Replicable, ReplicableHandler)
 register_handler(type(Replicable), ReplicableTypeHandler)
 
-register_description(type(Replicable), type_description)
+register_description(type(Replicable), class_type_description)
 register_description(list, iterable_description)
 register_description(set, iterable_description)
