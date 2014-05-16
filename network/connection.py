@@ -30,7 +30,7 @@ class Connection(SignalListener, NetmodeSwitch):
     subclasses = {}
 
     def __init__(self, netmode):
-        super().__init__()
+        self.register_signals()
 
         self.netmode = netmode
         self.replicable = None
