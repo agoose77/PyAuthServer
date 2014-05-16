@@ -1,9 +1,11 @@
 from json import loads
 from urllib import request, parse
 from functools import partial
-
 from queue import Empty as EmptyQueue
-from bge_network import GameExitSignal, SignalListener, UpdateSignal, SafeThread
+
+from bge_network.signals import GameExitSignal
+from bge_network.threads import SafeThread
+from network.signals import SignalListener, UpdateSignal
 
 
 class URLThread(SafeThread):
