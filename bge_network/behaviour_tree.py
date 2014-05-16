@@ -84,9 +84,8 @@ class LeafNode(SignalListener):
     ''''A Node with no children'''
 
     def __init__(self):
-        super().__init__()
-
         self._signal_parent = self
+        self.register_signals()
 
         self.state = EvaluationState.ready
         self.name = ""
