@@ -61,8 +61,6 @@ class Network:
 
     def __init__(self, addr, port):
         '''Network socket initialiser'''
-        super().__init__()
-
         self._delta_timestamp = 0.0
 
         self._delta_received = 0
