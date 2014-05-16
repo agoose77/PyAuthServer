@@ -37,24 +37,24 @@ class FlagSerialiser:
 
         self.boolean_packer = get_handler(TypeFlag(BitField,
                                                    fields=self.total_booleans))
-        self.total_packer = get_handler(TypeFlag(BitField,
-                                                fields=self.total_contents))
+        self.contents_packer = get_handler(TypeFlag(BitField,
+                                                fields=len(self.content_bits)))
 
     def report_information(self, bytes_string):
-        bitfield_packer = self.bitfield_packer
+        content_packer = self.contents_packer
         # Get header of packed data
-        content_bits = bitfield_packer.unpack_from(bytes_string)[:]
-        content_data = bytes_string[:bitfield_packer.size(bytes_string)]
-        bytes_string = bytes_string[bitfield_packer.size(bytes_string):]
+        content_bits = content_packer.unpack_from(bytes_string)[:]
+        content_data = bytes_string[:content_packer.size(bytes_string)]
+        bytes_string = bytes_string[content_packer.size(bytes_string):]
         print("Header Data: ", content_data)
         entry_names, entry_handlers = zip(*(self.non_bool_args + self.bool_args))
 
         # If there are NoneType values they will be first
         if content_bits[self.NONE_CONTENT_INDEX]:
-            none_bits = bitfield_packer.unpack_from(bytes_string)
-            none_data = bytes_string[:bitfield_packer.size(bytes_string)]
+            none_bits = content_packer.unpack_from(bytes_string)
+            none_data = bytes_string[:content_packer.size(bytes_string)]
             print("NoneType Values Data: ", none_data)
-            bytes_string = bytes_string[bitfield_packer.size(bytes_string):]
+            bytes_string = bytes_string[content_packer.size(bytes_string):]
 
         else:
             none_bits = [False] * self.total_contents
@@ -64,7 +64,6 @@ class FlagSerialiser:
         for name, included, is_none, handler in zip(entry_names, content_bits,
                                                     none_bits, entry_handlers):
             if not included:
-                print
                 continue
 
             print("{} : {}".format(name, "None" if is_none else
@@ -76,17 +75,17 @@ class FlagSerialiser:
         """Determine the included entries of the packed data
 
         :param bytes_string: packed data"""
-        total_packer = self.total_packer
-        total_packer.unpack_merge(self.content_bits, bytes_string)
-        return bytes_string[total_packer.size(bytes_string):]
+        contents_packer = self.contents_packer
+        contents_packer.unpack_merge(self.content_bits, bytes_string)
+        return bytes_string[contents_packer.size(bytes_string):]
 
     def read_nonetype_values(self, bytes_string):
         """Determine the NoneType entries of the packed data
 
         :param bytes_string: packed data"""
-        total_packer = self.total_packer
-        total_packer.unpack_merge(self.none_bits, bytes_string)
-        return bytes_string[total_packer.size(bytes_string):]
+        contents_packer = self.contents_packer
+        contents_packer.unpack_merge(self.none_bits, bytes_string)
+        return bytes_string[contents_packer.size(bytes_string):]
 
     def unpack(self, bytes_string, previous_values={}):
         """Unpack bytes into Python objects
@@ -221,9 +220,9 @@ class FlagSerialiser:
 
         # If NoneType values have been set, mark them as included
         if none_bits:
-            none_value_bytes = self.total_packer.pack(none_bits)
+            none_value_bytes = self.contents_packer.pack(none_bits)
 
             data_values.insert(0, none_value_bytes)
             content_bits[self.NONE_CONTENT_INDEX] = True
 
-        return self.total_packer.pack(content_bits) + b''.join(data_values)
+        return self.contents_packer.pack(content_bits) + b''.join(data_values)
