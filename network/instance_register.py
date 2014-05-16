@@ -21,14 +21,13 @@ class InstanceMixins(SignalListener):
 
         # Initial value
         self.instance_id = None
+        self.register_signals()
 
         # Run clean init function
         self.on_initialised()
 
         # Add to register queue
         self.request_registration(instance_id, register)
-
-        super().__init__()
 
     def on_initialised(self):
         pass
@@ -251,8 +250,8 @@ class InstanceRegister(TypeRegister):
         try:
             instance.on_unregistered()
 
-        except Exception:
-            raise
+        except Exception as err:
+            print(err)
 
         finally:
             instance.unregister_signals()
