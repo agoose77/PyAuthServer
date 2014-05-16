@@ -209,6 +209,9 @@ class StructHandler:
 
     def __init__(self, static_value):
         self.struct_cls = static_value.type
+
+        if self.struct_cls is Struct:
+            print("Warning: A Handler has been requested for a Struct type, cannot populate deserialised members")
         self.size_packer = get_handler(TypeFlag(int))
 
     def pack(self, struct):
