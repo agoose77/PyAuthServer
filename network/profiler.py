@@ -9,7 +9,7 @@ __all__ = ['ProfileManager', 'profiler']
 class ProfileManager(SignalListener):
 
     def __init__(self):
-        super().__init__()
+        self.register_signals()
 
         self._profiles = defaultdict(Profile)
 
