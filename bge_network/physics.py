@@ -26,7 +26,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
     subclasses = {}
 
     def __init__(self, update_func, apply_func):
-        super().__init__()
+        self.register_signals()
 
         self._update_func = update_func
         self._apply_func = apply_func
