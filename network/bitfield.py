@@ -20,6 +20,9 @@ class BitField:
         field[:size] = iterable
         return field
 
+    def __bool__(self):
+        return self._value != 0
+
     def __init__(self, size, value=0):
         self._size = size
         self._value = value
@@ -28,9 +31,6 @@ class BitField:
 
     def __iter__(self):
         return (self[i] for i in range(self._size))
-
-    def __bool__(self):
-        return self._value != 0
 
     def __getitem__(self,  value):
         if isinstance(value, slice):
@@ -75,6 +75,9 @@ class BitField:
 
             else:
                 self._value &= ~(1 << index)
+
+    def __len__(self):
+        return self._size
 
     def clear(self):
         """Clears the BitField to zero"""
