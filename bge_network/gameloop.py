@@ -24,7 +24,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
     render = True
 
     def __init__(self):
-        super().__init__()
+        self.register_signals()
 
         WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
@@ -43,7 +43,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.current_time = 0.0
         self.last_sent_time = 0
         self.network_tick_rate = 25
-
         self.metric_interval = 0.10
 
         self.profile = logic.KX_ENGINE_DEBUG_SERVICES
@@ -138,8 +137,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.update_animations(self.current_time)
 
             self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
-            is_full_update = ((self.current_time - self.last_sent_time)
-                               >= (1 / self.network_tick_rate))
+            is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
 
             if is_full_update:
                 self.last_sent_time = self.current_time
@@ -220,15 +218,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def clean_up(self):
         GameExitSignal.invoke()
-
-        try:
-            Replicable.clear_graph()
-
-        except Exception as err:
-            print(err)
-
-        finally:
-            self.network_system.stop()
+        Replicable.clear_graph()
+        self.network_system.stop()
 
     def main(self):
         self.__init__()
