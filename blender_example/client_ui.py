@@ -490,12 +490,8 @@ class TeamPanel(Panel):
         self.left_button.text = left.name
         self.right_button.text = right.name
 
-        self.left_button.on_click = ignore_arguments(
-                                    partial(player_controller.set_team, left),
-                                    provide_self=False)
-        self.right_button.on_click = ignore_arguments(
-                                    partial(player_controller.set_team, right),
-                                    provide_self=False)
+        self.left_button.on_click = ignore_arguments(partial(player_controller.set_team, left))
+        self.right_button.on_click = ignore_arguments(partial(player_controller.set_team, right))
 
 
 class TimerMixins:

@@ -1,12 +1,12 @@
 from .attribute_register import AttributeMeta
-from .conditions import is_simulated
+from .conditions import is_annotatable
+from .decorators import get_annotation, requires_permission
 from .enums import Roles, Netmodes
 from .instance_register import InstanceRegister
 from .rpc import RPCInterfaceFactory
 from .rpc_register import RPCMeta
 
-from functools import wraps
-from types import FunctionType
+from inspect import isfunction
 
 __all__ = ['ReplicableRegister']
 
@@ -17,70 +17,62 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
     forced_redefinitions = {}
 
-    def __new__(self, cls_name, bases, cls_dict):
+    def __new__(meta, cls_name, bases, cls_dict):
+        # We cannot operate on base classes
+        if not bases:
+            return super().__new__(meta, cls_name, bases, cls_dict)
+
         # If this isn't the base class
         unshareable_rpc_functions = {}
 
-        # We cannot operate on base classes
-        if not bases:
-            return super().__new__(self, cls_name, bases, cls_dict)
-
         # Include certain RPCs for redefinition
-        for parent_cls in set(bases).intersection(self.forced_redefinitions):
-            rpc_functions = self.forced_redefinitions[parent_cls]
+        for parent_cls in set(bases).intersection(meta.forced_redefinitions):
+            rpc_functions = meta.forced_redefinitions[parent_cls]
             for name, function in rpc_functions.items():
                 # Only redefine inherited rpc calls
                 if name in cls_dict:
                     continue
 
+                # Redefine method as unwrapped function (before RPC wrapper)
                 cls_dict[name] = function
 
         # Get all the member methods
         for name, value in cls_dict.items():
-            if (not self.is_wrappable(value) or
-                self.found_in_parents(name, bases)):
+            # Only wrap valid members
+            if not meta.is_wrappable(value) or meta.found_in_parents(name, bases):
                 continue
 
             # Wrap function with permission wrapper
-            value = self.permission_wrapper(value)
+            value = requires_permission(value)
 
             # Automatically wrap RPC
-            if self.is_unbound_rpc_function(value):
+            if meta.is_unbound_rpc_function(value):
                 value = RPCInterfaceFactory(value)
 
-                # If subclasses will need copies
+                # If subclasses will need copies (because of MarkedAttribute annotations)
                 if value.has_marked_parameters:
                     unshareable_rpc_functions[name] = value.original_function
 
             cls_dict[name] = value
 
-        cls = super().__new__(self, cls_name, bases, cls_dict)
+        cls = super().__new__(meta, cls_name, bases, cls_dict)
 
         # If we will require redefinitions
         if unshareable_rpc_functions:
-            self.forced_redefinitions[cls] = unshareable_rpc_functions
+            meta.forced_redefinitions[cls] = unshareable_rpc_functions
 
         return cls
 
     def is_unbound_rpc_function(func):  # @NoSelf
-        try:
-            annotations = func.__annotations__
-
-        except AttributeError:
+        if not is_annotatable(func):
             return False
 
-        try:
-            return_type = annotations['return']
-
-        except KeyError:
-            return False
-
+        return_type = get_annotation("return", default=None)(func)
         return return_type in Netmodes
 
     @classmethod
-    def is_wrappable(cls, value):
-        return (isinstance(value, FunctionType) and not
-                isinstance(value, (classmethod, staticmethod)))
+    def is_wrappable(meta, value):
+        return isfunction(value) and not isinstance(value, (classmethod, staticmethod))
 
     @classmethod
     def found_in_parents(meta, name, parents):
@@ -93,42 +85,3 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
                     break
 
         return False
-
-    def mark_wrapped(func):  # @NoSelf
-        func.__annotations__['wrapped'] = True
-
-    def is_wrapped(func):  # @NoSelf
-        return bool(func.__annotations__.get("wrapped"))
-
-    @classmethod
-    def permission_wrapper(meta, func):
-        simulated_proxy = Roles.simulated_proxy  # @UndefinedVariable
-        func_is_simulated = is_simulated(func)
-
-        @wraps(func)
-        def func_wrapper(*args, **kwargs):
-
-            try:
-                assumed_instance = args[0]
-
-            # Static method needs no permission
-            except IndexError:
-                return func(*args, **kwargs)
-
-            # Check that the assumed instance/class has roles
-            try:
-                arg_roles = assumed_instance.roles
-            except AttributeError:
-                return
-
-            # Check that the roles are of an instance
-            local_role = arg_roles.local
-
-            # Permission checks
-            if (local_role > simulated_proxy or(func_is_simulated and
-                                    local_role >= simulated_proxy)):
-                return func(*args, **kwargs)
-
-        meta.mark_wrapped(func)
-
-        return func_wrapper

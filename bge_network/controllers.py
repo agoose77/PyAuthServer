@@ -238,6 +238,10 @@ class PlayerController(Controller):
     max_rotation_difference_squared = ((2 * pi) / 60) ** 2
 
     def apply_move(self, move):
+        """Apply move contents to Controller state
+
+        :param move: move to process
+        """
         blackboard = self.behaviour.blackboard
 
         blackboard['inputs'] = move.inputs
@@ -245,8 +249,9 @@ class PlayerController(Controller):
 
         self.behaviour.update()
 
+    @requires_netmode(Netmodes.client)
     def broadcast_voice(self):
-        '''Dump voice information and encode it for the server'''
+        """Dump voice information and encode it for the server"""
         data = self.microphone.encode()
         if data:
             self.send_voice_server(data)
