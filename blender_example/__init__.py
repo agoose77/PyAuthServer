@@ -1,3 +1,8 @@
+"""Sample game project using PyAuthServer
+
+Some functionality will be merged into bge_network on completion
+"""
+
 from .behaviours import *
 from .client import *
 from .client_ui import *
