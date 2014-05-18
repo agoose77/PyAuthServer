@@ -5,9 +5,8 @@ from itertools import islice
 from .enums import EvaluationState
 
 
-__all__ = ["BehaviourTree", "LeafNode", "InnerNode", "ResumeableNode",
-           "SelectorNode", "ConcurrentNode", "SequenceNode", "LoopNode",
-           "SignalLeafNode", "SignalInnerNode"]
+__all__ = ["BehaviourTree", "LeafNode", "InnerNode", "ResumableNode", "SelectorNode", "ConcurrentNode", "SequenceNode",
+           "LoopNode"]
 
 
 class BehaviourTree:
@@ -89,6 +88,13 @@ class LeafNode(SignalListener):
 
         self.state = EvaluationState.ready
         self.name = ""
+
+    @property
+    def signaller(self):
+        if self._signal_parent is self:
+            return None
+
+        return self._signal_parent
 
     def change_signaller(self, parent):
         parent.register_child(self, greedy=True)
@@ -226,7 +232,7 @@ class InnerNode(LeafNode):
             child.reset(blackboard)
 
 
-class ResumeableNode(InnerNode):
+class ResumableNode(InnerNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -251,7 +257,7 @@ class ResumeableNode(InnerNode):
         self.resume_index = 0
 
 
-class SelectorNode(ResumeableNode):
+class SelectorNode(ResumableNode):
 
     def evaluate(self, blackboard):
         resume_index = 0 if self.should_restart else self.resume_index
@@ -282,7 +288,7 @@ class SelectorNode(ResumeableNode):
         return child.state
 
 
-class ConcurrentNode(ResumeableNode):
+class ConcurrentNode(ResumableNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -348,20 +354,3 @@ class LoopNode(SequenceNode):
 
         return state
 
-
-class SignalLeafNode(LeafNode):
-
-    @property
-    def signaller(self):
-        if self._signal_parent is self:
-            return None
-        return self._signal_parent
-
-
-class SignalInnerNode(InnerNode):
-
-    @property
-    def signaller(self):
-        if self._signal_parent is self:
-            return None
-        return self._signal_parent

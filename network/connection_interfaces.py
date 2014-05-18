@@ -30,17 +30,15 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16
-        self.sequence_handler = get_handler(
-                                TypeFlag(int, max_value=self.sequence_max_size)
-                                )
+        self.sequence_handler = get_handler(TypeFlag(int, max_value=self.sequence_max_size))
 
         # Number of packets to ack per packet
         self.ack_window = conversion(8, "B", "b")
 
         # BitField and bitfield size
-        self.ack_bitfield = BitField(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(BitField,
-                                               fields=self.ack_window))
+        self.incoming_ack_bitfield = BitField(self.ack_window)
+        self.outgoing_ack_bitfield = BitField(self.ack_window)
+        self.ack_packer = get_handler(TypeFlag(BitField, fields=self.ack_window))
 
         # Additional data
         self.netmode_packer = get_handler(TypeFlag(int))
@@ -52,7 +50,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}
-        self.received_window = deque()
+        self.received_window = deque(maxlen=self.ack_window)
 
         # Current indicators of latest out/incoming sequence numbers
         self.local_sequence = 0
@@ -79,24 +77,12 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         # Internal packet data
         self.internal_data = []
 
-    def on_unregistered(self):
-        """Unregistration callback"""
-        if self.connection:
-            self.connection.on_delete()
-
-    def on_connected(self):
-        self.status = ConnectionStatus.connected  # @UndefinedVariable
-        ConnectionSuccessSignal.invoke(target=self)
-
-    def on_failure(self):
-        self.status = ConnectionStatus.failed  # @UndefinedVariable
-
     @classmethod
     def by_status(cls, status, comparator=equals_operator):
-        """Filter connections by status
+        """Count number of connections with requested status
 
         :param status: status query
-        :param comparator: comparison callback for filter
+        :param comparator: comparison callback to test each connection status
         """
         count = 0
         for interface in cls:
@@ -104,73 +90,14 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                 count += 1
         return count
 
-    @property
-    def next_local_sequence(self):
-        """:returns: next local packet sequence identifier"""
-        current_sequence = self.local_sequence
-        self.local_sequence = (current_sequence + 1) if (current_sequence <
-                                             self.sequence_max_size) else 0
-        return self.local_sequence
+    def get_reliable_information(self, remote_sequence):
+        """Update stored information for remote peer reliability feedback
 
-    def sequence_more_recent(self, base, sequence):
-        """Compare two sequence identifiers
-        determines if one is greater than the other
-
-        :param base: base sequence to compare against
-        :param sequence: sequence tested against base
+        :param remote_sequence: latest received packet's sequence
         """
-        half_seq = (self.sequence_max_size / 2)
-        return (((base > sequence) and (base - sequence) <= half_seq)
-            or ((sequence > base) and (sequence - base) > half_seq))
-
-    def send(self, network_tick):
-        """Pull data from connection interfaces to send
-
-        :param network_tick: if this is a network tick
-        """
-
-        # Check for timeout
-        if (monotonic() - self.last_received) > self.time_out_delay:
-            self.status = ConnectionStatus.timeout  # @UndefinedVariable
-
-            err = ConnectionTimeoutError("Connection timed out")
-            ConnectionErrorSignal.invoke(err, target=self)
-            return
-
-        # Self-incrementing sequence property
-        sequence = self.next_local_sequence
-
-        # If we are waiting to detect when throttling will have returned
-        if self.throttle_pending and self.tagged_throttle_sequence is None:
-            self.tagged_throttle_sequence = sequence
-
-        # If not connected setup handshake
-        if self.status == ConnectionStatus.pending:  # @UndefinedVariable
-            packet_collection = PacketCollection(self.send_handshake())
-            self.status = ConnectionStatus.handshake
-
-        # If connected send normal data
-        elif self.status == ConnectionStatus.connected:  # @UndefinedVariable
-            packet_collection = self.connection.send(network_tick,
-                                                     self.bandwidth)
-
-        # Don't send any data between states
-        else:
-            return
-
-        # Include any re-send
-        if self.internal_data:
-            # Read internal_data
-            packet_collection += PacketCollection(self.internal_data)
-            # Empty internal_data
-            self.internal_data.clear()
-
-        # Create a bitfield using window config
-        ack_bitfield = self.ack_bitfield
-
         # The last received sequence number and received list
-        remote_sequence = self.remote_sequence
         received_window = self.received_window
+        ack_bitfield = self.outgoing_ack_bitfield
 
         # Acknowledge all packets we've received
         for index in range(self.ack_window):
@@ -181,34 +108,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
             ack_bitfield[index] = packet_sqn in received_window
 
-        # Construct header information
-        ack_info = [self.sequence_handler.pack(sequence),
-                    self.sequence_handler.pack(remote_sequence),
-                    self.ack_packer.pack(ack_bitfield)]
-
-        # Store acknowledge request for reliable members of packet
-        self.requested_ack[sequence] = packet_collection
-
-        # Add user data after header
-        packet_bytes = packet_collection.to_bytes()
-
-        if packet_bytes:
-            ack_info.append(packet_bytes)
-
-        # Force bandwidth to grow (until throttled)
-        self.bandwidth += self.packet_growth
-
-        return b''.join(ack_info)
-
-    def stop_throttling(self):
-        """Stops updating metric for bandwidth"""
-        self.tagged_throttle_sequence = None
-        self.throttle_pending = False
-
-    def start_throttling(self):
-        """Starts updating metric for bandwidth"""
-        self.bandwidth /= 2
-        self.throttle_pending = True
+        return ack_bitfield
 
     def handle_packet(self, packet):
         # Called for handshake protocol
@@ -226,11 +126,11 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             ConnectionErrorSignal.invoke(err, target=self)
             self.request_unregistration()
 
-    def update_reliable_info(self, ack_base, sliding_window):
-        """Updates internal packet management, concerning dropped packets and available bandwidth
+    def handle_reliable_information(self, ack_base, ack_bitfield):
+        """Update internal packet management, concerning dropped packets and available bandwidth
 
         :param ack_base: base sequence for ack window
-        :param sliding_window: ack window bitfield
+        :param ack_bitfield: ack window bitfield
         """
         requested_ack = self.requested_ack
         window_size = self.ack_window
@@ -240,10 +140,10 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             sequence_ = ack_base - (index + 1)
 
             # If it was acked successfully
-            flag = sliding_window[index]
+            flag = ack_bitfield[index]
 
             # If we are waiting for this packet, acknowledge it
-            if (flag and sequence_ in requested_ack):
+            if flag and sequence_ in requested_ack:
                 requested_ack.pop(sequence_).on_ack()
 
                 # If a packet has had time to return since throttling began
@@ -278,6 +178,20 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
+    def on_connected(self):
+        """Connected callback"""
+        self.status = ConnectionStatus.connected  # @UndefinedVariable
+        ConnectionSuccessSignal.invoke(target=self)
+
+    def on_failure(self):
+        """Connection Failed callback"""
+        self.status = ConnectionStatus.failed  # @UndefinedVariable
+
+    def on_unregistered(self):
+        """Unregistered callback"""
+        if self.connection:
+            self.connection.on_delete()
+
     def receive(self, bytes_string):
         """Handles received bytes from peer
 
@@ -293,11 +207,11 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         bytes_string = bytes_string[self.sequence_handler.size():]
 
         # Read the acknowledgement bitfield
-        self.ack_packer.unpack_merge(self.ack_bitfield, bytes_string)
+        self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string)
         bytes_string = bytes_string[self.ack_packer.size(bytes_string):]
 
         # Dictionary of packets waiting for acknowledgement
-        self.update_reliable_info(ack_base, self.ack_bitfield)
+        self.handle_reliable_information(ack_base, self.incoming_ack_bitfield)
 
         # If we receive a newer foreign sequence, update our local record
         if self.sequence_more_recent(sequence, self.remote_sequence):
@@ -313,6 +227,89 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Handle received packets
         PacketCollection.iter_bytes(bytes_string, self.handle_packet)
+
+    def send(self, network_tick):
+        """Pull data from connection interfaces to send
+
+        :param network_tick: if this is a network tick
+        """
+
+        # Check for timeout
+        if (monotonic() - self.last_received) > self.time_out_delay:
+            self.status = ConnectionStatus.timeout  # @UndefinedVariable
+
+            err = ConnectionTimeoutError("Connection timed out")
+            ConnectionErrorSignal.invoke(err, target=self)
+            return
+
+        # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
+        sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
+        remote_sequence = self.remote_sequence
+
+        # If we are waiting to detect when throttling will have returned
+        if self.throttle_pending and self.tagged_throttle_sequence is None:
+            self.tagged_throttle_sequence = sequence
+
+        # If not connected setup handshake
+        if self.status == ConnectionStatus.pending:  # @UndefinedVariable
+            packet_collection = PacketCollection(self.send_handshake())
+            self.status = ConnectionStatus.handshake
+
+        # If connected send normal data
+        elif self.status == ConnectionStatus.connected:  # @UndefinedVariable
+            packet_collection = self.connection.send(network_tick,
+                                                     self.bandwidth)
+
+        # Don't send any data between states
+        else:
+            return
+
+        # Include data from the reliability system
+        if self.internal_data:
+            # Read internal_data
+            packet_collection += PacketCollection(self.internal_data)
+            # Empty internal_data
+            self.internal_data.clear()
+
+        # Get ack bitfield for reliable feedback
+        ack_bitfield = self.get_reliable_information(remote_sequence)
+
+        # Store acknowledge request for reliable members of packet
+        self.requested_ack[sequence] = packet_collection
+
+        # Construct header information
+        payload = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence),
+                   self.ack_packer.pack(ack_bitfield)]
+
+        # Include user defined payload
+        packet_bytes = packet_collection.to_bytes()
+        if packet_bytes:
+            payload.append(packet_bytes)
+
+        # Force bandwidth to grow (until throttled)
+        self.bandwidth += self.packet_growth
+
+        return b''.join(payload)
+
+    def sequence_more_recent(self, base, sequence):
+        """Compare two sequence identifiers and determine if one is newer than the other
+
+        :param base: base sequence to compare against
+        :param sequence: sequence tested against base
+        """
+        half_seq = (self.sequence_max_size / 2)
+        return ((base > sequence) and (base - sequence) <= half_seq) or \
+               ((sequence > base) and (sequence - base) > half_seq)
+
+    def start_throttling(self):
+        """Starts updating metric for bandwidth"""
+        self.bandwidth /= 2
+        self.throttle_pending = True
+
+    def stop_throttling(self):
+        """Stops updating metric for bandwidth"""
+        self.tagged_throttle_sequence = None
+        self.throttle_pending = False
 
 
 @netmode_switch(Netmodes.server)  # @UndefinedVariable

@@ -81,8 +81,7 @@ class TraceWeapon(Weapon):
 
     @requires_netmode(Netmodes.server)
     def trace_shot(self, camera):
-        hit_object, hit_position, hit_normal = camera.trace_ray(
-                                                self.maximum_range)
+        hit_object, hit_position, hit_normal = camera.trace_ray(self.maximum_range)
         if not hit_object:
             return
 

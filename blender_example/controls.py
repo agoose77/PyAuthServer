@@ -45,7 +45,7 @@ class HasMouse(ConditionNode):
         return "mouse" in blackboard
 
 
-class HandleMouseYaw(SignalLeafNode):
+class HandleMouseYaw(LeafNode):
 
     def evaluate(self, blackboard):
         mouse_diff_x, *_ = blackboard['mouse']
@@ -62,7 +62,7 @@ class IsThirdPerson(ConditionNode):
         return camera.mode == CameraMode.third_person
 
 
-class HandleFirstPersonCamera(SignalLeafNode):
+class HandleFirstPersonCamera(LeafNode):
 
     def evaluate(self, blackboard):
         mouse_diff_x, mouse_diff_y = blackboard['mouse']
@@ -103,7 +103,7 @@ class HandleFirstPersonCamera(SignalLeafNode):
         return EvaluationState.success
 
 
-class HandleThirdPersonCamera(SignalLeafNode):
+class HandleThirdPersonCamera(LeafNode):
 
     def evaluate(self, blackboard):
         _, mouse_diff_y = blackboard['mouse']
@@ -139,7 +139,7 @@ class HandleThirdPersonCamera(SignalLeafNode):
         return EvaluationState.success
 
 
-class HandleInputs(SignalLeafNode):
+class HandleInputs(LeafNode):
 
     def evaluate(self, blackboard):
         inputs = blackboard['inputs']

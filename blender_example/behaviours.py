@@ -132,7 +132,7 @@ def fire_behind_shelter():
                                 )"""
 
 
-class DebugState(SignalLeafNode):
+class DebugState(LeafNode):
 
     def __init__(self, child, enabled=True):
         super().__init__()
@@ -147,7 +147,7 @@ class DebugState(SignalLeafNode):
         return child_state
 
 
-class StateModifier(SequenceNode, SignalInnerNode):
+class StateModifier(SequenceNode, InnerNode):
 
     def transform(self, old_state):
         return old_state
@@ -157,14 +157,14 @@ class StateModifier(SequenceNode, SignalInnerNode):
         return self.transform(state)
 
 
-class BlackboardModifier(SequenceNode, SignalInnerNode):
+class BlackboardModifier(SequenceNode, InnerNode):
 
     def evaluate(self, blackboard):
         state = super().evaluate(blackboard.__class__())
         return self.transform(state)
 
 
-class IntervalDecorator(SequenceNode, SignalInnerNode):
+class IntervalDecorator(SequenceNode, InnerNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -183,7 +183,7 @@ class IntervalDecorator(SequenceNode, SignalInnerNode):
         return EvaluationState.failure
 
 
-class ConditionSequence(SequenceNode, SignalInnerNode):
+class ConditionSequence(SequenceNode, InnerNode):
 
     def condition(self, blacboard):
         return True
@@ -194,7 +194,7 @@ class ConditionSequence(SequenceNode, SignalInnerNode):
         return EvaluationState.failure
 
 
-class ConditionNode(SignalLeafNode):
+class ConditionNode(LeafNode):
 
     def condition(self, blackboard):
         return True
@@ -204,7 +204,7 @@ class ConditionNode(SignalLeafNode):
                 else EvaluationState.failure)
 
 
-class Inverter(SequenceNode, SignalInnerNode):
+class Inverter(SequenceNode, InnerNode):
 
     def evaluate(self, blackboard):
         state = super().evaluate(blackboard)
@@ -216,7 +216,7 @@ class Inverter(SequenceNode, SignalInnerNode):
         return state
 
 
-class SetCollisionFlags(SignalLeafNode):
+class SetCollisionFlags(LeafNode):
 
     def __init__(self, mask=None, group=None):
         super().__init__()
@@ -242,7 +242,7 @@ class GetObstacle(ConditionNode):
         return bool(hit_obj)
 
 
-class Delay(SignalLeafNode):
+class Delay(LeafNode):
 
     def __init__(self, delay=0.0):
         super().__init__()
@@ -271,7 +271,7 @@ class RandomDelay(Delay):
         self._timer.end = randrange(*self._range)
 
 
-class Alert(SignalLeafNode):
+class Alert(LeafNode):
 
     def __init__(self, message, *children):
         super().__init__(*children)
@@ -283,7 +283,7 @@ class Alert(SignalLeafNode):
         return EvaluationState.success
 
 
-class FindCeiling(SignalLeafNode):
+class FindCeiling(LeafNode):
 
     def evaluate(self, blackboard):
         climbable_height = 10
@@ -303,7 +303,7 @@ class IsWalking(ConditionNode):
         return pawn.velocity.xy.length >= pawn.walk_speed * 0.9
 
 
-class PlayAnimation(SignalLeafNode):
+class PlayAnimation(LeafNode):
 
     def __init__(self, name, start, end, *children, **kwargs):
         super().__init__(*children)
@@ -332,7 +332,7 @@ class PlayAnimation(SignalLeafNode):
             return EvaluationState.running
 
 
-class StopAnimation(SignalLeafNode):
+class StopAnimation(LeafNode):
 
     def __init__(self, *children, **kwargs):
         super().__init__(*children)
@@ -389,7 +389,7 @@ class ConvertState(StateModifier):
         return self._map.get(old_state, old_state)
 
 
-class Signal(SignalLeafNode):
+class Signal(LeafNode):
 
     def __init__(self, event_cls, *args, from_blackboard={}, **kwargs):
         super().__init__()
@@ -405,7 +405,7 @@ class Signal(SignalLeafNode):
         return EvaluationState.success
 
 
-class AimAtActor(SignalLeafNode):
+class AimAtActor(LeafNode):
 
     def get_target_position(self, blackboard):
         return blackboard['actor'].position
@@ -447,20 +447,20 @@ class CanFireWeapon(ConditionNode):
         return blackboard['weapon'].can_fire
 
 
-class ReloadWeapon(SignalLeafNode):
+class ReloadWeapon(LeafNode):
 
     def evaluate(self, blackboard):
         return EvaluationState.success
 
 
-class FireWeapon(SignalLeafNode):
+class FireWeapon(LeafNode):
 
     def evaluate(self, blackboard):
         blackboard['controller'].start_server_fire()
         return EvaluationState.success
 
 
-class FindRandomPoint(SignalLeafNode):
+class FindRandomPoint(LeafNode):
 
     @property
     def random_x(self):
@@ -490,7 +490,7 @@ class RunOnce(ConditionSequence):
         self.run = False
 
 
-class GetAttacker(SignalLeafNode):
+class GetAttacker(LeafNode):
 
     @ActorDamagedSignal.listener
     def save_damage(self, damage, instigator, hit_position, momentum):
@@ -501,7 +501,7 @@ class GetAttacker(SignalLeafNode):
         return EvaluationState.success
 
 
-class GetPawn(SignalLeafNode):
+class GetPawn(LeafNode):
 
     def evaluate(self, blackboard):
         if not blackboard['controller'].pawn:
@@ -511,7 +511,7 @@ class GetPawn(SignalLeafNode):
         return EvaluationState.success
 
 
-class GetWeapon(SignalLeafNode):
+class GetWeapon(LeafNode):
 
     def evaluate(self, blackboard):
         if not blackboard['controller'].weapon:
@@ -521,7 +521,7 @@ class GetWeapon(SignalLeafNode):
         return EvaluationState.success
 
 
-class GetCamera(SignalLeafNode):
+class GetCamera(LeafNode):
 
     def evaluate(self, blackboard):
         if not blackboard['controller'].camera:
@@ -531,7 +531,7 @@ class GetCamera(SignalLeafNode):
         return EvaluationState.success
 
 
-class GetNavmesh(SignalLeafNode):
+class GetNavmesh(LeafNode):
 
     def evaluate(self, blackboard):
         try:
@@ -543,7 +543,7 @@ class GetNavmesh(SignalLeafNode):
         return EvaluationState.success
 
 
-class FindVisibleActor(SignalLeafNode):
+class FindVisibleActor(LeafNode):
 
     def get_distance(self, pawn, actor):
         return (pawn.position - actor.position).length
@@ -592,7 +592,7 @@ class HasPointTarget(ConditionNode):
         return "point" in blackboard
 
 
-class ConsumePoint(SignalLeafNode):
+class ConsumePoint(LeafNode):
 
     def evaluate(self, blackboard):
         try:
@@ -602,7 +602,7 @@ class ConsumePoint(SignalLeafNode):
         return EvaluationState.success
 
 
-class ConsumeActor(SignalLeafNode):
+class ConsumeActor(LeafNode):
 
     def evaluate(self, blackboard):
         try:
@@ -612,7 +612,7 @@ class ConsumeActor(SignalLeafNode):
         return EvaluationState.success
 
 
-class MoveToActor(SignalLeafNode):
+class MoveToActor(LeafNode):
 
     def __init__(self):
         super().__init__()
