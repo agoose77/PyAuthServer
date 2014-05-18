@@ -2,6 +2,7 @@ PyAuthServer
 ============
 
 Introduction
+--------------
 There is no substantial networking engine in Blender that allows any kind of multiplayer game project to be realised without writing the underlying network mechanism itself.
 Faced with such a challenge, most users would prefer to use another own engine, or remove the feature from the design document. 
 
