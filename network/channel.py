@@ -1,12 +1,12 @@
-from .handler_interfaces import static_description, get_handler
-from .flag_serialiser import FlagSerialiser
 from .conditions import is_reliable
 from .descriptors import TypeFlag
-from .replicable import Replicable
 from .decorators import netmode_switch
 from .enums import Netmodes
+from .flag_serialiser import FlagSerialiser
+from .handler_interfaces import static_description, get_handler
+from .logger import logger
 from .netmode_switch import NetmodeSwitch
-from .signals import Signal
+from .replicable import Replicable
 
 from functools import partial
 from time import monotonic
@@ -71,8 +71,8 @@ class Channel(NetmodeSwitch):
             method = self.replicable.rpc_storage.functions[rpc_id]
 
         except IndexError:
-            print("Error invoking RPC: No RPC function with id {}".format(
-                                                                      rpc_id))
+            logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+
         else:
             method.execute(rpc_call[self.rpc_id_packer.size():])
 

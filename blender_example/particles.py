@@ -1,5 +1,4 @@
-from network.signals import UpdateSignal
-
+from bge_network.signals import LogicUpdateSignal
 from bge_network.particles import Particle
 
 __all__ = ["TracerParticle"]
@@ -14,6 +13,6 @@ class TracerParticle(Particle):
         self.lifespan = 0.5
         self.scale = self.object.localScale.copy()
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         self.object.localScale = self.scale * (1 - self._timer.progress) ** 2

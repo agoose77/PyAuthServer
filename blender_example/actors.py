@@ -1,35 +1,26 @@
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
-from network.iterators import take_single
 from network.replicable import Replicable
-from network.signals import UpdateSignal
-from network.world_info import WorldInfo
 
 from bge_network.actors import Actor, Pawn, Projectile, ResourceActor, WeaponAttachment
 from bge_network.controllers import PlayerController
 from bge_network.enums import CollisionType
-from bge_network.mesh import BGEMesh
-from bge_network.signals import ActorDamagedSignal, BroadcastMessage, CollisionSignal
-from bge_network.utilities import mean
+from bge_network.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal
 
-from aud import Factory, device as Device
-from bge import logic
 from mathutils import Vector
 
 from .enums import TeamRelation
 from .particles import TracerParticle
 from .signals import UIHealthChangedSignal
-from .replication_infos import TeamReplicationInfo
 
-__all__ = ["ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag",
-           "Cone", "Palette", "SpawnPoint"]
+__all__ = ["ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag", "Cone", "Palette", "SpawnPoint"]
 
 
 class ArrowProjectile(Projectile):
     entity_name = "Arrow"
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     @simulated
     def update(self, delta_time):
         if not self.in_flight:
@@ -181,7 +172,7 @@ class CTFFlag(ResourceActor):
 
         super().unpossessed()
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     @requires_netmode(Netmodes.client)
     @simulated
     def update(self, delta_time):

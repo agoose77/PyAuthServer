@@ -69,9 +69,13 @@ class PostPhysicsSignal(Signal):
     pass
 
 
-class UpdateTimerSignal(Signal):
+class LogicUpdateSignal(Signal):
     pass
 
 
-class UpdateUISignal(Signal):
+class TimerUpdateSignal(Signal):
+    pass
+
+
+class UIUpdateSignal(Signal):
     pass

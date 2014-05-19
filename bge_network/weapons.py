@@ -1,24 +1,14 @@
-from network.decorators import requires_netmode, simulated
+from network.decorators import requires_netmode
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from network.signals import UpdateSignal
 from network.world_info import WorldInfo
 
-from aud import Factory, device as Device
-from bge import logic, types
-from collections import deque, defaultdict, namedtuple, OrderedDict
-from functools import partial
-from math import pi
-from mathutils import Vector, Euler
-from os.path import join as join_path
+from mathutils import Vector
 
-from .enums import *
-from .inputs import BGEInputStatusLookup, InputManager
 from .object_types import *
 from .resources import ResourceManager
 from .signals import *
-from .structs import RigidBodyState
 from .utilities import square_falloff
 
 __all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon', 'EmptyWeapon']
@@ -30,8 +20,8 @@ class Weapon(Replicable):
 
     @property
     def can_fire(self):
-        return (bool(self.ammo) and (WorldInfo.tick - self.last_fired_tick)
-                >= (self.shoot_interval * WorldInfo.tick_rate))
+        return (bool(self.ammo) and (WorldInfo.tick - self.last_fired_tick) >= (self.shoot_interval *
+                                                                                WorldInfo.tick_rate))
 
     @property
     def resources(self):
@@ -91,14 +81,11 @@ class TraceWeapon(Weapon):
             return
 
         hit_vector = (hit_position - camera.position)
-        falloff = square_falloff(camera.position,
-                                    self.maximum_range,
-                                    hit_position, self.effective_range)
+        falloff = square_falloff(camera.position, self.maximum_range, hit_position, self.effective_range)
         damage = self.base_damage * falloff
         momentum = self.momentum * hit_vector.normalized() * falloff
 
-        ActorDamagedSignal.invoke(damage, self.owner, hit_position,
-                                momentum, target=replicable)
+        ActorDamagedSignal.invoke(damage, self.owner, hit_position, momentum, target=replicable)
 
 
 class ProjectileWeapon(Weapon):

@@ -2,10 +2,7 @@ from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from network.signals import UpdateSignal
-from network.world_info import WorldInfo
 
-from aud import Factory, device as Device
 from bge import logic, types
 from contextlib import contextmanager
 from math import radians
@@ -15,14 +12,13 @@ from .animation import Animation
 from .behaviour_tree import BehaviourTree
 from .enums import *
 from .object_types import *
-from .object_types import BGEActorBase, BGEPhysicsObject 
+from .object_types import BGEActorBase
 from .resources import ResourceManager
 from .signals import *
 from .utilities import mean
 
 
-__all__ = ["Actor", "Camera", "Lamp", "Navmesh", "Pawn", "ResourceActor",
-           "WeaponAttachment"]
+__all__ = ["Actor", "Camera", "Lamp", "Pawn", "ResourceActor", "WeaponAttachment"]
 
 
 class Actor(BGEActorBase, Replicable):
@@ -272,7 +268,7 @@ class Camera(Actor):
         target = self.transform * Vector((0, 0, -distance))
         return self.object.rayCast(target, self.position, distance)
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     @simulated
     def update(self, delta_time):
         if self.visible:
@@ -404,7 +400,7 @@ class Pawn(Actor):
         self.health = int(max(self.health - damage, 0))
 
     @simulated
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         if self.weapon_attachment:
             self.update_weapon_attachment()

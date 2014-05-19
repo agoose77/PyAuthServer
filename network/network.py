@@ -1,7 +1,7 @@
 from .connection_interfaces import ConnectionInterface
 from .decorators import ignore_arguments
 from .enums import ConnectionStatus
-from .signals import SignalListener, UpdateSignal
+from .signals import SignalListener
 
 from collections import deque
 from socket import socket, AF_INET, SOCK_DGRAM
@@ -32,7 +32,6 @@ class UnreliableSocket(SignalListener, UDPSocket):
         self.delay = 0.000
         self._buffer_out = deque()
 
-    @UpdateSignal.global_listener
     @ignore_arguments
     def delayed_send(self):
         systime = monotonic()

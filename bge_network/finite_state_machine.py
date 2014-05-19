@@ -1,4 +1,4 @@
-from network.signals import UpdateSignal
+from .signals import LogicUpdateSignal
 
 
 class FiniteState:
@@ -128,6 +128,6 @@ class FiniteStateMachine:
 
 class FSM(FiniteStateMachine):
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         self.update_state()(delta_time)

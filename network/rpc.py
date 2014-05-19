@@ -1,10 +1,11 @@
 from .flag_serialiser import FlagSerialiser
 from .descriptors import TypeFlag, MarkAttribute
+from .logger import logger
 
 from collections import OrderedDict
+from copy import deepcopy
 from functools import update_wrapper
 from inspect import signature, Parameter
-from copy import deepcopy
 
 __all__ = ['RPCInterfaceFactory', 'RPCInterface']
 
@@ -41,9 +42,9 @@ class RPCInterface:
 
         try:
             self._interface.value = self._serialiser.pack(arguments)
-        except Exception as err:
-            raise RuntimeError("Could not package RPC call: '{}'".format(
-                                        self._function_name)) from err
+
+        except Exception:
+            logger.exception("Could not package RPC call: '{}'".format(self._function_name))
 
     def __repr__(self):
         return "<RPC Interface {}>".format(self._function_name)
@@ -56,9 +57,8 @@ class RPCInterface:
             unpacked_data = self._serialiser.unpack(bytes_string)
             self._function_call(**dict(unpacked_data))
 
-        except Exception as err:
-            print("Could not invoke RPC call: '{}' - {}"
-                  .format(self._function_name, err))
+        except Exception:
+            logger.exception("Could not invoke RPC call: '{}'".format(self._function_name))
 
     def register(self, interface, rpc_id):
         """Register individual RPC interface for a class Instance
@@ -112,11 +112,9 @@ class RPCInterfaceFactory:
 
         # Create information for the serialiser
         if self._serialiser_parameters is None:
-            self._serialiser_parameters = self.get_serialiser_parameters(
-                                                     instance.__class__)
+            self._serialiser_parameters = self.get_serialiser_parameters(instance.__class__)
 
-        self._by_instance[instance] = interface = RPCInterface(bound_function,
-                                                   self._serialiser_parameters)
+        self._by_instance[instance] = interface = RPCInterface(bound_function, self._serialiser_parameters)
 
         interface.__self__ = instance
         return interface
@@ -168,10 +166,8 @@ class RPCInterfaceFactory:
         parameter_values = signature.parameters.values()
         empty_parameter = Parameter.empty
 
-        return OrderedDict((value.name, None if value.annotation is
-                            empty_parameter else value.annotation)
-                           for value in parameter_values
-                           if isinstance(value.annotation, TypeFlag))
+        return OrderedDict((value.name, None if value.annotation is empty_parameter else value.annotation)
+                           for value in parameter_values if isinstance(value.annotation, TypeFlag))
 
     @staticmethod
     def validate_function(arguments, function):
@@ -185,9 +181,8 @@ class RPCInterfaceFactory:
         for parameter_name, parameter in arguments.items():
 
             if parameter is None:
-                raise ValueError("RPC call '{}' has not provided a type "
-                                 "annotation for parameter '{}'"
-                         .format(function.__qualname__, parameter_name))
+                logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
+                    function.__qualname__, parameter_name))
 
     def __repr__(self):
         return "<RPC Factory {}>".format(self.original_function.__qualname__)

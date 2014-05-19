@@ -1,7 +1,7 @@
 from network.connection_interfaces import ConnectionInterface
 from network.enums import ConnectionStatus, Netmodes
 from network.replication_rules import ReplicationRules
-from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal, UpdateSignal
+from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
 from network.world_info import WorldInfo
 
 from bge_network.actors import *
@@ -9,13 +9,14 @@ from bge_network.controllers import Controller, PlayerController
 from bge_network.errors import AuthError, BlacklistError
 from bge_network.gameloop import ServerGameLoop
 from bge_network.resources import ResourceManager
-from bge_network.signals import ActorKilledSignal
+from bge_network.signals import ActorKilledSignal, LogicUpdateSignal
 from bge_network.timer import Timer
 from bge_network.weapons import Weapon
 
 from bge import logic
 from operator import gt as greater_than
 from random import choice, randint
+from mathutils import Vector
 
 from .actors import *
 from .controllers import *
@@ -204,7 +205,7 @@ class TeamDeathMatch(ReplicationRules):
         pawn.position = choice(WorldInfo.subclass_of(SpawnPoint)).position
         return controller
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         players_needed = self.minimum_players_for_countdown
         countdown_running = self.countdown_timer.active

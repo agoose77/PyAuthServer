@@ -3,6 +3,7 @@ from .decorators import netmode_switch
 from .descriptors import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
+from .logger import logger
 from .netmode_switch import NetmodeSwitch
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
@@ -105,11 +106,7 @@ class Connection(SignalListener, NetmodeSwitch):
                 for rpc_call, reliable in channel.take_rpc_calls():
                     rpc_data = packed_id + rpc_call
 
-                    store_packet(
-                            make_packet(protocol=method_invoke,
-                                      payload=rpc_data,
-                                      reliable=reliable)
-                                )
+                    store_packet(make_packet(protocol=method_invoke, payload=rpc_data, reliable=reliable))
             yield item
 
     def received_all(self):
@@ -144,8 +141,7 @@ class ClientConnection(Connection):
                 channel = self.channels[instance_id]
 
             except KeyError:
-                print("Unable to find network object with id {}"
-                      .format(instance_id))
+                logger.exception("Unable to find channel for network object with id {}".format(instance_id))
 
             else:
                 # Apply attributes and retrieve notify callback
@@ -244,7 +240,7 @@ class ServerConnection(Connection):
         # If we own a controller destroy it
         if self.replicable:
             # We must be connected to have a controller
-            print("{} disconnected!".format(self.replicable))
+            logger.info("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
     @ReplicableUnregisteredSignal.global_listener
@@ -318,9 +314,8 @@ class ServerConnection(Connection):
                               replicable == self.replicable)
 
                 # Send the protocol, class name and owner status to client
-                packet = make_packet(protocol=replication_init,
-                              payload=packed_id + packed_class +\
-                              packed_is_host, reliable=True)
+                packet = make_packet(protocol=replication_init, payload=packed_id + packed_class + packed_is_host,
+                                     reliable=True)
                 # Insert the packet at the front (to ensure attribute
                 # references are valid to newly created replicables
                 insert_packet(0, packet)
@@ -337,10 +332,7 @@ class ServerConnection(Connection):
                     # By calling it after all creation packets are yielded
                     update_payload = packed_id + attributes
 
-                    packet = make_packet(
-                                        protocol=replication_update,
-                                        payload=update_payload,
-                                        reliable=True)
+                    packet = make_packet(protocol=replication_update, payload=update_payload, reliable=True)
 
                     store_packet(packet)
                     used_bandwidth += packet.size
@@ -388,14 +380,8 @@ class ServerConnection(Connection):
         collection = PacketCollection()
         replicables = self.prioritised_channels
 
-        replicables = self.get_attribute_replication(replicables,
-                                                         collection,
-                                                         available_bandwidth,
-                                                         network_tick)
-        replicables = self.get_method_replication(
-                                          replicables,
-                                          collection,
-                                          available_bandwidth)
+        replicables = self.get_attribute_replication(replicables, collection, available_bandwidth, network_tick)
+        replicables = self.get_method_replication(replicables, collection, available_bandwidth)
 
         # Consume iterable
         consume(replicables)

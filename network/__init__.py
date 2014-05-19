@@ -18,6 +18,7 @@ from .flag_serialiser import *
 from .handler_interfaces import *
 from .iterators import *
 from .instance_register import *
+from .logger import *
 from .native_handlers import *
 from .network import *
 from .netmode_switch import *

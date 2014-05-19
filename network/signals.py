@@ -6,10 +6,9 @@ from .structures import FactoryDict
 from collections import defaultdict
 from inspect import getmembers, signature
 
-__all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal',
-           'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
-           'ConnectionSuccessSignal', 'UpdateSignal', 'ProfileSignal',
-           'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal']
+__all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
+           'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'ProfileSignal', 'SignalValue',  'DisconnectSignal',
+           'ConnectionDeletedSignal']
 
 
 def members_predicate(member):
@@ -133,8 +132,7 @@ class Signal(metaclass=TypeRegister):
         signals_data = cls.get_signals(callback)
 
         for signal_cls, is_context in signals_data:
-            remove_list = (signal_cls.to_unsubscribe_global if is_context else
-                         signal_cls.to_unsubscribe_context)
+            remove_list = (signal_cls.to_unsubscribe_global if is_context else signal_cls.to_unsubscribe_context)
             remove_list.append(identifier)
 
             signal_children = signal_cls.children
@@ -172,8 +170,7 @@ class Signal(metaclass=TypeRegister):
         accepts_target = "target" in func_signature.parameters
 
         for signal_cls, is_context in signals_data:
-            data_dict = (signal_cls.to_subscribe_context if is_context else
-                         signal_cls.to_subscribe_global)
+            data_dict = (signal_cls.to_subscribe_context if is_context else signal_cls.to_subscribe_global)
             data_dict[identifier] = callback, accepts_signal, accepts_target
 
     @classmethod
@@ -236,8 +233,7 @@ class Signal(metaclass=TypeRegister):
             cls.update_state()
 
     @classmethod
-    def invoke_signal(cls, args, target, kwargs, callback,
-                      supply_signal, supply_target):
+    def invoke_signal(cls, args, target, kwargs, callback, supply_signal, supply_target):
         signal_args = {}
 
         if supply_signal:
@@ -250,8 +246,7 @@ class Signal(metaclass=TypeRegister):
         callback(*args, **signal_args)
 
     @classmethod
-    def invoke_targets(cls, target_dict, *args, target=None,
-                       addressee=None, **kwargs):
+    def invoke_targets(cls, target_dict, *args, target=None, addressee=None, **kwargs):
         """Invoke signals for targeted recipient
         If recipient has children, invoke them as well
         Children do not require parents to listen for the signal
@@ -269,14 +264,12 @@ class Signal(metaclass=TypeRegister):
         if addressee in target_dict:
             callback, supply_signal, supply_target = target_dict[addressee]
             # Invoke with the same target context even if this is a child
-            cls.invoke_signal(args, target, kwargs, callback,
-                             supply_signal, supply_target)
+            cls.invoke_signal(args, target, kwargs, callback, supply_signal, supply_target)
 
         # Update children of this listener
         if addressee in cls.children:
             for target_child in cls.children[addressee]:
-                cls.invoke_targets(target_dict, *args, target=target,
-                                   addressee=target_child, **kwargs)
+                cls.invoke_targets(target_dict, *args, target=target, addressee=target_child, **kwargs)
 
     @classmethod
     def invoke_general(cls, subscriber_dict, *args, target=None, **kwargs):
@@ -286,11 +279,9 @@ class Signal(metaclass=TypeRegister):
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments"""
-        for (callback, supply_signal, supply_target) in \
-                                subscriber_dict.values():
+        for (callback, supply_signal, supply_target) in subscriber_dict.values():
 
-            cls.invoke_signal(args, target, kwargs, callback,
-                             supply_signal, supply_target)
+            cls.invoke_signal(args, target, kwargs, callback, supply_signal, supply_target)
 
     @classmethod
     def invoke(cls, *args, target=None, **kwargs):
@@ -300,10 +291,8 @@ class Signal(metaclass=TypeRegister):
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments"""
         if target:
-            cls.invoke_targets(cls.isolated_subscribers, *args,
-                               target=target, **kwargs)
-        cls.invoke_general(cls.subscribers, *args,
-                           target=target, **kwargs)
+            cls.invoke_targets(cls.isolated_subscribers, *args, target=target, **kwargs)
+        cls.invoke_general(cls.subscribers, *args, target=target, **kwargs)
         cls.invoke_parent(*args, target=target, **kwargs)
 
     @classmethod
@@ -354,15 +343,12 @@ class CachedSignal(Signal):
         # Don't cache from cache itself!
         if subscriber_data is None:
             cls.cache.append((args, target, kwargs))
-            cls.invoke_targets(cls.isolated_subscribers, *args,
-                               target=target, **kwargs)
-            cls.invoke_general(cls.subscribers, *args,
-                               target=target, **kwargs)
+            cls.invoke_targets(cls.isolated_subscribers, *args, target=target, **kwargs)
+            cls.invoke_general(cls.subscribers, *args, target=target, **kwargs)
 
         else:
             # Otherwise run a general invocation on new subscriber
-            cls.invoke_general(subscriber_data, *args,
-                               target=target, **kwargs)
+            cls.invoke_general(subscriber_data, *args, target=target, **kwargs)
 
         cls.invoke_parent(*args, target=target, **kwargs)
 
@@ -375,9 +361,7 @@ class CachedSignal(Signal):
         subscriber_info = {subscriber: data}
         invoke_signal = cls.invoke
         for previous_args, target, previous_kwargs in cls.cache:
-            invoke_signal(*previous_args, target=target,
-                       subscriber_data=subscriber_info,
-                       **previous_kwargs)
+            invoke_signal(*previous_args, target=target, subscriber_data=subscriber_info, **previous_kwargs)
 
 
 class SignalValue:
@@ -431,9 +415,9 @@ class ConnectionDeletedSignal(Signal):
     pass
 
 
-class UpdateSignal(Signal):
+class ProfileSignal(Signal):
     pass
 
 
-class ProfileSignal(Signal):
+class LatencyUpdatedSignal(Signal):
     pass

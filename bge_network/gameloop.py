@@ -118,7 +118,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             # Update Timers
             self.profile = logic.KX_ENGINE_DEBUG_LOGIC
-            UpdateTimerSignal.invoke(delta_time)
+            TimerUpdateSignal.invoke(delta_time)
 
             # Update Player Controller inputs for client
             if WorldInfo.netmode != Netmodes.server:
@@ -127,7 +127,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             # Update main logic (Replicable update)
             self.profile = logic.KX_ENGINE_DEBUG_LOGIC
-            UpdateSignal.invoke(delta_time)
+            LogicUpdateSignal.invoke(delta_time)
             self.update_graphs()
 
             # Update Physics, which also handles Scene-graph
@@ -159,7 +159,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
             # Update UI
             self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
-            UpdateUISignal.invoke(delta_time)
+            UIUpdateSignal.invoke(delta_time)
 
             self.update_graphs()
 

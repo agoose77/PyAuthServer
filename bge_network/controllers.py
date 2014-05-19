@@ -3,9 +3,9 @@ from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles
 from network.iterators import take_single
+from network.logger import logger
 from network.network_struct import Struct
 from network.replicable import Replicable
-from network.signals import UpdateSignal
 from network.structures import FactoryDict
 from network.world_info import WorldInfo
 
@@ -29,7 +29,6 @@ from .resources import ResourceManager
 from .signals import *
 from .stream import MicrophoneStream, SpeakerStream
 from .structs import RigidBodyState
-from .timer import Timer
 
 __all__ = ['Controller', 'PlayerController', 'AIController']
 
@@ -220,10 +219,10 @@ class AIController(Controller):
         super().on_initialised()
 
         self.camera_mode = CameraMode.first_person
-        self.behaviour = behaviour_tree.BehaviourTree(self)
+        self.behaviour = BehaviourTree(self)
         self.behaviour.blackboard['controller'] = self
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         self.behaviour.update()
 
@@ -259,7 +258,7 @@ class PlayerController(Controller):
 
     def client_acknowledge_move(self, move_id: TICK_FLAG) -> Netmodes.client:
         if not self.pawn:
-            print("Could not find Pawn for {}".format(self))
+            logger.warning("Could not find Pawn for {}".format(self))
             return
 
         remove_move = self.pending_moves.pop
@@ -272,8 +271,7 @@ class PlayerController(Controller):
             if move_id < take_single(self.pending_moves):
                 return
 
-            print("Couldn't find move to acknowledge for move {}"
-                  .format(move_id))
+            logger.warning("Couldn't find move to acknowledge for move {}".format(move_id))
             return
 
         # Remove any older moves
@@ -284,14 +282,14 @@ class PlayerController(Controller):
 
         return True
 
-    def client_apply_correction(self, correction_id: TICK_FLAG, correction: TypeFlag(RigidBodyState),
-                                reason: TypeFlag(str)) -> Netmodes.client:
+    def client_apply_correction(self, correction_id: TICK_FLAG, correction: TypeFlag(RigidBodyState)
+                                ) -> Netmodes.client:
 
         # Remove the lock at this network tick on server
         self.server_remove_buffered_lock(self.current_move.id + 1, "correction")
 
         if not self.pawn:
-            print("Could not find Pawn for {}".format(self))
+            logger.warning("Could not find Pawn for {}".format(self))
             return
 
         if not self.client_acknowledge_move(correction_id):
@@ -299,7 +297,7 @@ class PlayerController(Controller):
 
         PhysicsCopyState.invoke(correction, self.pawn)
 
-        print("{}: Correcting prediction for move {} because of {}".format(self, correction_id, reason))
+        logger.info("{}: Correcting prediction for move {}".format(self, correction_id))
 
         # State call-backs
         apply_move = self.apply_move
@@ -330,7 +328,7 @@ class PlayerController(Controller):
         self.inputs = InputManager(keybindings, BGEInputStatusLookup())
         self.mouse = MouseManager(interpolation=0.6)
 
-        print("Created User Input Managers")
+        logger.info("Created User Input Managers")
 
     @requires_netmode(Netmodes.client)
     def client_setup_sound(self):
@@ -346,7 +344,7 @@ class PlayerController(Controller):
         move = self.current_move
 
         if move is None:
-            print("No move!")
+            logger.error("No move could be processed for sent to the server for tick {}!".format(WorldInfo.tick))
             return
 
         # Post physics state copying
@@ -395,21 +393,13 @@ class PlayerController(Controller):
         position_invalid = (pos_difference.length_squared > self.max_position_difference_squared)
         rotation_invalid = (rot_difference > self.max_rotation_difference_squared)
         if not (position_invalid or rotation_invalid):
-            return None, None
+            return
 
         # Create correction if neccessary
         correction = RigidBodyState()
         PhysicsCopyState.invoke(self.pawn, correction)
 
-        reason = ""
-        if position_invalid:
-            reason += "position was invalid"
-        if rotation_invalid:
-            if reason:
-                reason += " and "
-            reason += "rotation was invalid"
-
-        return correction, reason
+        return correction
 
     @staticmethod
     @requires_netmode(Netmodes.client)
@@ -451,10 +441,10 @@ class PlayerController(Controller):
             input_fields = self.movement_struct.input_fields
 
         except AttributeError as err:
-            raise AttributeError("Move Struct was not defined for {}".format(self.__class__)) from err
+            logger.exception("Move Struct was not defined for {}".format(self.__class__))
 
         bindings = load_keybindings(self.config_filepath, class_name, input_fields)
-        print("Loaded {} key-bindings for {}".format(len(bindings), class_name))
+        logger.info("Loaded {} key-bindings for {}".format(len(bindings), class_name))
         return bindings
 
     def on_initialised(self):
@@ -587,7 +577,8 @@ class PlayerController(Controller):
         # Validate move
         if current_move is None:
             return
-        correction, reason = self.get_corrected_state(current_move)
+
+        correction = self.get_corrected_state(current_move)
 
         if current_move.inputs.debug:
             correction = RigidBodyState()
@@ -600,11 +591,11 @@ class PlayerController(Controller):
         # Send the correction
         else:
             self.server_add_lock("correction")
-            self.client_apply_correction(current_move.id, correction, reason)
+            self.client_apply_correction(current_move.id, correction)
 
     @requires_netmode(Netmodes.server)
     def server_fire(self):
-        print("Rolling back by {:.3f} seconds".format(self.info.ping))
+        logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
 
         if True:
             latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
@@ -631,7 +622,7 @@ class PlayerController(Controller):
             self.locks.remove(name)
 
         except KeyError as err:
-            raise FlagLockingError("{} was not locked".format(name)) from err
+            logger.exception("{} was not locked".format(name))
 
     @requires_netmode(Netmodes.server)
     def server_setup_clock(self):
@@ -660,14 +651,14 @@ class PlayerController(Controller):
         self.client_fire()
 
     @requires_netmode(Netmodes.server)
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         """Validate client clock and apply moves
 
         :param delta_time: elapsed time since last update"""
 
         buffered_move = self.buffered_moves.pop()
-        print(len(self.buffered_moves))
+
         if buffered_move is None:
             print("No move!")
             return

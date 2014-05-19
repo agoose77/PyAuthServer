@@ -4,9 +4,9 @@ from json import loads
 from queue import Empty as EmptyQueue
 from urllib import request, parse
 
-from bge_network.signals import GameExitSignal
+from bge_network.signals import GameExitSignal, LogicUpdateSignal
 from bge_network.threads import SafeThread
-from network.signals import SignalListener, UpdateSignal
+from network.signals import SignalListener
 
 
 class URLThread(SafeThread):
@@ -174,7 +174,7 @@ class BoundMatchmaker(Matchmaker):
         unregister_query = self.unregister_query(self._id)
         self.perform_query(data=unregister_query)
 
-    @UpdateSignal.global_listener
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         super().update()
 
