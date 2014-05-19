@@ -21,6 +21,8 @@ class BehaviourTree:
 
         if root is None:
             root = SelectorNode()
+
+        self._root = None
         self.root = root
 
         self._last_visited = set()
@@ -34,7 +36,7 @@ class BehaviourTree:
         self._root = value
         self._root.change_signaller(self.signaller)
 
-    def new_blackboard(self, default=None):
+    def new_blackboard(self):
         blackboard = {"_visited": set()}
 
         if self.default_blackboard is not None:

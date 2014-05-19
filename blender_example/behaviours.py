@@ -1,9 +1,10 @@
-from bge_network import *
-from mathutils import Vector
 from random import random, randrange
 from functools import partial
 from time import monotonic
-import bge
+
+from bge_network import *
+from mathutils import Vector
+from bge import logic
 
 
 def dead_animation():
@@ -629,7 +630,7 @@ class MoveToActor(LeafNode):
         try:
             blackboard['pawn'].velocity.y = 0
         except KeyError:
-            bge.logic.endGame()
+            logic.endGame()
 
     def draw(self, path):
         start = path[0]

@@ -1,4 +1,4 @@
-from network import Signal
+from network.signals import Signal
 
 
 class CollisionSignal(Signal):
@@ -66,4 +66,12 @@ class BroadcastMessage(Signal):
 
 
 class PostPhysicsSignal(Signal):
+    pass
+
+
+class UpdateTimerSignal(Signal):
+    pass
+
+
+class UpdateUISignal(Signal):
     pass

@@ -116,26 +116,35 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.network_system.receive()
             self.update_graphs()
 
+            # Update Timers
             self.profile = logic.KX_ENGINE_DEBUG_LOGIC
+            UpdateTimerSignal.invoke(delta_time)
+
+            # Update Player Controller inputs for client
             if WorldInfo.netmode != Netmodes.server:
                 PlayerInputSignal.invoke(delta_time)
                 self.update_graphs()
 
+            # Update main logic (Replicable update)
             self.profile = logic.KX_ENGINE_DEBUG_LOGIC
             UpdateSignal.invoke(delta_time)
             self.update_graphs()
 
+            # Update Physics, which also handles Scene-graph
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             PhysicsTickSignal.invoke(scene, delta_time)
             self.update_graphs()
 
+            # Clean up following Physics update
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             PostPhysicsSignal.invoke()
             self.update_graphs()
 
+            # Update Animation system
             self.profile = logic.KX_ENGINE_DEBUG_ANIMATIONS
             self.update_animations(self.current_time)
 
+            # Transmit new state to remote peer
             self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
             is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
 
@@ -145,16 +154,20 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.network_system.send(is_full_update)
 
             if self.network_system.metric_age >= self.metric_interval:
-                #print(self.network_system.send_rate, " : ", self.network_system.receive_rate, len(ConnectionInterface))
+                # print(self.network_system.send_rate, " : ", self.network_system.receive_rate, len(ConnectionInterface))
                 self.network_system.reset_metrics()
+
+            # Update UI
+            self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
+            UpdateUISignal.invoke(delta_time)
 
             self.update_graphs()
 
         else:
-            self.start_profile(logic.KX_ENGINE_DEBUG_PHYSICS)
+            self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             self.update_physics(self.current_time, delta_time)
 
-            self.start_profile(logic.KX_ENGINE_DEBUG_SCENEGRAPH)
+            self.profile = logic.KX_ENGINE_DEBUG_SCENEGRAPH
             self.update_scenegraph(self.current_time)
 
     def on_quit(self):

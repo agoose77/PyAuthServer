@@ -1,7 +1,9 @@
-from network.signals import SignalListener, UpdateSignal 
+from network.signals import SignalListener
 
 from operator import (add as add_func, sub as sub_func,
                       lt as less_func, gt as more_func)
+
+from .signals import UpdateTimerSignal
 
 
 class ManualTimer:
@@ -86,6 +88,6 @@ class Timer(ManualTimer, SignalListener):
     def delete(self):
         self.unregister_signals()
 
-    @UpdateSignal.global_listener
+    @UpdateTimerSignal.global_listener
     def update(self, delta_time):
         super().update(delta_time)
