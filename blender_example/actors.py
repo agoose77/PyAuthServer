@@ -143,8 +143,8 @@ class CTFPawn(Pawn):
     def on_initialised(self):
         super().on_initialised()
 
-        self.walk_speed = 3
-        self.run_speed = 6
+        self.walk_speed = 12
+        self.run_speed = 18
 
         self._flag = None
 

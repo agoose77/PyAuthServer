@@ -25,23 +25,26 @@ class JitterBuffer:
         return len(self._buffer)
 
     def append(self, item):
-        self._buffer.insert(item)
+        buffer = self._buffer
+        buffer.insert(item)
 
-        if self._filling and len(self._buffer) > self.length:
+        buffer_length = len(buffer)
+        maximum_length = round(self.length * 2.5)
+
+        if self._filling and buffer_length > self.length:
             filled_callback = self.on_filled
             if callable(filled_callback):
                 filled_callback()
 
             self._filling = False
 
-        buffer_length = self.length * 2
-        total_items = len(self._buffer)
-
         # Remove excess items
-        if total_items > buffer_length:
-            remove_item = self._buffer.remove
-            for i in range(total_items, buffer_length):
-                remove_item(self[i])
+        if buffer_length > maximum_length:
+            remove_item = buffer.remove
+            get_item = buffer.__getitem__
+
+            for i in range(buffer_length - self.length):
+                remove_item(get_item(0))
 
     def check_for_lost_item(self, item, previous_item):
         get_id_func = self._get_id

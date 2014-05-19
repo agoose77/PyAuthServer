@@ -69,7 +69,7 @@ class HandleFirstPersonCamera(LeafNode):
         pawn = blackboard['pawn']
         camera = blackboard['camera']
 
-        look_speed = 1
+        look_speed = 2
         look_limit = radians(45)
 
         delta_yaw = mouse_diff_x * look_speed

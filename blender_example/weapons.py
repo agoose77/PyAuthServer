@@ -21,10 +21,10 @@ class BowWeapon(ProjectileWeapon):
     def on_initialised(self):
         super().on_initialised()
 
-        self.max_ammo = self.ammo = 10
+        self.max_ammo = self.ammo = 100
         self.attachment_class = BowAttachment
 
-        self.shoot_interval = 0.6
+        self.shoot_interval = 0.3
         self.theme_colour = [0.0, 0.50, 0.93, 1.0]
 
         self.projectile_class = ArrowProjectile

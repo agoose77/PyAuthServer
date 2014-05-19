@@ -8,8 +8,7 @@ from .signals import UpdateTimerSignal
 
 class ManualTimer:
 
-    def __init__(self, end=0.0, start=0.0, count_down=False, repeat=False,
-                 active=True):
+    def __init__(self, end=0.0, start=0.0, count_down=False, repeat=False, active=True, disposable=False):
 
         # Initial values
         self.end = end
@@ -27,6 +26,7 @@ class ManualTimer:
         # Behaviours
         self.repeat = repeat
         self.active = active
+        self.disposable = disposable
 
     def delete(self):
         del self.on_target
@@ -60,6 +60,9 @@ class ManualTimer:
         if callable(self.on_stop):
             self.on_stop()
 
+        if self.disposable:
+            self.delete()
+
     def update(self, delta_time):
         if self.active:
             self.value = self.update_operator(self.value, delta_time)
@@ -83,6 +86,7 @@ class Timer(ManualTimer, SignalListener):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.register_signals()
 
     def delete(self):

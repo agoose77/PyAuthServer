@@ -4,7 +4,7 @@ from network.world_info import WorldInfo
 
 from bge_network.controllers import PlayerController
 from bge_network.signals import ReceiveMessage
-from bge_network.timer import Timer, ManualTimer
+from bge_network.timer import Timer
 from bge_network.resources import ResourceManager
 from bge_network.utilities import lerp
 
@@ -132,15 +132,15 @@ class ConnectPanel(Panel):
                               sub_theme="ContentRow", options=CENTERX)
 
         # IP input
-        self.addr_label_frame, _ = create_framed_element(self.connection_row, "addr",  Label, dict(size=[0.3, 1.0],
+        self.address_label_frame, _ = create_framed_element(self.connection_row, "addr",  Label, dict(size=[0.3, 1.0],
                                                                                                    pos=[0.0, 0.5]),
                                                          dict(text="IP Address"))
 
-        self.addr_input_frame, self.addr_field = create_framed_element(self.connection_row, "addr", TextInput,
+        self.address_input_frame, self.address_field = create_framed_element(self.connection_row, "addr", TextInput,
                                                                        dict(size=[0.4, 1.0], pos=[0.0, 0.5]),
                                                                        dict(allow_empty=False, text="localhost"))
 
-        self.addr_field.on_validate = self.validate_ip
+        self.address_field.on_validate = self.validate_ip
 
         self.port_label_frame, _ = create_framed_element(self.connection_row, "port", Label, dict(size=[0.2, 1.0],
                                                                                                   pos=[0.0, 0.5]),
@@ -150,7 +150,7 @@ class ConnectPanel(Panel):
                                                                        dict(size=[0.1, 1.0], pos=[0.0, 0.5]),
                                                                        dict(allow_empty=False, text="1200",
                                                                             type=BGUI_INPUT_INTEGER))
-        create_adjacent(self.addr_label_frame, self.addr_input_frame, self.port_label_frame, self.port_input_frame)
+        create_adjacent(self.address_label_frame, self.address_input_frame, self.port_label_frame, self.port_input_frame)
 
         self.error_label_frame, _ = create_framed_element(self.data_row, "error", Label, dict(size=[0.3, 1.0],
                                                                                               pos=[0.0, 0.5]),
@@ -214,19 +214,19 @@ class ConnectPanel(Panel):
         self.refresh_button.on_click = self.do_refresh
         self.servers_box.on_select = self.do_select_server
 
-        # Set configuration for sysetms
+        # Set configuration for systems
         self.uses_mouse = True
         self.sprite.visible = False
 
     @property
     def address(self):
-        if self.addr_field.invalid:
+        if self.address_field.invalid:
             return None
-        return self.addr_field.text
+        return self.address_field.text
 
     @address.setter
     def address(self, address):
-        self.addr_field.text = address
+        self.address_field.text = address
 
     @property
     def port(self):
@@ -379,12 +379,14 @@ class TeamPanel(Panel):
     @ConnectionSuccessSignal.global_listener
     def enable(self):
         """Callback for connection success
+
         Sets panel visible"""
         self.visible = True
 
     @TeamSelectionUpdatedSignal.global_listener
     def disable(self):
         """Callback for team selection
+
         Sets panel invisible"""
         self.visible = False
 
@@ -392,10 +394,10 @@ class TeamPanel(Panel):
         if self.left_button.on_click:
             return
 
-        team_infos = WorldInfo.subclass_of(TeamReplicationInfo)
+        team_info_list = WorldInfo.subclass_of(TeamReplicationInfo)
 
         try:
-            left, right = team_infos[:2]
+            left, right = team_info_list[:2]
         except ValueError:
             return
 
@@ -412,31 +414,7 @@ class TeamPanel(Panel):
         self.right_button.on_click = ignore_arguments(partial(player_controller.set_team, right))
 
 
-class TimerMixins:
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._timers = []
-
-    def add_timer(self, timer):
-        """Registers a timer for monitoring"""
-        def _on_stop():
-            timer.delete()
-            self._timers.remove(timer)
-
-        timer.on_stop = _on_stop
-        self._timers.append(timer)
-
-    def update(self, delta_time):
-        """Update all active timers
-
-        :param delta_time: time since last update"""
-        for timer in self._timers[:]:
-            timer.update(delta_time)
-
-
-class Notification(TimerMixins, Frame):
+class Notification(Frame):
 
     def __init__(self, parent, message, alive_time=5.0, scroll_time=None, fade_time=0.25, font_size=35, **kwargs):
         super().__init__(parent=parent, name="notification_{}".format(random_id()), **kwargs)
@@ -462,7 +440,7 @@ class Notification(TimerMixins, Frame):
         # If we do overflow
         if self.message_index_end:
             self.message_text.text = message[:self.message_index_end]
-            status_timer = Timer(end=self.scroll_time, repeat=not has_lifespan)
+            status_timer = Timer(end=self.scroll_time, repeat=not has_lifespan, disposable=True)
             status_timer.on_update = partial(self._shift_message, status_timer)
 
         self.middle_bar.colors = [[1, 1, 1, 0.6]] * 4
@@ -477,7 +455,7 @@ class Notification(TimerMixins, Frame):
 
         # Add alive timer
         if has_lifespan:
-            status_timer = Timer(end=self.alive_time)
+            status_timer = Timer(end=self.alive_time, disposable=True)
             status_timer.on_target = self.on_expired
 
         self.on_death = None
@@ -528,16 +506,16 @@ class Notification(TimerMixins, Frame):
 
                 set_colour(component, colour)
 
-        fade_timer = Timer(end=interval)
+        fade_timer = Timer(end=interval, disposable=True)
         fade_timer.on_update = _update_fade
 
-    def get_blf_message_widths(self, label):
+    @staticmethod
+    def get_blf_message_widths(label):
         """Determines the width of a label in pixels
 
         :param label: BGUI label instance
         """
-        return [(font_dimensions(label.fontid, char * 20)[0] / 20)
-                for char in label.text]
+        return [(font_dimensions(label.fontid, char * 20)[0] / 20) for char in label.text]
 
     def move_to(self, position, interval=0.5, note_position=True):
         """Moves notification to a new position
@@ -558,7 +536,7 @@ class Notification(TimerMixins, Frame):
             self.position = [lerp(x_initial, x_final, factor),
                         lerp(y_initial, y_final, factor)]
 
-        move_timer = Timer(end=interval)
+        move_timer = Timer(end=interval, disposable=True)
         move_timer.on_update = _interpolate_position
 
         if note_position:
@@ -580,7 +558,7 @@ class Notification(TimerMixins, Frame):
         self.move_to(target, self.fade_time, note_position=False)
         self.fade(self.fade_time, out=True)
 
-        death_timer = Timer(end=self.fade_time)
+        death_timer = Timer(end=self.fade_time, disposable=True)
         death_timer.on_target = self.on_cleanup
 
     def update(self, delta_time):
@@ -596,10 +574,8 @@ class Notification(TimerMixins, Frame):
             if became_visible:
                 self.fade(self.fade_time, out=False)
 
-        super().update(delta_time)
 
-
-class UIPanel(TimerMixins, Panel):
+class UIPanel(Panel):
 
     def __init__(self, system):
         super().__init__(system, "UIPanel")
@@ -740,10 +716,9 @@ class UIPanel(TimerMixins, Panel):
             colour[-1] = 1 - timer.progress
             widget.colors = [colour] * 4
 
-        timer = ManualTimer(1.0, repeat=True)
+        timer = Timer(1.0, repeat=True, disposable=True)
         timer.on_update = _update_colour
 
-        self.add_timer(timer, "concern_timer")
         return timer
 
     @property

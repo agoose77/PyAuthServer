@@ -156,14 +156,16 @@ class Packet:
         data = self.protocol_handler.pack(self.protocol) + self.payload
         return self.size_handler.pack(len(data)) + data
 
-    def from_bytes(self, bytes_string):
+    @classmethod
+    def from_bytes(cls, bytes_string):
         """Creates packet instance from bytes
 
         :param bytes_string: bytes stream
         :rtype: :py:class:`network.packet.Packet`
         """
-        self.take_from(bytes_string)
-        return self
+        packet = cls()
+        packet.take_from(bytes_string)
+        return packet
 
     def take_from(self, bytes_string):
         """Populates packet instance with data.
@@ -176,16 +178,23 @@ class Packet:
         length_handler = self.size_handler
         protocol_handler = self.protocol_handler
 
+        # Read packet length (excluding length character size)
         length = length_handler.unpack_from(bytes_string)
-        shift = length_handler.size()
+        length_size = length_handler.size()
+        bytes_string = bytes_string[length_size:]
 
-        self.protocol = protocol_handler.unpack_from(bytes_string[shift:])
-        proto_shift = protocol_handler.size()
+        # Read packet protocol
+        self.protocol = protocol_handler.unpack_from(bytes_string)
+        protocol_size = protocol_handler.size()
+        bytes_string = bytes_string[protocol_size:]
 
-        self.payload = bytes_string[shift + proto_shift:shift + length]
+        # Determine the slice index of this payload
+        end_index = length - protocol_size
+
+        self.payload = bytes_string[:end_index]
         self.reliable = False
 
-        return bytes_string[shift + length:]
+        return bytes_string[end_index:]
 
     def __add__(self, other):
         """Concatenates two Packets
