@@ -342,9 +342,9 @@ class RPNTokenizer:
 		self.output.append(token)
 	
 	def count_arguments_until(self, end_index):
-		'''Determine the number of arguments provided to a function
+		"""Determine the number of arguments provided to a function
 		Enables true support for variadic functions
-		Simply incremementing a stack counter won't identify no argument cases'''
+		Simply incremementing a stack counter won't identify no argument cases"""
 		argument_count = 0
 
 		for token in self.output[end_index:]:

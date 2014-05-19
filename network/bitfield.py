@@ -5,16 +5,16 @@ __all__ = ["BitField"]
 
 class BitField:
 
-    '''BitField data type which supports slicing operations'''
+    """BitField data type which supports slicing operations"""
 
     @classmethod
     def from_iterable(cls, iterable):
-        '''Factory function to create a BitField from an iterable object
+        """Factory function to create a BitField from an iterable object
 
         :param iterable: source iterable
         :requires: fixed length iterable object
         :returns: BitField instance of length equal to ``len(iterable)``
-        ``Bitfield.from_iterable()``'''
+        ``Bitfield.from_iterable()``"""
         size = len(iterable)
         field = cls(size)
         field[:size] = iterable

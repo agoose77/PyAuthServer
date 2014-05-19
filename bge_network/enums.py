@@ -8,7 +8,7 @@ __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
 
 
 class PhysicsType(metaclass=Enumeration):
-    '''Enumeration of Physics Types'''
+    """Enumeration of Physics Types"""
     values = ("static", "dynamic", "rigid_body", "soft_body", "occluder",
               "sensor", "navigation_mesh", "character", "no_collision")
 

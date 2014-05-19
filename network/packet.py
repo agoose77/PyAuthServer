@@ -7,7 +7,7 @@ __all__ = ['PacketCollection', 'Packet']
 
 
 class PacketCollection:
-    __slots__ = "members"
+    __slots__ = "members", "timestamp"
 
     def __init__(self, members=None):
         if members is None:
@@ -21,14 +21,16 @@ class PacketCollection:
         else:
             self.members = [m for p in members for m in p.members]
 
+        self.timestamp = None
+
     @property
     def reliable_members(self):
-        '''The "reliable" members of this packet collection'''
+        """The reliable members of this packet collection"""
         return [m for m in self.members if m.reliable]
 
     @property
     def unreliable_members(self):
-        '''The "unreliable" members of this packet collection'''
+        """The unreliable members of this packet collection"""
         return [m for m in self.members if not m.reliable]
 
     @property
@@ -36,21 +38,21 @@ class PacketCollection:
         return len(self.to_bytes())
 
     def to_reliable(self):
-        '''Create PacketCollection of reliable members
+        """Create PacketCollection of reliable members
 
         :rtype: :py:class:`network.packet.PacketCollection`
-        '''
+        """
         return self.__class__(self.reliable_members)
 
     def to_unreliable(self):
-        '''Create PacketCollection of unreliable members
+        """Create PacketCollection of unreliable members
 
         :rtype: :py:class:`network.packet.PacketCollection`
-        '''
+        """
         return self.__class__(self.unreliable_members)
 
     def on_ack(self):
-        '''Callback for acknowledgement of packet receipt'''
+        """Callback for acknowledgement of packet receipt"""
         for member in self.members:
             member.on_ack()
 
@@ -123,7 +125,7 @@ class Packet:
 
     @property
     def members(self):
-        '''Returns self as a member of a list'''
+        """Returns self as a member of a list"""
         return [self]
 
     @property

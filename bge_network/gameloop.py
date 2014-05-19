@@ -56,9 +56,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     @property
     def scenes(self):
-        '''Generator sets current scene before yielding item
+        """Generator sets current scene before yielding item
 
-        :yields: KX_Scene instance'''
+        :yields: KX_Scene instance"""
         for scene in logic.getSceneList():
             self.set_current_scene(scene)
             yield scene
@@ -77,30 +77,30 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     @ReplicableRegisteredSignal.global_listener
     def notify_registration(self, target):
-        '''Signal listener for replicable instantiation
+        """Signal listener for replicable instantiation
         Listens for Camera creation to correct camera matrices
 
-        :param target: replicable instance'''
+        :param target: replicable instance"""
         if isinstance(target, Camera):
             with target.active_context():
                 self.update_render()
 
     def scenegraph_callback(self):
-        '''Callback for scenegraph update'''
+        """Callback for scenegraph update"""
         with self.profile:
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             self.update_scenegraph(self.current_time)
 
     def physics_callback(self, delta_time):
-        '''Callback for physics simulation
+        """Callback for physics simulation
 
-        :param delta_time: time to progress simulation'''
+        :param delta_time: time to progress simulation"""
         with self.profile:
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             self.update_physics(self.current_time, delta_time)
 
     def update_graphs(self):
-        '''Update isolated resource graphs'''
+        """Update isolated resource graphs"""
         self.profile = logic.KX_ENGINE_DEBUG_SCENEGRAPH
         Replicable.update_graph()
         Signal.update_graph()

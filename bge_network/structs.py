@@ -5,7 +5,7 @@ from mathutils import Vector, Euler
 
 
 class RigidBodyState(Struct):
-    '''Struct for Rigid Body Physics information'''
+    """Struct for Rigid Body Physics information"""
     position = Attribute(Vector())
     velocity = Attribute(Vector())
     angular = Attribute(Vector())
@@ -27,7 +27,7 @@ class RigidBodyState(Struct):
 
 
 class AnimationState(Struct):
-    '''Struct for Animation information'''
+    """Struct for Animation information"""
 
     layer = Attribute(0)
     start = Attribute(0)

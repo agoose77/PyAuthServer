@@ -12,9 +12,9 @@ __all__ = ['Replicable']
 
 class Replicable(metaclass=ReplicableRegister):
 
-    '''Base class for all network involved objects
+    """Base class for all network involved objects
     Supports Replicated Function calls, Attribute replication
-    and Signal subscription'''
+    and Signal subscription"""
 
     _MAXIMUM_REPLICABLES = 255
 
@@ -63,11 +63,11 @@ class Replicable(metaclass=ReplicableRegister):
 
     @property
     def uppermost(self):
-        '''Walks the successive owner of each Replicable to find highest parent
+        """Walks the successive owner of each Replicable to find highest parent
 
         :returns: uppermost parent
         :rtype: :py:class:`network.replicable.Replicable` or \
-        :py:class:`None`'''
+        :py:class:`None`"""
         last = None
         replicable = self
 
@@ -83,7 +83,7 @@ class Replicable(metaclass=ReplicableRegister):
 
     @classmethod
     def create_or_return(cls, base_cls, instance_id, register=True):
-        '''Creates a replicable if it is not already registered.
+        """Creates a replicable if it is not already registered.
 
         Called by the replication system to establish
         :py:class:`network.replicable.Replicable` references.
@@ -93,7 +93,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         :param base_cls: subclass class of\
         :py:class:`network.replicable.Replicable` to instantiate
-        :param register: if registration should occur immediately'''
+        :param register: if registration should occur immediately"""
         # Try and match an existing instance
         try:
             existing = cls.get_from_graph(instance_id)
@@ -116,21 +116,21 @@ class Replicable(metaclass=ReplicableRegister):
 
     @classmethod
     def get_id_iterable(cls):
-        '''Create iterator up to maximum replicable count
+        """Create iterator up to maximum replicable count
 
         :returns: range up to maximum ID
-        :rtype: iterable'''
+        :rtype: iterable"""
         return range(cls._MAXIMUM_REPLICABLES)
 
     def request_registration(self, instance_id, register=False):
-        '''Handles registration of instances.
+        """Handles registration of instances.
 
         Modifies behaviour to allow network priority over local instances.
 
         Handles edge cases such as static replicables
 
         :param instance_id: instance id to register with
-        :param register: if registration should be immediate'''
+        :param register: if registration should be immediate"""
         # This is not static or replicated then it's local
         if instance_id is None:
             self._local_authority = True
@@ -151,30 +151,30 @@ class Replicable(metaclass=ReplicableRegister):
         super().request_registration(instance_id, register)
 
     def possessed_by(self, other):
-        '''Called on possession by other replicable
+        """Called on possession by other replicable
 
-        :param other: other replicable (owner)'''
+        :param other: other replicable (owner)"""
         self.owner = other
 
     def unpossessed(self):
-        '''Called on unpossession by replicable.
+        """Called on unpossession by replicable.
 
-        May be due to death of replicable'''
+        May be due to death of replicable"""
         self.owner = None
 
     def on_registered(self):
-        '''Called on registration of replicable.
+        """Called on registration of replicable.
 
-        Registers instance to type list'''
+        Registers instance to type list"""
         super().on_registered()
 
         self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):
-        '''Called on unregistration of replicable.
+        """Called on unregistration of replicable.
 
-        Removes instance from type list'''
+        Removes instance from type list"""
         self.unpossessed()
 
         super().on_unregistered()
@@ -183,32 +183,32 @@ class Replicable(metaclass=ReplicableRegister):
         ReplicableUnregisteredSignal.invoke(target=self)
 
     def on_notify(self, name):
-        '''Called on notifier attribute change
+        """Called on notifier attribute change
 
-        :param name: name of attribute that has changed'''
+        :param name: name of attribute that has changed"""
         if 0:
             print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 
     def conditions(self, is_owner, is_complaint, is_initial):
-        '''Condition generator that determines replicated attributes.
+        """Condition generator that determines replicated attributes.
 
         Attributes yielded are still subject to conditions before sending
 
         :param is_owner: if the current :py:class:`network.channel.Channel`\
         is the owner
         :param is_complaint: if any complaining variables have been changed
-        :param is_initial: if this is the first replication for this target '''
+        :param is_initial: if this is the first replication for this target """
         if is_complaint or is_initial:
             yield "roles"
             yield "owner"
             yield "torn_off"
 
     def __description__(self):
-        '''Returns a hash-like description for this replicable.
+        """Returns a hash-like description for this replicable.
 
         Used by replication system to determine if reference has changed
-        :rtype: int'''
+        :rtype: int"""
         return hash(self.instance_id)
 
     def __repr__(self):

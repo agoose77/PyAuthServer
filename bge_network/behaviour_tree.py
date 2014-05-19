@@ -82,7 +82,7 @@ class BehaviourTree:
 
 class LeafNode(SignalListener):
 
-    ''''A Node with no children'''
+    """'A Node with no children"""
 
     def __init__(self):
         self._signal_parent = self
@@ -105,29 +105,29 @@ class LeafNode(SignalListener):
         self._signal_parent = parent
 
     def evaluate(self, blackboard):
-        '''Evaluates the node
+        """Evaluates the node
 
         :param blackboard: shared blackboard instance
-        :returns: new state of node, see :py:class:`EvaluationState`'''
+        :returns: new state of node, see :py:class:`EvaluationState`"""
         pass
 
     def on_enter(self, blackboard):
-        '''Called when the node is entered
+        """Called when the node is entered
 
-        :param blackboard: shared blackboard instance'''
+        :param blackboard: shared blackboard instance"""
         pass
 
     def on_exit(self, blackboard):
-        '''Called when the node is exited
+        """Called when the node is exited
 
-        :param blackboard: shared blackboard instance'''
+        :param blackboard: shared blackboard instance"""
         pass
 
     def update(self, blackboard):
-        '''Called when the node is updated
+        """Called when the node is updated
         Handles node state before and after evaluation
 
-        :param blackboard: shared blackboard instance'''
+        :param blackboard: shared blackboard instance"""
         # Invoke entry if neccessary
         if self.state != EvaluationState.running:
             self.state = EvaluationState.running
@@ -143,17 +143,17 @@ class LeafNode(SignalListener):
         blackboard['_visited'].add(self)
 
     def reset(self, blackboard):
-        '''Resets the node to ready state
+        """Resets the node to ready state
 
-        :param blackboard: shared blackboard instance'''
+        :param blackboard: shared blackboard instance"""
         self.state = EvaluationState.ready
         self.on_exit(blackboard)
 
     def print_tree(self, indent=0, indent_characters='   '):
-        '''Prints node with respect to indentation
+        """Prints node with respect to indentation
 
         :param indent: number of indentations to prefix
-        :param indent_characters: characters used for indentation'''
+        :param indent_characters: characters used for indentation"""
         print('{} -> {} {}'.format(indent_characters * indent, indent, self))
 
     def __repr__(self):
@@ -174,15 +174,15 @@ class InnerNode(LeafNode):
 
     @property
     def children(self):
-        ''':returns: the children belonging to the node'''
+        """:returns: the children belonging to the node"""
         return self._children
 
     def add_child(self, node, index=None):
-        '''Adds a child to the node
+        """Adds a child to the node
         Changes the child's signal parent to this node
 
         :param node: node to become child
-        :param index: index of node'''
+        :param index: index of node"""
         if index is None:
             self._children.append(node)
 
@@ -192,19 +192,19 @@ class InnerNode(LeafNode):
         node.change_signaller(self._signal_parent)
 
     def change_signaller(self, identifier):
-        '''Changes the signal parent of this node and its children
+        """Changes the signal parent of this node and its children
 
-        :param identifier: identity of new signal parent'''
+        :param identifier: identity of new signal parent"""
         super().change_signaller(identifier)
 
         for child in self.children:
             child.change_signaller(identifier)
 
     def print_tree(self, index=0):
-        '''Prints the node and its children with respect to indentation
+        """Prints the node and its children with respect to indentation
 
         :param indent: number of indentations to prefix
-        :param indent_characters: characters used for indentation'''
+        :param indent_characters: characters used for indentation"""
         super().print_tree(index)
 
         if self.children:
@@ -217,17 +217,17 @@ class InnerNode(LeafNode):
             print()
 
     def remove_child(self, child):
-        '''Removes the child from list of children
+        """Removes the child from list of children
         Returns the signal identity to the child node
 
-        :param child: child to remove'''
+        :param child: child to remove"""
         self._children.remove(child)
         child.change_signaller(child)
 
     def reset(self, blackboard):
-        '''Resets the node and its children to ready state
+        """Resets the node and its children to ready state
 
-        :param blackboard: shared blackboard instance'''
+        :param blackboard: shared blackboard instance"""
         super().reset(blackboard)
 
         for child in self._children:
@@ -244,7 +244,7 @@ class ResumableNode(InnerNode):
 
     @property
     def resume_index(self):
-        ''':returns: index to resume from upon next evaluation'''
+        """:returns: index to resume from upon next evaluation"""
         return self._resume_index
 
     @resume_index.setter

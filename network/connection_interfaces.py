@@ -74,6 +74,10 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
+        # Estimate RTT
+        self.latency = 0.0
+        self.latency_smoothing = 0.1
+
         # Internal packet data
         self.internal_data = []
 
@@ -111,6 +115,10 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         return ack_bitfield
 
     def handle_packet(self, packet):
+        """Handle different packets based upon their protocol
+
+        :param packet: packet in need of handling
+        """
         # Called for handshake protocol
         packet_protocol = packet.protocol
 
@@ -134,6 +142,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         """
         requested_ack = self.requested_ack
         window_size = self.ack_window
+        current_time = monotonic()
 
         # Iterate over ACK bitfield
         for index in range(window_size):
@@ -144,7 +153,10 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
             # If we are waiting for this packet, acknowledge it
             if flag and sequence_ in requested_ack:
-                requested_ack.pop(sequence_).on_ack()
+                sent_packet = requested_ack.pop(sequence_)
+                sent_packet.on_ack()
+
+                self.update_latency_estimate(sent_packet.timestamp - current_time)
 
                 # If a packet has had time to return since throttling began
                 if sequence_ == self.tagged_throttle_sequence:
@@ -152,7 +164,10 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Acknowledge the sequence of this packet
         if ack_base in self.requested_ack:
-            requested_ack.pop(ack_base).on_ack()
+            sent_packet = requested_ack.pop(ack_base)
+            sent_packet.on_ack()
+
+            self.update_latency_estimate(sent_packet.timestamp - current_time)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
@@ -193,7 +208,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             self.connection.on_delete()
 
     def receive(self, bytes_string):
-        """Handles received bytes from peer
+        """Handle received bytes from peer
 
         :param bytes_string: data from peer
         """
@@ -275,6 +290,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         ack_bitfield = self.get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
+        packet_collection.timestamp = monotonic()
         self.requested_ack[sequence] = packet_collection
 
         # Construct header information
@@ -302,14 +318,22 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                ((sequence > base) and (sequence - base) > half_seq)
 
     def start_throttling(self):
-        """Starts updating metric for bandwidth"""
+        """Start updating metric for bandwidth"""
         self.bandwidth /= 2
         self.throttle_pending = True
 
     def stop_throttling(self):
-        """Stops updating metric for bandwidth"""
+        """Stop updating metric for bandwidth"""
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
+
+    def update_latency_estimate(self, new_latency):
+        """Smoothly update the internal latency value with a new determined value
+
+        :param new_latency: new latency value
+        """
+        smooth_factor = self.latency_smoothing
+        self.latency = (smooth_factor * self.latency) + (1 - smooth_factor) * new_latency
 
 
 @netmode_switch(Netmodes.server)  # @UndefinedVariable

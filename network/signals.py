@@ -252,7 +252,7 @@ class Signal(metaclass=TypeRegister):
     @classmethod
     def invoke_targets(cls, target_dict, *args, target=None,
                        addressee=None, **kwargs):
-        '''Invoke signals for targeted recipient
+        """Invoke signals for targeted recipient
         If recipient has children, invoke them as well
         Children do not require parents to listen for the signal
 
@@ -261,7 +261,7 @@ class Signal(metaclass=TypeRegister):
         :param addressee: Recipient of Signal invocation (parent of child
         tree by default)
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments'''
+        :param **kwargs: dict of additional keyword arguments"""
         if addressee is None:
             addressee = target
 
@@ -280,12 +280,12 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def invoke_general(cls, subscriber_dict, *args, target=None, **kwargs):
-        '''Invoke signals for non targeted listeners
+        """Invoke signals for non targeted listeners
 
         :param subscriber_dict: mapping from listener to listener information
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments'''
+        :param **kwargs: dict of additional keyword arguments"""
         for (callback, supply_signal, supply_target) in \
                                 subscriber_dict.values():
 
@@ -294,11 +294,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def invoke(cls, *args, target=None, **kwargs):
-        '''Invoke signals for a Signal type
+        """Invoke signals for a Signal type
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments'''
+        :param **kwargs: dict of additional keyword arguments"""
         if target:
             cls.invoke_targets(cls.isolated_subscribers, *args,
                                target=target, **kwargs)
@@ -308,11 +308,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def invoke_parent(cls, *args, target=None, **kwargs):
-        '''Invoke signals for superclass of Signal type
+        """Invoke signals for superclass of Signal type
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments'''
+        :param **kwargs: dict of additional keyword arguments"""
         if cls.highest_signal == cls:
             return
 
@@ -326,18 +326,18 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def global_listener(cls, func):
-        '''Decorator for global signal listeners
+        """Decorator for global signal listeners
 
         :param func: function to decorate
-        :returns: passed function func'''
+        :returns: passed function func"""
         return signal_listener(cls, True)(func)
 
     @classmethod
     def listener(cls, func):
-        '''Decorator for targeted signal listeners
+        """Decorator for targeted signal listeners
 
         :param func: function to decorate
-        :returns: passed function func'''
+        :returns: passed function func"""
         return signal_listener(cls, False)(func)
 
 

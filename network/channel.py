@@ -49,8 +49,8 @@ class Channel(NetmodeSwitch):
             return False
 
     def take_rpc_calls(self):
-        '''Returns the requested RPC calls in a packaged format
-        Format: rpc_id (bytes) + body (bytes), reliable status (bool)'''
+        """Returns the requested RPC calls in a packaged format
+        Format: rpc_id (bytes) + body (bytes), reliable status (bool)"""
         id_packer = self.rpc_id_packer.pack
         get_reliable = is_reliable
 
@@ -62,9 +62,9 @@ class Channel(NetmodeSwitch):
         storage_data.clear()
 
     def invoke_rpc_call(self, rpc_call):
-        '''Invokes an RPC call from packaged format
+        """Invokes an RPC call from packaged format
 
-        :param rpc_call: rpc data (see take_rpc_calls)'''
+        :param rpc_call: rpc data (see take_rpc_calls)"""
         rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
 
         try:
@@ -78,7 +78,7 @@ class Channel(NetmodeSwitch):
 
     @property
     def has_rpc_calls(self):
-        '''Returns True if replicable has outgoing RPC calls'''
+        """Returns True if replicable has outgoing RPC calls"""
         return bool(self.replicable.rpc_storage.data)
 
 
@@ -100,9 +100,9 @@ class ClientChannel(Channel):
         return self.replicable.replication_priority
 
     def set_attributes(self, bytes_string):
-        '''Unpacks byte stream and updates attributes
+        """Unpacks byte stream and updates attributes
 
-        :param bytes\_: byte stream of attribute'''
+        :param bytes\_: byte stream of attribute"""
         replicable = self.replicable
 
         # Create local references outside loop

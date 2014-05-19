@@ -11,9 +11,9 @@ MarkAttribute = namedtuple("MarkAttribute", "name")
 
 
 class TypeFlag:
-    '''Container for static-type values
+    """Container for static-type values
     holds type for value and additional keyword arguments
-    Pretty printable'''
+    Pretty printable"""
     __slots__ = ['type', 'data']
 
     def __init__(self, type_, **kwargs):
@@ -80,7 +80,7 @@ class Attribute(TypeFlag):
         return "<Attribute {}: type={.__name__}>".format(self.name, self.type)
 
     def register(self, instance, storage_interface):
-        '''Registers attribute for instance'''
+        """Registers attribute for instance"""
         self._instances[instance] = storage_interface
 
     def get_new_value(self):

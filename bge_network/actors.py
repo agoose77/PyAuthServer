@@ -26,7 +26,7 @@ __all__ = ["Actor", "Camera", "Lamp", "Navmesh", "Pawn", "ResourceActor",
 
 
 class Actor(BGEActorBase, Replicable):
-    '''Physics enabled network object'''
+    """Physics enabled network object"""
 
     _position = Attribute(type_of=Vector, notify=True)
     _rotation = Attribute(type_of=Euler, notify=True)
@@ -220,7 +220,7 @@ class Camera(Actor):
             scene.active_camera = old_camera
 
     def draw(self):
-        '''Draws a colourful 3D camera object to the screen'''
+        """Draws a colourful 3D camera object to the screen"""
         orientation = self.rotation.to_matrix()
         circle_size = 0.20
         upwards_orientation = orientation * Matrix.Rotation(radians(90),
@@ -251,10 +251,10 @@ class Camera(Actor):
         self.mode = CameraMode.first_person
 
     def sees_actor(self, actor):
-        '''Determines if actor is visible to camera
+        """Determines if actor is visible to camera
 
         :param actor: Actor subclass
-        :returns: condition result'''
+        :returns: condition result"""
         try:
             radius = actor.camera_radius
         except AttributeError:
@@ -415,8 +415,8 @@ class Pawn(Actor):
         self.update_animation_info()
 
     def update_alive_status(self):
-        '''Update health boolean
-        Runs on authority / autonomous proxy only'''
+        """Update health boolean
+        Runs on authority / autonomous proxy only"""
         self.alive = self.health > 0
 
     @simulated
@@ -464,9 +464,9 @@ class Lamp(Actor):
 
     @active.setter
     def active(self, state):
-        '''Modifies the lamp state by setting the intensity to a placeholder
+        """Modifies the lamp state by setting the intensity to a placeholder
 
-        :param state: enabled state'''
+        :param state: enabled state"""
 
         if not (state != (self._intensity is None)):
             return

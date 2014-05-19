@@ -5,30 +5,30 @@ __all__ = ["clamp", "square_falloff", "lerp", "mean", "progress_string",
 
 
 def clamp(low, high, value):
-    '''Constrain value within limits
+    """Constrain value within limits
 
     :param low: lower bound
     :param high: upper bound
     :param value: unconstrained value
-    :returns: constrained value'''
+    :returns: constrained value"""
     return min(high, max(low, value))
 
 
 def lerp(a, b, factor):
-    '''Linear interpolation between two numbers
+    """Linear interpolation between two numbers
 
     :param a: first term
     :param b: second term
     :param factor: interpolation factor
-    :returns: interpolated value'''
+    :returns: interpolated value"""
     return a + (b - a) * clamp(0, 1, factor)
 
 
 def mean(iterable):
-    '''Finds the mean of an iterable object
+    """Finds the mean of an iterable object
 
     :param iterable: iterable object
-    :returns: mean of all terms'''
+    :returns: mean of all terms"""
     fixed = list(iterable)
 
     try:
@@ -41,14 +41,14 @@ def mean(iterable):
 
 
 def square_falloff(source, target, maximum_distance, effective_distance):
-    '''Determines scalar fall off from inputs
+    """Determines scalar fall off from inputs
     Squares interpolation factor
 
     :param source: source position
     :param target: target position
     :param maximum_distance: upper bound to fall off
     :param effective_distance: lower bound for fall off
-    :returns: squared fall off fraction'''
+    :returns: squared fall off fraction"""
     distance = (target - source).length
 
     # If in optimal range
@@ -69,11 +69,11 @@ def square_falloff(source, target, maximum_distance, effective_distance):
 
 
 def progress_string(factor, fidelity=10):
-    '''Creates a progress bar-like string
+    """Creates a progress bar-like string
 
     :param factor: progress factor
     :param fidelity: number of characters used for progress
-    :returns: progress bar like string [|||||     ]'''
+    :returns: progress bar like string [|||||     ]"""
     return "[{}]".format(''.join(('|' if (i / fidelity) < \
                           factor else ' ' for i in range(fidelity))))
 

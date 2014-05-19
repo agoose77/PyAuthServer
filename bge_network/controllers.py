@@ -229,7 +229,7 @@ class AIController(Controller):
 
 
 class PlayerController(Controller):
-    '''Player pawn controller network object'''
+    """Player pawn controller network object"""
 
     movement_struct = None
     config_filepath = "inputs.conf"
@@ -253,6 +253,7 @@ class PlayerController(Controller):
     def broadcast_voice(self):
         """Dump voice information and encode it for the server"""
         data = self.microphone.encode()
+
         if data:
             self.send_voice_server(data)
 
@@ -323,7 +324,7 @@ class PlayerController(Controller):
 
     @requires_netmode(Netmodes.client)
     def client_setup_input(self):
-        '''Create the input manager for the client'''
+        """Create the input manager for the client"""
         keybindings = self.load_keybindings()
 
         self.inputs = InputManager(keybindings, BGEInputStatusLookup())
@@ -333,7 +334,7 @@ class PlayerController(Controller):
 
     @requires_netmode(Netmodes.client)
     def client_setup_sound(self):
-        '''Create the microphone for the client'''
+        """Create the microphone for the client"""
         self.microphone = MicrophoneStream()
         self.audio = AudioDevice()
         self.voice_channels = defaultdict(SpeakerStream)
@@ -441,10 +442,10 @@ class PlayerController(Controller):
         return name in self.locks
 
     def load_keybindings(self):
-        '''Read config file for keyboard inputs
+        """Read config file for keyboard inputs
         Looks for config file with "ClassName.conf" in config filepath
 
-        :returns: keybindings'''
+        :returns: keybindings"""
         class_name = self.__class__.__name__
         try:
             input_fields = self.movement_struct.input_fields

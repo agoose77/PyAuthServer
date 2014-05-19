@@ -130,10 +130,10 @@ class ClientConnection(Connection):
         self.pending_notifications.clear()
 
     def set_replication(self, packet):
-        '''Replication function
+        """Replication function
         Accepts replication packets and responds to protocol
 
-        :param packet: replication packet'''
+        :param packet: replication packet"""
 
         instance_id = self.replicable_packer.unpack_id(packet.payload)
         payload_following_id = packet.payload[self.replicable_packer.size():]
@@ -205,11 +205,11 @@ class ClientConnection(Connection):
                 replicable.request_unregistration(True)
 
     def send(self, network_tick, available_bandwidth):
-        '''Creates a packet collection of replicated function calls
+        """Creates a packet collection of replicated function calls
 
         :param network_tick: unused argument
         :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance'''
+        :returns: PacketCollection instance"""
         collection = PacketCollection()
         replicables = self.get_method_replication(
                                           self.prioritised_channels,
@@ -221,9 +221,9 @@ class ClientConnection(Connection):
         return collection
 
     def receive(self, packet):
-        '''Handles incoming PacketCollection instance
+        """Handles incoming PacketCollection instance
 
-        :param packets: PacketCollection instance'''
+        :param packets: PacketCollection instance"""
         if packet.protocol in Protocols:
             self.set_replication(packet)
 
@@ -237,8 +237,8 @@ class ServerConnection(Connection):
         self.cached_packets = set()
 
     def on_delete(self):
-        '''Callback for connection deletion
-        Called by ConnectionStatus when deleted'''
+        """Callback for connection deletion
+        Called by ConnectionStatus when deleted"""
         super().on_delete()
 
         # If we own a controller destroy it
@@ -249,9 +249,9 @@ class ServerConnection(Connection):
 
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
-        '''Called when replicable dies
+        """Called when replicable dies
 
-        :param replicable: replicable that died'''
+        :param replicable: replicable that died"""
 
         # If the target is not in channel list, we don't need to delete
         if not target.instance_id in self.channels:
@@ -357,9 +357,9 @@ class ServerConnection(Connection):
             self.cached_packets.clear()
 
     def receive(self, packet):
-        '''Handles incoming PacketCollection instance
+        """Handles incoming PacketCollection instance
 
-        :param packets: PacketCollection instance'''
+        :param packets: PacketCollection instance"""
         # Local space variables
         channels = self.channels
 
@@ -379,11 +379,11 @@ class ServerConnection(Connection):
                 channel.invoke_rpc_call(packet.payload[id_size:])
 
     def send(self, network_tick, available_bandwidth):
-        '''Creates a packet collection of replicated function calls
+        """Creates a packet collection of replicated function calls
 
         :param network_tick: non urgent data is included in collection
         :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance'''
+        :returns: PacketCollection instance"""
 
         collection = PacketCollection()
         replicables = self.prioritised_channels

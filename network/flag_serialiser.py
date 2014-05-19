@@ -15,7 +15,7 @@ class FlagSerialiser:
     BOOL_CONTENT_INDEX = -2
 
     def __init__(self, arguments):
-        '''Accepts ordered dict as argument'''
+        """Accepts ordered dict as argument"""
         self.bool_args = [(key, value) for key, value in arguments.items()
                           if value.type is bool]
         self.non_bool_args = [(key, value) for key, value in arguments.items()

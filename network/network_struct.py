@@ -7,7 +7,7 @@ __all__ = ['Struct', 'StructMeta']
 
 
 class StructMeta(AttributeMeta):
-    '''Creates serialiser code for class (optimisation)'''
+    """Creates serialiser code for class (optimisation)"""
 
     def __new__(self, name, bases, attrs):
         cls = super().__new__(self, name, bases, attrs)
@@ -26,9 +26,9 @@ class Struct(metaclass=StructMeta):
         self._attribute_container.register_storage_interfaces()
 
     def __deepcopy__(self, memo):
-        '''Serialiser description of tuple
+        """Serialiser description of tuple
 
-        :returns: new struct instance'''
+        :returns: new struct instance"""
         new_struct = self.__class__()
         # Local lookups
         old_attribute_container_data = self._attribute_container.data
@@ -43,7 +43,7 @@ class Struct(metaclass=StructMeta):
         return new_struct
 
     def __description__(self):
-        '''Serialiser description of tuple'''
+        """Serialiser description of tuple"""
         return hash(self._attribute_container.get_description_tuple())
 
     def __repr__(self):
@@ -54,10 +54,10 @@ class Struct(metaclass=StructMeta):
 
     @classmethod
     def from_bytes(cls, bytes_string):
-        '''Create a struct from bytes
+        """Create a struct from bytes
 
         :param bytes_string: Packed byte representation of struct contents
-        :returns: Struct instance'''
+        :returns: Struct instance"""
         struct = cls()
         struct.read_bytes(bytes_string)
 
@@ -65,19 +65,19 @@ class Struct(metaclass=StructMeta):
 
     @classmethod
     def from_tuple(cls, tuple_):
-        '''Create a struct from a tuple
+        """Create a struct from a tuple
 
         :param tuple_: Tuple representation of struct contents
-        :returns: Struct instance'''
+        :returns: Struct instance"""
         struct = cls()
         struct.read_tuple(tuple_)
 
         return struct
 
     def read_bytes(self, bytes_string):
-        '''Update struct contents with bytes
+        """Update struct contents with bytes
 
-        :param bytes_string: Packed byte representation of struct contents'''
+        :param bytes_string: Packed byte representation of struct contents"""
         notifications = []
 
         replicable_data = self._attribute_container.data
@@ -100,9 +100,9 @@ class Struct(metaclass=StructMeta):
                 self.on_notify(attribute_name)
 
     def read_tuple(self, tuple_):
-        '''Update struct contents with a tuple
+        """Update struct contents with a tuple
 
-        :param tuple_: Tuple representation of struct contents'''
+        :param tuple_: Tuple representation of struct contents"""
         data = self._attribute_container.data
         members = self._attribute_container._ordered_mapping.values()
 
@@ -110,16 +110,16 @@ class Struct(metaclass=StructMeta):
             data[member] = value
 
     def to_bytes(self):
-        '''Write struct contents to bytes
+        """Write struct contents to bytes
 
-        :returns: packed contents'''
+        :returns: packed contents"""
         return self._serialiser.pack({a.name: v for a, v in
                                       self._attribute_container.data.items()})
 
     def to_tuple(self):
-        '''Write struct contents to a tuple
+        """Write struct contents to a tuple
 
-        :returns: contents tuple'''
+        :returns: contents tuple"""
         container = self._attribute_container
         attributes = container._ordered_mapping.values()
         data = container.data

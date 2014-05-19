@@ -57,10 +57,10 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def collision_group(self):
-        '''Physics collision group
+        """Physics collision group
 
         :returns: physics bitmask of collision group
-        :requires: must be within -1 and 256'''
+        :requires: must be within -1 and 256"""
         return self.object.collisionGroup
 
     @collision_group.setter
@@ -73,10 +73,10 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def collision_mask(self):
-        '''Physics collision mask
+        """Physics collision mask
 
         :returns: physics bitmask of collision mask
-        :requires: must be within -1 and 256'''
+        :requires: must be within -1 and 256"""
         return self.object.collisionMask
 
     @collision_mask.setter
@@ -89,7 +89,7 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def colour(self):
-        '''The object's colour'''
+        """The object's colour"""
         return self.object.color
 
     @colour.setter
@@ -102,7 +102,7 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def lifespan(self):
-        '''The time before the object is destroyed'''
+        """The time before the object is destroyed"""
         try:
             return self._timer.remaining
 
@@ -137,22 +137,22 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def mass(self):
-        ''':returns: the mass of this object'''
+        """:returns: the mass of this object"""
         return self.object.mass
 
     @property
     def parent(self):
-        '''Relational parent of object
+        """Relational parent of object
 
         :returns: parent of object
-        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        :requires: instance must subclass :py:class:`PhysicsObject`"""
         return self._parent
 
     @property
     def physics(self):
-        '''The physics type of this object
+        """The physics type of this object
 
-        :returns: physics type of object, see :py:class:`bge_network.enums.PhysicsType`'''
+        :returns: physics type of object, see :py:class:`bge_network.enums.PhysicsType`"""
         physics_type = self.object.physicsType
         if not getattr(self.object, "meshes", []):
             return logic.KX_PHYSICS_NO_COLLISION
@@ -182,7 +182,7 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def suspended(self):
-        '''The Physics state of the object'''
+        """The Physics state of the object"""
         if self.physics in (PhysicsType.navigation_mesh,
                             PhysicsType.no_collision):
             return True
@@ -243,7 +243,7 @@ class BGEPhysicsObject(IPhysicsObject):
 
     @property
     def visible(self):
-        ''':returns: the visible state of this object'''
+        """:returns: the visible state of this object"""
         open_stack = [self.object]
 
         while open_stack:
@@ -255,27 +255,27 @@ class BGEPhysicsObject(IPhysicsObject):
         return False
 
     def add_child(self, instance):
-        '''Adds a child to this object
+        """Adds a child to this object
 
         :param instance: instance to add
-        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        :requires: instance must subclass :py:class:`PhysicsObject`"""
         self.children.add(instance)
         self.child_entities.add(instance.object)
 
     def pop_child(self):
-        '''Removes a child from this object
+        """Removes a child from this object
 
         :param instance: instance to remove
-        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        :requires: instance must subclass :py:class:`PhysicsObject`"""
         instance = self.children.pop()
         self.child_entities.remove(instance.object)
         instance.set_parent(None)
 
     def remove_child(self, instance):
-        '''Removes a child from this object
+        """Removes a child from this object
 
         :param instance: instance to remove
-        :requires: instance must subclass :py:class:`PhysicsObject`'''
+        :requires: instance must subclass :py:class:`PhysicsObject`"""
         self.children.remove(instance)
         self.child_entities.remove(instance.object)
         instance.set_parent(None)
@@ -339,14 +339,14 @@ class BGEActorBase(BGEPhysicsObject):
 
     @property
     def colliding(self):
-        '''The collision status of the object'''
+        """The collision status of the object"""
         return bool(self._registered)
 
     def colliding_with(self, other):
-        '''Determines if the object is colliding with another object
+        """Determines if the object is colliding with another object
 
         :param other: object to evaluate
-        :returns: result of condition'''
+        :returns: result of condition"""
         return other in self._registered
 
     @staticmethod

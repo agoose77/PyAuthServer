@@ -14,7 +14,7 @@ class UDPSocket(socket):
     """Non blocking socket class"""
 
     def __init__(self, addr, port):
-        '''Network socket initialiser'''
+        """Network socket initialiser"""
         super().__init__(AF_INET, SOCK_DGRAM)
 
         self.bind((addr, port))
@@ -60,7 +60,7 @@ class Network:
     """Network management class"""
 
     def __init__(self, addr, port):
-        '''Network socket initialiser'''
+        """Network socket initialiser"""
         self._delta_timestamp = 0.0
 
         self._delta_received = 0
@@ -91,7 +91,7 @@ class Network:
         self.socket.close()
 
     def send_to(self, data, address):
-        '''Overrides send_to method to record sent time'''
+        """Overrides send_to method to record sent time"""
         data_length = self.socket.sendto(data, address)
 
         self.sent_bytes += data_length
@@ -99,8 +99,8 @@ class Network:
         return data_length
 
     def receive_from(self, buff_size=63553):
-        '''A partial function for receive_from
-        Used in iter(func, sentinel)'''
+        """A partial function for receive_from
+        Used in iter(func, sentinel)"""
         try:
             data = self.socket.recvfrom(buff_size)
 
@@ -114,7 +114,7 @@ class Network:
         return data
 
     def receive(self):
-        '''Receive all data from socket'''
+        """Receive all data from socket"""
         # Get connections
         get_connection = ConnectionInterface.get_from_graph  # @UndefinedVariable @IgnorePep8
 
@@ -135,7 +135,7 @@ class Network:
         ConnectionInterface.update_graph()  # @UndefinedVariable
 
     def send(self, full_update):
-        '''Send all connection data and update timeouts'''
+        """Send all connection data and update timeouts"""
         send_func = self.send_to
         pending_state = ConnectionStatus.pending  # @UndefinedVariable @IgnorePep8
 

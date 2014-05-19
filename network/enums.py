@@ -4,7 +4,7 @@ __all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles']
 
 
 class Enumeration(type):
-    '''Metaclass for Enumerations in Python'''
+    """Metaclass for Enumerations in Python"""
     def __new__(cls, name, parents, attrs):
         # Get settings
         get_index = (lambda x: 2 ** x if attrs.get('use_bits', False)

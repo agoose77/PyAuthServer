@@ -33,7 +33,7 @@ class TeamDeathMatch(ReplicationRules):
     countdown_start = 0
     minimum_players_for_countdown = 0
     player_limit = 4
-    relevant_radius_squared = 20 ** 2
+    relevant_radius_squared = 80 ** 2
 
     # AI Classes
     ai_camera_class = Camera
@@ -73,7 +73,7 @@ class TeamDeathMatch(ReplicationRules):
             replicable.receive_broadcast(message)
 
     def create_teams(self):
-        '''Spawn teams for game mode'''
+        """Spawn teams for game mode"""
         # Create teams
         team_green = GreenTeam()
         team_red = RedTeam()
@@ -144,7 +144,7 @@ class TeamDeathMatch(ReplicationRules):
         self.update_matchmaker()
 
     def post_initialise(self, connection):
-        '''Called for valid connections'''
+        """Called for valid connections"""
         # Create player controller for player
         controller = self.player_controller_class(register=True)
         controller.info = self.player_replication_info_class(register=True)
@@ -167,11 +167,11 @@ class TeamDeathMatch(ReplicationRules):
         self.info.match_started = True
 
     def setup_ai_pawn(self, controller):
-        '''This function can be called without a controller,
+        """This function can be called without a controller,
         in which case it establishes one.
         Used to respawn AI character pawns
 
-        :param controller: options, controller instance'''
+        :param controller: options, controller instance"""
         controller.forget_pawn()
 
         pawn = self.ai_pawn_class()
@@ -186,11 +186,11 @@ class TeamDeathMatch(ReplicationRules):
         return controller
 
     def setup_player_pawn(self, controller):
-        '''This function can be called without a controller,
+        """This function can be called without a controller,
         in which case it establishes one.
         Used to respawn player character pawns
 
-        :param controller: options, controller instance'''
+        :param controller: options, controller instance"""
         controller.forget_pawn()
 
         pawn = self.player_pawn_class(register=True)

@@ -36,11 +36,11 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         print("Unable to convert {}: {}".format(lookup, err))
 
     def spawn_actor(self, lookup, name, type_of):
-        '''Create an Actor instance from a BGE proxy object
+        """Create an Actor instance from a BGE proxy object
 
         :param lookup: BGE proxy object
         :param name: Name of Actor class
-        :param type_of: Required subclass that the Actor must inherit from'''
+        :param type_of: Required subclass that the Actor must inherit from"""
         if not name in lookup:
             return
 
@@ -56,10 +56,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
             self.on_conversion_error(lookup, e)
 
     def create_pawn_controller(self, pawn, obj):
-        '''Setup a controller for given pawn object
+        """Setup a controller for given pawn object
 
         :param pawn: Pawn object
-        :param obj: BGE proxy object'''
+        :param obj: BGE proxy object"""
         controller = self.spawn_actor(obj, "controller", Controller)
         camera = self.spawn_actor(obj, "camera", Camera)
         info = self.spawn_actor(obj, "info", ReplicationInfo)
@@ -85,9 +85,9 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @contextmanager
     def protect_exemptions(self, exemptions):
-        '''Suspend and restore state of exempted actors around an operation
+        """Suspend and restore state of exempted actors around an operation
 
-        :param exemptions: Iterable of exempt Actor instances'''
+        :param exemptions: Iterable of exempt Actor instances"""
         # Suspend exempted objects
         skip_updates = set()
         for actor in exemptions:
@@ -106,8 +106,8 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @MapLoadedSignal.global_listener
     def convert_map(self, target=None):
-        '''Listener for MapLoadedSignal
-        Attempts to create network entities from BGE proxies'''
+        """Listener for MapLoadedSignal
+        Attempts to create network entities from BGE proxies"""
         scene = logic.getCurrentScene()
 
         found_actors = {}
@@ -136,11 +136,11 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsSingleUpdateSignal.global_listener
     def update_for(self, delta_time, target):
-        '''Listener for PhysicsSingleUpdateSignal
+        """Listener for PhysicsSingleUpdateSignal
         Attempts to update physics simulation for single actor
 
         :param delta_time: Time to progress simulation
-        :param target: Actor instance to update state'''
+        :param target: Actor instance to update state"""
         if not target.physics in self._active_physics:
             return
 
@@ -154,11 +154,11 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsTickSignal.global_listener
     def update(self, scene, delta_time):
-        '''Listener for PhysicsTickSignal
+        """Listener for PhysicsTickSignal
         Updates Physics simulation for entire world
 
         :param scene: BGE scene reference
-        :param delta_time: Time to progress simulation'''
+        :param delta_time: Time to progress simulation"""
         self._update_func(delta_time)
         self._apply_func()
 
@@ -166,10 +166,10 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
     @PhysicsCopyState.global_listener
     def copy_state(self, source_state, target_state):
-        '''Copy state information from source to target
+        """Copy state information from source to target
 
         :param source_state: State to copy from
-        :param target_state: State to copy to'''
+        :param target_state: State to copy to"""
         target_state.position = source_state.position.copy()
         target_state.velocity = source_state.velocity.copy()
         target_state.angular = source_state.angular.copy()

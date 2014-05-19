@@ -165,7 +165,7 @@ def make_constants(builtin_only=False, stoplist=[], verbose=False):
 
 import random
 
-'''@make_constants(verbose=True, stoplist=['random'])
+"""@make_constants(verbose=True, stoplist=['random'])
 def sample(population, k):
     "Choose k unique random elements from a population sequence."
 
@@ -180,7 +180,7 @@ def sample(population, k):
         j = int(random.random() * (n-i))
         result[i] = pool[j]
         pool[j] = pool[n-i-1]   # move non-selected item into vacancy
-    return result'''
+    return result"""
 
 
 """ Output from the example call:
