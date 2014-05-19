@@ -1,7 +1,8 @@
-from json import loads
-from urllib import request, parse
+from collections import Mapping
 from functools import partial
+from json import loads
 from queue import Empty as EmptyQueue
+from urllib import request, parse
 
 from bge_network.signals import GameExitSignal
 from bge_network.threads import SafeThread
@@ -12,9 +13,15 @@ class URLThread(SafeThread):
     """Thread responsible for handling URL requests"""
 
     def handle_task(self, task, queue):
+        """Handles a URL request in a separate thread, returning the results to the output queue
+
+        :param task: requested task
+        :param queue: output queue for result
+        """
         callback, data, url = task
         request_obj = request.Request(url, data=data)
         response_obj = request.urlopen(request_obj)
+
         response_data = response_obj.read().decode()
         queue.put((callback, response_data))
 
@@ -46,7 +53,18 @@ class Matchmaker(SignalListener):
         self.thread.start()
 
     def perform_query(self, callback=None, data=None, is_json=True):
+        """Send a request to the server message thread
+
+        :param callback: callback function to handle server response
+        :param data: paired key-value mapping of request parameters
+        :param is_json: whether the response is valid JSON
+        """
         if data is not None:
+            # Handle dictionaries
+            if isinstance(data, Mapping):
+                data = tuple(data.items())
+
+            # Convert data
             data_bytes = [(a.encode(), str(b).encode()) for (a, b) in data]
             parsed_data = parse.urlencode(data_bytes).encode()
 
