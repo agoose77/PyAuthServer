@@ -158,7 +158,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
                 sent_packet = requested_ack.pop(sequence_)
                 sent_packet.on_ack()
 
-                self.update_latency_estimate(sent_packet.timestamp - current_time)
+                self.update_latency_estimate(current_time - sent_packet.timestamp)
 
                 # If a packet has had time to return since throttling began
                 if sequence_ == self.tagged_throttle_sequence:
@@ -169,7 +169,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
             sent_packet = requested_ack.pop(ack_base)
             sent_packet.on_ack()
 
-            self.update_latency_estimate(sent_packet.timestamp - current_time)
+            self.update_latency_estimate(current_time - sent_packet.timestamp)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
@@ -194,6 +194,9 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
+
+        if self.connection:
+            self.connection.latency = self.latency
 
     def on_connected(self):
         """Connected callback"""

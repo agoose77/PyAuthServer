@@ -8,7 +8,7 @@ from inspect import getmembers, signature
 
 __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
            'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'ProfileSignal', 'SignalValue',  'DisconnectSignal',
-           'ConnectionDeletedSignal']
+           'ConnectionDeletedSignal', 'LatencyUpdatedSignal']
 
 
 def members_predicate(member):

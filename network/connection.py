@@ -42,6 +42,19 @@ class Connection(SignalListener, NetmodeSwitch):
         self.int_packer = get_handler(TypeFlag(int))
         self.replicable_packer = get_handler(TypeFlag(Replicable))
 
+        self._latency = 0.0
+
+    @property
+    def latency(self):
+        return self._latency
+
+    @latency.setter
+    def latency(self, latency):
+        self._latency = latency
+
+        LatencyUpdatedSignal.invoke(self.latency, target=self.replicable)
+
+
     @ReplicableUnregisteredSignal.global_listener
     def notify_unregistration(self, target):
         """Handles un-registration of a replicable instance

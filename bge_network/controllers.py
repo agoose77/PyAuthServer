@@ -6,6 +6,7 @@ from network.iterators import take_single
 from network.logger import logger
 from network.network_struct import Struct
 from network.replicable import Replicable
+from network.signals import LatencyUpdatedSignal
 from network.structures import FactoryDict
 from network.world_info import WorldInfo
 
@@ -527,6 +528,11 @@ class PlayerController(Controller):
         super().on_pawn_updated()
 
         self.behaviour.reset()
+
+    @LatencyUpdatedSignal.listener
+    @requires_netmode(Netmodes.server)
+    def on_ping_estimate_updated(self, ping_estimate):
+        self.info.ping = ping_estimate
 
     def on_unregistered(self):
         super().on_unregistered()
