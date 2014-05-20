@@ -25,7 +25,7 @@ class Weapon(Replicable):
 
     @property
     def resources(self):
-        return ResourceManager.load_resource(self.__class__.__name__)
+        return ResourceManager[self.__class__.__name__]
 
     @property
     def shoot_sound(self):

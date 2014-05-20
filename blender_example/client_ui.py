@@ -195,11 +195,11 @@ class ConnectPanel(Panel):
         self.servers_box.renderer = TableRenderer(self.servers_box, labels=self.server_headers)
 
         # Load sprite resource
-        ui_resource = ResourceManager.load_resource("UI")
-        sprite_image = ui_resource['sprites']['loading_sprite.tga']
+        relative_sprite_path = ResourceManager["UI"]['sprites']['loading_sprite.tga']
+        absolute_sprite_path = ResourceManager.from_relative_path(relative_sprite_path)
 
         # Create sprite
-        self.sprite = SpriteSequence(self.error_message_frame, "sprite", sprite_image, length=20, loop=True,
+        self.sprite = SpriteSequence(self.error_message_frame, "sprite", absolute_sprite_path, length=20, loop=True,
                                      size=[0.1, 0.6], aspect=1, relative_path=False, options=CENTERY)
 
         # Update sprite

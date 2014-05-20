@@ -231,7 +231,6 @@ class PlayerController(Controller):
     """Player pawn controller network object"""
 
     movement_struct = None
-    config_filepath = "inputs.conf"
 
     max_position_difference_squared = 3.0
     max_rotation_difference_squared = ((2 * pi) / 100) ** 2
@@ -437,13 +436,20 @@ class PlayerController(Controller):
 
         :returns: keybindings"""
         class_name = self.__class__.__name__
+
+        # Get the input fields
         try:
             input_fields = self.movement_struct.input_fields
 
         except AttributeError as err:
-            logger.exception("Move Struct was not defined for {}".format(self.__class__))
+            raise AttributeError("Move Struct was not defined for {}".format(self.__class__)) from err
 
-        bindings = load_keybindings(self.config_filepath, class_name, input_fields)
+        # Convert input codes to strings
+        input_codes = {k: str(v) for k, v in InputEvents.keys_to_values.items()}
+        keymap_relative_path = ResourceManager["configuration"]["keymaps"]["inputs.conf"]
+        keymap_absolute_path = ResourceManager.from_relative_path(keymap_relative_path)
+
+        bindings = load_keybindings(keymap_absolute_path, class_name, input_fields, input_codes)
         logger.info("Loaded {} key-bindings for {}".format(len(bindings), class_name))
         return bindings
 

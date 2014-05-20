@@ -1,41 +1,32 @@
-from inspect import getmembers
-from bge import logic, events
 from configparser import ConfigParser, ExtendedInterpolation
 from collections import OrderedDict
-from functools import partial
-
 
 __all__ = ["load_keybindings"]
 
 
-def load_keybindings(filepath, name, fields):
+def load_keybindings(filepath, section_name, input_fields, input_codes):
     """Load keybindings from config file
 
     :param filepath: path to config file
-    :param name: name of class bindings belong to
-    :param fields: named binding fields
+    :param section_name: name of keybindings section
+    :param input_fields: permitted keybinding field names
+    :param input_codes: mapping of names to code values
     :returns: dictionary of name to input codes"""
-    all_events = {name: str(value) for name, value in getmembers(events)
-                  if isinstance(value, int)}
-    filepath = logic.expandPath("//" + filepath)
-
     # Load into parser
-    parser = ConfigParser(defaults=all_events,
-                          interpolation=ExtendedInterpolation())
+    parser = ConfigParser(defaults=input_codes, interpolation=ExtendedInterpolation())
     parser.read(filepath)
-    parser_result = parser[name]
-
+    parser_result = parser[section_name]
+    print(dict(parser_result))
     # Read binding information
     try:
-        bindings = OrderedDict((field, int(parser_result[field]))
-                                for field in fields)
+        bindings = OrderedDict((field, int(parser_result[field])) for field in input_fields)
+
     except KeyError as err:
-        raise LookupError("Bindings are not defined for '{}'".format(name)) from err
+        raise LookupError("Bindings are not defined for '{}'".format(section_name)) from err
 
     # Ensure we have all bindings
-    if not set(fields).issubset(bindings):
-        missing_bindings = ', '.join(set(fields).difference(bindings))
-        raise ValueError("Some bindings were not defined: {}"
-                         .format(missing_bindings))
+    if not set(input_fields).issubset(bindings):
+        missing_bindings = ', '.join(set(input_fields).difference(bindings))
+        raise ValueError("Some bindings were not defined: {}".format(missing_bindings))
 
     return bindings

@@ -3,22 +3,24 @@
 __all__ = ["IResourceManager"]
 
 
-class IResourceManager:
+class IResource:
 
-    def __init__(self):
-        self._data_path = None
+    def __getitem__(self, name):
+        raise NotImplementedError()
+
+    def _get_base_path(self):
+        raise NotImplementedError()
+
+
+class IResourceManager(IResource):
 
     @property
     def data_path(self):
-        return self._data_path
+        raise NotImplementedError()
 
     @data_path.setter
     def data_path(self, path):
-        self._data_path = path
+        raise NotImplementedError()
 
     def from_relative_path(self, relative_path):
         raise NotImplementedError()
-
-    def load_resource(self, name):
-        raise NotImplementedError()
-

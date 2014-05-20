@@ -8,6 +8,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from mathutils import Vector
 
+from .enums import InputEvents
 from .utilities import clamp
 
 __all__ = ['IInputStatusLookup', 'BGEInputStatusLookup', 'MouseManager',
@@ -28,14 +29,35 @@ class BGEInputStatusLookup(IInputStatusLookup):
         self._event_list_containing = FactoryDict(self._get_containing_events)
 
     def __call__(self, event):
-        events = self._event_list_containing[event]
-        return events[event] in (logic.KX_INPUT_ACTIVE,
-                                 logic.KX_INPUT_JUST_ACTIVATED)
+        bge_event = self._convert_to_bge_event(event)
+        device_events = self._event_list_containing[bge_event]
+        return device_events[bge_event] in (logic.KX_INPUT_ACTIVE, logic.KX_INPUT_JUST_ACTIVATED)
 
-    def _get_containing_events(self, event):
-        keyboard = logic.keyboard
-        return (keyboard.events if event in keyboard.events
-                else logic.mouse.events)
+    @staticmethod
+    def _convert_to_bge_event(event):
+        """Parse an InputEvent and return BGE event code
+
+        :param event: :py:code:`bge_network.enums.InputEvent` code
+        """
+        try:
+            event_name = InputEvents[event]
+        except KeyError:
+            raise ValueError("No such event {} is supported by this library".format(event_name))
+
+        try:
+            return getattr(events, event_name)
+
+        except AttributeError as err:
+            raise LookupError("No event with name {} was found in platform event list".format(event_name)) from err
+
+    @staticmethod
+    def _get_containing_events(event):
+        """Return the events dictionary for the host device for an event type
+
+        :param event: BGE event
+        """
+        keyboard_events = logic.keyboard.events
+        return keyboard_events if event in keyboard_events else logic.mouse.events
 
 
 class MouseManager:
@@ -108,12 +130,10 @@ class InputManager:
         self.status_lookup = previous_lookup_func
 
     def to_tuple(self):
-        return tuple(self.status_lookup(binding) for binding in
-                     self._keybindings_to_events.values())
+        return tuple(self.status_lookup(binding) for binding in self._keybindings_to_events.values())
 
     def to_dict(self):
-        return OrderedDict((name, self.status_lookup(binding))
-                   for name, binding in self._keybindings_to_events.items())
+        return OrderedDict((name, self.status_lookup(binding)) for name, binding in self._keybindings_to_events.items())
 
     def copy(self):
         field_names = self._keybindings_to_events.keys()
@@ -131,15 +151,13 @@ class InputManager:
             event_code = self._keybindings_to_events[name]
 
         except KeyError as err:
-            raise AttributeError("Input manager does not have {} binding"
-                            .format(name)) from err
+            raise AttributeError("Input manager does not have {} binding".format(name)) from err
 
         return self.status_lookup(event_code)
 
     def __str__(self):
         prefix = "[Input Manager] \n"
-        contents = ["  {}={}".format(name, state) for name, state in
-                    self.to_dict().items()]
+        contents = ["  {}={}".format(name, state) for name, state in self.to_dict().items()]
         return prefix + "\n".join(contents)
 
 

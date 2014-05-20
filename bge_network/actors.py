@@ -31,12 +31,11 @@ class Actor(BGEActorBase, Replicable):
     _collision_group = Attribute(type_of=int, notify=True)
     _collision_mask = Attribute(type_of=int, notify=True)
 
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy),
-                    notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
 
     @property
     def resources(self):
-        return ResourceManager.load_resource(self.__class__.__name__)
+        return ResourceManager[self.__class__.__name__]
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -45,8 +44,8 @@ class Actor(BGEActorBase, Replicable):
 
         # If simulated, send rigid body state
         valid_role = (remote_role == Roles.simulated_proxy)
-        allowed_physics = ((self.replicate_simulated_physics or is_initial)
-                        and (self.replicate_physics_to_owner or not is_owner))
+        allowed_physics = (self.replicate_simulated_physics or is_initial) and\
+                          (self.replicate_physics_to_owner or not is_owner)
 
         if valid_role and allowed_physics and not self.parent:
             yield "_position"
@@ -134,8 +133,7 @@ class Camera(Actor):
 
     entity_name = "Camera"
 
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy),
-                    notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy), notify=True)
 
     @property
     def active(self):
