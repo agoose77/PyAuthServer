@@ -53,11 +53,11 @@ class CTFPlayerController(PlayerController):
         self.inventory.clear()
 
     @CollisionSignal.listener
-    def on_collision(self, other, collision_type, collision_data):
-        target = Actor.from_object(other)
+    def on_collision(self, collision_result):
+        target = collision_result.hit_object
 
         # We need a valid collision
-        if not (target and collision_type == CollisionType.started):
+        if not (target and collision_result.collision_type == CollisionType.started):
             return
 
         # If we can pick it up

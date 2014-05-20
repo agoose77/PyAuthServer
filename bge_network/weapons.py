@@ -71,14 +71,19 @@ class TraceWeapon(Weapon):
 
     @requires_netmode(Netmodes.server)
     def trace_shot(self, camera):
-        hit_object, hit_position, hit_normal = camera.trace_ray(self.maximum_range)
-        if not hit_object:
+        hit_result = camera.trace_ray(self.maximum_range)
+        if not hit_result:
             return
 
-        replicable = Actor.from_object(hit_object)
-
-        if replicable == self.owner.pawn or not isinstance(replicable, Pawn):
+        if not isinstance(hit_result.hit_object, Pawn):
             return
+
+        replicable = hit_result.hit_object
+
+        if replicable == self.owner.pawn:
+            return
+
+        hit_position = hit_result.hit_position
 
         hit_vector = (hit_position - camera.position)
         falloff = square_falloff(camera.position, self.maximum_range, hit_position, self.effective_range)

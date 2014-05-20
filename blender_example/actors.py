@@ -3,7 +3,7 @@ from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 
-from bge_network.actors import Actor, Pawn, Projectile, ResourceActor, WeaponAttachment
+from bge_network.actors import Actor, Pawn, Projectile, WeaponAttachment
 from bge_network.controllers import PlayerController
 from bge_network.enums import CollisionType
 from bge_network.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal
@@ -63,15 +63,14 @@ class Barrel(Actor):
     @CollisionSignal.listener
     @requires_netmode(Netmodes.client)
     @simulated
-    def on_collision(self, other, collision_type, collision_data):
-        if not collision_type == CollisionType.started:
+    def on_collision(self, collision_result):
+        if not collision_result.collision_type == CollisionType.started:
             return
 
         player_controller = PlayerController.get_local_controller()
 
         collision_sound = self.resources['sounds']['clang.mp3']
-        player_controller.hear_sound(collision_sound, self.position,
-                                    self.rotation, self.velocity)
+        player_controller.hear_sound(collision_sound, self.position, self.rotation, self.velocity)
 
 
 class BowAttachment(WeaponAttachment):
@@ -140,7 +139,7 @@ class CTFPawn(Pawn):
         self._flag = None
 
 
-class CTFFlag(ResourceActor):
+class CTFFlag(Actor):
     owner_info_possessed = Attribute(type_of=Replicable, complain=True)
 
     entity_name = "Flag"
@@ -151,6 +150,7 @@ class CTFFlag(ResourceActor):
     def on_initialised(self):
         super().on_initialised()
 
+        self.indestructable = True
         self.replicate_physics_to_owner = False
 
     def possessed_by(self, other):
@@ -172,9 +172,9 @@ class CTFFlag(ResourceActor):
 
         super().unpossessed()
 
-    @LogicUpdateSignal.global_listener
     @requires_netmode(Netmodes.client)
     @simulated
+    @LogicUpdateSignal.global_listener
     def update(self, delta_time):
         flag_owner_info = self.owner_info_possessed
 
@@ -185,11 +185,12 @@ class CTFFlag(ResourceActor):
             player_controller = PlayerController.get_local_controller()
             if not player_controller:
                 return
+
             player_team = player_controller.info.team
             if not player_team:
                 return
-            team_relation = player_team.get_relationship_with(
-                                              flag_owner_info.team)
+
+            team_relation = player_team.get_relationship_with(flag_owner_info.team)
 
         self.colour = self.colours[team_relation]
 

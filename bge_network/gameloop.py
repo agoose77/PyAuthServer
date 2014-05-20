@@ -262,10 +262,10 @@ class ServerGameLoop(GameLoop):
 
         return Network("", 1200)
 
-    def get_pawn_states(self):
-        state_data = {p: RewindState(p.position.copy(), p.rotation.copy(),
-                         {a: p.get_animation_frame(i) for i, a in
-                          p.playing_animations.items()})
+    @staticmethod
+    def get_pawn_states():
+        state_data = {p: RewindState(p.position.copy(), p.rotation.copy(), {a: p.get_animation_frame(i) for i, a in
+                                                                            p.playing_animations.items()})
                       for p in WorldInfo.subclass_of(Pawn)}
         return state_data
 

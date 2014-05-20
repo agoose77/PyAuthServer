@@ -1,12 +1,12 @@
 from functools import wraps, update_wrapper
-from inspect import isclass
+from inspect import isclass, getmembers
 
-from .conditions import is_simulated
+from .conditions import is_simulated, is_annotatable
 from .enums import Roles
 
 
 __all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'netmode_switch', 'ignore_arguments',
-           'set_annotation', 'set_annotation', 'get_annotation', 'IgnoreDescriptor']
+           'set_annotation', 'set_annotation', 'get_annotation', 'IgnoreDescriptor', 'simulate_methods']
 
 
 """API functions to modify function behaviour"""
@@ -180,3 +180,17 @@ def ignore_arguments(func):
     :returns: decorated function
     """
     return IgnoreDescriptor(func)
+
+
+def simulate_methods(cls):
+    """Mark all member methods as simulated
+
+    :param cls: class to decorate
+    :returns: cls
+    """
+    for name, member in getmembers(cls):
+        if not is_annotatable(member):
+            continue
+
+        simulated(member)
+    return cls

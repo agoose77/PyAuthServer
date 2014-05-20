@@ -238,9 +238,10 @@ class SetCollisionFlags(LeafNode):
 class GetObstacle(ConditionNode):
 
     def condition(self, blackboard):
-        forwards = Vector((0, 1, 0))
-        hit_obj, *_ = blackboard['pawn'].trace_ray(forwards)
-        return bool(hit_obj)
+        pawn = blackboard['pawn']
+        forwards = pawn.get_direction(Axis.y)
+        hit_result = pawn.trace_ray(forwards)
+        return bool(hit_result)
 
 
 class Delay(LeafNode):
@@ -287,14 +288,16 @@ class Alert(LeafNode):
 class FindCeiling(LeafNode):
 
     def evaluate(self, blackboard):
+        pawn = blackboard['pawn']
         climbable_height = 10
-        upwards = Vector((0, 0, climbable_height))
-        hit_obj, hit_pos, hit_normal = blackboard['pawn'].trace_ray(upwards)
 
-        if not hit_obj:
+        upwards = pawn.get_direction(Axis.z)
+        hit_result = pawn.trace_ray(upwards)
+
+        if not hit_result:
             return EvaluationState.failure
 
-        blackboard['ceiling'] = hit_pos
+        blackboard['ceiling'] = hit_result.hit_position
 
 
 class IsWalking(ConditionNode):

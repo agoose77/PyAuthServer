@@ -232,8 +232,8 @@ class PlayerController(Controller):
 
     movement_struct = None
 
-    max_position_difference_squared = 3.0
-    max_rotation_difference_squared = ((2 * pi) / 100) ** 2
+    MAX_POSITION_DIFFERENCE_SQUARED = 3.0
+    MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100) ** 2
 
     def apply_move(self, move):
         """Apply move contents to Controller state
@@ -248,17 +248,22 @@ class PlayerController(Controller):
         self.behaviour.update()
 
     @requires_netmode(Netmodes.client)
-    def broadcast_voice(self):
+    def client_send_voice(self):
         """Dump voice information and encode it for the server"""
         data = self.microphone.encode()
 
         if data:
-            self.send_voice_server(data)
+            self.server_receive_voice(data)
 
     def client_acknowledge_move(self, move_id: TICK_FLAG) -> Netmodes.client:
+        """Remove move and previous moves from waiting corrections buffer
+
+        :param move_id: ID of valid move
+        :returns: result of acknowledgement attempt
+        """
         if not self.pawn:
-            logger.warning("Could not find Pawn for {}".format(self))
-            return
+            logger.warning("Could not find Pawn for {} in order to acknowledge a move".format(self))
+            return False
 
         remove_move = self.pending_moves.pop
 
@@ -268,10 +273,10 @@ class PlayerController(Controller):
         except KeyError:
             # We don't mind if we've handled it already
             if move_id < take_single(self.pending_moves):
-                return
+                return False
 
             logger.warning("Couldn't find move to acknowledge for move {}".format(move_id))
-            return
+            return False
 
         # Remove any older moves
         older_moves = [k for k in self.pending_moves if k < move_id]
@@ -281,22 +286,26 @@ class PlayerController(Controller):
 
         return True
 
-    def client_apply_correction(self, correction_id: TICK_FLAG, correction: TypeFlag(RigidBodyState)
+    def client_apply_correction(self, move_id: TICK_FLAG, correction: TypeFlag(RigidBodyState)
                                 ) -> Netmodes.client:
+        """Apply a correction to a stored move and replay successive inputs to update client stat
+
+        :param move_id: ID of invalid move
+        :param correction: RigidBodyState struct instance
+        """
 
         # Remove the lock at this network tick on server
         self.server_remove_buffered_lock(self.current_move.id + 1, "correction")
 
         if not self.pawn:
-            logger.warning("Could not find Pawn for {}".format(self))
+            logger.warning("Could not find Pawn for {} in order to correct a move".format(self))
             return
 
-        if not self.client_acknowledge_move(correction_id):
+        if not self.client_acknowledge_move(move_id):
             return
 
         PhysicsCopyState.invoke(correction, self.pawn)
-
-        logger.info("{}: Correcting prediction for move {}".format(self, correction_id))
+        logger.info("{}: Correcting prediction for move {}".format(self, move_id))
 
         # State call-backs
         apply_move = self.apply_move
@@ -355,6 +364,11 @@ class PlayerController(Controller):
 
     @staticmethod
     def create_movement_struct(*fields):
+        """Create a Struct with valid fields for use as a Move record
+
+        :param *fields: named, ordered input fields
+        :rtype: Struct
+        """
         attributes = {}
 
         MAXIMUM_TICK = WorldInfo._MAXIMUM_TICK
@@ -378,23 +392,23 @@ class PlayerController(Controller):
         for key in list(self.voice_channels):
             del self.voice_channels[key]
 
+    @requires_netmode(Netmodes.server)
     def get_corrected_state(self, move):
         """Finds difference between local state and remote state
 
-        :param position: position of state
-        :param rotation: rotation of state
-        :returns: None if state is within safe limits else correction
+        :param move: move result from client
+        :returns: None if state is valid else correction
         """
         pos_difference = self.pawn.position - move.position
-        rot_difference = (self.pawn.rotation[-1] - move.rotation[-1]) ** 2
-        rot_difference = min(rot_difference, (4 * (pi ** 2)) - rot_difference)
+        rot_difference = min(abs(self.pawn.rotation[-1] - move.rotation[-1]), 2 * pi)
 
-        position_invalid = (pos_difference.length_squared > self.max_position_difference_squared)
-        rotation_invalid = (rot_difference > self.max_rotation_difference_squared)
+        position_invalid = (pos_difference.length_squared > self.MAX_POSITION_DIFFERENCE_SQUARED)
+        rotation_invalid = (rot_difference > self.MAX_ROTATION_DIFFERENCE)
+
         if not (position_invalid or rotation_invalid):
             return
 
-        # Create correction if neccessary
+        # Create correction if necessary
         correction = RigidBodyState()
         PhysicsCopyState.invoke(self.pawn, correction)
 
@@ -403,10 +417,18 @@ class PlayerController(Controller):
     @staticmethod
     @requires_netmode(Netmodes.client)
     def get_local_controller():
+        """Get the local PlayerController instance opn the client"""
         return take_single(WorldInfo.subclass_of(PlayerController))
 
     def hear_sound(self, resource: TypeFlag(str), position: TypeFlag(Vector), rotation: TypeFlag(Euler),
                    velocity: TypeFlag(Vector)) -> Netmodes.client:
+        """Play a sound resource on the client
+
+        :param resource: relative resource path
+        :param position: position of sound source
+        :param rotation: rotation of sound source
+        :param velocity: velocity of sound source
+        """
         if not (self.pawn and self.camera):
             return
 
@@ -422,12 +444,22 @@ class PlayerController(Controller):
         handle.velocity = velocity
         handle.orientation = forward.rotation_difference(source_to_pawn)
 
-    def hear_voice(self, info: TypeFlag(Replicable), data: TypeFlag(bytes, max_length=MAX_32BIT_INT)
-                   )-> Netmodes.client:
+    def hear_voice(self, info: TypeFlag(Replicable), data: TypeFlag(bytes, max_length=MAX_32BIT_INT))-> Netmodes.client:
+        """Play voice data from a remote client for another client
+
+        :param info: ReplicationInfo of source PlayerController
+        :param data: voice data
+        """
         player = self.voice_channels[info]
         player.decode(data)
 
+    @requires_netmode(Netmodes.server)
     def is_locked(self, name):
+        """Determine if a server lock exists with a given name
+
+        :param name: name of lock to test for
+        :rtype: bool
+        """
         return name in self.locks
 
     def load_keybindings(self):
@@ -539,18 +571,26 @@ class PlayerController(Controller):
         self.previous_move = self.current_move
         self.current_move = latest_move
 
-        self.broadcast_voice()
+        self.client_send_voice()
 
     @PostPhysicsSignal.global_listener
     def post_physics(self):
-        """Post move to server and receive corrections"""
+        """Post-physics callback to send move to server and receive corrections"""
         self.client_send_move()
         self.server_check_move()
 
     def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
+        """Message handler for PlayerController, invokes a ReceiveMessage signal
+
+        :param message_string: message from server
+        """
         ReceiveMessage.invoke(message_string)
 
-    def send_voice_server(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
+    def server_receive_voice(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
+        """Send voice information to the server
+
+        :param data: voice data
+        """
         info = self.info
         for controller in WorldInfo.subclass_of(Controller):
             if controller is self:
@@ -559,15 +599,18 @@ class PlayerController(Controller):
             controller.hear_voice(info, data)
 
     def server_add_buffered_lock(self, move_id: TICK_FLAG, name: TypeFlag(str)) -> Netmodes.server:
-        """Add a server lock with respect for the dejittering latency
+        """Add a named lock on the server with respect for the artificial latency
 
         :param move_id: move ID that corresponds with the command creation time
-        :param name: name of variable to remove lock
+        :param name: name of lock to set
         """
         self.buffered_locks[move_id][name] = True
 
     def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
-        """Flag a variable as locked on the server"""
+        """Add a named lock on the server
+
+        :param name: name of lock to set
+        """
         self.locks.add(name)
 
     @requires_netmode(Netmodes.server)
@@ -612,17 +655,17 @@ class PlayerController(Controller):
             super().server_fire()
 
     def server_remove_buffered_lock(self, move_id: TICK_FLAG, name: TypeFlag(str)) -> Netmodes.server:
-        """Remove a server lock with respect for the dejittering latency
+        """Remove a named lock on the server with respect for the artificial latency
 
         :param move_id: move ID that corresponds with the command creation time
-        :param name: name of variable to remove lock
+        :param name: name of lock to unset
         """
         self.buffered_locks[move_id][name] = False
 
     def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
-        """Remove a server lock from a server-side varaible
+        """Remove a named lock on the server
 
-        :param name: name of variable to unlock
+        :param name: name of lock to unset
         """
         try:
             self.locks.remove(name)
@@ -643,7 +686,11 @@ class PlayerController(Controller):
         self.buffered_moves.append(move)
         self._previous_moves[move] = previous_move
 
-    def set_name(self, name: TypeFlag(str)) -> Netmodes.server:
+    def server_set_name(self, name: TypeFlag(str)) -> Netmodes.server:
+        """Renames the Player on the server
+
+        :param name: new name to assign to Player
+        """
         self.info.name = name
 
     def start_fire(self):
@@ -666,7 +713,7 @@ class PlayerController(Controller):
         buffered_move = self.buffered_moves.pop()
 
         if buffered_move is None:
-            print("No move!")
+            logger.error("No move could be processed from the client for tick {}!".format(WorldInfo.tick))
             return
 
         move_id = buffered_move.id
@@ -674,6 +721,7 @@ class PlayerController(Controller):
         # Process any buffered locks
         self.update_buffered_locks(move_id)
 
+        # Ensure we can update our simulation
         if not (self.pawn and self.camera):
             return
 
@@ -682,23 +730,26 @@ class PlayerController(Controller):
 
         # Save expected move results
         self.pending_moves[move_id] = buffered_move
-
         self.current_move = buffered_move
 
-    def update_buffered_locks(self, tick):
-        """Apply server lock changes for the jitter buffer tick"""
+    def update_buffered_locks(self, move_id):
+        """Apply server lock changes according to their creation time
+
+        :param move_id: ID of move to process locks for
+        """
         removed_keys = []
-        for tick_, locks in self.buffered_locks.items():
-            if tick_ > tick:
+        for lock_origin_id, locks in self.buffered_locks.items():
+            if lock_origin_id > move_id:
                 break
 
             for lock_name, add_lock in locks.items():
                 if add_lock:
                     self.server_add_lock(lock_name)
+
                 else:
                     self.server_remove_lock(lock_name)
 
-            removed_keys.append(tick_)
+            removed_keys.append(lock_origin_id)
 
         for key in removed_keys:
             self.buffered_locks.pop(key)

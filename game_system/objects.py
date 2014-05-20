@@ -1,5 +1,17 @@
 
-__all__ = ['IPhysicsObject']
+__all__ = ['IPhysicsObject', 'IAnimatedObject']
+
+
+class IAnimatedObject:
+
+    def get_animation_frame(self, layer):
+        raise NotImplementedError()
+
+    def play_animation(self, name, start, end, layer, priority, blend, mode, weight, speed, blend_mode):
+        raise NotImplementedError()
+
+    def stop_animation(self, layer):
+        raise NotImplementedError()
 
 
 class IPhysicsObject:
@@ -107,8 +119,14 @@ class IPhysicsObject:
     def add_child(self, child):
         raise NotImplementedError()
 
+    def get_direction(self, axis):
+        raise NotImplementedError()
+
     def remove_child(self, child):
         raise NotImplementedError()
 
-    def set_parent(self, parent, socket_name=None):
+    def set_parent(self, parent, socket_name):
         raise NotImplemented()
+
+    def trace_ray(self, target, source, distance):
+        raise NotImplementedError()

@@ -1,17 +1,21 @@
-import bge_network
+from network.replicable import Replicable
+from network.decorators import simulated
+from network.descriptors import Attribute, TypeFlag
+from network.enums import Roles, Netmodes
+
+from bge_network.actors import Actor
+from bge_network.signals import CollisionSignal
+from bge_network.enums import CollisionType
+from bge_network.resources import ResourceManager
+
 import aud
-from bge import logic
 
 
-class ReplicatedAttributes(network.Replicable):
+class ReplicatedAttributes(Replicable):
 
-    my_name = network.Attribute(type_of=str)
+    my_name = Attribute(type_of=str)
 
-    roles = network.Attribute(network.Roles(
-                                    local=network.Roles.authority,
-                                    remote=network.Roles.simulated_proxy
-                                            )
-                              )
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
@@ -19,15 +23,11 @@ class ReplicatedAttributes(network.Replicable):
         yield "my_name"
 
 
-class ReplicatedNotifierAttributes(network.Replicable):
+class ReplicatedNotifierAttributes(Replicable):
 
-    my_name = network.Attribute(type_of=str, notify=True)
+    my_name = Attribute(type_of=str, notify=True)
 
-    roles = network.Attribute(network.Roles(
-                                    local=network.Roles.authority,
-                                    remote=network.Roles.simulated_proxy
-                                            )
-                              )
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
 
     def on_notify(self, name):
         print(name, "attribute has changed!")
@@ -38,28 +38,20 @@ class ReplicatedNotifierAttributes(network.Replicable):
         yield "my_name"
 
 
-class ReplicatedFunctions(network.Replicable):
+class ReplicatedFunctions(Replicable):
 
-    roles = network.Attribute(network.Roles(
-                                    local=network.Roles.authority,
-                                    remote=network.Roles.simulated_proxy
-                                            )
-                              )
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
 
-    @network.simulated
-    def change_name(self, name: network.TypeFlag(str)) -> network.Netmodes.server:
+    @simulated
+    def change_name(self, name: TypeFlag(str)) -> Netmodes.server:
         print(name, "is my new name!")
 
 
-class Cube(bge_network.Actor):
+class Cube(Actor):
 
     entity_name = "Cube"
 
-    roles = bge_network.Attribute(bge_network.Roles(
-                                            local=bge_network.Roles.authority,
-                                            remote=bge_network.Roles.simulated,
-                                                    )
-                                  )
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated))
 
     def on_initialised(self):
         super().on_initialised()
@@ -67,21 +59,23 @@ class Cube(bge_network.Actor):
         self.damage = 0
         self.max_damage = 100
 
-    @bge_network.simulated
+    @simulated
     def play_sound(self):
-        file_path = logic.expandPath("//bump.mp3")
+        relative_file_path = self.resources["sounds"]["bump.mp3"]
+        file_path = ResourceManager.from_relative_path(relative_file_path)
+
         factory = aud.Factory.file(file_path)
         device = aud.device()
         return device.play(factory)
 
     def handle_damage(self):
-        self.damage -= 20
+        self.damage += 20
 
-        if self.damage <= self.max_damage:
+        if self.damage >= self.max_damage:
             self.request_unregistration()
 
-    @bge_network.CollisionSignal.listener
-    def on_collided(self, target, collision_type, collision_data):
-        if collision_type == CollisionType.started:
+    @CollisionSignal.listener
+    def on_collided(self, collision_result):
+        if collision_result.collision_type == CollisionType.started:
             self.play_sound()
             self.handle_damage()
