@@ -1,7 +1,7 @@
 from network.bitfield import BitField
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
-from network.enums import Netmodes, Roles
+from network.enums import Netmodes, Roles, IterableCompressionType
 from network.iterators import take_single
 from network.logger import logger
 from network.network_struct import Struct
@@ -22,7 +22,6 @@ from .configuration import load_keybindings
 from .clock import PlayerClock
 from .constants import MAX_32BIT_INT
 from .enums import *
-from .errors import FlagLockingError
 from .inputs import BGEInputStatusLookup, InputManager, MouseManager
 from .jitter_buffer import JitterBuffer
 from .object_types import *
@@ -232,9 +231,10 @@ class PlayerController(Controller):
     """Player pawn controller network object"""
 
     movement_struct = None
+    missing_movement_struct = None
 
     MAX_POSITION_DIFFERENCE_SQUARED = 3.0
-    MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100) ** 2
+    MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
 
     def apply_move(self, move):
         """Apply move contents to Controller state
@@ -337,6 +337,8 @@ class PlayerController(Controller):
         self.inputs = InputManager(keybindings, BGEInputStatusLookup())
         self.mouse = MouseManager(interpolation=0.6)
 
+        self.move_history = self.missing_movement_struct()
+
         logger.info("Created User Input Managers")
 
     @requires_netmode(Netmodes.client)
@@ -351,6 +353,7 @@ class PlayerController(Controller):
         """Sends a Move to the server for simulation"""
 
         move = self.current_move
+        move_history = self.move_history
 
         if move is None:
             logger.error("No move could be processed for sent to the server for tick {}!".format(WorldInfo.tick))
@@ -361,7 +364,122 @@ class PlayerController(Controller):
         move.rotation = self.pawn.rotation.copy()
 
         # Check move
-        self.server_store_move(move, self.previous_move)
+        self.server_store_move(move, move_history)
+
+        # Post checking move
+        move_history.append(move)
+
+    @staticmethod
+    def create_missing_moves_struct(move_cls, history_length):
+        """Create a Struct with valid fields for use as a Move History record
+
+        :param move_cls: class used to store moves
+        :param history_length: number of moves to store
+        :rtype: Struct
+        """
+        attributes = {}
+
+        MAXIMUM_TICK = WorldInfo._MAXIMUM_TICK
+
+        field_compression = IterableCompressionType.auto
+
+        for input_name in move_cls.input_fields:
+            attributes["{}_list".format(input_name)] = Attribute([], element_flag=TypeFlag(bool),
+                                                                 compression=field_compression)
+        attributes['mouse_x_list'] = Attribute([], element_flag=TypeFlag(float),
+                                               compression=field_compression)
+        attributes['mouse_y_list'] = Attribute([], element_flag=TypeFlag(float),
+                                               compression=field_compression)
+        attributes['id_start'] = Attribute(0, max_value=MAXIMUM_TICK)
+        attributes['id_end'] = Attribute(0, max_value=MAXIMUM_TICK)
+
+        attributes['__slots__'] = Struct.__slots__.copy()
+
+        # Local variables
+        list_names = ["{}_list".format(n) for n in move_cls.input_fields]
+        all_list_names = list_names + ["mouse_x_list", "mouse_y_list"]
+        keybinding_index_map = OrderedDict((name, index) for index, name in enumerate(move_cls.input_fields))
+
+        # Methods
+        def append(move_history, move):
+            if (move.id - move_history.id_end) > 1:
+                raise ValueError("Move discontinuity between last move and appended move")
+
+            # Add input fields
+            for list_name, field_name in zip(list_names, move.input_fields):
+                getattr(move_history, list_name).append(getattr(move.inputs, field_name))
+
+            # Add other fields
+            move_history.mouse_x_list.append(move.mouse_x)
+            move_history.mouse_y_list.append(move.mouse_y)
+            move_history.id_end = move.id
+
+            # Enforce upper limit
+            if len(move_history) > history_length:
+                move_history.popleft()
+
+        def clear(move_history):
+            """Clear all fields for history struct"""
+            for list_name in all_list_names:
+                getattr(move_history, list_name).clear()
+
+            move_history.id_start = move_history.id_end = None
+
+        def popleft(move_history):
+            for list_name in all_list_names:
+                getattr(move_history, list_name).pop(0)
+
+            move_history.id_start += 1
+
+        def __contains__(move_history, index):
+            if len(move_history) == 0:
+                return False
+            return move_history.id_start <= index <= move_history.id_end
+
+        def __getitem__(move_history, index):
+            if isinstance(index, slice):
+                start = move_history.id_start
+                length = len(move_history)
+                indices = range(*index.indices(start + length))
+                return [move_history[i] for i in indices if i >= start]
+
+            if index < 0:
+                index += (move_history.id_end or 0) + 1
+
+            if not index in range(move_history.id_start, move_history.id_end + 1):
+                raise IndexError("Move not in history")
+
+            offset = index - move_history.id_start
+            values = [getattr(move_history, list_name)[offset] for list_name in list_names]
+
+            move = move_cls()
+            move.inputs = InputManager(keybinding_index_map, status_lookup=values.__getitem__)
+            move.mouse_x = move_history.mouse_x_list[offset]
+            move.mouse_y = move_history.mouse_y_list[offset]
+            move.id = index
+
+            return move
+
+        def __iter__(move_history):
+            for move_id in range(len(move_history)):
+                yield move_history[move_id]
+
+        def __len__(move_history):
+            if not move_history.mouse_x_list:
+                return 0
+
+            return (move_history.id_end - move_history.id_start) + 1
+
+        attributes['append'] = append
+        attributes['clear'] = clear
+        attributes['popleft'] = popleft
+
+        attributes['__getitem__'] = __getitem__
+        attributes['__iter__'] = __iter__
+        attributes['__len__'] = __len__
+        attributes['__contains__'] = __contains__
+
+        return type("MovementHistoryStruct", (Struct,), attributes)
 
     @staticmethod
     def create_movement_struct(*fields):
@@ -400,6 +518,9 @@ class PlayerController(Controller):
         :param move: move result from client
         :returns: None if state is valid else correction
         """
+
+        if move.position is None or move.rotation is None:
+            return None
         pos_difference = self.pawn.position - move.position
         rot_difference = min(abs(self.pawn.rotation[-1] - move.rotation[-1]), 2 * pi)
 
@@ -500,18 +621,33 @@ class PlayerController(Controller):
 
         # Permit move recovery by sending two moves
         self._previous_moves = {}
-        recover_previous_move = self._previous_moves.__getitem__
 
         # Number of moves to buffer
-        buffer_length = WorldInfo.to_ticks(0.15)
+        buffer_length = WorldInfo.to_ticks(0.2)
         get_move_id = attrgetter("id")
 
         # Queued moves
-        self.buffered_moves = JitterBuffer(buffer_length, get_move_id, recover_previous_move)
+        self.buffered_moves = JitterBuffer(buffer_length, get_move_id, self.recover_missing_moves)
 
         self.client_setup_input()
         self.client_setup_sound()
         self.server_setup_clock()
+
+    def recover_missing_moves(self, move, previous_move):
+        required_ids = list(range(previous_move.id + 1, move.id))
+
+        m = []
+
+        for move in self._previous_moves.values():
+            for required_id in required_ids:
+                if required_id in move:
+                    x = move[required_id]
+                    print(x)
+                    m.append(x)
+                    required_ids.remove(required_id)
+
+
+        return m
 
     def on_notify(self, name):
         if name == "pawn":
@@ -685,12 +821,13 @@ class PlayerController(Controller):
         self.clock.possessed_by(self)
 
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct")),
-                          previous_move: TypeFlag(type_=MarkAttribute("movement_struct"))) -> Netmodes.server:
+                          previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
 
         # Store move
-        self.buffered_moves.append(move)
-        self._previous_moves[move] = previous_move
+        if move.inputs.debug != True:
+            self.buffered_moves.append(move)
+            self._previous_moves[move] = previous_moves
 
     def server_set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         """Renames the Player on the server

@@ -27,24 +27,21 @@ class EnemyController(AIController):
     def on_initialised(self):
         super().on_initialised()
 
-        behaviour = SelectorNode(
-                                 dying_behaviour(),
-                                 attack_behaviour(),
-                                 idle_behaviour()
-                                 )
+        behaviour = SelectorNode(dying_behaviour(), attack_behaviour(), idle_behaviour())
 
         behaviour.should_restart = True
         self.behaviour.root = behaviour
 
 
-CTFPlayerMovementStruct = PlayerController.create_movement_struct(
-                              "forward", "backwards", "left", "right",
-                              "shoot", "run", "voice", "jump", "debug")
+CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
+                                                                  "run", "voice", "jump", "debug")
+CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 1)
 
 
 class CTFPlayerController(PlayerController):
 
     movement_struct = CTFPlayerMovementStruct
+    missing_movement_struct = CTFPlayerMissingMoveStruct
 
     def clear_inventory(self):
         for item in self.inventory:

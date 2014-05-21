@@ -1,4 +1,6 @@
-from bge_network.sorted_collection import SortedCollection
+from network.logger import logger
+
+from .sorted_collection import SortedCollection
 
 __all__ = ["JitterBuffer"]
 
@@ -17,6 +19,7 @@ class JitterBuffer:
         self._previous_item = None
         self._recover_previous = recover_previous
         self._get_id = get_id
+        self._overflow = False
 
     def __bool__(self):
         return not self._filling
@@ -46,7 +49,16 @@ class JitterBuffer:
             for i in range(buffer_length - self.length):
                 remove_item(get_item(0))
 
+            # Overflow to prevent recovery
+            self._overflow = True
+
     def check_for_lost_item(self, item, previous_item):
+        """Callback to determine whether any items were lost between retrieval
+
+        :param item: newest item
+        :param previous_item: previous item in time
+        :rtype bool
+        """
         get_id_func = self._get_id
 
         if get_id_func is None or previous_item is None:
@@ -58,7 +70,7 @@ class JitterBuffer:
         if (result_id - previous_id) > 1:
             lost_items = result_id - previous_id - 1
             message = "items were" if lost_items > 1 else "item was"
-            print("{} {} lost, attempting to recover one item".format(lost_items, message))
+            logger.info("{} {} lost, attempting to recover one item".format(lost_items, message))
             return True
 
         return False
@@ -66,38 +78,55 @@ class JitterBuffer:
     def clear(self):
         self._buffer.clear()
 
-    def find_lost_item(self, item, previous_item):
+    def find_lost_items(self, item, previous_item):
+        """Recovers missing item(s) between items
+
+        :param item: newest item
+        :param previous_item: previous item in time
+        """
+
         recover_previous = self._recover_previous
 
         if recover_previous is None:
-            return item
+            return None
 
-        self.append(item)
         # Make recovery
-        return recover_previous(item)
+        return recover_previous(item, previous_item)
 
     def pop(self):
         if self._filling:
             return None
 
         result = self._buffer[0]
-        self._buffer.remove(result)
         previous_item = self._previous_item
+        self._buffer.remove(result)
 
         # Account for lost items
-        if previous_item is not None:
-            lost_item = self.check_for_lost_item(result, previous_item)
-            if lost_item:
+        can_check_missing_items = previous_item is not None and not self._overflow
+
+        # Perform checks
+        if can_check_missing_items and self.check_for_lost_item(result, previous_item):
+            missing_items = self.find_lost_items(result, previous_item)
+            if missing_items is not None:
+                new_result, *remainder = missing_items
+                print([x.id for x in missing_items], [previous_item.id, result.id])
+                # Add missing items to buffer
+                for item in remainder:
+                    self.append(item)
+                # We just popped this, return to buffer
                 self.append(result)
-                result = self.find_lost_item(result, previous_item)
+                # Take first item
+                result = new_result
 
-        self._previous_item = result
-
+        # If buffer is empty
         if not self._buffer:
             empty_callback = self.on_empty
             if callable(empty_callback):
                 empty_callback()
 
             self._filling = True
+
+        self._previous_item = result
+        self._overflow = False
 
         return result
