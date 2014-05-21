@@ -46,8 +46,7 @@ class TypedIterable:
             self._type = type_ or iterable._type
 
         except AttributeError as err:
-            raise TypeError("{} requires type or typed iterable \
-            in arguments".format(self.__class__.__name__)) from err
+            raise TypeError("{} requires type or typed iterable in arguments".format(self.__class__.__name__)) from err
 
         if iterable:
             super().__init__(iterable)

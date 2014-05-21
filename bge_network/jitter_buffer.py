@@ -24,6 +24,9 @@ class JitterBuffer:
     def __bool__(self):
         return not self._filling
 
+    def __getitem__(self, index):
+        return self._buffer[index]
+
     def __len__(self):
         return len(self._buffer)
 
@@ -84,9 +87,7 @@ class JitterBuffer:
         :param item: newest item
         :param previous_item: previous item in time
         """
-
         recover_previous = self._recover_previous
-
         if recover_previous is None:
             return None
 
@@ -107,9 +108,9 @@ class JitterBuffer:
         # Perform checks
         if can_check_missing_items and self.check_for_lost_item(result, previous_item):
             missing_items = self.find_lost_items(result, previous_item)
-            if missing_items is not None:
+
+            if missing_items:
                 new_result, *remainder = missing_items
-                print([x.id for x in missing_items], [previous_item.id, result.id])
                 # Add missing items to buffer
                 for item in remainder:
                     self.append(item)

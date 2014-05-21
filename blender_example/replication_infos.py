@@ -27,17 +27,11 @@ class CTFPlayerReplicationInfo(PlayerReplicationInfo):
 
 
 class GameReplicationInfo(ReplicationInfo):
-    roles = Attribute(
-                      Roles(
-                            Roles.authority,
-                            Roles.simulated_proxy
-                            )
-                      )
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
 
     time_to_start = Attribute(0.0)
     match_started = Attribute(False)
-    players = Attribute(TypedList(Replicable),
-                        element_flag=TypeFlag(Replicable))
+    players = Attribute(TypedList(Replicable), element_flag=TypeFlag(Replicable))
 
     @requires_netmode(Netmodes.server)
     @BroadcastMessage.global_listener
@@ -58,8 +52,7 @@ class GameReplicationInfo(ReplicationInfo):
 class TeamReplicationInfo(ReplicationInfo):
 
     score = Attribute(0, complain=True)
-    players = Attribute(TypedSet(Replicable),
-                        element_flag=TypeFlag(Replicable))
+    players = Attribute(TypedSet(Replicable), element_flag=TypeFlag(Replicable))
 
     @simulated
     def get_relationship_with(self, team):

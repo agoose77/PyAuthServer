@@ -619,8 +619,9 @@ class PlayerController(Controller):
         self.locks = set()
         self.buffered_locks = FactoryDict(dict, dict_type=OrderedDict, provide_key=False)
 
-        # Permit move recovery by sending two moves
-        self._previous_moves = {}
+        # Permit move recovery by sending a history
+        self.move_history_dict = {}
+        self.move_history_base = None
 
         # Number of moves to buffer
         buffer_length = WorldInfo.to_ticks(0.2)
@@ -634,20 +635,23 @@ class PlayerController(Controller):
         self.server_setup_clock()
 
     def recover_missing_moves(self, move, previous_move):
+        """Jitter buffer callback to find missing moves using move history
+
+        :param move: next move
+        :param previous_move: last valid move
+        """
         required_ids = list(range(previous_move.id + 1, move.id))
 
-        m = []
+        recovered_moves = []
 
-        for move in self._previous_moves.values():
+        # Search every move history to find missing moves!
+        for move in self.move_history_dict.values():
             for required_id in required_ids:
                 if required_id in move:
-                    x = move[required_id]
-                    print(x)
-                    m.append(x)
+                    recovered_moves.append(move[required_id])
                     required_ids.remove(required_id)
 
-
-        return m
+        return recovered_moves
 
     def on_notify(self, name):
         if name == "pawn":
@@ -820,6 +824,25 @@ class PlayerController(Controller):
         self.clock = PlayerClock()
         self.clock.possessed_by(self)
 
+    def server_cull_excess_history(self, oldest_id):
+        """Remove movement history that is older than our buffer
+
+        :param oldest_id: oldest stored move ID
+        """
+        # Search from current oldest history to newest move
+        for search_id in range(self.move_history_base, self.buffered_moves[-1].id):
+            if not search_id in self.move_history_dict:
+                continue
+
+            history = self.move_history_dict[search_id]
+
+            #If the history's oldest stored move is newer than the
+            if history.id_start > oldest_id:
+                break
+
+            self.move_history_dict.pop(search_id)
+            self.move_history_base = history.id_start
+
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct")),
                           previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
@@ -827,7 +850,17 @@ class PlayerController(Controller):
         # Store move
         if move.inputs.debug != True:
             self.buffered_moves.append(move)
-            self._previous_moves[move] = previous_moves
+
+            # Could optimise using an increment and try-pop
+            self.move_history_dict[move.id] = previous_moves
+
+            if self.move_history_base is None:
+                self.move_history_base = move.id
+
+            else:
+                oldest_id = self.buffered_moves[0].id
+                if self.move_history_base < oldest_id:
+                    self.server_cull_excess_history(oldest_id)
 
     def server_set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         """Renames the Player on the server
