@@ -165,10 +165,8 @@ class HandleInputs(LeafNode):
             velocity = Vector((x_plane, y_plane, 0.0))
             velocity.length = forward_speed
 
-            if inputs.jump and pawn.colliding:
+            if inputs.jump:
                 velocity.z = pawn.walk_speed
-            else:
-                velocity.z = pawn.velocity.z
 
             pawn.velocity = velocity
 

@@ -107,8 +107,8 @@ class BoolHandler:
 
 class BytesHandler:
 
-    def __init__(self, static_value):
-        header_max_value = static_value.data.get("max_length", 255)
+    def __init__(self, type_flag):
+        header_max_value = type_flag.data.get("max_length", 255)
         self.packer = handler_from_int(header_max_value)
 
     def pack(self, bytes_string):

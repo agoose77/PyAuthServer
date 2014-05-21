@@ -232,9 +232,8 @@ class Graph(bgui.Frame):
                 'BorderColor': (0, 0, 0, 1),
                 }
 
-    def __init__(self, parent, name, border=None, aspect=None, size=[1,1],\
-            pos=[0,0], sub_theme='', options=bgui.BGUI_DEFAULT, resolution=1.0,\
-            scale=None, length=1.0):
+    def __init__(self, parent, name, border=None, aspect=None, size=[1,1], pos=[0,0], sub_theme='',
+                 options=bgui.BGUI_DEFAULT, resolution=1.0, scale=None, length=1.0):
         """
         :param parent: the widget's parent
         :param name: the name of the widget
@@ -245,8 +244,7 @@ class Graph(bgui.Frame):
         :param options: various other options
 
         """
-        super().__init__(parent, name, border, aspect, size, pos,
-                        sub_theme, options)
+        super().__init__(parent, name, border, aspect, size, pos, sub_theme, options)
 
         self._scale = scale
         self._resolution = resolution
@@ -292,8 +290,7 @@ class Graph(bgui.Frame):
         self._start_height = point
 
     def update_scrolling(self):
-        while self._points and (self._frame_time - self._points[0][1] >
-                               self._length):
+        while self._points and (self._frame_time - self._points[0][1]) > self._length:
             self.remove_vertex()
 
     def plot(self, vertex, delta_time):
@@ -342,7 +339,7 @@ class Graph(bgui.Frame):
         if not self._points:
             return
 
-        glVertex2f(x_pos, min(self._start_height / self.scale, 1) * y_size + y_pos)
+        glVertex2f(x_pos, min(self._start_height / scale_factor, 1) * y_size + y_pos)
 
         steps = round(x_size * self.resolution)
 
@@ -370,7 +367,7 @@ class Graph(bgui.Frame):
             lerp_y_factor = (time_to_step / time_difference)
             lerp_y_value = previous_y_coordinate + position_difference * lerp_y_factor
 
-            lerp_y_scaled = min(lerp_y_value / scale_factor, 1) * y_size
+            lerp_y_scaled = min(lerp_y_value / scale_factor, 0.98) * y_size
 
             glVertex2f(x_i_pos + x_pos, y_pos + lerp_y_scaled)
 

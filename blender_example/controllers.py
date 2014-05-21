@@ -35,7 +35,7 @@ class EnemyController(AIController):
 
 CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
                                                                   "run", "voice", "jump", "debug")
-CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
+CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 15)
 
 
 class CTFPlayerController(PlayerController):

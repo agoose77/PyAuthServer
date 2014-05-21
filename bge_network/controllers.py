@@ -233,7 +233,7 @@ class PlayerController(Controller):
     movement_struct = None
     missing_movement_struct = None
 
-    MAX_POSITION_DIFFERENCE_SQUARED = 3.0
+    MAX_POSITION_DIFFERENCE_SQUARED = 1.5
     MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
 
     def apply_move(self, move):
@@ -788,6 +788,19 @@ class PlayerController(Controller):
             self.server_add_lock("correction")
             self.client_apply_correction(current_move.id, correction)
 
+    def server_cull_excess_history(self, oldest_id):
+        """Remove movement history that is older than our buffer
+
+        :param oldest_id: oldest stored move ID
+        """
+        # Search from current oldest history to newest move
+        for search_id in range(self.move_history_base, self.buffered_moves[-1].id):
+            if not search_id in self.move_history_dict:
+                continue
+
+            history = self.move_history_dict.pop(search_id)
+            self.move_history_base = history.id_end
+
     @requires_netmode(Netmodes.server)
     def server_fire(self):
         logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
@@ -824,25 +837,6 @@ class PlayerController(Controller):
         self.clock = PlayerClock()
         self.clock.possessed_by(self)
 
-    def server_cull_excess_history(self, oldest_id):
-        """Remove movement history that is older than our buffer
-
-        :param oldest_id: oldest stored move ID
-        """
-        # Search from current oldest history to newest move
-        for search_id in range(self.move_history_base, self.buffered_moves[-1].id):
-            if not search_id in self.move_history_dict:
-                continue
-
-            history = self.move_history_dict[search_id]
-
-            #If the history's oldest stored move is newer than the
-            if history.id_start > oldest_id:
-                break
-
-            self.move_history_dict.pop(search_id)
-            self.move_history_base = history.id_start
-
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct")),
                           previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
@@ -851,6 +845,9 @@ class PlayerController(Controller):
         self.buffered_moves.append(move)
 
         # Could optimise using an increment and try-pop
+        if previous_moves is None:
+            return
+
         self.move_history_dict[move.id] = previous_moves
 
         if self.move_history_base is None:

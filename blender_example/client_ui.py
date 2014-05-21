@@ -605,7 +605,7 @@ class UIPanel(Panel):
         self.notifications_frame.colors = [self.faded_grey] * 4
 
         # Framerate graph
-        self.graph = Graph(self, "GRAPH", size=[0.1, 0.1], options=CENTERED, resolution=0.1, scale=60)
+        self.graph = Graph(self, "GRAPH", size=[0.1, 0.1], options=CENTERED, resolution=0.3, scale=60)
         self.graph_scale = Label(self.graph, "GraphLabel", text="", pos=[-0.1, 0.85], pt_size=20)
         self.graph_base = Label(self.graph, "GraphBase", text="0", pos=[-0.07, 0.00], pt_size=20)
 
@@ -841,6 +841,7 @@ class UIPanel(Panel):
         self.update_concerns()
 
         self.plot_framerate()
+        self.graph.scale = WorldInfo.tick_rate
         self.graph_scale.text = str(self.graph.scale)
 
         super().update(delta_time)
