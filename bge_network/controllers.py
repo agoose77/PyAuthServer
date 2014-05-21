@@ -848,19 +848,18 @@ class PlayerController(Controller):
         """Store a client move for later processing and clock validation"""
 
         # Store move
-        if move.inputs.debug != True:
-            self.buffered_moves.append(move)
+        self.buffered_moves.append(move)
 
-            # Could optimise using an increment and try-pop
-            self.move_history_dict[move.id] = previous_moves
+        # Could optimise using an increment and try-pop
+        self.move_history_dict[move.id] = previous_moves
 
-            if self.move_history_base is None:
-                self.move_history_base = move.id
+        if self.move_history_base is None:
+            self.move_history_base = move.id
 
-            else:
-                oldest_id = self.buffered_moves[0].id
-                if self.move_history_base < oldest_id:
-                    self.server_cull_excess_history(oldest_id)
+        else:
+            oldest_id = self.buffered_moves[0].id
+            if self.move_history_base < oldest_id:
+                self.server_cull_excess_history(oldest_id)
 
     def server_set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         """Renames the Player on the server

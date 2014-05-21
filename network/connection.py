@@ -40,6 +40,7 @@ class Connection(SignalListener, NetmodeSwitch):
 
         self.string_packer = get_handler(TypeFlag(str))
         self.int_packer = get_handler(TypeFlag(int))
+        self.bool_packer = get_handler(TypeFlag(bool))
         self.replicable_packer = get_handler(TypeFlag(Replicable))
 
         self._latency = 0.0
@@ -145,8 +146,8 @@ class ClientConnection(Connection):
 
         :param packet: replication packet"""
 
-        instance_id = self.replicable_packer.unpack_id(packet.payload)
-        payload_following_id = packet.payload[self.replicable_packer.size():]
+        instance_id, id_size = self.replicable_packer.unpack_id(packet.payload)
+        payload_following_id = packet.payload[id_size:]
 
         # If an update for a replicable
         if packet.protocol == Protocols.replication_update:  # @UndefinedVariable @IgnorePep8
@@ -181,21 +182,16 @@ class ClientConnection(Connection):
 
         # If construction for replicable
         elif packet.protocol == Protocols.replication_init:  # @UndefinedVariable @IgnorePep8
-            type_name = self.string_packer.unpack_from(payload_following_id)
-            type_size = self.string_packer.size(payload_following_id)
+            type_name, type_size = self.string_packer.unpack_from(payload_following_id)
             payload_following_id = payload_following_id[type_size:]
 
-            is_connection_host = bool(self.int_packer.unpack_from(
-                                                  payload_following_id))
+            is_connection_host, is_host_size = self.bool_packer.unpack_from(payload_following_id)
 
             # Create replicable of same type
             replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
-            replicable = Replicable.create_or_return(replicable_cls,
-                                          instance_id, register=True)
-            # Perform incomplete role switch
-            (replicable.roles.local,
-             replicable.roles.remote) = (replicable.roles.remote,
-                                         replicable.roles.local)
+            replicable = Replicable.create_or_return(replicable_cls, instance_id, register=True)
+            # Perform incomplete role switch when spawning (later set by server)
+            (replicable.roles.local, replicable.roles.remote) = (replicable.roles.remote, replicable.roles.local)
             # If replicable is parent (top owner)
             if is_connection_host:
                 # Register as own replicable
@@ -220,10 +216,7 @@ class ClientConnection(Connection):
         :param available_bandwidth: estimated available bandwidth
         :returns: PacketCollection instance"""
         collection = PacketCollection()
-        replicables = self.get_method_replication(
-                                          self.prioritised_channels,
-                                          collection,
-                                          available_bandwidth)
+        replicables = self.get_method_replication(self.prioritised_channels, collection, available_bandwidth)
 
         # Consume iterable
         consume(replicables)
@@ -267,15 +260,13 @@ class ServerConnection(Connection):
             return
 
         channel = self.channels[target.instance_id]
-        packet = Packet(protocol=Protocols.replication_del,  # @UndefinedVariable @IgnorePep8
-                        payload=channel.packed_id, reliable=True)
+        packet = Packet(protocol=Protocols.replication_del, payload=channel.packed_id, reliable=True)
         # Send delete packet
         self.cached_packets.add(packet)
 
         super().notify_unregistration(target)
 
-    def get_attribute_replication(self, replicables, collection,
-                                  bandwidth, send_attributes=True):
+    def get_attribute_replication(self, replicables, collection, bandwidth, send_attributes=True):
         """Generator
         Writes to packet collection, respecting bandwidth for attribute
         replication
@@ -310,9 +301,7 @@ class ServerConnection(Connection):
             replicable = channel.replicable
 
             # Only send attributes if relevant
-            if not (channel.awaiting_replication and
-                    (is_owner or is_relevant(connection_replicable,
-                                             replicable))):
+            if not (channel.awaiting_replication and (is_owner or is_relevant(connection_replicable, replicable))):
                 continue
 
             # Get network ID
@@ -321,10 +310,8 @@ class ServerConnection(Connection):
             # If we've never replicated to this channel
             if channel.is_initial:
                 # Pack the class name
-                packed_class = self.string_packer.pack(
-                               replicable.__class__.type_name)
-                packed_is_host = self.int_packer.pack(
-                              replicable == self.replicable)
+                packed_class = self.string_packer.pack(replicable.__class__.type_name)
+                packed_is_host = self.bool_packer.pack(replicable == self.replicable)
 
                 # Send the protocol, class name and owner status to client
                 packet = make_packet(protocol=replication_init, payload=packed_id + packed_class + packed_is_host,
@@ -369,14 +356,12 @@ class ServerConnection(Connection):
         channels = self.channels
 
         unpacker = self.replicable_packer.unpack_id
-        id_size = self.replicable_packer.size()
-
-        method_invoke = Protocols.method_invoke  # @UndefinedVariable
+        method_invoke = Protocols.method_invoke
 
         # If it is an RPC packet
         if packet.protocol == method_invoke:
             # Unpack data
-            instance_id = unpacker(packet.payload)
+            instance_id, id_size = unpacker(packet.payload)
             channel = channels[instance_id]
 
             # If we have permission to execute

@@ -32,14 +32,19 @@ class Euler8:
     def unpack_from(cls, bytes_string):
         item_size = cls.item_size
         unpack = cls.item_unpack
-        iterable = [unpack(bytes_string[i * item_size:]) for i in range(cls.wrapper_length)]
-        return cls.wrapper(iterable)
+        wrapper_length = cls.wrapper_length
+        iterable = [unpack(bytes_string[i * item_size:])[0] for i in range(wrapper_length)]
+
+        return cls.wrapper(iterable), item_size * wrapper_length
 
     @classmethod
     def unpack_merge(cls, euler, bytes_string):
         item_size = cls.item_size
         unpack = cls.item_unpack
-        euler[:] = [unpack(bytes_string[i * item_size:]) for i in range(cls.wrapper_length)]
+        wrapper_length = cls.wrapper_length
+
+        euler[:] = [unpack(bytes_string[i * item_size:])[0] for i in range(wrapper_length)]
+        return item_size * wrapper_length
 
     @classmethod
     def size(cls, bytes_string=None):

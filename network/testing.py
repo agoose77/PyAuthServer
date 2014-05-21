@@ -34,6 +34,9 @@ class SerialiserTest(unittest.TestCase):
     py_bitfield_fixed_value = b'j'
     py_bitfield_variable_value = b'\x08j'
 
+    bool_value = True
+    bool_bytes = b'\x01'
+
     def create_struct(self):
         class Struct_(Struct):
             x = Attribute(0.0)
@@ -120,7 +123,8 @@ class SerialiserTest(unittest.TestCase):
         else:
             struct_bytes = self.c_struct_bytes
 
-        new_struct = handler.unpack_from(struct_bytes)
+        new_struct, struct_size = handler.unpack_from(struct_bytes)
+
         self.assertAlmostEqual(struct.x, new_struct.x)
         self.assertAlmostEqual(struct.y, new_struct.y)
         self.assertEqual(struct.name, new_struct.name)
@@ -164,22 +168,28 @@ class SerialiserTest(unittest.TestCase):
         self.assertEqual(UInt8.pack(self.int_value_8bit), self.int_bytes_string8bit)
 
     def test_unpack_int_64bit(self):
-        self.assertEqual(UInt64.unpack_from(self.int_bytes_string64bit), self.int_value_64bit)
+        self.assertEqual(UInt64.unpack_from(self.int_bytes_string64bit)[0], self.int_value_64bit)
 
     def test_unpack_int_32bit(self):
-        self.assertEqual(UInt32.unpack_from(self.int_bytes_string32bit), self.int_value_32bit)
+        self.assertEqual(UInt32.unpack_from(self.int_bytes_string32bit)[0], self.int_value_32bit)
 
     def test_unpack_int_16bit(self):
-        self.assertEqual(UInt16.unpack_from(self.int_bytes_string16bit), self.int_value_16bit)
+        self.assertEqual(UInt16.unpack_from(self.int_bytes_string16bit)[0], self.int_value_16bit)
 
     def test_unpack_int_8bit(self):
-        self.assertEqual(UInt8.unpack_from(self.int_bytes_string8bit),self.int_value_8bit)
+        self.assertEqual(UInt8.unpack_from(self.int_bytes_string8bit)[0],self.int_value_8bit)
 
     def test_pack_float(self):
         self.assertEqual(Float8.pack(self.float_value), self.float_bytes)
 
     def test_unpack_float(self):
-        self.assertEqual(Float8.unpack_from(self.float_bytes),self.float_value)
+        self.assertEqual(Float8.unpack_from(self.float_bytes)[0], self.float_value)
+
+    def test_pack_bool(self):
+        self.assertEqual(BoolHandler.pack(self.bool_value), self.bool_bytes)
+
+    def test_unpack_bool(self):
+        self.assertEqual(BoolHandler.unpack_from(self.bool_bytes)[0], self.bool_value)
 
 
 def run_tests():

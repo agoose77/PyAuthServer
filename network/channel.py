@@ -65,7 +65,7 @@ class Channel(NetmodeSwitch):
         """Invokes an RPC call from packaged format
 
         :param rpc_call: rpc data (see take_rpc_calls)"""
-        rpc_id = self.rpc_id_packer.unpack_from(rpc_call)
+        rpc_id, rpc_header_size = self.rpc_id_packer.unpack_from(rpc_call)
 
         try:
             method = self.replicable.rpc_storage.functions[rpc_id]
@@ -74,7 +74,7 @@ class Channel(NetmodeSwitch):
             logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
 
         else:
-            method.execute(rpc_call[self.rpc_id_packer.size():])
+            method.execute(rpc_call[rpc_header_size:])
 
     @property
     def has_rpc_calls(self):

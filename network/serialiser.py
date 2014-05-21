@@ -5,7 +5,7 @@ from .handler_interfaces import register_handler
 
 __all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8', 'bits_to_bytes',
            'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',
-           'BytesHandler', 'int_selector', 'next_or_equal_power_of_two']
+           'BytesHandler', 'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
 
 
 class IStruct(PyStruct):
@@ -18,7 +18,8 @@ class IStruct(PyStruct):
         raise AttributeError("'unpack' attribute of IStruct instances should not be used. See unpack_from")
 
     def unpack_from(self, bytes_string):
-        return super().unpack_from(bytes_string)[0]
+        value = super().unpack_from(bytes_string)[0]
+        return value, super().size
 
     def __str__(self):
         return "<{} Byte Handler>"
@@ -97,7 +98,8 @@ class BoolHandler:
 
     @classmethod
     def unpack_from(cls, bytes_string):
-        return bool(cls.unpacker(bytes_string))
+        value, size = cls.unpacker(bytes_string)
+        return bool(value), size
 
     size = UInt8.size
     pack = UInt8.pack
@@ -113,12 +115,16 @@ class BytesHandler:
         return self.packer.pack(len(bytes_string)) + bytes_string
 
     def size(self, bytes_string):
-        length = self.packer.unpack_from(bytes_string)
-        return length + self.packer.size()
+        length, length_size = self.packer.unpack_from(bytes_string)
+        return length + length_size
 
     def unpack_from(self, bytes_string):
-        length = self.size(bytes_string)
-        return bytes_string[self.packer.size(): length]
+        length, length_size = self.packer.unpack_from(bytes_string)
+
+        end_index = length + length_size
+        value = bytes_string[length_size: end_index]
+
+        return value, end_index
 
 
 class StringHandler(BytesHandler):
@@ -127,7 +133,9 @@ class StringHandler(BytesHandler):
         return super().pack(str_.encode())
 
     def unpack_from(self, bytes_string):
-        return super().unpack_from(bytes_string).decode()
+        encoded_string, size = super().unpack_from(bytes_string)
+
+        return encoded_string.decode(), size
 
 # Register handlers for native types
 register_handler(bool, BoolHandler)

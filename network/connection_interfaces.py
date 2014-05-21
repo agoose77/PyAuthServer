@@ -222,16 +222,16 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         """
 
         # Get the sequence id
-        sequence = self.sequence_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[self.sequence_handler.size():]
+        sequence, sequence_size = self.sequence_handler.unpack_from(bytes_string)
+        bytes_string = bytes_string[sequence_size:]
 
         # Get the base value for the bitfield
-        ack_base = self.sequence_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[self.sequence_handler.size():]
+        ack_base, ack_base_size = self.sequence_handler.unpack_from(bytes_string)
+        bytes_string = bytes_string[ack_base_size:]
 
         # Read the acknowledgement bitfield
-        self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string)
-        bytes_string = bytes_string[self.ack_packer.size(bytes_string):]
+        ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string)
+        bytes_string = bytes_string[ack_bitfield_size:]
 
         # Dictionary of packets waiting for acknowledgement
         self.handle_reliable_information(ack_base, self.incoming_ack_bitfield)
@@ -401,9 +401,9 @@ class ServerInterface(ConnectionInterface):
         """Receives a handshake packet, either proceeds to setup connection or stores the error"""
 
         # Unpack data
-        handshake_type = self.handshake_packer.unpack_from(packet.payload)
-        payload = packet.payload[self.handshake_packer.size():]
-        netmode = self.netmode_packer.unpack_from(payload)
+        handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
+        payload = packet.payload[handshake_size:]
+        netmode, netmode_size = self.netmode_packer.unpack_from(payload)
 
         # Store replicable
         try:
@@ -446,13 +446,14 @@ class ClientInterface(ConnectionInterface):
         """Receives a handshake packet, rither proceeds to setup connection or invokes the error"""
 
         # Unpack data
-        handshake_type = self.handshake_packer.unpack_from(packet.payload)
-        payload = packet.payload[self.handshake_packer.size():]
+        handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
+        payload = packet.payload[handshake_size:]
 
         if handshake_type == HandshakeState.failure:
-            error_body = packet.payload[self.error_packer.size(payload):]
-            error_type = self.error_packer.unpack_from(payload)
-            error_message = self.error_packer.unpack_from(error_body)
+            error_type, type_size = self.error_packer.unpack_from(payload)
+            encoded_error_body = packet.payload[type_size:]
+
+            error_message, message_size = self.error_packer.unpack_from(encoded_error_body)
             error_class = NetworkError.from_type_name(error_type)
 
             raised_error = error_class(error_message)
@@ -462,7 +463,7 @@ class ClientInterface(ConnectionInterface):
 
         # Get remote network mode
         elif handshake_type == HandshakeState.success:
-            netmode = self.netmode_packer.unpack_from(payload)
+            netmode, netmode_size = self.netmode_packer.unpack_from(payload)
 
             # If we did not have an error then we succeeded
             self.connection = Connection(netmode)

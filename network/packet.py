@@ -181,13 +181,11 @@ class Packet:
         protocol_handler = self.protocol_handler
 
         # Read packet length (excluding length character size)
-        length = length_handler.unpack_from(bytes_string)
-        length_size = length_handler.size()
+        length, length_size = length_handler.unpack_from(bytes_string)
         bytes_string = bytes_string[length_size:]
 
         # Read packet protocol
-        self.protocol = protocol_handler.unpack_from(bytes_string)
-        protocol_size = protocol_handler.size()
+        self.protocol, protocol_size = protocol_handler.unpack_from(bytes_string)
         bytes_string = bytes_string[protocol_size:]
 
         # Determine the slice index of this payload

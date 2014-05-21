@@ -47,9 +47,10 @@ class CBitField(array_field):
     @classmethod
     def from_bytes(cls, length, bytes_string):
         field = cls()
-        field.frombytes(bytes_string[:bits_to_bytes(length)])
+        field_size = bits_to_bytes(length)
+        field.frombytes(bytes_string[:field_size])
         field[:] = field[:length]
-        return field
+        return field, field_size
 
     def clear(self):
         """Clears the BitField to zero"""
@@ -127,8 +128,8 @@ class PyBitField:
     @classmethod
     def from_bytes(cls, length, bytes_string):
         field = cls(length)
-        field._value = field._handler.unpack_from(bytes_string)
-        return field
+        field._value, field_size = field._handler.unpack_from(bytes_string)
+        return field, field_size
 
     @classmethod
     def from_iterable(cls, iterable):

@@ -38,18 +38,21 @@ class FlagSerialiser:
     def report_information(self, bytes_string):
         content_packer = self.contents_packer
         # Get header of packed data
-        content_bits = content_packer.unpack_from(bytes_string)[:]
-        content_data = bytes_string[:content_packer.size(bytes_string)]
-        bytes_string = bytes_string[content_packer.size(bytes_string):]
+        content_bitfield, contents_size = content_packer.unpack_from(bytes_string)
+        content_bits = content_bitfield[:]
+
+        content_data = bytes_string[:contents_size]
+        bytes_string = bytes_string[contents_size:]
+
         print("Header Data: ", content_data)
         entry_names, entry_handlers = zip(*(self.non_bool_args + self.bool_args))
 
         # If there are NoneType values they will be first
         if content_bits[self.NONE_CONTENT_INDEX]:
-            none_bits = content_packer.unpack_from(bytes_string)
-            none_data = bytes_string[:content_packer.size(bytes_string)]
+            none_bits, none_size = content_packer.unpack_from(bytes_string)
+            none_data = bytes_string[:none_size]
             print("NoneType Values Data: ", none_data, none_bits)
-            bytes_string = bytes_string[content_packer.size(bytes_string):]
+            bytes_string = bytes_string[none_size:]
 
         else:
             none_bits = [False] * self.total_contents
@@ -69,16 +72,16 @@ class FlagSerialiser:
 
         :param bytes_string: packed data"""
         contents_packer = self.contents_packer
-        contents_packer.unpack_merge(self.content_bits, bytes_string)
-        return bytes_string[contents_packer.size(bytes_string):]
+        contents_size = contents_packer.unpack_merge(self.content_bits, bytes_string)
+        return bytes_string[contents_size:]
 
     def read_nonetype_values(self, bytes_string):
         """Determine the NoneType entries of the packed data
 
         :param bytes_string: packed data"""
         contents_packer = self.contents_packer
-        contents_packer.unpack_merge(self.none_bits, bytes_string)
-        return bytes_string[contents_packer.size(bytes_string):]
+        contents_size = contents_packer.unpack_merge(self.none_bits, bytes_string)
+        return bytes_string[contents_size:]
 
     def unpack(self, bytes_string, previous_values={}):
         """Unpack bytes into Python objects
@@ -118,31 +121,29 @@ class FlagSerialiser:
 
                 if previous_value is not None and hasattr(handler, "unpack_merge"):
                     # If we can't merge use default unpack
-                    handler.unpack_merge(value, bytes_string)
+                    value_size = handler.unpack_merge(value, bytes_string)
 
                 # Otherwise ask for a new value
                 else:
-                    value = handler.unpack_from(bytes_string)
+                    value, value_size = handler.unpack_from(bytes_string)
 
                 # We have unpacked a value, so shift by its size
-                bytes_string = bytes_string[handler.size(bytes_string):]
+                bytes_string = bytes_string[value_size:]
 
             yield (key, value)
 
         # If there are Boolean values included in the data
         if has_booleans:
             # Read data from Boolean bitfields
-            self.boolean_packer.unpack_merge(self.bool_bits, bytes_string)
+            boolean_size = self.boolean_packer.unpack_merge(self.bool_bits, bytes_string)
 
             found_booleans = content_values[self.total_none_booleans:]
             none_booleans = self.none_bits[self.total_none_booleans:]
 
-            boolean_info = zip(self.bool_bits, self.bool_args, found_booleans,
-                               none_booleans)
+            boolean_info = zip(self.bool_bits, self.bool_args, found_booleans, none_booleans)
 
             # Yield included boolean values
             for (value, (key, _), found, none_value) in boolean_info:
-
                 if found:
                     yield (key, None if none_value else value)
 
