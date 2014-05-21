@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-__all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles']
+__all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'Protocols', 'Roles', 'IterableCompressionType']
 
 
 class Enumeration(type):
@@ -49,6 +49,10 @@ class HandshakeState(metaclass=Enumeration):
 class Protocols(metaclass=Enumeration):
     values = ("request_disconnect", "request_handshake", "replication_init", "replication_del",  "replication_update",
               "method_invoke")
+
+
+class IterableCompressionType(metaclass=Enumeration):
+    values = ("no_compress", "compress", "auto")
 
 
 class Roles(metaclass=Enumeration):

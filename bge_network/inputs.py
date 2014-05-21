@@ -30,7 +30,7 @@ class BGEInputStatusLookup(IInputStatusLookup):
 
     def __call__(self, event):
         bge_event = self._convert_to_bge_event(event)
-        device_events = self._event_list_containing[bge_event]
+        device_events = self._event_list_containing[bge_event].events
         return device_events[bge_event] in (logic.KX_INPUT_ACTIVE, logic.KX_INPUT_JUST_ACTIVATED)
 
     @staticmethod
@@ -56,8 +56,8 @@ class BGEInputStatusLookup(IInputStatusLookup):
 
         :param event: BGE event
         """
-        keyboard_events = logic.keyboard.events
-        return keyboard_events if event in keyboard_events else logic.mouse.events
+        keyboard = logic.keyboard
+        return keyboard if event in keyboard.events else logic.mouse
 
 
 class MouseManager:
@@ -121,6 +121,7 @@ class InputManager:
         assert isinstance(keybindings, OrderedDict)
         self.status_lookup = status_lookup
         self._keybindings_to_events = keybindings
+        self.indexed_lookup = None
 
     @contextmanager
     def using_interface(self, lookup_func):
@@ -138,13 +139,14 @@ class InputManager:
     def copy(self):
         field_names = self._keybindings_to_events.keys()
         field_codes = self._keybindings_to_events.values()
-
         get_status = self.status_lookup
 
-        indexed_fields = OrderedDict((name, i) for i, name in enumerate(field_names))
-        state_tuple = tuple(get_status(code) for code in field_codes)
+        # Save doing this again
+        if self.indexed_lookup is None:
+            self.indexed_lookup = OrderedDict((name, i) for i, name in enumerate(field_names))
+        indexed_fields = self.indexed_lookup
 
-        return InputManager(indexed_fields, state_tuple.__getitem__)
+        return InputManager(indexed_fields, [get_status(code) for code in field_codes].__getitem__)
 
     def __getattr__(self, name):
         try:
@@ -175,30 +177,24 @@ class InputPacker:
         self._fields = static_value.data['fields']
         self._field_count = len(self._fields)
 
-        self._keybinding_index_map = OrderedDict((name, index) for index, name
-                                                 in enumerate(self._fields))
+        self._keybinding_index_map = OrderedDict((name, index) for index, name in enumerate(self._fields))
 
-        self._packer = get_handler(TypeFlag(BitField,
-                                            fields=len(self._fields)
-                                            )
-                                   )
+        self._packer = get_handler(TypeFlag(BitField, fields=len(self._fields)))
 
     def pack(self, input_):
         values = BitField.from_iterable([getattr(input_, name) for name in
                                          self._fields])
         return self._packer.pack(values)
 
-    def unpack(self, bytes_string):
+    def unpack_from(self, bytes_string):
         # Unpack input states to
         values = self._packer.unpack_from(bytes_string)
 
-        return InputManager(self._keybinding_index_map,
-                            status_lookup=values.__getitem__)
+        return InputManager(self._keybinding_index_map, status_lookup=values.__getitem__)
 
     def size(self, bytes_string):
         return self._packer.size(bytes_string)
 
-    unpack_from = unpack
 
 # Register handler for input manager
 register_handler(InputManager, InputPacker, True)

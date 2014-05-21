@@ -27,9 +27,7 @@ class TypeFlag:
 class Attribute(TypeFlag):
     __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
-    def __init__(self, value=None, type_of=None,
-                 notify=False, complain=False, **kwargs):
-
+    def __init__(self, value=None, type_of=None, notify=False, complain=False, **kwargs):
         super().__init__(type_of or type(value), **kwargs)
 
         self.notify = notify

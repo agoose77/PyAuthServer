@@ -3,10 +3,9 @@ from math import ceil
 
 from .handler_interfaces import register_handler
 
-__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4',
-           'Float8', 'bits2bytes', 'handler_from_bit_length',
-           'handler_from_int', 'handler_from_byte_length',
-           'StringHandler', 'BytesHandler', 'int_selector']
+__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8', 'bits_to_bytes',
+           'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',
+           'BytesHandler', 'int_selector', 'next_or_equal_power_of_two']
 
 
 class IStruct(PyStruct):
@@ -14,11 +13,15 @@ class IStruct(PyStruct):
     def size(self, bytes_string=None):
         return super().size
 
-    def unpack(self, bytes_string):
-        return super().unpack(bytes_string)[0]
+    @property
+    def unpack(self):
+        raise AttributeError("'unpack' attribute of IStruct instances should not be used. See unpack_from")
 
     def unpack_from(self, bytes_string):
         return super().unpack_from(bytes_string)[0]
+
+    def __str__(self):
+        return "<{} Byte Handler>"
 
 
 UInt32 = IStruct("!I")
@@ -28,12 +31,29 @@ UInt8 = IStruct("!B")
 Float4 = IStruct("!f")
 Float8 = IStruct("!d")
 
+
 int_packers = [UInt8, UInt16, UInt32, UInt64]
 int_sized = {x.size(): x for x in int_packers}
 
 
-def bits2bytes(bits):
+def bits_to_bytes(bits):
     return ceil(bits / 8)
+
+
+def next_or_equal_power_of_two(value):
+    """Return next power of 2 greater than or equal to value
+
+    :param value: value to round
+    """
+    if value > 0:
+        value -= 1
+    else:
+        value = 1
+    shift = 1
+    while (value + 1) & value:
+        value |= value >> shift
+        shift *= 2
+    return value + 1
 
 
 def float_selector(type_flag):
@@ -41,7 +61,7 @@ def float_selector(type_flag):
 
 
 def handler_from_bit_length(total_bits):
-    total_bytes = bits2bytes(total_bits)
+    total_bytes = bits_to_bytes(total_bits)
     return handler_from_byte_length(total_bytes)
 
 
@@ -50,11 +70,13 @@ def handler_from_byte_length(total_bytes):
 
     :param total_bytes: number of bytes needed to pack
     :rtype: :py:class:`network.serialiser.IStruct`"""
-    for packer in int_packers:
-        if packer.size() >= total_bytes:
-            break
-    else:
-        raise ValueError("Integer too large to pack")
+    rounded_bytes = next_or_equal_power_of_two(total_bytes)
+
+    try:
+        return int_sized[rounded_bytes]
+
+    except KeyError as err:
+        raise ValueError("Integer too large to pack: {} bytes".format(total_bytes)) from err
 
     return packer
 
@@ -94,12 +116,9 @@ class BytesHandler:
         length = self.packer.unpack_from(bytes_string)
         return length + self.packer.size()
 
-    def unpack(self, bytes_string):
-        return bytes_string[self.packer.size():]
-
     def unpack_from(self, bytes_string):
         length = self.size(bytes_string)
-        return self.unpack(bytes_string[:length])
+        return bytes_string[self.packer.size(): length]
 
 
 class StringHandler(BytesHandler):
@@ -107,8 +126,8 @@ class StringHandler(BytesHandler):
     def pack(self, str_):
         return super().pack(str_.encode())
 
-    def unpack(self, bytes_string):
-        return super().unpack(bytes_string).decode()
+    def unpack_from(self, bytes_string):
+        return super().unpack_from(bytes_string).decode()
 
 # Register handlers for native types
 register_handler(bool, BoolHandler)

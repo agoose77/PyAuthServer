@@ -187,25 +187,21 @@ class AttributeStorageContainer(AbstractStorageContainer):
         self.complaints = self.get_default_complaints()
 
     def get_descriptions(self):
-        return {attribute: static_description(value)
-                for attribute, value in self.data.items()}
+        return {attribute: static_description(value) for attribute, value in self.data.items()}
 
-    def get_description_tuple(self):
+    def get_description_list(self):
         complaints = self.complaints
         data = self.data
         members = self._ordered_mapping.values()
         get_description = static_description
 
-        return tuple(complaints[member] if member in complaints else
-                     get_description(data[member]) for member in members)
+        return [complaints[member] if member in complaints else get_description(data[member]) for member in members]
 
     def get_default_descriptions(self):
-        return {attribute: static_description(attribute.initial_value)
-                for attribute in self.data}
+        return {attribute: static_description(attribute.initial_value) for attribute in self.data}
 
     def get_default_complaints(self):
-        default_descriptions = self.get_default_descriptions()
-        return {a: v for a, v in default_descriptions.items() if a.complain}
+        return {a: v for a, v in self.get_default_descriptions().items() if a.complain}
 
     @classmethod
     def check_is_supported(cls, member):

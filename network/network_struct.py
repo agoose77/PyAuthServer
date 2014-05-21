@@ -44,13 +44,12 @@ class Struct(metaclass=StructMeta):
 
     def __description__(self):
         """Serialiser description of tuple"""
-        return hash(self._attribute_container.get_description_tuple())
+        return hash(self._attribute_container.get_description_list())
 
     def __repr__(self):
         attribute_count = len(self._attribute_container.data)
-        return "<Struct {}: {} member{}>".format(self.__class__.__name__,
-                                                 attribute_count, 's' if
-                                                 attribute_count != 1 else '')
+        class_name = self.__class__.__name__
+        return "<Struct {}: {} member{}>".format(class_name, attribute_count, 's' if attribute_count != 1 else '')
 
     @classmethod
     def from_bytes(cls, bytes_string):
@@ -84,8 +83,7 @@ class Struct(metaclass=StructMeta):
         get_attribute = self._attribute_container.get_member_by_name
 
         # Process and store new values
-        for attribute_name, value in self._serialiser.unpack(bytes_string,
-                                                    replicable_data):
+        for attribute_name, value in self._serialiser.unpack(bytes_string, replicable_data):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
@@ -113,17 +111,16 @@ class Struct(metaclass=StructMeta):
         """Write struct contents to bytes
 
         :returns: packed contents"""
-        return self._serialiser.pack({a.name: v for a, v in
-                                      self._attribute_container.data.items()})
+        return self._serialiser.pack({a.name: v for a, v in self._attribute_container.data.items()})
 
-    def to_tuple(self):
-        """Write struct contents to a tuple
+    def to_list(self):
+        """Write struct contents to a list
 
         :returns: contents tuple"""
         container = self._attribute_container
         attributes = container._ordered_mapping.values()
         data = container.data
-        return tuple(data[k] for k in attributes)
+        return [data[k] for k in attributes]
 
     def on_notify(self, name):
         pass

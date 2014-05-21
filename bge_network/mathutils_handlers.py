@@ -17,7 +17,7 @@ class Euler8:
     packer = get_handler(TypeFlag(float, max_precision=True))
 
     item_pack = packer.pack
-    item_unpack = packer.unpack
+    item_unpack = packer.unpack_from
     item_size = packer.size()
 
     wrapper = Euler
@@ -29,24 +29,21 @@ class Euler8:
         return b''.join(pack(c) for c in euler)
 
     @classmethod
-    def unpack(cls, bytes_string):
+    def unpack_from(cls, bytes_string):
         item_size = cls.item_size
         unpack = cls.item_unpack
-        return cls.wrapper((unpack(bytes_string[i * item_size: (i + 1) * \
-                          item_size]) for i in range(cls.wrapper_length)))
+        iterable = [unpack(bytes_string[i * item_size:]) for i in range(cls.wrapper_length)]
+        return cls.wrapper(iterable)
 
     @classmethod
     def unpack_merge(cls, euler, bytes_string):
         item_size = cls.item_size
         unpack = cls.item_unpack
-        euler[:] = (unpack(bytes_string[i * item_size: (i + 1) * item_size])
-                    for i in range(cls.wrapper_length))
+        euler[:] = [unpack(bytes_string[i * item_size:]) for i in range(cls.wrapper_length)]
 
     @classmethod
     def size(cls, bytes_string=None):
         return cls.item_size * cls.wrapper_length
-
-    unpack_from = unpack
 
 
 class Euler4(Euler8):
@@ -54,7 +51,7 @@ class Euler4(Euler8):
     packer = get_handler(TypeFlag(float, max_precision=False))
 
     item_pack = packer.pack
-    item_unpack = packer.unpack
+    item_unpack = packer.unpack_from
     item_size = packer.size()
 
 
@@ -78,7 +75,7 @@ class Quaternion8(Euler8):
 
 class Matrix4(Euler4):
     item_pack = Vector4.pack
-    item_unpack = Vector4.unpack
+    item_unpack = Vector4.unpack_from
     item_size = Vector4.size()
     wrapper_length = 3
     wrapper = Matrix
@@ -86,7 +83,7 @@ class Matrix4(Euler4):
 
 class Matrix8(Matrix4):
     item_pack = Vector8.pack
-    item_unpack = Vector8.unpack
+    item_unpack = Vector8.unpack_from
     item_size = Vector8.size()
 
 
@@ -103,21 +100,10 @@ def precision_switch(low, high, type_flag):
 
 
 # Register packers
-register_handler(Vector,
-                 partial(precision_switch, Vector4, Vector8),
-                 is_callable=True)
-
-register_handler(Euler,
-                 partial(precision_switch, Euler4, Euler8),
-                 is_callable=True)
-
-register_handler(Quaternion,
-                 partial(precision_switch, Quaternion4, Quaternion8),
-                 is_callable=True)
-
-register_handler(Matrix,
-                 partial(precision_switch, Matrix4, Matrix8),
-                 is_callable=True)
+register_handler(Vector, partial(precision_switch, Vector4, Vector8), is_callable=True)
+register_handler(Euler, partial(precision_switch, Euler4, Euler8), is_callable=True)
+register_handler(Quaternion, partial(precision_switch, Quaternion4, Quaternion8), is_callable=True)
+register_handler(Matrix, partial(precision_switch, Matrix4, Matrix8), is_callable=True)
 
 # Register custom hash-like descriptions
 register_description(Vector, vector_description)

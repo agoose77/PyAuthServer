@@ -16,7 +16,7 @@ def load_keybindings(filepath, section_name, input_fields, input_codes):
     parser = ConfigParser(defaults=input_codes, interpolation=ExtendedInterpolation())
     parser.read(filepath)
     parser_result = parser[section_name]
-    print(dict(parser_result))
+
     # Read binding information
     try:
         bindings = OrderedDict((field, int(parser_result[field])) for field in input_fields)

@@ -4,6 +4,7 @@ Extendable for new data types
 """
 
 from .bitfield import *
+from .serialiser import *
 from .channel import *
 from .conditions import *
 from .connection import *
@@ -30,7 +31,6 @@ from .replicable import *
 from .world_info import *
 from .replication_rules import *
 from .rpc import *
-from .serialiser import *
 from .signals import *
 from .structures import *
 from .type_register import *
