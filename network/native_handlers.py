@@ -219,6 +219,7 @@ class IterableHandler:
         add_element = self.__class__.iterable_add
         elements = self.iterable_cls()
         total_size = count_size
+        update_elements = self.__class__.iterable_update
 
         if self.element_type == bool:
             if elements_count:
@@ -231,8 +232,7 @@ class IterableHandler:
 
                     element = bitfield[i]
 
-                    for _ in range(repeat):
-                        add_element(elements, element)
+                    update_elements(elements, [element] * repeat)
 
                 # Count size is the same as repeat size
                 total_size += bitfield_size + count_size * elements_count
@@ -246,9 +246,7 @@ class IterableHandler:
                 element, element_size = element_unpack(data)
                 data = data[element_size:]
 
-                for _ in range(repeat):
-                    add_element(elements, element)
-
+                update_elements(elements, [element] * repeat)
                 total_size += element_size + count_size
 
         return elements, total_size
@@ -486,10 +484,7 @@ class BitFieldHandler:
 
     def variable_unpack_from(self, bytes_string):
         field_bits, packer_size = self._packer.unpack_from(bytes_string)
-        if field_bits:
-            field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string[packer_size:])
-        else:
-            field = BitField(field_bits)
+        field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string[packer_size:])
         return field, field_size_bytes + packer_size
 
     def variable_unpack_merge(self, field, bytes_string):

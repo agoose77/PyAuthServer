@@ -10,6 +10,7 @@ from .serialiser import *
 
 __all__ = ["SerialiserTest", "run_tests"]
 
+
 class SerialiserTest(unittest.TestCase):
 
     int_value_8bit = 178
@@ -68,14 +69,14 @@ class SerialiserTest(unittest.TestCase):
         float_flag = TypeFlag(float, max_precision=False)
         handler_float = get_handler(float_flag)
 
-        self.assertIs(handler_float, Float4)
+        self.assertIs(handler_float, Float32)
 
     def test_get_float_high_precision(self):
         # High precisions
         float_flag = TypeFlag(float, max_precision=True)
         handler_float = get_handler(float_flag)
 
-        self.assertIs(handler_float, Float8)
+        self.assertIs(handler_float, Float64)
 
     def test_get_int_8bit(self):
         int_flag = TypeFlag(int, max_bits=8)
@@ -180,10 +181,10 @@ class SerialiserTest(unittest.TestCase):
         self.assertEqual(UInt8.unpack_from(self.int_bytes_string8bit)[0],self.int_value_8bit)
 
     def test_pack_float(self):
-        self.assertEqual(Float8.pack(self.float_value), self.float_bytes)
+        self.assertEqual(Float64.pack(self.float_value), self.float_bytes)
 
     def test_unpack_float(self):
-        self.assertEqual(Float8.unpack_from(self.float_bytes)[0], self.float_value)
+        self.assertEqual(Float64.unpack_from(self.float_bytes)[0], self.float_value)
 
     def test_pack_bool(self):
         self.assertEqual(BoolHandler.pack(self.bool_value), self.bool_bytes)

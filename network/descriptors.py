@@ -82,6 +82,8 @@ class Attribute(TypeFlag):
         self._instances[instance] = storage_interface
 
     def get_new_value(self):
+        if self.initial_value is None:
+            return None
         return deepcopy(self.initial_value)
 
 

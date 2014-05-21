@@ -58,8 +58,7 @@ class CBitField(array_field):
 
     to_bytes = array_field.tobytes
 
-    def __len__(self):
-        return self.length()
+    __len__ = array_field.length
 
 
 class PyBitField:

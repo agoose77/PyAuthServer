@@ -118,7 +118,7 @@ class InputManager:
     """Manager for user input"""
 
     def __init__(self, keybindings, status_lookup):
-        assert isinstance(keybindings, OrderedDict)
+        #assert isinstance(keybindings, OrderedDict)
         self.status_lookup = status_lookup
         self._keybindings_to_events = keybindings
         self.indexed_lookup = None

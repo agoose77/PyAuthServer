@@ -116,12 +116,10 @@ class FlagSerialiser:
                 value = None
 
             else:
-                # Merge with existing Python object
                 previous_value = previous_values.get(key)
-
-                if previous_value is not None and hasattr(handler, "unpack_merge"):
+                if hasattr(handler, "unpack_merge") and previous_value is not None:
                     # If we can't merge use default unpack
-                    value_size = handler.unpack_merge(value, bytes_string)
+                    value_size = handler.unpack_merge(previous_value, bytes_string)
 
                 # Otherwise ask for a new value
                 else:
@@ -138,7 +136,7 @@ class FlagSerialiser:
             boolean_size = self.boolean_packer.unpack_merge(self.bool_bits, bytes_string)
 
             found_booleans = content_values[self.total_none_booleans:]
-            none_booleans = self.none_bits[self.total_none_booleans:]
+            none_booleans = none_values[self.total_none_booleans:]
 
             boolean_info = zip(self.bool_bits, self.bool_args, found_booleans, none_booleans)
 

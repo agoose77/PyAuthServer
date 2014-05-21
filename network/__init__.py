@@ -3,8 +3,13 @@ Supports native replication of many Python built in types
 Extendable for new data types
 """
 
+NUMPY_SERIALISER = False
+
+
 from .bitfield import *
 from .serialiser import *
+if NUMPY_SERIALISER:
+    from .numpy_serialiser import *
 from .channel import *
 from .conditions import *
 from .connection import *

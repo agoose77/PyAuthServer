@@ -384,11 +384,11 @@ class PlayerController(Controller):
         field_compression = IterableCompressionType.auto
 
         for input_name in move_cls.input_fields:
-            attributes["{}_list".format(input_name)] = Attribute([], element_flag=TypeFlag(bool),
+            attributes["{}_list".format(input_name)] = Attribute(type_of=list, element_flag=TypeFlag(bool),
                                                                  compression=field_compression)
-        attributes['mouse_x_list'] = Attribute([], element_flag=TypeFlag(float),
+        attributes['mouse_x_list'] = Attribute(type_of=list, element_flag=TypeFlag(float),
                                                compression=field_compression)
-        attributes['mouse_y_list'] = Attribute([], element_flag=TypeFlag(float),
+        attributes['mouse_y_list'] = Attribute(type_of=list, element_flag=TypeFlag(float),
                                                compression=field_compression)
         attributes['id_start'] = Attribute(0, max_value=MAXIMUM_TICK)
         attributes['id_end'] = Attribute(0, max_value=MAXIMUM_TICK)
@@ -407,9 +407,17 @@ class PlayerController(Controller):
 
             # Add input fields
             for list_name, field_name in zip(list_names, move.input_fields):
-                getattr(move_history, list_name).append(getattr(move.inputs, field_name))
+                field = getattr(move_history, list_name)
+                if field is None:
+                    field = []
+                    setattr(move_history, list_name, field)
+                field.append(getattr(move.inputs, field_name))
 
             # Add other fields
+            if move_history.mouse_x_list is None:
+                move_history.mouse_x_list = []
+            if move_history.mouse_y_list is None:
+                move_history.mouse_y_list = []
             move_history.mouse_x_list.append(move.mouse_x)
             move_history.mouse_y_list.append(move.mouse_y)
             move_history.id_end = move.id

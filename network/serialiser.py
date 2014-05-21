@@ -3,7 +3,7 @@ from math import ceil
 
 from .handler_interfaces import register_handler
 
-__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float4', 'Float8', 'bits_to_bytes',
+__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes',
            'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',
            'BytesHandler', 'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
 
@@ -18,8 +18,7 @@ class IStruct(PyStruct):
         raise AttributeError("'unpack' attribute of IStruct instances should not be used. See unpack_from")
 
     def unpack_from(self, bytes_string):
-        value = super().unpack_from(bytes_string)[0]
-        return value, super().size
+        return super().unpack_from(bytes_string)[0], super().size
 
     def __str__(self):
         return "<{} Byte Handler>"
@@ -29,8 +28,8 @@ UInt32 = IStruct("!I")
 UInt16 = IStruct("!H")
 UInt64 = IStruct("!Q")
 UInt8 = IStruct("!B")
-Float4 = IStruct("!f")
-Float8 = IStruct("!d")
+Float32 = IStruct("!f")
+Float64 = IStruct("!d")
 
 
 int_packers = [UInt8, UInt16, UInt32, UInt64]
@@ -58,7 +57,7 @@ def next_or_equal_power_of_two(value):
 
 
 def float_selector(type_flag):
-    return Float8 if type_flag.data.get("max_precision") else Float4
+    return Float64 if type_flag.data.get("max_precision") else Float32
 
 
 def handler_from_bit_length(total_bits):
@@ -135,11 +134,12 @@ class StringHandler(BytesHandler):
     def unpack_from(self, bytes_string):
         encoded_string, size = super().unpack_from(bytes_string)
 
-        return encoded_string.decode(), size
+        return bytes(encoded_string).decode(), size
 
-# Register handlers for native types
-register_handler(bool, BoolHandler)
-register_handler(str, StringHandler, is_callable=True)
-register_handler(bytes, BytesHandler, is_callable=True)
-register_handler(int, int_selector, is_callable=True)
-register_handler(float, float_selector, is_callable=True)
+if True:
+    # Register handlers for native types
+    register_handler(bool, BoolHandler)
+    register_handler(str, StringHandler, is_callable=True)
+    register_handler(bytes, BytesHandler, is_callable=True)
+    register_handler(int, int_selector, is_callable=True)
+    register_handler(float, float_selector, is_callable=True)
