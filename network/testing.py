@@ -1,6 +1,6 @@
 import unittest
 
-from .bitfield import BitField
+from .bitfield import BitField, CBitField, PyBitField
 from .descriptors import Attribute, TypeFlag
 from .handler_interfaces import get_handler
 from .native_handlers import *
@@ -27,11 +27,12 @@ class SerialiserTest(unittest.TestCase):
     float_bytes = b'@\x90\x02\x00\x00\x00\x00\x00'
     float_value = 1024.5
 
-    struct_bytes = b'\x14\x07\nTestStruct@@\x00\x00@\x00\x00\x00'
+    py_struct_bytes = b'\x00\x14\x07\nTestStruct@@\x00\x00@\x00\x00\x00'
+    c_struct_bytes = b'\x00\x14\xe0\nTestStruct@@\x00\x00@\x00\x00\x00'
 
     bitfield_list = [False, True, False, True, False, True, True, False]
-    bitfield_fixed_value = b'j'
-    bitfield_variable_value = b'\x08j'
+    py_bitfield_fixed_value = b'j'
+    py_bitfield_variable_value = b'\x08j'
 
     def create_struct(self):
         class Struct_(Struct):
@@ -53,17 +54,11 @@ class SerialiserTest(unittest.TestCase):
         handler_struct = get_handler(struct_flag)
         self.assertIsInstance(handler_struct, StructHandler)
 
-    def test_get_fixed_bitfield(self):
-        bitfield_flag = TypeFlag(BitField, fields=len(self.bitfield_list))
-        handler_bitfield = get_handler(bitfield_flag)
-
-        self.assertIsInstance(handler_bitfield, FixedBitFieldHandler)
-
-    def test_get_variable_bitfield(self):
+    def test_get_bitfield(self):
         bitfield_flag = TypeFlag(BitField)
         handler_bitfield = get_handler(bitfield_flag)
 
-        self.assertIs(handler_bitfield, VariableBitFieldHandler)
+        self.assertIsInstance(handler_bitfield, BitFieldHandler)
 
     def test_get_float_low_precision(self):
         # Low precisions
@@ -106,79 +101,85 @@ class SerialiserTest(unittest.TestCase):
     def test_pack_struct(self):
         struct = self.create_struct()
         handler = StructHandler(TypeFlag(type(struct)))
-        self.assertEqual(self.struct_bytes, handler.pack(struct))
+
+        if BitField is PyBitField:
+            struct_bytes = self.py_struct_bytes
+
+        else:
+            struct_bytes = self.c_struct_bytes
+
+        self.assertEqual(struct_bytes, handler.pack(struct))
 
     def test_unpack_struct(self):
         struct = self.create_struct()
         handler = StructHandler(TypeFlag(type(struct)))
-        new_struct = handler.unpack_from(self.struct_bytes)
 
+        if BitField is PyBitField:
+            struct_bytes = self.py_struct_bytes
+
+        else:
+            struct_bytes = self.c_struct_bytes
+
+        new_struct = handler.unpack_from(struct_bytes)
         self.assertAlmostEqual(struct.x, new_struct.x)
         self.assertAlmostEqual(struct.y, new_struct.y)
         self.assertEqual(struct.name, new_struct.name)
 
-    def test_pack_fixed_bitfield(self):
+    def test_pack_fixed_py_bitfield(self):
         # Get fixed handler
-        bitfield_handler = FixedBitFieldHandler
-
-        # Create bitfield
         size = len(self.bitfield_list)
-        bitfield = BitField(size)
-        bitfield[:] = self.bitfield_list
 
-        packed_value = bitfield_handler(size).pack(bitfield)
-        self.assertEqual(packed_value, self.bitfield_fixed_value)
-
-    def test_pack_variable_bitfield(self):
-        # Get fixed handler
-        bitfield_handler = VariableBitFieldHandler
+        bitfield_flag = TypeFlag(BitField, fields=size)
+        bitfield_handler = get_handler(bitfield_flag)
 
         # Create bitfield
-        bitfield = BitField(8)
+        bitfield = PyBitField(size)
         bitfield[:] = self.bitfield_list
 
         packed_value = bitfield_handler.pack(bitfield)
-        self.assertEqual(packed_value, self.bitfield_variable_value)
+        self.assertEqual(packed_value, self.py_bitfield_fixed_value)
+
+    def test_pack_py_variable_bitfield(self):
+        # Get variable handler
+        bitfield_flag = TypeFlag(BitField)
+        bitfield_handler = get_handler(bitfield_flag)
+
+        # Create bitfield
+        bitfield = PyBitField(8)
+        bitfield[:] = self.bitfield_list
+
+        packed_value = bitfield_handler.pack(bitfield)
+        self.assertEqual(packed_value, self.py_bitfield_variable_value)
 
     def test_pack_int_64bit(self):
-        self.assertEqual(UInt64.pack(self.int_value_64bit),
-                         self.int_bytes_string64bit)
+        self.assertEqual(UInt64.pack(self.int_value_64bit), self.int_bytes_string64bit)
 
     def test_pack_int_32bit(self):
-        self.assertEqual(UInt32.pack(self.int_value_32bit),
-                         self.int_bytes_string32bit)
+        self.assertEqual(UInt32.pack(self.int_value_32bit), self.int_bytes_string32bit)
 
     def test_pack_int_16bit(self):
-        self.assertEqual(UInt16.pack(self.int_value_16bit),
-                         self.int_bytes_string16bit)
+        self.assertEqual(UInt16.pack(self.int_value_16bit), self.int_bytes_string16bit)
 
     def test_pack_int_8bit(self):
-        self.assertEqual(UInt8.pack(self.int_value_8bit),
-                         self.int_bytes_string8bit)
+        self.assertEqual(UInt8.pack(self.int_value_8bit), self.int_bytes_string8bit)
 
     def test_unpack_int_64bit(self):
-        self.assertEqual(UInt64.unpack(self.int_bytes_string64bit),
-                         self.int_value_64bit)
+        self.assertEqual(UInt64.unpack_from(self.int_bytes_string64bit), self.int_value_64bit)
 
     def test_unpack_int_32bit(self):
-        self.assertEqual(UInt32.unpack(self.int_bytes_string32bit),
-                         self.int_value_32bit)
+        self.assertEqual(UInt32.unpack_from(self.int_bytes_string32bit), self.int_value_32bit)
 
     def test_unpack_int_16bit(self):
-        self.assertEqual(UInt16.unpack(self.int_bytes_string16bit),
-                         self.int_value_16bit)
+        self.assertEqual(UInt16.unpack_from(self.int_bytes_string16bit), self.int_value_16bit)
 
     def test_unpack_int_8bit(self):
-        self.assertEqual(UInt8.unpack(self.int_bytes_string8bit),
-                         self.int_value_8bit)
+        self.assertEqual(UInt8.unpack_from(self.int_bytes_string8bit),self.int_value_8bit)
 
     def test_pack_float(self):
-        self.assertEqual(Float8.pack(self.float_value),
-                         self.float_bytes)
+        self.assertEqual(Float8.pack(self.float_value), self.float_bytes)
 
     def test_unpack_float(self):
-        self.assertEqual(Float8.unpack(self.float_bytes),
-                         self.float_value)
+        self.assertEqual(Float8.unpack_from(self.float_bytes),self.float_value)
 
 
 def run_tests():
