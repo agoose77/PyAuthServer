@@ -1,5 +1,5 @@
-from struct import Struct as PyStruct
 from math import ceil
+from struct import pack, unpack_from, calcsize
 
 from .handler_interfaces import register_handler
 
@@ -8,23 +8,34 @@ __all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64
            'BytesHandler', 'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
 
 
-class IStruct(PyStruct):
+class IStruct:
+    """Handler for struct types
 
-    def size(self, bytes_string=None):
-        return super().size
+    Optimises methods to prevent unnecessary attribute lookups
+    """
+    __slots__ = ["pack", "unpack_from", "size"]
 
-    @property
-    def unpack(self):
-        raise AttributeError("'unpack' attribute of IStruct instances should not be used. See unpack_from")
+    def __init__(self, fmt):
+        _size = calcsize(fmt)
 
-    def unpack_from(self, bytes_string):
-        return super().unpack_from(bytes_string)[0], super().size
+        exec(self.st_pack.format(fmt))
+        exec(self.st_unpack.format(fmt, _size))
+        exec(self.st_size.format(_size))
+
+        self.pack = locals()['pack']
+        self.unpack_from = locals()['unpack_from']
+        self.size = locals()['size']
+
+    st_pack = """def pack(int):\n\treturn pack('{}', int)"""
+    st_unpack = """def unpack_from(bytes_string, offset=0):\n\treturn unpack_from('{}', bytes_string, offset)[0], {}"""
+    st_size = """def size(bytes_string=None):\n\treturn {}"""
 
     def __str__(self):
-        return "<{} Byte Handler>"
+        return "<{} Byte Handler>".format(self.__class__.__name__)
 
 
 UInt32 = IStruct("!I")
+
 UInt16 = IStruct("!H")
 UInt64 = IStruct("!Q")
 UInt8 = IStruct("!B")
@@ -96,8 +107,8 @@ class BoolHandler:
     unpacker = UInt8.unpack_from
 
     @classmethod
-    def unpack_from(cls, bytes_string):
-        value, size = cls.unpacker(bytes_string)
+    def unpack_from(cls, bytes_string, offset=0):
+        value, size = cls.unpacker(bytes_string, offset)
         return bool(value), size
 
     size = UInt8.size
@@ -117,11 +128,10 @@ class BytesHandler:
         length, length_size = self.packer.unpack_from(bytes_string)
         return length + length_size
 
-    def unpack_from(self, bytes_string):
-        length, length_size = self.packer.unpack_from(bytes_string)
-
+    def unpack_from(self, bytes_string, offset=0):
+        length, length_size = self.packer.unpack_from(bytes_string, offset)
         end_index = length + length_size
-        value = bytes_string[length_size: end_index]
+        value = bytes_string[length_size + offset: end_index + offset]
 
         return value, end_index
 
@@ -131,8 +141,8 @@ class StringHandler(BytesHandler):
     def pack(self, str_):
         return super().pack(str_.encode())
 
-    def unpack_from(self, bytes_string):
-        encoded_string, size = super().unpack_from(bytes_string)
+    def unpack_from(self, bytes_string, offset=0):
+        encoded_string, size = super().unpack_from(bytes_string, offset)
 
         return bytes(encoded_string).decode(), size
 

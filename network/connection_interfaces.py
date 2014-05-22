@@ -220,18 +220,16 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         :param bytes_string: data from peer
         """
-
         # Get the sequence id
-        sequence, sequence_size = self.sequence_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[sequence_size:]
+        sequence, offset = self.sequence_handler.unpack_from(bytes_string)
 
         # Get the base value for the bitfield
-        ack_base, ack_base_size = self.sequence_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[ack_base_size:]
+        ack_base, ack_base_size = self.sequence_handler.unpack_from(bytes_string, offset=offset)
+        offset += ack_base_size
 
         # Read the acknowledgement bitfield
-        ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string)
-        bytes_string = bytes_string[ack_bitfield_size:]
+        ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string, offset=offset)
+        offset += ack_bitfield_size
 
         # Dictionary of packets waiting for acknowledgement
         self.handle_reliable_information(ack_base, self.incoming_ack_bitfield)
@@ -249,7 +247,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.last_received = monotonic()
 
         # Handle received packets
-        PacketCollection.iter_bytes(bytes_string, self.handle_packet)
+        PacketCollection.iter_bytes(bytes_string[offset:], self.handle_packet)
 
     def send(self, network_tick):
         """Pull data from connection interfaces to send
@@ -402,8 +400,7 @@ class ServerInterface(ConnectionInterface):
 
         # Unpack data
         handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
-        payload = packet.payload[handshake_size:]
-        netmode, netmode_size = self.netmode_packer.unpack_from(payload)
+        netmode, netmode_size = self.netmode_packer.unpack_from(packet.payload, handshake_size)
 
         # Store replicable
         try:
@@ -446,16 +443,18 @@ class ClientInterface(ConnectionInterface):
         """Receives a handshake packet, rither proceeds to setup connection or invokes the error"""
 
         # Unpack data
-        handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
-        payload = packet.payload[handshake_size:]
+        packet_payload = packet.payload
+
+        handshake_type, offset = self.handshake_packer.unpack_from(packet_payload)
 
         if handshake_type == HandshakeState.failure:
-            error_type, type_size = self.error_packer.unpack_from(payload)
-            encoded_error_body = packet.payload[type_size:]
+            error_type, type_size = self.error_packer.unpack_from(packet_payload, offset)
+            offset += type_size
 
-            error_message, message_size = self.error_packer.unpack_from(encoded_error_body)
+            error_message, message_size = self.error_packer.unpack_from(packet_payload, offset)
+            offset += message_size
+
             error_class = NetworkError.from_type_name(error_type)
-
             raised_error = error_class(error_message)
 
             logger.error(raised_error)
@@ -463,7 +462,8 @@ class ClientInterface(ConnectionInterface):
 
         # Get remote network mode
         elif handshake_type == HandshakeState.success:
-            netmode, netmode_size = self.netmode_packer.unpack_from(payload)
+            netmode, netmode_size = self.netmode_packer.unpack_from(packet_payload, offset)
+            offset += netmode_size
 
             # If we did not have an error then we succeeded
             self.connection = Connection(netmode)

@@ -52,13 +52,13 @@ class Struct(metaclass=StructMeta):
         return "<Struct {}: {} member{}>".format(class_name, attribute_count, 's' if attribute_count != 1 else '')
 
     @classmethod
-    def from_bytes(cls, bytes_string):
+    def from_bytes(cls, bytes_string, offset=0):
         """Create a struct from bytes
 
         :param bytes_string: Packed byte representation of struct contents
         :returns: Struct instance"""
         struct = cls()
-        struct.read_bytes(bytes_string)
+        struct.read_bytes(bytes_string, offset)
 
         return struct
 
@@ -73,17 +73,20 @@ class Struct(metaclass=StructMeta):
 
         return struct
 
-    def read_bytes(self, bytes_string):
+    def read_bytes(self, bytes_string, offset=0):
         """Update struct contents with bytes
 
-        :param bytes_string: Packed byte representation of struct contents"""
+        :param bytes_string: Packed byte representation of struct contents
+        :param offset: offset to start reading from
+        """
         notifications = []
 
         replicable_data = self._attribute_container.data
         get_attribute = self._attribute_container.get_member_by_name
 
         # Process and store new values
-        for attribute_name, value in self._serialiser.unpack(bytes_string, replicable_data):
+        for attribute_name, value in self._serialiser.unpack(bytes_string, previous_values=replicable_data,
+                                                             read_offset=offset):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value

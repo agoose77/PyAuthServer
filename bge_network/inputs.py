@@ -186,9 +186,9 @@ class InputPacker:
                                          self._fields])
         return self._packer.pack(values)
 
-    def unpack_from(self, bytes_string):
+    def unpack_from(self, bytes_string, offset=0):
         # Unpack input states to list
-        values, value_size = self._packer.unpack_from(bytes_string)
+        values, value_size = self._packer.unpack_from(bytes_string, offset)
         inputs = InputManager(self._keybinding_index_map, status_lookup=values.__getitem__)
         return inputs, value_size
 

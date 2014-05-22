@@ -111,8 +111,7 @@ class ClientChannel(Channel):
         notifications = []
         notify = notifications.append
 
-        for attribute_name, value in self.serialiser.unpack(bytes_string,
-                                                            replicable_data):
+        for attribute_name, value in self.serialiser.unpack(bytes_string, replicable_data):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value

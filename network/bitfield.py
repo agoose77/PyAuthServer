@@ -45,10 +45,10 @@ class CBitField(array_field):
         return bits_to_bytes(bits)
 
     @classmethod
-    def from_bytes(cls, length, bytes_string):
+    def from_bytes(cls, length, bytes_string, offset=0):
         field = cls()
         field_size = bits_to_bytes(length)
-        field.frombytes(bytes_string[:field_size])
+        field.frombytes(bytes_string[offset: offset + field_size])
         field[:] = field[:length]
         return field, field_size
 
@@ -125,9 +125,9 @@ class PyBitField:
         return next_or_equal_power_of_two(bits_to_bytes(bits))
 
     @classmethod
-    def from_bytes(cls, length, bytes_string):
+    def from_bytes(cls, length, bytes_string, offset=0):
         field = cls(length)
-        field._value, field_size = field._handler.unpack_from(bytes_string)
+        field._value, field_size = field._handler.unpack_from(bytes_string, offset)
         return field, field_size
 
     @classmethod

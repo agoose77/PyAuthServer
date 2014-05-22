@@ -40,8 +40,8 @@ class ReplicableTypeHandler:
         return cls.string_packer.pack(cls_.type_name)
 
     @classmethod
-    def unpack_from(cls, bytes_string):
-        name, name_length = cls.string_packer.unpack_from(bytes_string)
+    def unpack_from(cls, bytes_string, offset=0):
+        name, name_length = cls.string_packer.unpack_from(bytes_string, offset)
         return Replicable.from_type_name(name), name_length
 
     @classmethod
@@ -63,10 +63,10 @@ class RolesHandler:
         return pack(roles.remote) + pack(roles.local)
 
     @classmethod
-    def unpack_from(cls, bytes_string):
+    def unpack_from(cls, bytes_string, offset=0):
         packer = cls.packer
-        local_role, local_size = packer.unpack_from(bytes_string)
-        remote_role, remote_size = packer.unpack_from(bytes_string[local_size:])
+        local_role, local_size = packer.unpack_from(bytes_string, offset)
+        remote_role, remote_size = packer.unpack_from(bytes_string, offset + local_size)
         return Roles(local_role, remote_role), remote_size + local_size
 
     @classmethod
@@ -138,19 +138,18 @@ class IterableHandler:
 
         return data
 
-    def auto_unpack_from(self, bytes_string):
+    def auto_unpack_from(self, bytes_string, offset=0):
         """Unpack automatically compressed iterable
 
         :param bytes_string: incoming bytes offset to packed_iterable start
         """
-        compression_type, type_size = self.count_packer.unpack_from(bytes_string)
-        data = bytes_string[type_size:]
+        compression_type, type_size = self.count_packer.unpack_from(bytes_string, offset)
 
         if compression_type == IterableCompressionType.compress:
-            result = self.compressed_unpack_from(data)
+            result = self.compressed_unpack_from(bytes_string, offset + type_size)
 
         else:
-            result = self.uncompressed_unpack_from(data)
+            result = self.uncompressed_unpack_from(bytes_string, offset + type_size)
 
         return result[0], result[1] + type_size
 
@@ -204,52 +203,46 @@ class IterableHandler:
 
         return pack_length(total_items) + b''.join(data)
 
-    def compressed_unpack_from(self, bytes_string):
+    def compressed_unpack_from(self, bytes_string, offset=0):
         """Unpack compressed iterable
 
         :param bytes_string: incoming bytes offset to packed_iterable start
         """
         count_unpacker = self.count_packer.unpack_from
-
-        elements_count, count_size = count_unpacker(bytes_string)
-        data = bytes_string[count_size:]
-
+        elements_count, count_size = count_unpacker(bytes_string, offset)
         element_unpack = self.element_packer.unpack_from
 
         add_element = self.__class__.iterable_add
         elements = self.iterable_cls()
-        total_size = count_size
         update_elements = self.__class__.iterable_update
+
+        original_offset = offset
+        offset += count_size
 
         if self.element_type == bool:
             if elements_count:
-                bitfield, bitfield_size = self.bitfield_packer.unpack_from(data)
-                data = data[bitfield_size:]
-
+                bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
+                offset += bitfield_size
                 for i in range(elements_count):
-                    repeat, repeat_size = count_unpacker(data)
-                    data = data[repeat_size:]
+                    repeat, repeat_size = count_unpacker(bytes_string, offset)
+                    offset += repeat_size
 
                     element = bitfield[i]
 
                     update_elements(elements, [element] * repeat)
 
-                # Count size is the same as repeat size
-                total_size += bitfield_size + count_size * elements_count
-
         # Faster unpacking
         else:
             for i in range(elements_count):
-                repeat, repeat_size = count_unpacker(data)
-                data = data[repeat_size:]
+                repeat, repeat_size = count_unpacker(bytes_string, offset)
+                offset += repeat_size
 
-                element, element_size = element_unpack(data)
-                data = data[element_size:]
+                element, element_size = element_unpack(bytes_string, offset)
+                offset += element_size
 
                 update_elements(elements, [element] * repeat)
-                total_size += element_size + count_size
 
-        return elements, total_size
+        return elements, offset - original_offset
 
     def compressed_size(self, bytes_string):
         """Determine size of a compressed iterable
@@ -292,18 +285,22 @@ class IterableHandler:
 
         return element_count + packed_elements
 
-    def uncompressed_unpack_from(self, bytes_string):
+    def uncompressed_unpack_from(self, bytes_string, offset=0):
         """Use simple header based count to unpack iterable elements
 
         :param bytes_string: incoming bytes offset to packed_iterable start
         """
-        element_count, count_size = self.count_packer.unpack_from(bytes_string)
-        data = bytes_string[count_size:]
+        element_count, count_size = self.count_packer.unpack_from(bytes_string, offset)
+
         element_get_size = self.element_packer.size
         element_unpack = self.element_packer.unpack_from
 
+        original_offset = offset
+        offset += count_size
+
         # Fixed length unpacking
         if not self.is_variable_sized:
+            data = bytes_string[offset:]
             element_size = element_get_size()
             partitioned_iterable = partition_iterable(data, element_size, element_count)
             elements = self.iterable_cls([element_unpack(x)[0] for x in partitioned_iterable])
@@ -312,24 +309,22 @@ class IterableHandler:
         # Variable length unpacking
         add_element = self.__class__.iterable_add
         elements = self.iterable_cls()
-        total_size = count_size
 
         for _ in range(element_count):
-            element, element_size = element_unpack(data)
+            element, element_size = element_unpack(bytes_string, offset)
             add_element(elements, element)
 
-            data = data[element_size:]
-            total_size += element_size
+            offset += element_size
 
-        return elements, total_size
+        return elements, offset - original_offset
 
-    def unpack_merge(self, iterable, bytes_string):
+    def unpack_merge(self, iterable, bytes_string, offset=0):
         """Merge unpacked iterable data with existing iterable object
 
         :param iterable: iterable to merge with
         :param bytes_string: incoming bytes offset to packed_iterable start
         """
-        elements, elements_size = self.unpack_from(bytes_string)
+        elements, elements_size = self.unpack_from(bytes_string, offset)
         self.__class__.iterable_update(iterable, elements)
         return elements_size
 
@@ -383,17 +378,32 @@ class ReplicableBaseHandler:
         self._packer = get_handler(id_flag)
 
     def pack(self, replicable):
-        # Send the instance ID
+        """Pack replicable using its instance ID
+
+        :param replicable: :py:code:`network.replicble.Replicable` instance
+        """
         return self.pack_id(replicable.instance_id)
 
     def pack_id(self, id_):
+        """Pack replicable instance ID
+
+        :param id_: instance ID
+        """
         return self._packer.pack(id_)
 
-    def unpack_id(self, bytes_string):
-        return self._packer.unpack_from(bytes_string)
+    def unpack_id(self, bytes_string, offset=0):
+        """Unpack replicable instance ID
 
-    def unpack_from(self, bytes_string):
-        instance_id, id_size = self.unpack_id(bytes_string)
+        :param bytes_string: packed ID string
+        """
+        return self._packer.unpack_from(bytes_string, offset)
+
+    def unpack_from(self, bytes_string, offset=0):
+        """Unpack replicable instance ID
+
+        :param bytes_string: packed ID string
+        """
+        instance_id, id_size = self.unpack_id(bytes_string, offset)
 
         # Return only a replicable that was created by the network
         try:
@@ -421,14 +431,14 @@ class StructHandler:
         bytes_string = struct.to_bytes()
         return self.size_packer.pack(len(bytes_string)) + bytes_string
 
-    def unpack_from(self, bytes_string):
+    def unpack_from(self, bytes_string, offset=0):
         struct = self.struct_cls()
-        struct_size = self.unpack_merge(struct, bytes_string)
+        struct_size = self.unpack_merge(struct, bytes_string, offset)
         return struct, struct_size
 
-    def unpack_merge(self, struct, bytes_string):
-        struct_size, length_size = self.size_packer.unpack_from(bytes_string)
-        struct.read_bytes(bytes_string[length_size:])
+    def unpack_merge(self, struct, bytes_string, offset=0):
+        struct_size, length_size = self.size_packer.unpack_from(bytes_string, offset)
+        struct.read_bytes(bytes_string, length_size + offset)
         return length_size + struct_size
 
     def size(self, bytes_string):
@@ -462,11 +472,11 @@ class BitFieldHandler:
         # Get the smallest needed packer for this bitfield
         return field.to_bytes()
 
-    def fixed_unpack_from(self, bytes_string):
-        return BitField.from_bytes(self._size, bytes_string)
+    def fixed_unpack_from(self, bytes_string, offset=0):
+        return BitField.from_bytes(self._size, bytes_string, offset)
 
-    def fixed_unpack_merge(self, field, bytes_string):
-        field[:], field_size = self.fixed_unpack_from(bytes_string)
+    def fixed_unpack_merge(self, field, bytes_string, offset=0):
+        field[:], field_size = self.fixed_unpack_from(bytes_string, offset)
         return field_size
 
     def fixed_size(self, bytes_string=None):
@@ -482,13 +492,15 @@ class BitFieldHandler:
         else:
             return packed_size
 
-    def variable_unpack_from(self, bytes_string):
-        field_bits, packer_size = self._packer.unpack_from(bytes_string)
-        field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string[packer_size:])
+    def variable_unpack_from(self, bytes_string, offset=0):
+        field_bits, packer_size = self._packer.unpack_from(bytes_string, offset)
+        offset += packer_size
+
+        field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string, offset)
         return field, field_size_bytes + packer_size
 
-    def variable_unpack_merge(self, field, bytes_string):
-        field[:], packer_size = self.variable_unpack_from(bytes_string)
+    def variable_unpack_merge(self, field, bytes_string, offset=0):
+        field[:], packer_size = self.variable_unpack_from(bytes_string, offset)
         return packer_size
 
     def variable_size(self, bytes_string):
