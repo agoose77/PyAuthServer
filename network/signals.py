@@ -1,7 +1,7 @@
 from .type_register import TypeRegister
-from .conditions import is_signal_listener
+from .conditions import is_annotatable, is_signal_listener
 from .decorators import signal_listener
-from .structures import FactoryDict
+from .structures import factory_dict
 
 from collections import defaultdict
 from inspect import getmembers, signature
@@ -12,17 +12,15 @@ __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal', 'Replicable
 
 
 def members_predicate(member):
-    return (hasattr(member, "__annotations__") and
-                (is_signal_listener(member) and callable(member)))
+    return is_annotatable(member) and is_signal_listener(member)
 
 
 def create_signals_cache(cls):
     """Callback to register decorated functions for signals
 
     :param cls: Class to inspet for cache"""
-    data = cls.lookup_dict[cls] = [name for name, val in
-                                   getmembers(cls, members_predicate)]
-    return data
+    signal_names = cls.lookup_dict[cls] = [name for name, val in getmembers(cls, members_predicate)]
+    return signal_names
 
 
 class SignalListener:
@@ -31,18 +29,13 @@ class SignalListener:
     Optional greedy binding (binds the events supported by either class)
     """
 
-    lookup_dict = FactoryDict(create_signals_cache)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.register_signals()
+    lookup_dict = factory_dict(create_signals_cache)
 
     @property
     def signal_callbacks(self):
-        """Property
-        Gets the marked signal callbacks
-        :return: generator of (name, attribute) pairs"""
+        """Gets the marked signal callbacks
+        :return: generator of (name, attribute) pairs
+        """
         for name in self.lookup_dict[self.__class__]:
             yield name, getattr(self, name)
 
@@ -86,21 +79,18 @@ class SignalListener:
             self.unregister_child(child, child)
 
     def register_signals(self):
-        """Register signals to observer
-        """
+        """Register signals to observer"""
         for _, callback in self.signal_callbacks:
             Signal.subscribe(self, callback)
 
     def unregister_signals(self):
-        """Unregister signals from observer
-        """
+        """Unregister signals from observer"""
         for _, callback in self.signal_callbacks:
             Signal.unsubscribe(self, callback)
 
 
 class Signal(metaclass=TypeRegister):
-    """Observer class for signal-like invocation
-    """
+    """Observer class for signal-like invocation"""
     subclasses = {}
 
     @classmethod
@@ -129,6 +119,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def unsubscribe(cls, identifier, callback):
+        """Unsubscribe from this Signal class
+
+        :param identifier: identifier used to subscribe
+        :param callback: callback that was used to subscribe
+        """
         signals_data = cls.get_signals(callback)
 
         for signal_cls, is_context in signals_data:
@@ -163,6 +158,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def subscribe(cls, identifier, callback):
+        """Subscribe to this Signal class using an identifier handle and a callback when invoked
+
+        :param identifier: identifier for recipient of signal
+        :param callback: callable to run when signal is invoked
+        """
         signals_data = cls.get_signals(callback)
         func_signature = signature(callback)
 
@@ -175,6 +175,7 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_state(cls):
+        """Update subscribers and children of this Signal class"""
         # Global subscribers
         to_subscribe_global = cls.to_subscribe_global
         if to_subscribe_global:
@@ -229,6 +230,7 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def update_graph(cls):
+        """Update subscribers and children of this Signal class and any subclasses thereof"""
         for cls in cls.subclasses.values():
             cls.update_state()
 
@@ -256,7 +258,8 @@ class Signal(metaclass=TypeRegister):
         :param addressee: Recipient of Signal invocation (parent of child
         tree by default)
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments"""
+        :param **kwargs: dict of additional keyword arguments
+        """
         if addressee is None:
             addressee = target
 
@@ -278,7 +281,8 @@ class Signal(metaclass=TypeRegister):
         :param subscriber_dict: mapping from listener to listener information
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments"""
+        :param **kwargs: dict of additional keyword arguments
+        """
         for (callback, supply_signal, supply_target) in subscriber_dict.values():
 
             cls.invoke_signal(args, target, kwargs, callback, supply_signal, supply_target)
@@ -289,7 +293,8 @@ class Signal(metaclass=TypeRegister):
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments"""
+        :param **kwargs: dict of additional keyword arguments
+        """
         if target:
             cls.invoke_targets(cls.isolated_subscribers, *args, target=target, **kwargs)
         cls.invoke_general(cls.subscribers, *args, target=target, **kwargs)
@@ -301,7 +306,8 @@ class Signal(metaclass=TypeRegister):
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
-        :param **kwargs: dict of additional keyword arguments"""
+        :param **kwargs: dict of additional keyword arguments
+        """
         if cls.highest_signal == cls:
             return
 
@@ -318,7 +324,8 @@ class Signal(metaclass=TypeRegister):
         """Decorator for global signal listeners
 
         :param func: function to decorate
-        :returns: passed function func"""
+        :returns: passed function func
+        """
         return signal_listener(cls, True)(func)
 
     @classmethod
@@ -326,7 +333,8 @@ class Signal(metaclass=TypeRegister):
         """Decorator for targeted signal listeners
 
         :param func: function to decorate
-        :returns: passed function func"""
+        :returns: passed function func
+        """
         return signal_listener(cls, False)(func)
 
 

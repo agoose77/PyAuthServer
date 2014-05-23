@@ -33,15 +33,19 @@ class ArrowProjectile(Projectile):
         self.align_to(global_vel, 0.3)
 
     @requires_netmode(Netmodes.server)
-    def server_deal_damage(self, collision_info, hit_pawn):
+    def server_deal_damage(self, collision_result):
         weapon = self.owner
 
         # If the weapon disappears before projectile
         if not weapon:
             return
 
+        hit_object = collision_result.hit_object
+        if not isinstance(hit_object, Pawn):
+            return
+
         # Get pawn's team
-        pawn_team = hit_pawn.info.team
+        pawn_team = hit_object.info.team
 
         # Get weapon's owner (controller)
         instigator = weapon.owner
@@ -54,7 +58,7 @@ class ArrowProjectile(Projectile):
         if relationship != TeamRelation.enemy:
             return
 
-        super().server_deal_damage(collision_info, hit_pawn)
+        super().server_deal_damage(collision_result)
 
 
 class Barrel(Actor):

@@ -7,6 +7,7 @@ from os import path, listdir
 
 from collections import OrderedDict
 from network import SignalListener
+from bge_network import UIRenderSignal, UIUpdateSignal
 from math import ceil
 
 CENTERY = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERY
@@ -79,15 +80,16 @@ class System(SignalListener, bgui.System):
         theme_path = bge.logic.expandPath("//themes")
         super().__init__(theme_path)
 
+        self.register_signals()
         self.scene = bge.logic.getCurrentScene()
 
         self._subscribers = []
-        self._keymap = {getattr(bge.events, val): getattr(bgui, val)
-                        for val in dir(bge.events) if (val.endswith('KEY') or \
-                               val.startswith('PAD')) and hasattr(bgui, val)}
+        self._keymap = {getattr(bge.events, val): getattr(bgui, val) for val in dir(bge.events) if (val.endswith('KEY')
+                        or val.startswith('PAD')) and hasattr(bgui, val)}
 
-        self.scene.post_draw.append(self.render)
+    render = UIRenderSignal.global_listener(bgui.System.render)
 
+    @UIUpdateSignal.global_listener
     def update(self, delta_time):
         # Handle the mouse
         mouse = bge.logic.mouse
@@ -100,14 +102,11 @@ class System(SignalListener, bgui.System):
         mouse_state = bgui.BGUI_MOUSE_NONE
         mouse_events = mouse.events
 
-        if mouse_events[bge.events.LEFTMOUSE] == \
-            bge.logic.KX_INPUT_JUST_ACTIVATED:
+        if mouse_events[bge.events.LEFTMOUSE] == bge.logic.KX_INPUT_JUST_ACTIVATED:
             mouse_state = bgui.BGUI_MOUSE_CLICK
-        elif mouse_events[bge.events.LEFTMOUSE] == \
-            bge.logic.KX_INPUT_JUST_RELEASED:
+        elif mouse_events[bge.events.LEFTMOUSE] == bge.logic.KX_INPUT_JUST_RELEASED:
             mouse_state = bgui.BGUI_MOUSE_RELEASE
-        elif mouse_events[bge.events.LEFTMOUSE] == \
-            bge.logic.KX_INPUT_ACTIVE:
+        elif mouse_events[bge.events.LEFTMOUSE] == bge.logic.KX_INPUT_ACTIVE:
             mouse_state = bgui.BGUI_MOUSE_ACTIVE
 
         self.update_mouse(pos, mouse_state)
@@ -116,10 +115,8 @@ class System(SignalListener, bgui.System):
         keyboard = bge.logic.keyboard
 
         key_events = keyboard.events
-        is_shifted = key_events[bge.events.LEFTSHIFTKEY] == \
-            bge.logic.KX_INPUT_ACTIVE or \
-            key_events[bge.events.RIGHTSHIFTKEY] == \
-            bge.logic.KX_INPUT_ACTIVE
+        is_shifted = key_events[bge.events.LEFTSHIFTKEY] == bge.logic.KX_INPUT_ACTIVE or \
+                     key_events[bge.events.RIGHTSHIFTKEY] == bge.logic.KX_INPUT_ACTIVE
 
         for key, state in keyboard.events.items():
             if state == bge.logic.KX_INPUT_JUST_ACTIVATED:
@@ -211,9 +208,9 @@ class ImageSequence(SpriteSequence):
 class Panel(SignalListener, bgui.Frame):
 
     def __init__(self, system, name):
-        super().__init__(parent=system, name=name,
-                         size=[1, 1], options=CENTERED)
+        super().__init__(parent=system, name=name, size=[1, 1], options=CENTERED)
 
+        self.register_signals()
         self.uses_mouse = False
 
     def update(self, delta_time):

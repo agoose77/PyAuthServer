@@ -35,7 +35,8 @@ class Axis(metaclass=Enumeration):
 
 class CollisionGroups(metaclass=Enumeration):
     use_bits = True
-    values = ("geometry", "pawns")
+
+    values = ("geometry", "pawn", "projectile")
 
 
 class CollisionType(metaclass=Enumeration):

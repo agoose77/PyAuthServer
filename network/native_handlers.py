@@ -123,13 +123,13 @@ class IterableHandler:
         :param iterable: iterable to pack
         """
         pack_type = self.count_packer.pack
-        rle_encoded = self.compressed_pack(iterable)
 
+        rle_encoded = self.compressed_pack(iterable)
         normal_encoded = self.uncompressed_pack(iterable)
 
         if len(rle_encoded) < len(normal_encoded):
             compression_type = IterableCompressionType.compress
-            data =  pack_type(compression_type) + rle_encoded
+            data = pack_type(compression_type) + rle_encoded
 
         # If they are equal, non rle is faster to rebuild
         else:
@@ -146,12 +146,12 @@ class IterableHandler:
         compression_type, type_size = self.count_packer.unpack_from(bytes_string, offset)
 
         if compression_type == IterableCompressionType.compress:
-            result = self.compressed_unpack_from(bytes_string, offset + type_size)
+            iterable, size = self.compressed_unpack_from(bytes_string, offset + type_size)
 
         else:
-            result = self.uncompressed_unpack_from(bytes_string, offset + type_size)
+            iterable, size = self.uncompressed_unpack_from(bytes_string, offset + type_size)
 
-        return result[0], result[1] + type_size
+        return iterable, size + type_size
 
     def auto_size(self, bytes_string):
         """Determine size of a variable compression iterable
@@ -219,6 +219,9 @@ class IterableHandler:
         original_offset = offset
         offset += count_size
 
+        element_list = []
+        extend_elements = element_list.extend
+
         if self.element_type == bool:
             if elements_count:
                 bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
@@ -228,8 +231,7 @@ class IterableHandler:
                     offset += repeat_size
 
                     element = bitfield[i]
-
-                    update_elements(elements, [element] * repeat)
+                    extend_elements([element] * repeat)
 
         # Faster unpacking
         else:
@@ -240,7 +242,9 @@ class IterableHandler:
                 element, element_size = element_unpack(bytes_string, offset)
                 offset += element_size
 
-                update_elements(elements, [element] * repeat)
+                extend_elements([element] * repeat)
+
+        update_elements(elements, element_list)
 
         return elements, offset - original_offset
 

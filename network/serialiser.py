@@ -48,6 +48,10 @@ int_sized = {x.size(): x for x in int_packers}
 
 
 def bits_to_bytes(bits):
+    """Determines how many bytes are required to pack a number of bits
+
+    :param bits: number of bits required
+    """
     return ceil(bits / 8)
 
 
@@ -60,7 +64,9 @@ def next_or_equal_power_of_two(value):
         value -= 1
     else:
         value = 1
+
     shift = 1
+
     while (value + 1) & value:
         value |= value >> shift
         shift *= 2
@@ -68,16 +74,22 @@ def next_or_equal_power_of_two(value):
 
 
 def float_selector(type_flag):
+    """Return the correct float handler using meta information from a given type_flag
+    :param type_flag: type flag for float value
+    """
     return Float64 if type_flag.data.get("max_precision") else Float32
 
 
 def handler_from_bit_length(total_bits):
+    """Return the correct integer handler for a given number of bits
+    :param total_bits: total number of bits required
+    """
     total_bytes = bits_to_bytes(total_bits)
     return handler_from_byte_length(total_bytes)
 
 
 def handler_from_byte_length(total_bytes):
-    """Find the smallest handler needed to pack a number of bytes
+    """Return the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
     :rtype: :py:class:`network.serialiser.IStruct`"""
@@ -93,10 +105,16 @@ def handler_from_byte_length(total_bytes):
 
 
 def handler_from_int(value):
+    """Return the smallest integer packer capable of packing a given integer
+    :param value: value to test for
+    """
     return handler_from_bit_length(value.bit_length())
 
 
 def int_selector(type_flag):
+    """Return the correct integer handler using meta information from a given type_flag
+    :param type_flag: type flag for integer value
+    """
     if "max_value" in type_flag.data:
         return handler_from_int(type_flag.data["max_value"])
 
@@ -104,6 +122,7 @@ def int_selector(type_flag):
 
 
 class BoolHandler:
+    """Handler for boolean type"""
     unpacker = UInt8.unpack_from
 
     @classmethod
@@ -116,6 +135,7 @@ class BoolHandler:
 
 
 class BytesHandler:
+    """Handler for bytes type"""
 
     def __init__(self, type_flag):
         header_max_value = type_flag.data.get("max_length", 255)
@@ -137,6 +157,7 @@ class BytesHandler:
 
 
 class StringHandler(BytesHandler):
+    """Handler for string type"""
 
     def pack(self, str_):
         return super().pack(str_.encode())
@@ -146,10 +167,9 @@ class StringHandler(BytesHandler):
 
         return bytes(encoded_string).decode(), size
 
-if True:
-    # Register handlers for native types
-    register_handler(bool, BoolHandler)
-    register_handler(str, StringHandler, is_callable=True)
-    register_handler(bytes, BytesHandler, is_callable=True)
-    register_handler(int, int_selector, is_callable=True)
-    register_handler(float, float_selector, is_callable=True)
+# Register handlers for native types
+register_handler(bool, BoolHandler)
+register_handler(str, StringHandler, is_callable=True)
+register_handler(bytes, BytesHandler, is_callable=True)
+register_handler(int, int_selector, is_callable=True)
+register_handler(float, float_selector, is_callable=True)

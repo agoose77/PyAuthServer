@@ -1,5 +1,5 @@
 from network.iterators import take_single
-from network.structures import FactoryDict
+from network.structures import factory_dict
 
 from collections import Counter
 from mathutils import Vector, geometry

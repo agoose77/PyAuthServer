@@ -7,7 +7,7 @@ from network.logger import logger
 from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
-from network.structures import FactoryDict
+from network.structures import factory_dict
 from network.world_info import WorldInfo
 
 from aud import Factory, device as AudioDevice
@@ -235,6 +235,7 @@ class PlayerController(Controller):
 
     MAX_POSITION_DIFFERENCE_SQUARED = 1.5
     MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
+    MOVE_BUFFERING_TIME = 0.15
 
     def apply_move(self, move):
         """Apply move contents to Controller state
@@ -355,7 +356,7 @@ class PlayerController(Controller):
         move = self.current_move
         move_history = self.move_history
 
-        if move is None:
+        if move is None or not self.pawn:
             logger.error("No move could be processed for sent to the server for tick {}!".format(WorldInfo.tick))
             return
 
@@ -390,8 +391,8 @@ class PlayerController(Controller):
                                                compression=field_compression)
         attributes['mouse_y_list'] = Attribute(type_of=list, element_flag=TypeFlag(float),
                                                compression=field_compression)
-        attributes['id_start'] = Attribute(0, max_value=MAXIMUM_TICK)
-        attributes['id_end'] = Attribute(0, max_value=MAXIMUM_TICK)
+        attributes['id_start'] = Attribute(type_of=int, max_value=MAXIMUM_TICK)
+        attributes['id_end'] = Attribute(type_of=int, max_value=MAXIMUM_TICK)
 
         attributes['__slots__'] = Struct.__slots__.copy()
 
@@ -402,6 +403,9 @@ class PlayerController(Controller):
 
         # Methods
         def append(move_history, move):
+            if move_history.id_start is None:
+                move_history.id_start = move_history.id_end = move.id
+
             if (move.id - move_history.id_end) > 1:
                 raise ValueError("Move discontinuity between last move and appended move")
 
@@ -413,6 +417,7 @@ class PlayerController(Controller):
                     setattr(move_history, list_name, field)
                 field.append(getattr(move.inputs, field_name))
 
+
             # Add other fields
             if move_history.mouse_x_list is None:
                 move_history.mouse_x_list = []
@@ -421,7 +426,6 @@ class PlayerController(Controller):
             move_history.mouse_x_list.append(move.mouse_x)
             move_history.mouse_y_list.append(move.mouse_y)
             move_history.id_end = move.id
-
             # Enforce upper limit
             if len(move_history) > history_length:
                 move_history.popleft()
@@ -452,7 +456,7 @@ class PlayerController(Controller):
                 return [move_history[i] for i in indices if i >= start]
 
             if index < 0:
-                index += (move_history.id_end or 0) + 1
+                index += (move_history.id_end or -2) + 1
 
             if not index in range(move_history.id_start, move_history.id_end + 1):
                 raise IndexError("Move not in history")
@@ -625,14 +629,14 @@ class PlayerController(Controller):
         self.behaviour = BehaviourTree(self, default={"controller": self})
 
         self.locks = set()
-        self.buffered_locks = FactoryDict(dict, dict_type=OrderedDict, provide_key=False)
+        self.buffered_locks = factory_dict(dict, dict_type=OrderedDict, provide_key=False)
 
         # Permit move recovery by sending a history
         self.move_history_dict = {}
         self.move_history_base = None
 
         # Number of moves to buffer
-        buffer_length = WorldInfo.to_ticks(0.2)
+        buffer_length = WorldInfo.to_ticks(self.__class__.MOVE_BUFFERING_TIME)
         get_move_id = attrgetter("id")
 
         # Queued moves
@@ -858,6 +862,8 @@ class PlayerController(Controller):
 
         self.move_history_dict[move.id] = previous_moves
 
+        previous_moves[previous_moves.id_end]
+
         if self.move_history_base is None:
             self.move_history_base = move.id
 
@@ -893,7 +899,7 @@ class PlayerController(Controller):
         buffered_move = self.buffered_moves.pop()
 
         if buffered_move is None:
-            logger.error("No move could be processed from the client for tick {}!".format(WorldInfo.tick))
+            logger.error("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
             return
 
         move_id = buffered_move.id

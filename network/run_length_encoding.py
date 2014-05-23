@@ -4,6 +4,7 @@ __all__ = ["RunLengthCodec"]
 
 
 class RunLengthCodec:
+    """RLE compression codec"""
 
     @staticmethod
     def encode(values):
@@ -11,4 +12,4 @@ class RunLengthCodec:
 
     @staticmethod
     def decode(values):
-        return [key for (length, key) in values for i in range(length)]
+        return [key for (length, key) in values for _ in range(length)]

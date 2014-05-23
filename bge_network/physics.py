@@ -3,7 +3,7 @@ from network.enums import Netmodes, Roles
 from network.netmode_switch import NetmodeSwitch
 from network.replicable import Replicable
 from network.signals import SignalListener
-from network.structures import FactoryDict
+from network.structures import factory_dict
 from network.type_register import TypeRegister
 from network.world_info import WorldInfo
 

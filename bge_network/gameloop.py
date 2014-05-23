@@ -1,4 +1,5 @@
 from network.enums import Netmodes
+from network.logger import logger
 from network.network import Network
 from network.replicable import Replicable
 from network.signals import *
@@ -47,6 +48,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         self.profile = logic.KX_ENGINE_DEBUG_SERVICES
         self.can_quit = SignalValue(self.check_quit())
+        self.network_scene.post_draw = [self.render_callback]
 
         # Load world
         Signal.update_graph()
@@ -90,6 +92,12 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         with self.profile:
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
             self.update_scenegraph(self.current_time)
+
+    def render_callback(self):
+        """Callback for render update"""
+        with self.profile:
+            self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
+            UIRenderSignal.invoke()
 
     def physics_callback(self, delta_time):
         """Callback for physics simulation
@@ -178,7 +186,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         accumulator = 0.0
 
-        # Fixed timestep
+        # Fixed time-step
         while not self.can_quit.value:
             current_time = self.get_time()
 
@@ -275,13 +283,19 @@ class ServerGameLoop(GameLoop):
             past_state = self._rewind_data[target_tick]
 
         except KeyError as err:
-            raise ValueError("Could not rewind to tick {}"
-                             .format(target_tick)) from err
+            if (WorldInfo.tick - target_tick) > self._rewind_length:
+                logger.exception("Could not rewind to tick {}, it was too far in the past".format(target_tick))
+            else:
+                logger.exception("Could not rewind to tick {}, unknown error".format(target_tick))
+            return
+
         # So we can revert to the past state
         current_state = self.get_pawn_states()
 
         # Apply rewinding
         for pawn, state in past_state.items():
+            if not pawn.registered:
+                continue
             pawn.position = state.position
             pawn.rotation = state.rotation
 

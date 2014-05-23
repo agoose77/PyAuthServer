@@ -10,9 +10,8 @@ class Particle(BGEBaseObject, SignalListener):
 
     entity_name = None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self):
+        self.register_signals()
         self.register(self.__class__.entity_name)
         self.on_initialised()
 

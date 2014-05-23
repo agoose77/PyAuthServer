@@ -51,7 +51,8 @@ class RPCInterface:
 
     def execute(self, bytes_string):
         """Execute RPC from bytes_string
-        :param bytes_string: Byte stream of RPC call"""
+        :param bytes_string: Byte stream of RPC call data
+        """
         # Unpack RPC
         try:
             unpacked_data = self._serialiser.unpack(bytes_string)
@@ -64,7 +65,8 @@ class RPCInterface:
         """Register individual RPC interface for a class Instance
 
         :param interface: interface to write rpc calls to
-        :param rpc_id: rpc call ID"""
+        :param rpc_id: rpc call ID
+        """
         self.rpc_id = rpc_id
         self._interface = interface
 

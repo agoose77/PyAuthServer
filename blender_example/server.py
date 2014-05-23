@@ -210,8 +210,7 @@ class TeamDeathMatch(ReplicationRules):
         players_needed = self.minimum_players_for_countdown
         countdown_running = self.countdown_timer.active
 
-        if (not (countdown_running or self.info.match_started) and
-            (self.connected_players >= players_needed)):
+        if not (countdown_running or self.info.match_started) and self.connected_players >= players_needed:
             self.countdown_timer.reset()
 
     @ConnectionSuccessSignal.global_listener

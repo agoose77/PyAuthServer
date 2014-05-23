@@ -1,7 +1,7 @@
 from network.bitfield import BitField
 from network.descriptors import TypeFlag
 from network.handler_interfaces import get_handler, register_handler
-from network.structures import FactoryDict
+from network.structures import factory_dict
 
 from bge import events, logic, render
 from collections import OrderedDict
@@ -26,7 +26,7 @@ class BGEInputStatusLookup(IInputStatusLookup):
     """BGE interface for Input Status lookups"""
 
     def __init__(self):
-        self._event_list_containing = FactoryDict(self._get_containing_events)
+        self._event_list_containing = factory_dict(self._get_containing_events)
 
     def __call__(self, event):
         bge_event = self._convert_to_bge_event(event)

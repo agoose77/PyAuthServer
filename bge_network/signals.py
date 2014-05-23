@@ -79,3 +79,7 @@ class TimerUpdateSignal(Signal):
 
 class UIUpdateSignal(Signal):
     pass
+
+
+class UIRenderSignal(Signal):
+    pass

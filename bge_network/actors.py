@@ -349,6 +349,9 @@ class Projectile(Actor):
         self.in_flight = True
         self.lifespan = 5
 
+        self.collision_group = CollisionGroups.projectile
+        self.collision_mask = CollisionGroups.pawn | CollisionGroups.geometry
+
     @CollisionSignal.listener
     @simulated
     def on_collision(self, collision_result):

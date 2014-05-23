@@ -1,6 +1,7 @@
 from cProfile import Profile
 from collections import defaultdict
 
+from .logger import logger
 from .signals import ProfileSignal, SignalListener
 
 __all__ = ['ProfileManager', 'profiler']
@@ -20,7 +21,11 @@ class ProfileManager(SignalListener):
             profile.enable()
         else:
             profile.disable()
-            if dump:
-                profile.dump_stats("C:/{}.results".format(profile_id))
+            if not dump:
+                return
+
+            filepath = "C:/{}.results".format(profile_id)
+            logger.info("Writing profile information to {}".format(filepath))
+            profile.dump_stats(filepath)
 
 profiler = ProfileManager()
