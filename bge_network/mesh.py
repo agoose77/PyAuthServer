@@ -2,6 +2,7 @@ from network.iterators import take_single
 from network.structures import factory_dict
 
 from collections import Counter
+from functools import lru_cache
 from mathutils import Vector, geometry
 
 from game_system.mesh import IVertex, IPolygon, IMesh
@@ -18,8 +19,11 @@ BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
 
 class BGEVertexGroup(IVertex):
 
-    def __init__(self, members):
+    __slots__ = ['_members', '_get_transform', '_colour', '_normal', '_position', '_uv', '_polygons']
+
+    def __init__(self, members, get_transform):
         self._members = members
+        self._get_transform = get_transform
 
         self._colour = self._get_colour()
         self._normal = self._get_normal()
@@ -28,10 +32,10 @@ class BGEVertexGroup(IVertex):
         self._polygons = []
 
     def _get_position(self):
-        return mean(m.XYZ for m in self._members)
+        return self._get_transform() * mean(m.XYZ for m in self._members)
 
     def _get_normal(self):
-        return mean(m.normal for m in self._members)
+        return self._get_transform() * mean(m.normal for m in self._members)
 
     def _get_uv(self):
         return mean(m.UV for m in self._members)
@@ -61,8 +65,10 @@ class BGEVertexGroup(IVertex):
     @position.setter
     def position(self, position):
         difference = position - self._position
+        inverted_difference = self._get_transform().inverted() * difference
+
         for vertex in self._members:
-            vertex.setXYZ(vertex.getXYZ() + difference)
+            vertex.setXYZ(vertex.getXYZ() + inverted_difference)
 
         self._position += difference
 
@@ -73,8 +79,9 @@ class BGEVertexGroup(IVertex):
     @normal.setter
     def normal(self, normal):
         difference = normal - self._normal
+        inverted_difference = self._get_transform().inverted() * difference
         for vertex in self._members:
-            vertex.normal += difference
+            vertex.normal += inverted_difference
         self._normal += difference
 
     @property
@@ -91,6 +98,8 @@ class BGEVertexGroup(IVertex):
 
 class BGEPolygon(IPolygon):
 
+    __slots__ = ['_vertices']
+
     def __init__(self, vertices):
         self._vertices = vertices
 
@@ -98,30 +107,49 @@ class BGEPolygon(IPolygon):
         for vertex in self._vertices:
             vertex.polygons.append(self)
 
-    def _get_offsets(self):
-        return {v: (v.position - self.position) for v in self._vertices}
+    def __contains__(self, point):
+        vertex_positions = [v._position for v in self._vertices]
+        vertex_count = len(vertex_positions)
+        j = vertex_count - 1
+        odd_nodes = False
+        x_pos, y_pos, _ = point
 
+        for i, i_pos in enumerate(vertex_positions):
+            i_pos = vertex_positions[i]
+            j_pos = vertex_positions[j]
+            if (i_pos.y < y_pos <= j_pos.y) or (j_pos.y < y_pos <= i_pos.y) and (i_pos.x <= x_pos or j_pos.x <= x_pos):
+                if (i_pos.x + (y_pos - i_pos.y)/(j_pos.y - i_pos.y) * (j_pos.x - i_pos.x)) < x_pos:
+                    odd_nodes = not odd_nodes
+            j = i
+
+        return odd_nodes
+
+    def __lt__(self, other):
+        return self.area < other.area
+
+    @lru_cache()
     def get_neighbours(self, shared_vertices=2):
-        neighbour_counts = Counter([p for v in self._vertices
-                                    for p in v.polygons if not p is self])
+        neighbour_counts = Counter([p for v in self._vertices for p in v.polygons if not p is self])
         return [p for p, c in neighbour_counts.items() if c == shared_vertices]
 
     @property
     def area(self):
-        first_tri = self._vertices[:3]
-        second_tri = self._vertices[1:]
+        points = [v._position for v in self._vertices]
+        first_tri = points[:3]
 
         area_first = geometry.area_tri(*first_tri)
 
         # For quads
-        if len(second_tri) != 3:
+        if len(first_tri) <= 3:
             return area_first
+
+        second_tri = points[1:]
 
         return area_first + geometry.area_tri(*second_tri)
 
     @property
     def normal(self):
-        return geometry.normal(*[x.position for x in self._vertices])
+        return geometry.normal(*[x._position for x in self._vertices])
 
     @property
     def vertices(self):
@@ -129,11 +157,11 @@ class BGEPolygon(IPolygon):
 
     @property
     def position(self):
-        return mean(m.position for m in self._vertices)
+        return mean([m._position for m in self._vertices])
 
     @position.setter
     def position(self, position):
-        difference = position - self.position
+        difference = position - self._position
         for vertex in self._vertices:
             vertex.position += difference
 
@@ -154,9 +182,9 @@ class BGEVertexTree(KDTree):
         _, node = self.nn_search(point)
         return node.position.data
 
-    def find_vertices(self, point, seach_range=0.01):
+    def find_vertices(self, point, search_range=0.01):
         try:
-            _, nodes = zip(*self.nn_range_search(point, seach_range))
+            _, nodes = zip(*self.nn_range_search(point, search_range))
         except ValueError:
             return []
 
@@ -165,9 +193,11 @@ class BGEVertexTree(KDTree):
 
 class BGEMesh:
 
-    def __init__(self, bge_mesh):
+    def __init__(self, bge_obj, mesh_index=0):
         self._vertex_map = {}
 
+        bge_mesh = bge_obj.meshes[mesh_index]
+        self._get_transform = lambda: bge_obj.worldTransform
         self._polygons = self._convert_polygons(bge_mesh)
 
     @property
@@ -194,7 +224,8 @@ class BGEMesh:
 
             yield vertices
 
-    def _get_all_vertices(self, mesh):
+    @staticmethod
+    def _get_all_vertices(mesh):
         for m_index in range(len(mesh.materials)):
             for v_index in range(mesh.getVertexArrayLength(m_index)):
                 yield mesh.getVertex(m_index, v_index)
@@ -224,7 +255,7 @@ class BGEMesh:
                     bge_vertex = get_vertex(lookup)
 
                 except KeyError:
-                    bge_vertex = BGEVertexGroup(shared_vertices)
+                    bge_vertex = BGEVertexGroup(shared_vertices, self._get_transform)
                     set_vertex(lookup, bge_vertex)
 
                 add_vertex(bge_vertex)

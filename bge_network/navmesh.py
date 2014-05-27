@@ -1,5 +1,7 @@
+from network.structures import factory_dict
+
 from bge import types
-from collections import defaultdict, namedtuple 
+from collections import deque, namedtuple
 from functools import partial
 from heapq import heappop, heappush
 from itertools import islice, tee
@@ -26,7 +28,7 @@ class PolygonKDTree(KDTree):
 
         super().__init__(points, dimensions=3)
 
-    def find_node(self, point):
+    def find_polygon(self, point):
         _, node = self.nn_search(point)
         return node.position.data
 
@@ -42,7 +44,7 @@ def look_ahead(iterable):
     return zip(items, islice(successors, 1, None))
 
 
-def manhattan_distance_heureustic(a, b):
+def manhattan_distance_heuristic(a, b):
     return (b.position - a.position).length_squared
 
 
@@ -56,15 +58,19 @@ class Portal:
         self.left, self.right = self.generate_nodes()
 
     def generate_nodes(self):
-        direction = (self.destination.position - self.source.position)
-        rotation = direction.rotation_difference(forward_vector)
-        first, second = self.source.get_common_vertices(self.destination)
-        first_local = first.copy()
-        first_local.rotate(rotation)
-        second_local = second.copy()
-        second_local.rotate(rotation)
-        return (first, second) if first_local.x < second_local.x \
-            else (second, first)
+        source_position = self.source.position
+        destination_position = self.destination.position
+        first, second = set(self.source.vertices).intersection(self.destination.vertices)
+
+        side_first = triangle_area_squared(source_position, destination_position, first.position)
+        side_second = triangle_area_squared(source_position, destination_position, second.position)
+
+        mapping = {side_first: first, side_second: second}
+
+        right = mapping[max(side_first, side_second)]
+        left = mapping[min(side_first, side_second)]
+
+        return left.position, right.position
 
 
 class Funnel:
@@ -86,18 +92,17 @@ class Funnel:
         self._apex_callback(value)
 
     def update(self, portals):
-        portals_list = list(portals)
-        portals = BidirectionalIterator(portals_list)
+        portals = BidirectionalIterator(portals)
         left_index = right_index = portals.index
 
         # Increment index and then return entry at index
         for portal in portals:
             # Check if left is inside of left margin
+
             if triangle_area_squared(self.apex, self.left, portal.left) >= 0.0:
                 # Check if left is inside of right margin or
                 # we haven't got a proper funnel
-                if (self.apex == self.left) or (triangle_area_squared(
-                                self.apex, self.right, portal.left)) < 0.0:
+                if self.apex == self.left or (triangle_area_squared(self.apex, self.right, portal.left) < 0.0):
                     # Narrow funnel
                     self.left = portal.left
                     left_index = portals.index
@@ -111,12 +116,10 @@ class Funnel:
                     continue
 
             # Check if right is inside of right margin
-            if triangle_area_squared(self.apex, self.right,
-                                    portal.right) <= 0.0:
+            if triangle_area_squared(self.apex, self.right, portal.right) <= 0.0:
                 # Check if right is inside of left margin or
                 # we haven't got a proper funnel
-                if (self.apex == self.right) or (triangle_area_squared(
-                                self.apex, self.left, portal.right)) > 0.0:
+                if self.apex == self.right or (triangle_area_squared(self.apex, self.left, portal.right) > 0.0):
                     # Narrow funnel
                     self.right = portal.right
                     right_index = portals.index
@@ -141,14 +144,15 @@ class AlgorithmNotImplementedException(Exception):
 class AStarAlgorithm:
 
     def __init__(self):
-        self.heureustic = manhattan_distance_heureustic
+        self.heuristic = manhattan_distance_heuristic
 
-    def reconstruct_path(self, node, path):
-        result = []
+    @staticmethod
+    def reconstruct_path(node, path):
+        result = deque()
         while node:
-            result.append(node)
+            result.appendleft(node)
             node = path.get(node)
-        return reversed(result)
+        return result
 
     def find_path(self, start, destination, nodes):
         open_set = {start}
@@ -157,7 +161,7 @@ class AStarAlgorithm:
         f_scored = [(0, start)]
         g_scored = {start: 0}
 
-        heureustic = self.heureustic
+        heuristic_function = self.heuristic
         path = {}
 
         while open_set:
@@ -168,20 +172,16 @@ class AStarAlgorithm:
             open_set.remove(current)
             closed_set.add(current)
 
-            for neighbour in current.neighbours:
+            for neighbour in current.get_neighbours():
                 if neighbour in closed_set:
                     continue
 
-                tentative_g_score = g_scored[current] + (neighbour.position -
-                                            current.position).length_squared
+                tentative_g_score = g_scored[current] + (neighbour.position - current.position).length_squared
 
-                if (not neighbour in open_set or tentative_g_score
-                            < g_scored[neighbour]):
+                if not neighbour in open_set or tentative_g_score < g_scored[neighbour]:
                     path[neighbour] = current
                     g_scored[neighbour] = tentative_g_score
-
-                    heappush(f_scored, (tentative_g_score +
-                             heureustic(neighbour, destination), neighbour))
+                    heappush(f_scored, (tentative_g_score + heuristic_function(neighbour, destination), neighbour))
 
                     if not neighbour in open_set:
                         open_set.add(neighbour)
@@ -192,28 +192,21 @@ class AStarAlgorithm:
 class FunnelAlgorithm:
 
     def __init__(self):
-        self.portals = defaultdict(dict)
+        self.portals = factory_dict(lambda x: Portal(*x), provide_key=True)
 
     def get_portal(self, previous_node, node):
-        portals = self.portals[previous_node]
-        try:
-            return portals[node]
-        except KeyError:
-            portal = portals[node] = Portal(previous_node, node)
-            return portal
+        return self.portals[(previous_node, node)]
 
     def find_path(self, source, destination, nodes):
         path = [source]
-
         get_portal = self.get_portal
 
         # Account for main path
-        portals = [get_portal(previous_node, node) for previous_node,
-                                   node in look_ahead(nodes)]
+        portals = [get_portal(source, destination) for source, destination in look_ahead(nodes)]
         portals.append(EndPortal(destination, destination))
 
-        funnel = Funnel(source, portals[0].left, portals[0].right, path.append)
-        funnel.update(portals.__iter__())
+        funnel = Funnel(source, source, source, path.append)
+        funnel.update(portals)
 
         # Account for last destination point
         if funnel is None:
@@ -230,39 +223,43 @@ class PathfinderAlgorithm:
         self.high_resolution = high_fidelity
         self.spatial_lookup = spatial_lookup
 
-    def find_path(self, source, destination, nodes):
+    def find_path(self, source, destination, nodes, low_resolution=False):
         source_node = self.spatial_lookup(source)
         destination_node = self.spatial_lookup(destination)
 
         try:
             path_finder = self.low_resolution.find_path
+
         except AttributeError:
-            raise AlgorithmNotImplementedException("Couldn't find low \
-                                resolution finder algorithm")
+            raise AlgorithmNotImplementedException("Couldn't find low resolution finder algorithm")
 
         low_resolution_path = path_finder(source_node, destination_node, nodes)
+        if low_resolution:
+            return low_resolution_path
 
         try:
             path_finder = self.high_resolution.find_path
-        except AttributeError:
-            raise AlgorithmNotImplementedException("Couldn't find high \
-                                resolution finder algorithm")
 
-        high_resolution_path = path_finder(source, destination,
-                                        low_resolution_path)
+        except AttributeError:
+            raise AlgorithmNotImplementedException("Couldn't find high resolution finder algorithm")
+
+        high_resolution_path = path_finder(source, destination, low_resolution_path)
         return high_resolution_path
 
 
-class NavmeshProxy(types.KX_GameObject):
+class NavmeshProxy(types.KX_NavMeshObject):
+
+    def find_polygon(self, point):
+        for p in self.mesh.polygons:
+            if point in p:
+                return p
 
     def __init__(self, obj):
-        self.mesh = BGEMesh(self.meshes[0])
+        self.mesh = BGEMesh(self)
         self.polygon_lookup = PolygonKDTree(self.mesh.polygons)
 
         astar = AStarAlgorithm()
         funnel = FunnelAlgorithm()
-        finder_algorithm = PathfinderAlgorithm(astar, funnel,
-                                            self.polygon_lookups.find_polygon)
+        finder_algorithm = PathfinderAlgorithm(astar, funnel, self.find_polygon)
 
-        self.find_path = partial(finder_algorithm.find_path,
-                                    nodes=self.polygons)
+        self.find_path = partial(finder_algorithm.find_path, nodes=self.mesh.polygons)

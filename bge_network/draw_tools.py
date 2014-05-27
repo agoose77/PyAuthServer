@@ -1,19 +1,18 @@
 from bge import render
-from itertools import permutations
+from itertools import product, tee
 from math import radians, sin, cos, pi, asin
 from mathutils import Vector, Euler
 
 
-def draw_arrow(point, orientation, length=1.5, angle=30, colour=[1, 0, 0]):
-    left = Vector((sin(180 - angle), -cos(180 - angle), 0))
-
-    right = Vector((-sin(180 - angle), -cos(180 - angle), 0))
+def draw_arrow(point, orientation, length=1.5, branch_length=0.4, angle=30, colour=[1, 0, 0]):
+    left = Vector((sin(radians(angle)), -cos(radians(angle)), 0))
+    right = Vector((-sin(radians(angle)), -cos(radians(angle)), 0))
 
     left.rotate(orientation)
     right.rotate(orientation)
 
-    left.length = length / 3
-    right.length = length / 3
+    left.length = branch_length
+    right.length = branch_length
 
     direction = Vector((0, 1, 0)) * length
     direction.rotate(orientation)
@@ -23,8 +22,7 @@ def draw_arrow(point, orientation, length=1.5, angle=30, colour=[1, 0, 0]):
     render.drawLine(point + direction, point + direction + left, colour)
 
 
-def draw_circle(point, orientation, size, fraction=1.0,
-                steps=36, colour=[1, 0, 0]):
+def draw_circle(point, orientation, size, fraction=1.0, steps=36, colour=[1, 0, 0]):
     last_point = None
     shift = (2 * pi / steps)
 
@@ -43,9 +41,7 @@ def draw_circle(point, orientation, size, fraction=1.0,
         last_point = step_point
 
 
-def draw_square_pyramid(point, orientation, angle=45,
-                        depth=1, colour=[1, 1, 1],
-                        pyramid=True, incline=True):
+def draw_square_pyramid(point, orientation, angle=45, depth=1, colour=[1, 1, 1], pyramid=True, incline=True):
     points = []
     axis_values = [-1, 1]
 
@@ -89,30 +85,23 @@ def draw_plane(point, orientation, size=1, offset=0, colour=[1, 1, 1]):
     draw_square_pyramid(point, orientation, angle, offset, colour, False)
 
 
-def draw_box(point, orientation, width=1, height=1,
-             length=1, colour=[1, 1, 1]):
-    points = []
+def draw_box(point, orientation, width=1, height=1, length=1, colour=[1, 1, 1]):
     axis_values = [-.5, .5]
 
-    for x in axis_values:
-        for y in axis_values:
-            for z in axis_values:
-                point_a = Vector((x * width, y * length, z * height))
-                points.append(point_a)
+    points = [Vector((x * width, y * length, z * height)) for x, y, z in product(*tee(axis_values, 3))]
 
     for point_a in points:
         for point_b in points:
             if point_a is point_b:
                 continue
 
-            same_axis = [True for i in range(3) if point_a[i] == point_b[i]]
-            if len(same_axis) < 2:
+            if len(set(point_a).intersection(point_b)) != 2:
                 continue
 
             a = point_a.copy()
-            a.rotate(orientation)
-
             b = point_b.copy()
+
+            a.rotate(orientation)
             b.rotate(orientation)
 
             render.drawLine(a + point, b + point, colour)
