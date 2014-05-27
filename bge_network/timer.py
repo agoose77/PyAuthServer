@@ -64,11 +64,13 @@ class ManualTimer:
             self.delete()
 
     def update(self, delta_time):
-        if self.active:
-            self.value = self.update_operator(self.value, delta_time)
+        if not self.active:
+            return
 
-            if callable(self.on_update):
-                self.on_update()
+        self.value = self.update_operator(self.value, delta_time)
+
+        if callable(self.on_update):
+            self.on_update()
 
         if self.comparison_operator(self.value, self.end):
 
