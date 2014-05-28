@@ -7,36 +7,14 @@ from heapq import heappop, heappush
 from itertools import islice, tee
 from mathutils import Vector
 
+from .area import triangle_area_squared
 from .iterators import BidirectionalIterator
-from .kdtree import KDTree
 from .mesh import BGEMesh
 
 
 forward_vector = Vector((0, 1, 0))
 EndPortal = namedtuple("EndPortal", ["left", "right"])
 BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
-
-
-class PolygonKDTree(KDTree):
-
-    def __init__(self, polygons):
-        points = []
-        for polygon in polygons:
-            point = BoundVector(polygon.position)
-            point.data = polygon
-            points.append(point)
-
-        super().__init__(points, dimensions=3)
-
-    def find_polygon(self, point):
-        _, node = self.nn_search(point)
-        return node.position.data
-
-
-def triangle_area_squared(a, b, c):
-    ax, ay, _ = b - a
-    bx, by, _ = c - a
-    return (bx * ay) - (ax * by)
 
 
 def look_ahead(iterable):
@@ -98,7 +76,6 @@ class Funnel:
         # Increment index and then return entry at index
         for portal in portals:
             # Check if left is inside of left margin
-
             if triangle_area_squared(self.apex, self.left, portal.left) >= 0.0:
                 # Check if left is inside of right margin or
                 # we haven't got a proper funnel
@@ -256,7 +233,6 @@ class NavmeshProxy(types.KX_NavMeshObject):
 
     def __init__(self, obj):
         self.mesh = BGEMesh(self)
-        self.polygon_lookup = PolygonKDTree(self.mesh.polygons)
 
         astar = AStarAlgorithm()
         funnel = FunnelAlgorithm()

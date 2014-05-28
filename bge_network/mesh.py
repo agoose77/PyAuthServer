@@ -7,6 +7,7 @@ from mathutils import Vector, geometry
 
 from game_system.mesh import IVertex, IPolygon, IMesh
 
+from .point_in_polygon import point_in_polygon
 from .kdtree import KDTree
 from .utilities import mean
 
@@ -109,20 +110,7 @@ class BGEPolygon(IPolygon):
 
     def __contains__(self, point):
         vertex_positions = [v._position for v in self._vertices]
-        vertex_count = len(vertex_positions)
-        j = vertex_count - 1
-        odd_nodes = False
-        x_pos, y_pos, _ = point
-
-        for i, i_pos in enumerate(vertex_positions):
-            i_pos = vertex_positions[i]
-            j_pos = vertex_positions[j]
-            if (i_pos.y < y_pos <= j_pos.y) or (j_pos.y < y_pos <= i_pos.y) and (i_pos.x <= x_pos or j_pos.x <= x_pos):
-                if (i_pos.x + (y_pos - i_pos.y)/(j_pos.y - i_pos.y) * (j_pos.x - i_pos.x)) < x_pos:
-                    odd_nodes = not odd_nodes
-            j = i
-
-        return odd_nodes
+        return point_in_polygon(point, vertex_positions)
 
     def __lt__(self, other):
         return self.area < other.area
