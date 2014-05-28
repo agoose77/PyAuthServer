@@ -412,7 +412,7 @@ class ServerInterface(ConnectionInterface):
 
         # If a NetworkError is raised store the result
         except NetworkError as err:
-            logger.exception()
+            logger.exception("Connection was refused")
             self._auth_error = err
 
         else:
