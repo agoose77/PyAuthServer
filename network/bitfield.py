@@ -1,4 +1,4 @@
-from bitarray import Bitfield as array_field
+from bitarray import bitarray as array_field
 from .handler_interfaces import get_handler
 from .descriptors import TypeFlag
 from .serialiser import bits_to_bytes, next_or_equal_power_of_two
