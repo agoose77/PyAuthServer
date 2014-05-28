@@ -106,7 +106,8 @@ class Network:
         except BlockingIOError:
             return
 
-        data_length = len(data)
+        payload, addr = data
+        data_length = len(payload)
 
         self.received_bytes += data_length
         self._delta_received += data_length
