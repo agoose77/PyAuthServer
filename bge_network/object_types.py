@@ -338,11 +338,20 @@ class BGEBaseObject(IPhysicsObject):
         self.child_entities.add(instance.object)
 
     @simulated
-    def align_to(self, vector, time=1, axis=Axis.y):
+    def align_to(self, vector, factor=1, axis=Axis.y):
         if not vector.length:
             return
 
-        self.object.alignAxisToVect(vector, axis, time)
+        if axis == Axis.x:
+            forward_axis = "X"
+        elif axis == Axis.y:
+            forward_axis = "Y"
+        elif axis == Axis.z:
+            forward_axis = "Z"
+
+        rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
+        current_rotation = self.rotation.to_quaternion()
+        self.rotation = (current_rotation.slerp(rotation_quaternion, factor)).to_euler()
 
     def delete(self):
         # Unregister from parent
@@ -466,7 +475,7 @@ class BGEBaseObject(IPhysicsObject):
         else:
             raise TypeError("Could not set parent with type {}".format(type(parent)))
 
-    def trace_ray(self, target, source=None, distance=0.0):
+    def trace_ray(self, target, source=None, distance=0.0, local_space=False):
         """Perform a ray trace to a target
 
         :param target: target to trace towards
@@ -567,6 +576,22 @@ class BGECameraObject(BGEBaseObject):
         """
         vector = self.object.getScreenRay(x, y)
         return self.trace_ray(vector, distance)
+
+    def get_direction(self, axis):
+        """Get the axis vector of this object in world space
+
+        :param axis: :py:code:`bge_network.enums.Axis` value
+        :rtype: :py:code:`mathutils.Vector`
+        """
+        vector = [0, 0, 0]
+        if axis == Axis.x:
+            vector[0] = 1
+        elif axis == Axis.y:
+            vector[2] = -1
+        elif axis == Axis.z:
+            vector[1] = 1
+        return Vector(self.object.getAxisVect(vector))
+
 
 
 class BGEAnimatedObject(BGEBaseObject, IAnimatedObject):
