@@ -1,9 +1,9 @@
 from network.decorators import netmode_switch
 from network.enums import Netmodes, Roles
+from network.logger import logger
 from network.netmode_switch import NetmodeSwitch
 from network.replicable import Replicable
 from network.signals import SignalListener
-from network.structures import factory_dict
 from network.type_register import TypeRegister
 from network.world_info import WorldInfo
 
@@ -48,9 +48,14 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
 
         try:
             name_cls = Replicable.from_type_name(lookup[name])
-            assert issubclass(name_cls, type_of), ("Failed to find parent" \
-                       " class type {} in requested instance".format(type_of))
-            return name_cls(instance_id=instance_id)
+            assert issubclass(name_cls, type_of), ("Failed to find parent class type {} in requested instance"
+                                                   .format(type_of))
+            try:
+                return name_cls(instance_id=instance_id)
+
+            except Exception:
+                logger.exception("Couldn't spawn {} replicable".format(name))
+                return
 
         except (AssertionError, LookupError) as e:
             self.on_conversion_error(lookup, e)
