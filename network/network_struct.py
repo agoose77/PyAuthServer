@@ -79,8 +79,6 @@ class Struct(metaclass=StructMeta):
         :param bytes_string: Packed byte representation of struct contents
         :param offset: offset to start reading from
         """
-        notifications = []
-
         replicable_data = self._attribute_container.data
         get_attribute = self._attribute_container.get_member_by_name
 
@@ -90,15 +88,6 @@ class Struct(metaclass=StructMeta):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
-
-            # Check if needs notification
-            if attribute.notify:
-                notifications.append(attribute_name)
-
-        # Notify after all values are set
-        if notifications:
-            for attribute_name in notifications:
-                self.on_notify(attribute_name)
 
     def read_tuple(self, tuple_):
         """Update struct contents with a tuple
