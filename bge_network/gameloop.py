@@ -1,3 +1,4 @@
+from network.connection_interfaces import ConnectionInterface
 from network.enums import Netmodes
 from network.logger import logger
 from network.network import Network
@@ -19,6 +20,13 @@ __all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
 
 RewindState = namedtuple("RewindState", "position rotation animations")
 
+#TODO profile server to determine why slow
+#TODO consider other means of sending past moves
+#TODO Move away from un handled exceptions in protected (no-return) code
+#TODO implement client-side extrapolation
+#TODO implement raycast weapons
+#TODO rename non-actor signals to PawnSignal....
+
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
@@ -33,12 +41,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.use_tick_rate = logic.getUseFrameRate()
         self.animation_rate = logic.getAnimationTicRate()
         self.use_animation_rate = logic.getRestrictAnimationUpdates()
+
         self.network_scene = next(iter(logic.getSceneList()))
+        self.network_scene.post_draw = [self.render_callback]
 
         # Create sub systems
         self.network_system = self.create_network()
-        self.physics_system = PhysicsSystem(self.physics_callback,
-                                            self.scenegraph_callback)
+        self.physics_system = PhysicsSystem(self.physics_callback, self.scenegraph_callback)
 
         # Timing information
         self.current_time = 0.0
@@ -48,7 +57,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         self.profile = logic.KX_ENGINE_DEBUG_SERVICES
         self.can_quit = SignalValue(self.check_quit())
-        self.network_scene.post_draw = [self.render_callback]
 
         # Load world
         Signal.update_graph()
@@ -69,7 +77,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
     @contextmanager
     def profile(self):
         self._state = self._profile
-        yield
+        yield self._state
         self.profile = self._state
 
     @profile.setter
@@ -162,7 +170,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.network_system.send(is_full_update)
 
             if self.network_system.metric_age >= self.metric_interval:
-                # print(self.network_system.send_rate, " : ", self.network_system.receive_rate, len(ConnectionInterface))
+                #print("{:.1f} sent bytes/second, {:.1f} received bytes/second, {} connections".format(self.network_system.send_rate, self.network_system.receive_rate, len(ConnectionInterface)))
                 self.network_system.reset_metrics()
 
             # Update UI
