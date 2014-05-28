@@ -87,19 +87,17 @@ class Connection(SignalListener, NetmodeSwitch):
         :yield: replicable, (is_owner and relevant_to_owner), channel"""
         no_role = Roles.none  # @UndefinedVariable
 
-        for channel in sorted(self.channels.values(), reverse=True,
-                              key=attrgetter("replication_priority")):
+        for channel in sorted(self.channels.values(), reverse=True, key=attrgetter("replication_priority")):
             replicable = channel.replicable
 
             # Check if remote role is permitted
             if replicable.roles.remote == no_role:
                 continue
 
-            # Now check if we are an owner
-            yield (channel, replicable.relevant_to_owner
-                            and channel.is_owner)
+            yield channel, replicable.relevant_to_owner and channel.is_owner
 
-    def get_method_replication(self, replicables, collection, bandwidth):
+    @staticmethod
+    def get_method_replication(replicables, collection, bandwidth):
         """Writes replicated function calls to packet collection
 
         :param replicables: iterable of replicables to consider replication
@@ -138,6 +136,7 @@ class ClientConnection(Connection):
     def received_all(self):
         for notification in self.pending_notifications:
             notification()
+
         self.pending_notifications.clear()
 
     def set_replication(self, packet):
