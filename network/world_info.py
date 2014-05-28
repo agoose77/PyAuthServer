@@ -21,7 +21,7 @@ class _WorldInfo(Replicable):
                       )
 
     elapsed = Attribute(0.0, complain=False)
-    tick_rate = Attribute(1000, complain=True, notify=True)
+    tick_rate = Attribute(60, complain=True, notify=True)
 
     netmode = Netmodes.server
     rules = None
