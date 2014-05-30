@@ -45,7 +45,7 @@ def dying_behaviour():
                          GetAttacker(),
                          SetCollisionFlags(mask=CollisionGroups.geometry),
                          Delay(5),
-                         Signal(ActorKilledSignal,
+                         Signal(PawnKilledSignal,
                                from_blackboard={"target": "pawn",
                                                 "attacker": "attacker"})
                          )
@@ -424,10 +424,8 @@ class AimAtActor(LeafNode):
         world_z = Vector((0, 0, 1))
         turn_speed = 0.1
 
-        camera.align_to(target_vector, axis=Axis.y, time=turn_speed)
-        camera.align_to(world_z.cross(target_vector),
-                             axis=Axis.x, time=turn_speed)
-        pawn.align_to(world_z.cross(target_vector), axis=Axis.x, time=turn_speed)
+        camera.align_to(target_vector, factor=turn_speed)
+        pawn.align_to(target_vector, factor=turn_speed)
         return EvaluationState.success
 
 

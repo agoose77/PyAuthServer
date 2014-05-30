@@ -63,12 +63,11 @@ class BGEInputStatusLookup(IInputStatusLookup):
 class MouseManager:
 
     def __init__(self, locked=True, interpolation=1):
-        self.window_size = Vector((render.getWindowWidth(),
-                                   render.getWindowHeight()))
-        self.center = Vector(((self.window_size.x//2)/self.window_size.x,
-                              (self.window_size.y//2)/self.window_size.y))
-        self.locked = locked
+        self.window_size = Vector((render.getWindowWidth(), render.getWindowHeight()))
+        self.center = Vector(((self.window_size.x // 2) / self.window_size.x,
+                              (self.window_size.y // 2) / self.window_size.y))
         self.interpolation = interpolation
+        self.locked = locked
 
         self._delta_position = Vector((0.0, 0.0))
         self._last_position = self.position
@@ -83,9 +82,23 @@ class MouseManager:
 
     @position.setter
     def position(self, position):
-        screen_x = round(position[0] * self.window_size.x)
-        screen_y = round(position[1] * self.window_size.y)
-        render.setMousePosition(screen_x, screen_y)
+        logic.mouse.position = tuple(position)
+
+    def update(self):
+        self.position.x = clamp(0, 1, self.position.x)
+        self.position.y = clamp(0, 1, self.position.y)
+
+        delta_position = self._last_position - self.position
+        self._delta_position = self._delta_position.lerp(delta_position, self.interpolation)
+
+        # As mouse position isn't actually (0.5, 0.5)
+        if self.locked:
+            self.position = last_position = self.center.copy()
+
+        else:
+            last_position = self.position.copy()
+
+        self._last_position = last_position
 
     @property
     def visible(self):
@@ -94,24 +107,6 @@ class MouseManager:
     @visible.setter
     def visible(self, state):
         logic.mouse.visible = state
-
-    def update(self):
-        self.position.x = clamp(0, 1, self.position.x)
-        self.position.y = clamp(0, 1, self.position.y)
-        delta_position = self._last_position - self.position
-
-        self._delta_position = self._delta_position.lerp(delta_position,
-                                                         self.interpolation)
-
-        if self.locked:
-            # As mouse position isn't actually (0.5, 0.5)
-            self.position = self.center.copy()
-            last_position = self.center.copy()
-
-        else:
-            last_position = self.position.copy()
-
-        self._last_position = last_position
 
 
 class InputManager:

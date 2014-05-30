@@ -37,7 +37,7 @@ class ActorDamagedSignal(Signal):
     pass
 
 
-class ActorKilledSignal(Signal):
+class PawnKilledSignal(Signal):
     pass
 
 

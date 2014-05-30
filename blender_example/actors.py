@@ -2,13 +2,17 @@ from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
+from network.world_info import WorldInfo
 
-from bge_network.actors import Actor, Pawn, Projectile, WeaponAttachment
+from bge_network.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
 from bge_network.controllers import PlayerController
-from bge_network.enums import CollisionType
-from bge_network.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal
+from bge_network.enums import Axis, CollisionType
+from bge_network.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal, PawnKilledSignal
+from bge_network.timer import Timer
+from bge_network.utilities import lerp
 
-from mathutils import Vector
+from mathutils import Vector, Matrix, Euler
+from math import radians, sin
 
 from .enums import TeamRelation
 from .particles import TracerParticle
@@ -17,8 +21,36 @@ from .signals import UIHealthChangedSignal
 __all__ = ["ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag", "Cone", "Palette", "SpawnPoint"]
 
 
+class CameraAnimationActor(Camera):
+
+    entity_name = "Camera"
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        displacement = (self.get_direction(Axis.y) + self.get_direction(Axis.z)*0.3) * 50
+
+        self.orbit_frequency = 1 / 40
+        self.origin = Vector((0, -20, 20))
+        self.position = self.origin + displacement
+
+    @LogicUpdateSignal.global_listener
+    @simulated
+    def update(self, delta_time):
+        from_origin = self.position - self.origin
+        from_origin.rotate(Euler((0, 0, radians(360) * delta_time * self.orbit_frequency)))
+
+        self.position = self.origin + from_origin
+        self.align_to(-from_origin, factor=.43, axis=Axis.y)
+
+
 class ArrowProjectile(Projectile):
     entity_name = "Arrow"
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.lifespan = 15
 
     @LogicUpdateSignal.global_listener
     @simulated
@@ -29,7 +61,7 @@ class ArrowProjectile(Projectile):
         global_vel = self.velocity.copy()
         global_vel.rotate(self.rotation)
 
-        TracerParticle().position = self.position - global_vel.normalized() * 2
+        #TracerParticle().position = self.position - global_vel.normalized() * 2
         self.align_to(global_vel, 0.3)
 
     @requires_netmode(Netmodes.server)
@@ -79,8 +111,7 @@ class Barrel(Actor):
 
 class BowAttachment(WeaponAttachment):
 
-    roles = Attribute(Roles(local=Roles.authority,
-                            remote=Roles.simulated_proxy))
+    roles = Attribute(Roles(local=Roles.authority, remote=Roles.simulated_proxy))
 
     entity_name = "Bow"
 
@@ -147,15 +178,21 @@ class CTFFlag(Actor):
     owner_info_possessed = Attribute(type_of=Replicable, complain=True)
 
     entity_name = "Flag"
-    colours = {TeamRelation.friendly: [0, 255, 0, 1],
-                TeamRelation.enemy: [255, 0, 0, 1],
-                TeamRelation.neutral: [255, 255, 255, 1]}
+    colours = {TeamRelation.friendly: [0, 255, 0, 1], TeamRelation.enemy: [255, 0, 0, 1],
+               TeamRelation.neutral: [255, 255, 255, 1]}
 
     def on_initialised(self):
         super().on_initialised()
 
         self.indestructable = True
         self.replicate_physics_to_owner = False
+
+        self.floor_offset_minimum = 1.0
+        self.floor_offset_maximum = 2.5
+
+        omega = radians(360) / 3
+        self._position_timer = Timer(end=omega, repeat=True, active=True)
+        self._position_timer.on_update = self.update_position
 
     def possessed_by(self, other):
         super().possessed_by(other)
@@ -176,13 +213,19 @@ class CTFFlag(Actor):
 
         super().unpossessed()
 
+    @property
+    def in_use(self):
+        return bool(self.owner_info_possessed)
+
     @requires_netmode(Netmodes.client)
     @simulated
     @LogicUpdateSignal.global_listener
     def update(self, delta_time):
-        flag_owner_info = self.owner_info_possessed
+        self.update_colour()
 
-        if flag_owner_info is None:
+    @simulated
+    def update_colour(self):
+        if not self.in_use:
             team_relation = TeamRelation.neutral
 
         else:
@@ -194,9 +237,24 @@ class CTFFlag(Actor):
             if not player_team:
                 return
 
-            team_relation = player_team.get_relationship_with(flag_owner_info.team)
+            team_relation = player_team.get_relationship_with(self.owner_info_possessed.team)
 
         self.colour = self.colours[team_relation]
+
+    @requires_netmode(Netmodes.server)
+    def update_position(self):
+        if self.in_use:
+            return
+
+        timer_progress = self._position_timer.progress
+        divided_position = (1 + sin(radians(360 * timer_progress)))/2
+
+        floor_ray = self.trace_ray(self.position-self.get_direction(Axis.z), distance=100)
+        if floor_ray is None:
+            return
+
+        relative_position_z = lerp(self.floor_offset_minimum, self.floor_offset_maximum, divided_position)
+        self.position = floor_ray.hit_position + floor_ray.hit_normal * relative_position_z
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -220,3 +278,18 @@ class SpawnPoint(Actor):
 
     entity_name = "SpawnPoint"
 
+
+class DeathPlane(Actor):
+    entity_name = "Plane"
+
+    roles = Attribute(Roles(Roles.authority, Roles.none))
+
+    @CollisionSignal.listener
+    def on_collision(self, collision_result):
+        if not collision_result.collision_type == CollisionType.started:
+            return
+
+        if not isinstance(collision_result.hit_object, Pawn):
+            return
+
+        PawnKilledSignal.invoke(self, target=collision_result.hit_object)

@@ -14,6 +14,7 @@ from .enums import *
 from .object_types import *
 from .object_types import BGEActorBase, BGECameraBase, BGELampBase, BGEPawnBase, BGENavmeshBase
 from .resources import ResourceManager
+from .timer import Timer
 from .signals import *
 from .utilities import mean
 
@@ -39,6 +40,15 @@ class Actor(BGEActorBase, Replicable):
     POSITION_CONVERGE_FACTOR = 0.6
 
     @property
+    def lifespan(self):
+        return self._lifespan_timer.value
+
+    @lifespan.setter
+    def lifespan(self, value):
+        self._lifespan_timer.reset()
+        self._lifespan_timer.end = value
+
+    @property
     def resources(self):
         return ResourceManager[self.__class__.__name__]
 
@@ -50,9 +60,9 @@ class Actor(BGEActorBase, Replicable):
         # If simulated, send rigid body state
         valid_role = (remote_role == Roles.simulated_proxy)
         owner_accepts_physics = self.replicate_physics_to_owner or not is_owner
-        allowed_physics = (self.replicate_simulated_physics or is_initial) and owner_accepts_physics and not self.parent
+        allowed_physics = self.replicate_simulated_physics and owner_accepts_physics and not self.parent
 
-        if valid_role and allowed_physics:
+        if (valid_role and allowed_physics) or is_initial:
             yield "_position"
             yield "_rotation"
             yield "_angular"
@@ -69,6 +79,9 @@ class Actor(BGEActorBase, Replicable):
         self.always_relevant = False
         self.replicate_physics_to_owner = True
         self.replicate_simulated_physics = True
+
+        self._lifespan_timer = Timer(active=False)
+        self._lifespan_timer.on_target = self.request_unregistration
 
     def on_unregistered(self):
         # Unregister any actor children
@@ -144,8 +157,7 @@ class Camera(BGECameraBase, Actor):
         draw_arrow(self.position + sideways_vector * circle_size, sideways_orientation, colour=[1, 0, 0])
         draw_circle(self.position, orientation, circle_size)
         draw_box(self.position, orientation)
-        draw_square_pyramid(self.position + forwards_vector * 0.4, orientation, colour=[1, 1, 0], angle=self.fov,
-                            incline=False)
+        draw_square_pyramid(self.position + forwards_vector * 0.4, orientation, colour=[1, 1, 0], angle=self.fov, incline=False)
 
     def on_initialised(self):
         super().on_initialised()
@@ -184,6 +196,14 @@ class Pawn(BGEPawnBase, Actor):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy), notify=True)
     view_pitch = Attribute(0.0)
     weapon_attachment_class = Attribute(type_of=type(Replicable), notify=True, complain=True)
+
+    FLOOR_OFFSET = 2.2
+
+    @property
+    def on_ground(self):
+        downwards = -self.get_direction(Axis.z)
+        trace = self.trace_ray(self.position + downwards, distance=self.__class__.FLOOR_OFFSET + 0.5)
+        return trace is not None
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -347,7 +367,6 @@ class Projectile(Actor):
 
         self.replicate_temporarily = True
         self.in_flight = True
-        self.lifespan = 5
 
         self.collision_group = CollisionGroups.projectile
         self.collision_mask = CollisionGroups.pawn | CollisionGroups.geometry

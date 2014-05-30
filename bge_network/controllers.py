@@ -153,7 +153,7 @@ class Controller(Replicable):
         for controller in WorldInfo.subclass_of(Controller):
             if controller == self:
                 continue
-
+            continue
             controller.hear_sound(weapon_sound,
                                 self.pawn.position,
                                 self.pawn.rotation,
@@ -233,9 +233,9 @@ class PlayerController(Controller):
     movement_struct = None
     missing_movement_struct = None
 
-    MAX_POSITION_DIFFERENCE_SQUARED = 1.5
+    MAX_POSITION_DIFFERENCE_SQUARED = 1.2
     MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
-    MOVE_BUFFERING_TIME = 0.15
+    MOVE_BUFFERING_TIME = 0.1
 
     def apply_move(self, move):
         """Apply move contents to Controller state
@@ -248,14 +248,6 @@ class PlayerController(Controller):
         blackboard['mouse'] = move.mouse_x, move.mouse_y
 
         self.behaviour.update()
-
-    @requires_netmode(Netmodes.client)
-    def client_send_voice(self):
-        """Dump voice information and encode it for the server"""
-        data = self.microphone.encode()
-
-        if data:
-            self.server_receive_voice(data)
 
     def client_acknowledge_move(self, move_id: TICK_FLAG) -> Netmodes.client:
         """Remove move and previous moves from waiting corrections buffer
@@ -274,7 +266,7 @@ class PlayerController(Controller):
 
         except KeyError:
             # We don't mind if we've handled it already
-            if move_id < take_single(self.pending_moves):
+            if self.pending_moves and move_id < take_single(self.pending_moves):
                 return False
 
             logger.warning("Couldn't find move to acknowledge for move {}".format(move_id))
@@ -327,7 +319,7 @@ class PlayerController(Controller):
         weapon_sounds = self.weapon.resources['sounds']
         shoot_sound = weapon_sounds[self.weapon.shoot_sound]
 
-        self.hear_sound(shoot_sound, self.pawn.position, self.pawn.rotation, self.pawn.velocity)
+     #   self.hear_sound(shoot_sound, self.pawn.position, self.pawn.rotation, self.pawn.velocity)
         self.weapon.fire(self.camera)
 
     @requires_netmode(Netmodes.client)
@@ -356,8 +348,12 @@ class PlayerController(Controller):
         move = self.current_move
         move_history = self.move_history
 
-        if move is None or not self.pawn:
-            logger.error("No move could be processed for sent to the server for tick {}!".format(WorldInfo.tick))
+        if not self.pawn:
+            return
+
+        # Log an error if we should be able to send a move
+        if move is None:
+            logger.error("No move could be sent to the server for tick {}!".format(WorldInfo.tick))
             return
 
         # Post physics state copying
@@ -369,6 +365,14 @@ class PlayerController(Controller):
 
         # Post checking move
         move_history.append(move)
+
+    @requires_netmode(Netmodes.client)
+    def client_send_voice(self):
+        """Dump voice information and encode it for the server"""
+        data = self.microphone.encode()
+
+        if data:
+            self.server_receive_voice(data)
 
     @staticmethod
     def create_missing_moves_struct(move_cls, history_length):
@@ -382,7 +386,7 @@ class PlayerController(Controller):
 
         MAXIMUM_TICK = WorldInfo._MAXIMUM_TICK
 
-        field_compression = IterableCompressionType.auto
+        field_compression = IterableCompressionType.compress
 
         for input_name in move_cls.input_fields:
             attributes["{}_list".format(input_name)] = Attribute(type_of=list, element_flag=TypeFlag(bool),
@@ -637,10 +641,10 @@ class PlayerController(Controller):
 
         # Number of moves to buffer
         buffer_length = WorldInfo.to_ticks(self.__class__.MOVE_BUFFERING_TIME)
-        get_move_id = attrgetter("id")
 
         # Queued moves
-        self.buffered_moves = JitterBuffer(buffer_length, get_move_id, self.recover_missing_moves)
+        self.buffered_moves = JitterBuffer(buffer_length, id_getter=attrgetter("id"),
+                                           recovery_getter=self.recover_missing_moves)
 
         self.client_setup_input()
         self.client_setup_sound()
@@ -806,7 +810,7 @@ class PlayerController(Controller):
         :param oldest_id: oldest stored move ID
         """
         # Search from current oldest history to newest move
-        for search_id in range(self.move_history_base, self.buffered_moves[-1].id):
+        for search_id in range(self.move_history_base, self.buffered_moves.newest_id):
             if not search_id in self.move_history_dict:
                 continue
 
@@ -853,8 +857,11 @@ class PlayerController(Controller):
                           previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
 
+        if move and move.inputs.voice:
+            return
+
         # Store move
-        self.buffered_moves.append(move)
+        self.buffered_moves.insert(move)
 
         # Could optimise using an increment and try-pop
         if previous_moves is None:
@@ -868,7 +875,7 @@ class PlayerController(Controller):
             self.move_history_base = move.id
 
         else:
-            oldest_id = self.buffered_moves[0].id
+            oldest_id = self.buffered_moves.oldest_id
             if self.move_history_base < oldest_id:
                 self.server_cull_excess_history(oldest_id)
 
@@ -898,6 +905,9 @@ class PlayerController(Controller):
 
         buffered_move = self.buffered_moves.pop()
 
+        if not self.pawn:
+            return
+
         if buffered_move is None:
             logger.error("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
             return
@@ -908,7 +918,7 @@ class PlayerController(Controller):
         self.update_buffered_locks(move_id)
 
         # Ensure we can update our simulation
-        if not (self.pawn and self.camera):
+        if not self.camera:
             return
 
         # Apply move inputs

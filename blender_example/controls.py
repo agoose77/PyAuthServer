@@ -24,11 +24,7 @@ def camera_control():
 
 
 def inputs_control():
-    play_state = SequenceNode(
-                              GetPawn(),
-                              HasInputs(),
-                              HandleInputs()
-                              )
+    play_state = SequenceNode(GetPawn(), HasInputs(), HandleInputs())
 
     return play_state
 
@@ -149,8 +145,7 @@ class HandleInputs(LeafNode):
         y_plane = inputs.forward - inputs.backwards
         x_plane = inputs.right - inputs.left
 
-        movement_mode = MovementState.run if inputs.run \
-                                else MovementState.walk
+        movement_mode = MovementState.run if inputs.run else MovementState.walk
         if movement_mode == MovementState.walk:
             forward_speed = pawn.walk_speed
 
@@ -160,8 +155,7 @@ class HandleInputs(LeafNode):
         if inputs.shoot:
             controller.start_fire()
 
-        # Check if on floor TODO
-        if pawn.is_colliding:
+        if pawn.on_ground:
             velocity = Vector((x_plane, y_plane, 0.0))
             velocity.length = forward_speed
 

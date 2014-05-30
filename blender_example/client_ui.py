@@ -8,6 +8,7 @@ from bge_network.timer import Timer
 from bge_network.resources import ResourceManager
 from bge_network.utilities import lerp
 
+from .actors import CameraAnimationActor
 from .replication_infos import TeamReplicationInfo
 from .signals import *
 from .matchmaker import Matchmaker
@@ -18,6 +19,7 @@ from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput, BGUI_INPU
 from blf import dimensions as font_dimensions
 from copy import deepcopy
 from functools import partial
+from math import pi
 from time import monotonic
 from socket import inet_aton
 from uuid import uuid4 as random_id
@@ -118,23 +120,23 @@ class ConnectPanel(Panel):
 
         self.aspect = render.getWindowWidth() / render.getWindowHeight()
 
-        self.center_column = Frame(parent=self, name="center", size=[0.8, 0.8],  options=CENTERED,
+        self.center_column = Frame(parent=self, name="center", size=[1.0, 1.0],  options=CENTERED,
                                    sub_theme="ContentBox")
 
         self.connect_label = Label(parent=self.center_column, name="label", pos=[0.0, 0.025], text="Connection Wizard",
                                    options=CENTERX, sub_theme="Title")
 
-        self.connection_row = Frame(parent=self.center_column, name="connection_frame", size=[0.8, 0.08],
-                                    pos=[0.0, 0.85], sub_theme="ContentRow", options=CENTERX)
+        self.connection_row = Frame(parent=self.center_column, name="connection_frame", size=[0.9, 0.06],
+                                    pos=[0.0, 0.9], sub_theme="ContentRow", options=CENTERX)
 
         # Data input
-        self.data_row = Frame(parent=self.center_column, name="data_frame", size=[0.8, 0.08], pos=[0.0, 0.77],
+        self.data_row = Frame(parent=self.center_column, name="data_frame", size=[0.9, 0.06], pos=[0.0, 0.84],
                               sub_theme="ContentRow", options=CENTERX)
 
         # IP input
         self.address_label_frame, _ = create_framed_element(self.connection_row, "addr",  Label, dict(size=[0.3, 1.0],
-                                                                                                   pos=[0.0, 0.5]),
-                                                         dict(text="IP Address"))
+                                                                                                      pos=[0.0, 0.5]),
+                                                            dict(text="IP Address"))
 
         self.address_input_frame, self.address_field = create_framed_element(self.connection_row, "addr", TextInput,
                                                                        dict(size=[0.4, 1.0], pos=[0.0, 0.5]),
@@ -162,7 +164,7 @@ class ConnectPanel(Panel):
 
         create_adjacent(self.error_label_frame, self.error_message_frame)
 
-        self.controls_row = Frame(parent=self.center_column, name="server_controls", size=[0.8, 0.08], pos=[0.0, 0.69],
+        self.controls_row = Frame(parent=self.center_column, name="server_controls", size=[0.9, 0.06], pos=[0.0, 0.78],
                                   sub_theme="ContentRow", options=CENTERX)
 
         self.refresh_button = FrameButton(self.controls_row, "refresh_button", size=[0.2, 1.0], pos=[0.0, 0.0],
@@ -183,14 +185,36 @@ class ConnectPanel(Panel):
         create_adjacent(self.refresh_button, self.connect_button, full_size=0.3)
         create_adjacent(self.refresh_button, self.connect_button, self.match_label_frame, self.match_input_frame)
 
-        self.servers_list = Frame(parent=self.center_column, name="server_list", size=[0.8, 0.6], pos=[0.0, 0.09],
+        self.header_row = Frame(parent=self.center_column, name="server_header", size=[0.9, 0.06], pos=[0.0, 0.72],
                                   sub_theme="ContentRow", options=CENTERX)
-        self.servers = []
+
+        self.server_name_frame,\
+        self.server_name_field = create_framed_element(self.header_row, "server_name", Label, dict(size=[0.25, 1.0],
+                                                                                                   pos=[0.0, 0.5]),
+                                                       dict(text="Server Name"))
+
+        self.map_name_frame,\
+        self.map_name_field = create_framed_element(self.header_row, "map_name", Label, dict(size=[0.25, 1.0],
+                                                                                             pos=[0.25, 0.5]),
+                                                    dict(text="Map Name"))
+
+        self.map_players_frame,\
+        self.map_players_field = create_framed_element(self.header_row, "map_players", Label, dict(size=[0.25, 1.0],
+                                                                                                   pos=[0.5, 0.5]),
+                                                       dict(text="Existing Players"))
+
+        self.max_players_frame,\
+        self.max_players_field = create_framed_element(self.header_row, "max_players", Label, dict(size=[0.25, 1.0],
+                                                                                                   pos=[0.75, 0.5]),
+                                                       dict(text="Maximum Players"))
+
+        self.servers_list = Frame(parent=self.center_column, name="server_list", size=[0.9, 0.63], pos=[0.0, 0.09],
+                                  sub_theme="ContentRow", options=CENTERX)
         self.server_headers = ["name", "map", "players", "max_players"]
 
         self.matchmaker = Matchmaker("")
 
-        self.servers_box = ListBox(parent=self.servers_list, name="servers", items=self.servers, padding=0.0,
+        self.servers_box = ListBox(parent=self.servers_list, name="servers", items=[], padding=0.0,
                                    size=[1.0, 1.0], pos=[0.0, 0.0])
         self.servers_box.renderer = TableRenderer(self.servers_box, labels=self.server_headers)
 
@@ -206,6 +230,11 @@ class ConnectPanel(Panel):
         self.sprite_timer = Timer(end=0.05, repeat=True)
         self.sprite_timer.on_target = self.sprite.next_frame
 
+        # Update matchmaker
+        self.refresh_timer = Timer(start=0, end=5, repeat=True)
+        self.refresh_timer.on_target = self.perform_refresh
+        self.perform_refresh()
+
         # Allows input fields to accept input when not hovered
         self.connection_row.is_listener = True
 
@@ -217,6 +246,12 @@ class ConnectPanel(Panel):
         # Set configuration for systems
         self.uses_mouse = True
         self.sprite.visible = False
+
+        self.animation = CameraAnimationActor()
+        self.animation.active = True
+
+        self.selection_time = 0.2
+        self.selection_pending = False
 
     @property
     def address(self):
@@ -249,7 +284,12 @@ class ConnectPanel(Panel):
         """Callback for connection success"""
         self.visible = False
 
-    def do_connect(self, button):
+    def on_double_click_timeout(self):
+        self.selection_pending = False
+        print("SORRY")
+
+    @ignore_arguments
+    def do_connect(self):
         """Callback for connection button, invokes a connection signal
 
         :param button: button that was pressed
@@ -277,7 +317,8 @@ class ConnectPanel(Panel):
         ConnectToSignal.invoke(self.address, self.port)
         self.sprite.visible = True
 
-    def do_refresh(self, button):
+    @ignore_arguments
+    def do_refresh(self):
         """Callback for refresh button, perform a matchmaker refresh query
 
         :param button: button that was pressed
@@ -286,8 +327,7 @@ class ConnectPanel(Panel):
             self.show_message("Invalid matchmaker address")
             return
 
-        self.matchmaker.url = self.matchmaker_address
-        self.matchmaker.perform_query(self.on_matchmaker_response, self.matchmaker.server_query())
+        self.perform_refresh()
         self.sprite.visible = True
 
     def do_select_server(self, list_box, entry):
@@ -300,6 +340,15 @@ class ConnectPanel(Panel):
 
         self.address = selection_data['address']
         self.port = selection_data['port']
+        print("Click")
+
+        if self.selection_pending:
+            self.do_connect()
+
+        else:
+            self.selection_pending = True
+            timer = Timer(end=self.selection_time, disposable=True)
+            timer.on_target = self.on_double_click_timeout
 
     @ConnectionErrorSignal.global_listener
     def on_connection_failure(self, error):
@@ -315,10 +364,16 @@ class ConnectPanel(Panel):
 
         :param response: matchmaker response dictionary
         """
-        self.servers[:] = [tuple(entry.items()) for entry in response]
-        self.show_message("Refreshed Server List" if self.servers else "No Servers Found")
+        for entry in response:
+            entry.pop("last_updated")
+        self.servers_box.items = list(set(tuple(entry.items()) for entry in response))
+        self.show_message("Refreshed Server List" if self.servers_box.items else "No Servers Found")
 
         self.sprite.visible = False
+
+    def perform_refresh(self):
+        self.matchmaker.url = self.matchmaker_address
+        self.matchmaker.perform_query(self.on_matchmaker_response, self.matchmaker.server_query())
 
     def show_message(self, text):
         """Write message text to display panel
@@ -363,15 +418,23 @@ class TeamPanel(Panel):
         self.center_column = Frame(parent=self, name="center", size=[0.8, 0.8], options=CENTERED,
                                    sub_theme="ContentBox")
 
-        self.team_label = Label(parent=self.center_column, name="label", pos=[0.0, 0.025], text="Choose Team",
+        self.team_label = Label(parent=self.center_column, name="label", pos=[0.0, 0.05], text="Choose Team",
                                 options=CENTERX, sub_theme="Title")
 
-        self.selection_row = Frame(parent=self.center_column, name="connection_frame", size=[0.8, 0.08],
-                                   pos=[0.0, 0.85], sub_theme="ContentRow", options=CENTERX)
+        self.left_column = Frame(parent=self.center_column, name="left_column", size=[0.5, 0.90], pos=[0.0, 0.0])
 
-        self.left_button = FrameButton(self.selection_row, "left_button", size=[0.5, 1.0], pos=[0.0, 0.0], text="")
+        self.right_column = Frame(parent=self.center_column, name="right_column", size=[0.5, 0.90], pos=[0.5, 0.0])
 
-        self.right_button = FrameButton(self.selection_row, "right_button", size=[0.5, 1.0], pos=[0.5, 0.0], text="")
+        self.left_button = FrameButton(self.left_column, "left_button", size=[0.5, 0.1], pos=[0.0, 0.025], text="",
+                                       options=CENTERX)
+
+        self.right_button = FrameButton(self.right_column, "right_button", size=[0.5, 0.1], pos=[0.0, 0.025], text="",
+                                        options=CENTERX)
+
+        self.left_team_image = Image(self.left_column, name="left_image", size=[0.5, 0.9], pos=[0.0, 0.15], aspect=1,
+                                     img="", options=CENTERX)
+        self.right_team_image = Image(self.right_column, name="right_image", size=[0.5, 0.9], pos=[0.0, 0.15], aspect=1,
+                                      img="", options=CENTERX)
 
         self.uses_mouse = True
         self.visible = False
@@ -410,8 +473,14 @@ class TeamPanel(Panel):
         self.left_button.text = left.name
         self.right_button.text = right.name
 
-        self.left_button.on_click = ignore_arguments(partial(player_controller.set_team, left))
-        self.right_button.on_click = ignore_arguments(partial(player_controller.set_team, right))
+        self.left_button.on_click = self.left_team_image.on_click = ignore_arguments(partial(player_controller.set_team, left))
+        self.right_button.on_click = self.right_team_image.on_click = ignore_arguments(partial(player_controller.set_team, right))
+
+        left_path = ResourceManager.from_relative_path(left.resources['images'][left.image_name])
+        right_path = ResourceManager.from_relative_path(right.resources['images'][right.image_name])
+
+        self.right_team_image.update_image(right_path)
+        self.left_team_image.update_image(left_path)
 
 
 class Notification(Frame):

@@ -1,12 +1,12 @@
-from network.signals import Signal, SignalListener
+from network.decorators import ignore_arguments
+from network.signals import SignalListener
 
 from itertools import islice
 
 from .enums import EvaluationState
 
 
-__all__ = ["BehaviourTree", "LeafNode", "InnerNode", "ResumableNode", "SelectorNode", "ConcurrentNode", "SequenceNode",
-           "LoopNode"]
+__all__ = ["BehaviourTree", "LeafNode", "InnerNode", "SelectorNode", "ConcurrentNode", "SequenceNode", "LoopNode"]
 
 
 class BehaviourTree:
@@ -234,13 +234,12 @@ class InnerNode(LeafNode):
             child.reset(blackboard)
 
 
-class ResumableNode(InnerNode):
+class SelectorNode(InnerNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._resume_index = 0
-        self.should_restart = False
 
     @property
     def resume_index(self):
@@ -255,21 +254,14 @@ class ResumableNode(InnerNode):
     def resume_child(self):
         return self.children[self.resume_index]
 
-    def on_exit(self, blackboard):
-        self.resume_index = 0
-
-
-class SelectorNode(ResumableNode):
-
     def evaluate(self, blackboard):
-        resume_index = 0 if self.should_restart else self.resume_index
+        resume_index = self.resume_index
         remembered_resume = False
 
         running_state = EvaluationState.running
         success_state = EvaluationState.success
 
-        for index, child in enumerate(
-                                  islice(self.children, resume_index, None)):
+        for index, child in enumerate(islice(self.children, resume_index, None)):
             child.update(blackboard)
 
             if child.state == running_state:
@@ -284,13 +276,16 @@ class SelectorNode(ResumableNode):
 
         # Copy child's state
         if remembered_resume:
-            self.resume_index = index + resume_index
+            self.resume_index += index
             child = self.resume_child
 
         return child.state
 
+    def on_exit(self, blackboard):
+        self.resume_index = 0
 
-class ConcurrentNode(ResumableNode):
+
+class ConcurrentNode(InnerNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -301,48 +296,72 @@ class ConcurrentNode(ResumableNode):
     def failure_limit(self):
         return self._failure_limit
 
-    def on_exit(self, blackboard):
-        self.resume_index = 0
+    @failure_limit.setter
+    def failure_limit(self, value):
+        self._failure_limit = value
 
     def evaluate(self, blackboard):
-        resume_index = 0 if self.should_restart else self.resume_index
-        remembered_resume = False
         failure_limit = self.failure_limit
         failed_total = 0
 
-        running_state = EvaluationState.running
         success_state = EvaluationState.success
 
-        for index, child in enumerate(
-                                  islice(self.children, resume_index, None)):
+        for index, child in self.children:
             child.update(blackboard)
 
             # Increment failure count (anything that isn't a success)
             if child.state != success_state:
                 failed_total += 1
 
-            # Remember the first child that needed completion
-            if (child.state == running_state
-                            and not remembered_resume):
-                remembered_resume = True
-                self.resume_index = resume_index + index
-
             # At the limit we then return the last/ last running child's status
             if failed_total == failure_limit:
-                if remembered_resume:
-                    return self.resume_child.state
-
-                else:
-                    return child.state
+                return child.state
 
         return success_state
 
 
 class SequenceNode(ConcurrentNode):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._resume_index = 0
+
     @property
-    def failure_limit(self):
-        return 1
+    def resume_index(self):
+        ''':returns: index to resume from upon next evaluation'''
+        return self._resume_index
+
+    @resume_index.setter
+    def resume_index(self, value):
+        self._resume_index = value
+
+    def evaluate(self, blackboard):
+        resume_index = self.resume_index
+        remembered_resume = False
+
+        running_state = EvaluationState.running
+        success_state = EvaluationState.success
+
+        for index, child in enumerate(islice(self.children, resume_index, None)):
+            child.update(blackboard)
+
+            if child.state == running_state:
+                remembered_resume = True
+                break
+
+            if child.state != success_state:
+                break
+
+        else:
+            return EvaluationState.success
+
+        # Copy child's state
+        if remembered_resume:
+            self.resume_index += index
+            child = self.resume_child
+
+        return child.state
 
 
 class LoopNode(SequenceNode):
@@ -356,3 +375,36 @@ class LoopNode(SequenceNode):
 
         return state
 
+
+class Condition(LeafNode):
+
+    @property
+    def condition(self):
+        return True
+
+    def evaluate(self, blackboard):
+        if self.condition:
+            return EvaluationState.success
+        return EvaluationState.failure
+
+
+class SignalCondition(Condition):
+
+    def __init__(self, signal_cls):
+        super().__init__()
+
+        self._flag = False
+        signal_cls.subscribe(self, self._set_flag)
+
+    @property
+    def condition(self):
+        return self._flag
+
+    @ignore_arguments
+    def _set_flag(self):
+        self._flag = True
+
+    def on_exit(self, blackboard):
+        super().on_exit(blackboard)
+
+        self._flag = False

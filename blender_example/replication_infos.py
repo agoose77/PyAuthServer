@@ -7,6 +7,7 @@ from network.world_info import WorldInfo
 
 from bge_network.controllers import PlayerController
 from bge_network.replication_infos import ReplicationInfo, PlayerReplicationInfo
+from bge_network.resources import ResourceManager
 from bge_network.signals import BroadcastMessage
 
 from .enums import TeamRelation
@@ -54,6 +55,14 @@ class TeamReplicationInfo(ReplicationInfo):
     score = Attribute(0, complain=True)
     players = Attribute(TypedSet(Replicable), element_flag=TypeFlag(Replicable))
 
+    @property
+    def resources(self):
+        return ResourceManager[self.__class__.__name__]
+
+    @property
+    def image_name(self):
+        pass
+
     @simulated
     def get_relationship_with(self, team):
         return(TeamRelation.friendly if team == self else TeamRelation.enemy)
@@ -68,9 +77,16 @@ class TeamReplicationInfo(ReplicationInfo):
 
 
 class GreenTeam(TeamReplicationInfo):
-    name = "Green Team"
+    name = "Angus"
+
+    @property
+    def image_name(self):
+        return "angus.tga"
 
 
 class RedTeam(TeamReplicationInfo):
-    name = "Red Team"
+    name = "Josip"
 
+    @property
+    def image_name(self):
+        return "josip.jpg"

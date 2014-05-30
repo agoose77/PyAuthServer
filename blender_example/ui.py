@@ -24,8 +24,7 @@ class ConsoleRenderer(bgui.ListBoxRenderer):
 
 class TableRenderer(bgui.ListBoxRenderer):
 
-    def __init__(self, listbox, labels=[],
-                 theming={}, pt_size=None):
+    def __init__(self, listbox, labels=[], theming={}, pt_size=None):
         super().__init__(listbox)
 
         self.listbox = listbox
@@ -41,14 +40,10 @@ class TableRenderer(bgui.ListBoxRenderer):
             frame_pos = [(index / total), 0.0]
             label_pos = [0.0, 0.3]
 
-            frame = bgui.Frame(self.frame, "{}_frame".format(name),
-                                size=[1 / total, 1],
-                                pos=list(frame_pos),
-                                sub_theme="TableEntryFrame")
-            label = bgui.Label(parent=frame, name="{}_label".format(name),
-                               pos=list(label_pos), pt_size=pt_size,
-                               sub_theme="TableEntryLabel",
-                               options=bgui.BGUI_DEFAULT | bgui.BGUI_CENTERED,
+            frame = bgui.Frame(self.frame, "{}_frame".format(name), size=[1 / total, 1], pos=list(frame_pos),
+                               sub_theme="TableEntryFrame")
+            label = bgui.Label(parent=frame, name="{}_label".format(name), pos=list(label_pos), pt_size=pt_size,
+                               sub_theme="TableEntryLabel", options=bgui.BGUI_DEFAULT | bgui.BGUI_CENTERED,
                                font=theming.get("Font"))
 
             self.frames[name] = frame
@@ -57,14 +52,13 @@ class TableRenderer(bgui.ListBoxRenderer):
         self.theming = theming
 
     def render_item(self, collection):
+        selected_item = self.listbox.selected
 
-        if collection == self.listbox.selected:
-            self.frame.colors = [self.theming.get("Selected", (0, 0, 0, 0.5))
-                                 for i in range(4)]
+        if selected_item == collection:
+            self.frame.colors = [self.theming.get("Selected", (0, 0, 0, 0.5)) for _ in range(4)]
 
         else:
-            self.frame.colors = [self.theming.get("Deselected", (0, 0, 0, 0))
-                                 for i in range(4)]
+            self.frame.colors = [self.theming.get("Deselected", (0, 0, 0, 0)) for _ in range(4)]
 
         for (name, item) in collection:
 
@@ -96,8 +90,7 @@ class System(SignalListener, bgui.System):
 
         pos = list(mouse.position)
         pos[0] *= bge.render.getWindowWidth()
-        pos[1] = bge.render.getWindowHeight() - \
-                (bge.render.getWindowHeight() * pos[1])
+        pos[1] = bge.render.getWindowHeight() - (bge.render.getWindowHeight() * pos[1])
 
         mouse_state = bgui.BGUI_MOUSE_NONE
         mouse_events = mouse.events

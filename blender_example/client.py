@@ -16,13 +16,6 @@ class Client(ClientGameLoop):
 
         return super().create_network()
 
-    def update_scene(self, scene, delta_time):
-        super().update_scene(scene, delta_time)
-
-        if scene == self.network_scene:
-            self.start_profile(logic.KX_ENGINE_DEBUG_LOGIC)
-            self.ui_system.update(delta_time)
-
     @ConnectToSignal.global_listener
     def new_connection(self, addr, port):
         self.network_system.connect_to((addr, port))

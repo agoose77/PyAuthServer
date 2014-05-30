@@ -6,19 +6,20 @@ __all__ = ["JitterBuffer"]
 
 
 class JitterBuffer:
+    """Interface for reordering and recovering temporally inconsistent data"""
 
-    def __init__(self, length, get_id=None, recover_previous=None):
+    def __init__(self, length, id_getter=None, recovery_getter=None):
         self.length = length
 
-        self._buffer = SortedCollection(key=get_id)
+        self._buffer = SortedCollection(key=id_getter)
         self._filling = True
 
         self.on_filled = None
         self.on_empty = None
 
         self._previous_item = None
-        self._recover_previous = recover_previous
-        self._get_id = get_id
+        self._recover_previous = recovery_getter
+        self._get_id = id_getter
         self._overflow = False
 
     def __bool__(self):
@@ -30,7 +31,21 @@ class JitterBuffer:
     def __len__(self):
         return len(self._buffer)
 
-    def append(self, item):
+    @property
+    def oldest_id(self):
+        return self._buffer[0].id
+
+    @property
+    def newest_id(self):
+        return self._buffer[-1].id
+
+    def insert(self, item):
+        """Insert an item into the buffer
+
+        Inserts item with respect to its ID value
+
+        :param item: item to insert
+        """
         buffer = self._buffer
         buffer.insert(item)
 
@@ -79,6 +94,7 @@ class JitterBuffer:
         return False
 
     def clear(self):
+        """Clear the buffer of all items"""
         self._buffer.clear()
 
     def find_lost_items(self, item, previous_item):
@@ -95,6 +111,10 @@ class JitterBuffer:
         return recover_previous(item, previous_item)
 
     def pop(self):
+        """Remove and return the newest item in the buffer
+
+        If nothing is found, returns None
+        """
         if self._filling:
             return None
 
@@ -113,9 +133,9 @@ class JitterBuffer:
                 new_result, *remainder = missing_items
                 # Add missing items to buffer
                 for item in remainder:
-                    self.append(item)
+                    self.insert(item)
                 # We just popped this, return to buffer
-                self.append(result)
+                self.insert(result)
                 # Take first item
                 result = new_result
 

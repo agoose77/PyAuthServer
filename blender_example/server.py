@@ -9,7 +9,7 @@ from bge_network.controllers import Controller, PlayerController
 from bge_network.errors import AuthError, BlacklistError
 from bge_network.gameloop import ServerGameLoop
 from bge_network.resources import ResourceManager
-from bge_network.signals import ActorKilledSignal, LogicUpdateSignal
+from bge_network.signals import PawnKilledSignal, LogicUpdateSignal
 from bge_network.timer import Timer
 from bge_network.weapons import Weapon
 
@@ -73,13 +73,19 @@ class TeamDeathMatch(ReplicationRules):
         for replicable in WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
-    def create_teams(self):
+    def setup_fake_teams(self):
         """Spawn teams for game mode"""
         # Create teams
         team_green = GreenTeam()
         team_red = RedTeam()
 
     def is_relevant(self, player_controller, replicable):
+        """Determine whether a network object is relevant to a client controller
+
+        :param player_controller: client's player controller
+        :param replicable: replicable to test
+        :rtype: bool
+        """
         if replicable.always_relevant:
             return True
 
@@ -101,18 +107,11 @@ class TeamDeathMatch(ReplicationRules):
                 if player_camera and player_camera.sees_actor(replicable):
                     return True
 
-            return False
-
-        # These classes are not permitted (unless owned by client)
-        if isinstance(replicable, (Controller, Weapon)):
-            return False
-
         return False
 
-    @ActorKilledSignal.global_listener
+    @PawnKilledSignal.global_listener
     def killed(self, attacker, target):
-        message = "{} was killed by {}'s {}".format(target.owner, attacker,
-                                                attacker.pawn)
+        message = "{} was killed by {}".format(target.owner, attacker)
 
         self.broadcast(attacker, message)
 
@@ -126,8 +125,10 @@ class TeamDeathMatch(ReplicationRules):
         super().on_initialised()
 
         self.info = GameReplicationInfo(register=True)
-        self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/"\
-                                          "networking/matchmaker")
+
+        self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/networking/matchmaker")
+        self.matchmaker.register("Demo Server", "Test Map", self.player_limit, 0)
+
         self.matchmaker_timer = Timer(start=10, count_down=True, repeat=True)
         self.matchmaker_timer.on_target = self.update_matchmaker
 
@@ -135,8 +136,7 @@ class TeamDeathMatch(ReplicationRules):
         self.countdown_timer.on_target = self.start_match
 
         self.black_list = []
-        self.create_teams()
-        self.matchmaker.register("Demo Server", "Test Map", self.player_limit, 0)
+        self.setup_fake_teams()
 
     @ConnectionDeletedSignal.global_listener
     def on_disconnect(self, replicable):
@@ -145,7 +145,10 @@ class TeamDeathMatch(ReplicationRules):
         self.update_matchmaker()
 
     def post_initialise(self, connection):
-        """Called for valid connections"""
+        """Initialisation callback for valid connections
+
+        :param connection: connection for client
+        """
         # Create player controller for player
         controller = self.player_controller_class(register=True)
         controller.info = self.player_replication_info_class(register=True)
@@ -153,6 +156,11 @@ class TeamDeathMatch(ReplicationRules):
         return controller
 
     def pre_initialise(self, address_tuple, netmode):
+        """Validation callback for new connections
+
+        :param address_tuple: tuple of address, port of incoming data
+        :param netmode: :py:code:`network.enums.Netmodes` enum value of client
+        """
         if netmode == Netmodes.server:
             raise AuthError("Peer was not a client")
 
@@ -215,8 +223,7 @@ class TeamDeathMatch(ReplicationRules):
 
     @ConnectionSuccessSignal.global_listener
     def update_matchmaker(self):
-        self.matchmaker.poll("Test Map", self.player_limit,
-                             self.connected_players)
+        self.matchmaker.poll("Test Map", self.player_limit, self.connected_players)
 
 
 class Server(ServerGameLoop):

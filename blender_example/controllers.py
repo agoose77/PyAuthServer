@@ -35,7 +35,7 @@ class EnemyController(AIController):
 
 CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
                                                                   "run", "voice", "jump", "debug")
-CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 25)
+CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
 
 
 class CTFPlayerController(PlayerController):
@@ -71,7 +71,7 @@ class CTFPlayerController(PlayerController):
 
         self.inventory = []
 
-    @ActorKilledSignal.listener
+    @PawnKilledSignal.listener
     def on_killed(self, attacker, target):
         self.clear_inventory()
 
@@ -111,7 +111,7 @@ class CTFPlayerController(PlayerController):
     @ActorDamagedSignal.listener
     def take_damage(self, damage, instigator, hit_position, momentum):
         if self.pawn.health == 0:
-            ActorKilledSignal.invoke(instigator, target=self.pawn)
+            PawnKilledSignal.invoke(instigator, target=self.pawn)
 
     def team_changed(self, team: TypeFlag(Replicable)) -> Netmodes.client:
         TeamSelectionUpdatedSignal.invoke()

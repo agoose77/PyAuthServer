@@ -28,4 +28,4 @@ class BowWeapon(ProjectileWeapon):
         self.theme_colour = [0.0, 0.50, 0.93, 1.0]
 
         self.projectile_class = ArrowProjectile
-        self.projectile_velocity = Vector((0, 15, 0))
+        self.projectile_velocity = Vector((0, 50, 0))
