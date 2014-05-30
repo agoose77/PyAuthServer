@@ -235,7 +235,7 @@ class PlayerController(Controller):
 
     MAX_POSITION_DIFFERENCE_SQUARED = 1.2
     MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
-    MOVE_BUFFERING_TIME = 0.1
+    MOVE_BUFFERING_TIME = 0.15
 
     def apply_move(self, move):
         """Apply move contents to Controller state

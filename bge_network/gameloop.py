@@ -194,6 +194,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         accumulator = 0.0
 
+        # TODO determine where logic spikes originate from
+
         # Fixed time-step
         while not self.can_quit.value:
             current_time = self.get_time()
@@ -204,13 +206,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             last_time = current_time
 
             # Set upper bound
-            if (delta_time > 0.25):
+            if delta_time > 0.25:
                 delta_time = 0.25
 
             accumulator += delta_time
 
             # Whilst we have enough time in the buffer
-            while (accumulator >= step_time):
+            while accumulator >= step_time:
 
                 # Update IO events from Blender
                 self.profile = logic.KX_ENGINE_DEBUG_SERVICES
