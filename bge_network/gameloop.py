@@ -35,8 +35,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
     def __init__(self):
         self.register_signals()
 
-        WorldInfo.tick_rate = int(logic.getLogicTicRate())
-
         # Copy BGE data
         self.use_tick_rate = logic.getUseFrameRate()
         self.animation_rate = logic.getAnimationTicRate()
@@ -271,6 +269,8 @@ class ServerGameLoop(GameLoop):
 
     def __init__(self):
         super().__init__()
+
+        WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
         self._rewind_data = OrderedDict()
         self._rewind_length = 1 * WorldInfo.tick_rate
