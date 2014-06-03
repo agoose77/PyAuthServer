@@ -60,10 +60,9 @@ def square_falloff(source, target, maximum_distance, effective_distance):
 
     # If we are beyond optimal range
     else:
-        square_falloff = (((distance - effective_distance) ** 2)
-                             / (maximum_distance - effective_distance) ** 2)
+        falloff = (((distance - effective_distance) ** 2) / (maximum_distance - effective_distance) ** 2)
 
-        return clamp(0, 1, (1 - square_falloff))
+        return clamp(0, 1, (1 - falloff))
 
     return distance_fraction
 
@@ -74,8 +73,7 @@ def progress_string(factor, fidelity=10):
     :param factor: progress factor
     :param fidelity: number of characters used for progress
     :returns: progress bar like string [|||||     ]"""
-    return "[{}]".format(''.join(('|' if (i / fidelity) < \
-                          factor else ' ' for i in range(fidelity))))
+    return "[{}]".format(''.join(('|' if (i / fidelity) < factor else ' ' for i in range(fidelity))))
 
 
 def dereference_id(id_):
