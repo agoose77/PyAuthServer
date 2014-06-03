@@ -61,7 +61,8 @@ class ListBox(Widget):
 				'Padding': 0,
 				}
 
-	def __init__(self, parent, name, items=[], padding=0, aspect=None, size=[1, 1], pos=[0, 0], length=None, shift=0, sub_theme='', options=BGUI_DEFAULT):
+	def __init__(self, parent, name, items=[], padding=0, aspect=None, size=[1, 1], pos=[0, 0], length=None,
+                 auto_scale=True, item_height=0.1, shift=0, sub_theme='', options=BGUI_DEFAULT):
 		"""
 		:param parent: the widget's parent
 		:param name: the name of the widget
@@ -97,10 +98,12 @@ class ListBox(Widget):
 		self._spatial_map = {}
 
 		self._renderer = ListBoxRenderer(self)
-		
+
 		self._shift = shift
 		self._length = length
-		
+		self._item_height = item_height
+		self._scale = auto_scale
+
 	def _del__(self):
 		super().__del__()
 	##
@@ -172,9 +175,9 @@ class ListBox(Widget):
 			
 			shifted_index = index - self.shift
 			# Max widget height without padding
-			widget_max_height = max((self.length - 1), 1) / self.length ** 2
+			widget_max_height = max((self.length - 1), 1) / self.length# ** 2
 			# Widget height considering padding (a scalar)
-			widget_height = widget_max_height * (1 - self.padding)
+			widget_height = (widget_max_height * (1 - self.padding)) if self._scale else self._item_height
 			# Shift to position widget within bounds
 			y_shift =  ((shifted_index + 1) * (widget_height  + self.padding))
 			

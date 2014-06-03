@@ -9,13 +9,17 @@ class FrameButton(Widget):
 	"""A clickable frame-based button."""
 	theme_section = 'FrameButton'
 	theme_options = {
-				'Color': (0.4, 0.4, 0.4, 1),
+				'Color1': (0.3, 0.3, 0.3, 1),
+				'Color2': (0.3, 0.3, 0.3, 1),
+				'Color3': (0.4, 0.4, 0.4, 1),
+				'Color4': (0.4, 0.4, 0.4, 1),
 				'BorderSize': 1,
 				'BorderColor': (0, 0, 0, 1),
 				'LabelSubTheme': '',
+                'HoverComponent': 0.15
 				}
 
-	def __init__(self, parent, name, base_color=None, text="", font=None,
+	def __init__(self, parent, name, text="", font=None,
 					pt_size=None, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', options=BGUI_DEFAULT):
 		"""
 		:param parent: the widget's parent
@@ -35,24 +39,13 @@ class FrameButton(Widget):
 
 		self.frame = Frame(self, name + '_frame', size=[1, 1], pos=[0, 0], options=BGUI_DEFAULT & ~BGUI_THEMED)
 		self.label = Label(self, name + '_label', text, font, pt_size, pos=[0, 0], sub_theme=self.theme['LabelSubTheme'], options=BGUI_DEFAULT | BGUI_CENTERED)
-
-		if not base_color:
-			base_color = self.theme['Color']
-		self.base_color = base_color
+		self.hover_component = self.theme['HoverComponent']
+		self.base_colors = [list(self.theme["Color1"]), list(self.theme["Color2"]), list(self.theme["Color3"]),
+                            list(self.theme["Color4"])]
 		self.frame.border = self.theme['BorderSize']
 		self.frame.border_color = self.theme['BorderColor']
 
-		self.light = [
-			self.base_color[0] + 0.15,
-			self.base_color[1] + 0.15,
-			self.base_color[2] + 0.15,
-			self.base_color[3]]
-		self.dark = [
-			self.base_color[0] - 0.15,
-			self.base_color[1] - 0.15,
-			self.base_color[2] - 0.15,
-			self.base_color[3]]
-		self.frame.colors = [self.dark, self.dark, self.light, self.light]
+		self.frame.colors = self.base_colors
 
 	@property
 	def text(self):
@@ -63,43 +56,30 @@ class FrameButton(Widget):
 		self.label.text = value
 
 	@property
-	def color(self):
-		return self.base_color
+	def colors(self):
+		return self.frame.colors
 
-	@color.setter
-	def color(self, value):
-		self.base_color = value
-		self.light = [
-			self.base_color[0] + 0.15,
-			self.base_color[1] + 0.15,
-			self.base_color[2] + 0.15,
-			self.base_color[3]]
-		self.dark = [
-			self.base_color[0] - 0.15,
-			self.base_color[1] - 0.15,
-			self.base_color[2] - 0.15,
-			self.base_color[3]]
-		self.frame.colors = [self.dark, self.dark, self.light, self.light]
+	@colors.setter
+	def colors(self, value):
+		self.frame.colors = value
 
 	def _handle_hover(self):
-		light = self.light[:]
-		dark = self.dark[:]
+		colors = [color[:] for color in self.base_colors]
 
 		# Lighten button when hovered over.
-		for n in range(3):
-			light[n] += .1
-			dark[n] += .1
-		self.frame.colors = [dark, dark, light, light]
+		for color in colors:
+			for i in range(3):
+				color[i] -= self.hover_component
+		self.frame.colors = colors
 
 	def _handle_active(self):
-		light = self.light[:]
-		dark = self.dark[:]
+		colors = [color[:] for color in self.base_colors]
 
-		# Darken button when clicked.
-		for n in range(3):
-			light[n] -= .1
-			dark[n] -= .1
-		self.frame.colors = [light, light, dark, dark]
+		# Lighten button when hovered over.
+		for color in colors:
+			for i in range(3):
+				color[i] += self.hover_component
+		self.frame.colors = colors
 
 	def _draw(self):
 		"""Draw the button"""
@@ -108,4 +88,4 @@ class FrameButton(Widget):
 		Widget._draw(self)
 
 		# Reset the button's color
-		self.frame.colors = [self.dark, self.dark, self.light, self.light]
+		self.frame.colors = [color[:] for color in self.base_colors]

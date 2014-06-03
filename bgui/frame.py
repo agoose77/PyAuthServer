@@ -29,7 +29,6 @@ class Frame(Widget):
 		"""
 
 		Widget.__init__(self, parent, name, aspect, size, pos, sub_theme, options)
-
 		self._colors = [
 				self.theme['Color1'],
 				self.theme['Color2'],
@@ -62,8 +61,15 @@ class Frame(Widget):
 	def border(self, value):
 		self._border = value
 
+	@property
+	def requires_drawing(self):
+		return self.border or any([c[-1] for c in self.colors])
+
 	def _draw(self):
 		"""Draw the frame"""
+
+		if not self.requires_drawing:
+			return Widget._draw(self)
 
 		# Enable alpha blending
 		glEnable(GL_BLEND)

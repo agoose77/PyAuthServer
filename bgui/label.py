@@ -99,8 +99,6 @@ class Label(Widget):
 	
 	@shadow.setter
 	def shadow(self, value):
-		func = blf.enable if value else blf.disable
-		func(self.fontid, blf.SHADOW)
 		self._shadow = value
 
 	@property
@@ -143,6 +141,8 @@ class Label(Widget):
 
 	def _draw(self):
 		"""Display the text"""
+		func = blf.enable if self._shadow else blf.disable
+		func(self.fontid, blf.SHADOW)
 
 		blf.size(self.fontid, self.pt_size, 72)
 
