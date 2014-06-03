@@ -41,7 +41,8 @@ class RPCInterface:
         arguments = self._binder(*args, **kwargs).arguments
 
         try:
-            self._interface.value = self._serialiser.pack(arguments)
+            packed_data = self._serialiser.pack(arguments)
+            self._interface.set(packed_data)
 
         except Exception:
             logger.exception("Could not package RPC call: '{}'".format(self._function_name))

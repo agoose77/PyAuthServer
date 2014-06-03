@@ -4,7 +4,7 @@ from .enums import ConnectionStatus
 from .signals import SignalListener
 
 from collections import deque
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR
 from time import monotonic
 
 __all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
@@ -103,10 +103,10 @@ class Network:
         try:
             data = self.socket.recvfrom(buff_size)
 
-        except BlockingIOError:
+        except SOCK_ERROR:
             return
 
-        payload, addr = data
+        payload, _ = data
         data_length = len(payload)
 
         self.received_bytes += data_length

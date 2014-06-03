@@ -9,12 +9,15 @@ __all__ = ['Struct', 'StructMeta']
 class StructMeta(AttributeMeta):
     """Creates serialiser code for class (optimisation)"""
 
-    def __new__(self, name, bases, attrs):
-        cls = super().__new__(self, name, bases, attrs)
+    def __new__(mcs, name, bases, cls_dict):
+        cls = super().__new__(mcs, name, bases, cls_dict)
 
-        ordered_arguments = cls._attribute_container.args[1]
+        attribute_container = cls._attribute_container
+        factory_callback = attribute_container.callback
+        ordered_arguments = factory_callback.keywords['ordered_mapping']
+
         cls._serialiser = FlagSerialiser(ordered_arguments)
-        cls.__slots__ = []
+        cls.__slots__ = ()
 
         return cls
 

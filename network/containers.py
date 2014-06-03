@@ -2,65 +2,17 @@ from .descriptors import Attribute
 from .handler_interfaces import static_description
 from .rpc import RPCInterfaceFactory
 
-from collections import OrderedDict, deque
+from collections import OrderedDict, deque, namedtuple
 from functools import partial
 from inspect import getmembers
 
-__all__ = ['ValueProperty', 'StorageInterface', 'RPCStorageInterface',
-           'AttributeStorageInterface', 'AbstractStorageContainer',
+__all__ = ['StorageInterface', 'RPCStorageInterface', 'AttributeStorageInterface', 'AbstractStorageContainer',
            'RPCStorageContainer', 'AttributeStorageContainer']
 
 
-class ValueProperty:
-    """Implements Descriptor protocol, delegating __get__ and __set__ calls
-    to get_value() and set_value(value) methods on the parent instance
-
-    :requires: Host methods get_value(), set_value(value)"""
-
-    __slots__ = []
-
-    def __get__(self, instance, base):
-        if instance is None:
-            return self
-        return instance.get_value()
-
-    def __set__(self, instance, value):
-        instance.set_value(value)
-
-
-class StorageInterface:
-    """Interface for reading and writing a data value
-
-    :cvar value: property descriptor with settable and gettable value
-    :ivar get_value: callback to retrieve value
-    :ivar set_value: callback to write new value"""
-    __slots__ = ["get_value", "set_value"]
-
-    def __init__(self, getter, setter):
-        self.get_value = getter
-        self.set_value = setter
-
-    value = ValueProperty()
-
-
-class RPCStorageInterface(StorageInterface):
-    """RPC storage interface
-    Proxy for data storage only"""
-    __slots__ = StorageInterface.__slots__
-
-    def __init__(self, setter):
-        super().__init__(None, setter)
-
-
-class AttributeStorageInterface(StorageInterface):
-    """Attribute storage interface
-    Proxy for data storage, access and complaint status"""
-    __slots__ = StorageInterface.__slots__ + ["set_complaint"]
-
-    def __init__(self, getter, setter, complaint):
-        super().__init__(getter, setter)
-
-        self.set_complaint = complaint
+StorageInterface = namedtuple("StorageInterface", "get set")
+RPCStorageInterface = namedtuple("StorageInterface", "set")
+AttributeStorageInterface = namedtuple("StorageInterface", "get set complain")
 
 
 class AbstractStorageContainer:

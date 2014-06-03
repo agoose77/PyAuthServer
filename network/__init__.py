@@ -22,6 +22,7 @@ from .enums import *
 from .errors import *
 from .flag_serialiser import *
 from .handler_interfaces import *
+from .hosts import *
 from .iterators import *
 from .instance_register import *
 from .logger import *
