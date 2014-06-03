@@ -1,4 +1,5 @@
 from network.decorators import ignore_arguments
+from network.hosts import exists as host_exists
 from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
 from network.world_info import WorldInfo
 
@@ -15,11 +16,10 @@ from .matchmaker import Matchmaker
 from .ui import *
 
 from bge import logic, render
-from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput, BGUI_INPUT_INTEGER
+from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput, BGUI_INPUT_INTEGER, BGUI_DEFAULT
 from blf import dimensions as font_dimensions
 from copy import deepcopy
 from functools import partial
-from math import pi
 from time import monotonic
 from socket import inet_aton
 from uuid import uuid4 as random_id
@@ -113,7 +113,344 @@ class FrameRateDecorator:
         self.func(average_fps, *args, **kwargs)
 
 
+class LayoutEntry(Frame):
+
+    def __init__(self, parent, size=None, pos=None, options=BGUI_DEFAULT, direction=0, name=None, **kwargs):
+        self._insert_at = [0.0, 1.0]
+        self._direction = direction
+
+        if pos is None:
+            pos = [0.0, 0.0]
+        else:
+            pos = pos[:]
+
+        if size is None:
+            size = [1.0, 1.0]
+        else:
+            size = size[:]
+
+        name = self.format_name(self.__class__, name)
+
+        super().__init__(parent, name, size=size, pos=pos, options=options, **kwargs)
+
+    @staticmethod
+    def format_name(cls, str_):
+        if str_ is None:
+            str_ = "{} {}".format(cls.__name__, random_id())
+
+        return str_
+
+    def widget(self, widget_cls, scale=None, name=None, **kwargs):
+        widget_name = self.format_name(widget_cls, name)
+        dimensions = [1.0, 1.0]
+
+        if scale is None:
+            widget_size = None
+
+        else:
+            # Add user scaling
+            dimensions[self._direction] = scale
+            widget_size = dimensions[:]
+
+        # Account for Y size offset
+        insert_x, insert_y = self._insert_at
+        insert_y -= dimensions[1]
+        insert_pos = [insert_x, insert_y]
+
+        # Define widget position and scale relative to other elements
+        kwargs["pos"] = insert_pos
+        if not issubclass(widget_cls, Label):
+            kwargs["size"] = dimensions[:]
+
+        # Create widget
+        widget = widget_cls(self, widget_name, **kwargs)
+
+        # Fall back on widget dimensions
+        if widget_size is None:
+            widget_size = widget._base_size
+
+        self._insert_at[self._direction] += widget_size[self._direction]
+        return widget
+
+    def row(self, height, width=1.0, options=BGUI_DEFAULT, name=None, **kwargs):
+        self._insert_at[1] -= height
+
+        row = self.__class__(self, size=[width, height], pos=self._insert_at[:], options=options, direction=0,
+                             name=name, **kwargs)
+
+        return row
+
+    def column(self, width, height=1.0, options=BGUI_DEFAULT, name=None, **kwargs):
+        # Account for starting position at bottom left of frame
+        insert_x, insert_y = self._insert_at
+        insert_y -= height
+        insert_pos = [insert_x, insert_y]
+
+        column = self.__class__(self, size=[width, height], pos=insert_pos, options=options, direction=1, name=name,
+                                **kwargs)
+
+        self._insert_at[0] += width
+
+        return column
+
+
 class ConnectPanel(Panel):
+
+    def __init__(self, system):
+        super().__init__(system, "ConnectS")
+
+        # Load sprite resource
+        relative_sprite_path = ResourceManager["UI"]['sprites']['loading_sprite.tga']
+        absolute_sprite_path = ResourceManager.from_relative_path(relative_sprite_path)
+
+        self.layout = LayoutEntry(self, [0.8, 0.9], [0.1, 0.0], sub_theme="ContextBox")
+
+        # Matchmaker
+        matchmaker_row = self.layout.row(height=0.05)
+
+        # Matchmaker label
+        col = matchmaker_row.column(0.2, sub_theme="ContentRow")
+        col.widget(Label, text="Matchmaker", options=CENTERED, shadow=True)
+
+        # Matchmaker address
+        col = matchmaker_row.column(0.35, sub_theme="ContentRow")
+        self.matchmaker_field = col.widget(TextInput, text="http://coldcinder.co.uk/networking/matchmaker",
+                                           allow_empty=False, options=CENTERED)
+
+        matchmaker_row.column(0.25, sub_theme="ContentRow")
+
+        col = matchmaker_row.column(0.2)
+        self.refresh_button = col.widget(FrameButton, text="Refresh", options=CENTERED)
+        self.refresh_button.label.shadow = True
+
+        # Spacing
+        self.layout.row(height=0.01)
+
+        # Direct IP connection
+        row = self.layout.row(height=0.05)
+
+        # Input IP address
+        col = row.column(width=0.2, sub_theme="ContentRow")
+        col.widget(Label, text="IP Address", options=CENTERED, shadow=True)
+
+        # Input Port
+        col = row.column(width=0.2)
+        self.address_field = col.widget(TextInput, text="localhost", allow_empty=False, options=CENTERED)
+        self.address_field.on_validate = self.validate_ip
+
+        # Input port information
+        col = row.column(width=0.3, sub_theme="ContentRow")
+        col.column(0.5).widget(Label, text="Port", options=CENTERED, shadow=True)
+        self.port_field = col.column(0.5).widget(TextInput, text="1200", allow_empty=False, type=BGUI_INPUT_INTEGER)
+
+        # Load sprite resource
+        col = row.column(width=0.1, sub_theme="ContentRow")
+        self.sprite = col.widget(SpriteSequence, img=absolute_sprite_path, length=20, loop=True, size=[0.1, 0.6],
+                                 aspect=1, relative_path=False, options=CENTERED)
+
+        col = row.column(width=0.2)
+        self.connect_button = col.widget(FrameButton, text="Connect", options=CENTERED)
+        self.connect_button.label.shadow = True
+
+        # Spacing
+        self.layout.row(height=0.01)
+
+        # Server settings
+        row = self.layout.row(height=0.05, sub_theme="ContentRow")
+
+        for name in "Server Name", "Map Name", "Players", "Maximum Players":
+            col = row.column(0.25)
+            col.widget(Label, text=name, options=CENTERED, shadow=True)
+
+        # Spacing
+        self.layout.row(height=0.01)
+
+        row = self.layout.row(height=0.6, sub_theme="ContentBox")
+
+        # Server list
+        server_headers = ["name", "map", "players", "max_players"]
+        self.servers_box = row.widget(ListBox, items=[], padding=0.0, auto_scale=False)
+        self.servers_box.renderer = TableRenderer(self.servers_box, labels=server_headers)
+
+        for label in self.servers_box.renderer.labels.values():
+            label.shadow = True
+
+        self.matchmaker = Matchmaker("")
+
+        # Update matchmaker
+        self.refresh_timer = Timer(start=0, end=5, repeat=True)
+        self.refresh_timer.on_target = self.perform_refresh
+        self.perform_refresh()
+
+        # Update sprite
+        self.sprite_timer = Timer(end=0.05, repeat=True)
+        self.sprite_timer.on_target = self.sprite.next_frame
+        self.sprite.visible = False
+
+        self._selection_pending = False
+        self._selection_timeout = 0.2
+
+        # Create event handlers
+        self.connect_button.on_click = self.do_connect
+        self.refresh_button.on_click = self.do_refresh
+        self.servers_box.on_select = self.do_select_server
+
+        self.uses_mouse = True
+
+    @property
+    def address(self):
+        if self.address_field.invalid:
+            return None
+        return self.address_field.text
+
+    @address.setter
+    def address(self, address):
+        self.address_field.text = address
+
+    @property
+    def port(self):
+        if self.port_field.invalid:
+            return None
+        return int(self.port_field.text)
+
+    @port.setter
+    def port(self, port):
+        self.port_field.text = str(port)
+
+    @property
+    def matchmaker_address(self):
+        if self.matchmaker_field.invalid:
+            return None
+        return self.matchmaker_field.text
+
+    @ConnectionSuccessSignal.global_listener
+    def disable(self):
+        """Callback for connection success"""
+        self.visible = False
+
+    def display_message(self, message):
+        pass
+
+    @ignore_arguments
+    def do_connect(self):
+        """Callback for connection button, invokes a connection signal
+
+        :param button: button that was pressed
+        """
+
+        errors = []
+        if self.address is None:
+            errors.append("address")
+
+        if self.port is None:
+            errors.append("port")
+
+        if errors:
+            tail, *head = errors
+
+            if not head:
+                error_string = tail
+
+            else:
+                error_string = "{} and {}".format(tail, head[0])
+
+            self.show_message("Invalid {}".format(error_string))
+            return
+
+        ConnectToSignal.invoke(self.address, self.port)
+        self.sprite.visible = True
+
+    @ignore_arguments
+    def do_refresh(self):
+        """Callback for refresh button, perform a matchmaker refresh query
+
+        :param button: button that was pressed
+        """
+        if self.matchmaker_address is None:
+            self.show_message("Invalid matchmaker address")
+            return
+
+        self.perform_refresh()
+        self.sprite.visible = True
+
+    def do_select_server(self, list_box, entry):
+        """Callback for server selection, update address and port fields with selection
+
+        :param list_box: list box containing entry
+        :param entry: server entry that was selected
+        """
+        selection_data = dict(entry)
+
+        self.address = selection_data['address']
+        self.port = selection_data['port']
+
+        if self._selection_pending:
+            self.do_connect()
+
+        else:
+            self._selection_pending = True
+            timer = Timer(end=self._selection_timeout, disposable=True)
+            timer.on_target = self.on_double_click_timeout
+
+    @ConnectionErrorSignal.global_listener
+    def on_connection_failure(self, error):
+        """Callback for connection failure
+
+        :param error: error that occurred
+        """
+        self.display_message(str(error))
+        self.sprite.visible = False
+
+    def on_double_click_timeout(self):
+        self._selection_pending = False
+
+    def on_matchmaker_response(self, response):
+        """Callback for matchmaker response, update internal server list and writes status to display
+
+        :param response: matchmaker response dictionary
+        """
+        for entry in response:
+            entry.pop("last_updated")
+
+        self.servers_box.items = list(set(tuple(entry.items()) for entry in response))
+        self.display_message("Refreshed Server List" if self.servers_box.items else "No Servers Found")
+
+        self.sprite.visible = False
+
+    def perform_refresh(self):
+        if self.matchmaker_field.invalid:
+            self.display_message("Matchmaker address invalid")
+
+        self.matchmaker.url = self.matchmaker_address
+        self.matchmaker.perform_query(self.on_matchmaker_response, self.matchmaker.server_query())
+
+    def update(self, delta_time):
+        """Update matchmaker queue
+
+        :param delta_time: time since last update
+        """
+        self.matchmaker.update()
+
+    @staticmethod
+    def validate_ip(str_):
+        """Determine if a string is a valid IP address
+
+        :param str_: IP address string
+        :rtype: bool
+        """
+        if host_exists(str_):
+            return True
+
+        try:
+            inet_aton(str_)
+
+        except (OSError, AssertionError):
+            return False
+
+        return True
+
+
+class ConnectPanjel(Panel):
 
     def __init__(self, system):
         super().__init__(system, "Connect")
@@ -286,7 +623,6 @@ class ConnectPanel(Panel):
 
     def on_double_click_timeout(self):
         self.selection_pending = False
-        print("SORRY")
 
     @ignore_arguments
     def do_connect(self):
@@ -340,7 +676,6 @@ class ConnectPanel(Panel):
 
         self.address = selection_data['address']
         self.port = selection_data['port']
-        print("Click")
 
         if self.selection_pending:
             self.do_connect()
@@ -406,6 +741,7 @@ class ConnectPanel(Panel):
             return False
 
         return True
+
 
 
 class TeamPanel(Panel):
@@ -602,8 +938,7 @@ class Notification(Frame):
             x_initial, y_initial = initial
             x_final, y_final = position
 
-            self.position = [lerp(x_initial, x_final, factor),
-                        lerp(y_initial, y_final, factor)]
+            self.position = [lerp(x_initial, x_final, factor), lerp(y_initial, y_final, factor)]
 
         move_timer = Timer(end=interval, disposable=True)
         move_timer.on_update = _interpolate_position

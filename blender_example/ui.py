@@ -24,12 +24,12 @@ class ConsoleRenderer(bgui.ListBoxRenderer):
 
 class TableRenderer(bgui.ListBoxRenderer):
 
-    def __init__(self, listbox, labels=[], theming={}, pt_size=None):
+    def __init__(self, listbox, labels=[], theming={}, pt_size=None, frame_kwargs={}):
         super().__init__(listbox)
 
         self.listbox = listbox
 
-        self.frame = bgui.Frame(listbox, "frame", size=[1, 1], pos=[0, 0])
+        self.frame = bgui.Frame(listbox, "frame", size=[1, 1], pos=[0, 0], **frame_kwargs)
 
         self.labels = OrderedDict()
         self.frames = OrderedDict()
@@ -40,10 +40,9 @@ class TableRenderer(bgui.ListBoxRenderer):
             frame_pos = [(index / total), 0.0]
             label_pos = [0.0, 0.3]
 
-            frame = bgui.Frame(self.frame, "{}_frame".format(name), size=[1 / total, 1], pos=list(frame_pos),
-                               sub_theme="TableEntryFrame")
+            frame = bgui.Frame(self.frame, "{}_frame".format(name), size=[1 / total, 1], pos=list(frame_pos))
             label = bgui.Label(parent=frame, name="{}_label".format(name), pos=list(label_pos), pt_size=pt_size,
-                               sub_theme="TableEntryLabel", options=bgui.BGUI_DEFAULT | bgui.BGUI_CENTERED,
+                               sub_theme=theming.get("sub_theme"), options=bgui.BGUI_DEFAULT | bgui.BGUI_CENTERED,
                                font=theming.get("Font"))
 
             self.frames[name] = frame
