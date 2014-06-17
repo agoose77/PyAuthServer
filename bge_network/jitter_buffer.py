@@ -32,12 +32,12 @@ class JitterBuffer:
         return len(self._buffer)
 
     @property
-    def oldest_id(self):
-        return self._buffer[0].id
-
-    @property
     def newest_id(self):
         return self._buffer[-1].id
+
+    @property
+    def oldest_id(self):
+        return self._buffer[0].id
 
     def insert(self, item):
         """Insert an item into the buffer
