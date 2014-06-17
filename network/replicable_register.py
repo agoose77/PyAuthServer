@@ -51,7 +51,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
                 # If subclasses will need copies (because of MarkedAttribute annotations)
                 if value.has_marked_parameters:
-                    unshareable_rpc_functions[name] = value.original_function
+                    unshareable_rpc_functions[name] = value.function
 
             cls_dict[name] = value
 
