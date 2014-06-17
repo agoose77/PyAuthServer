@@ -7,77 +7,77 @@ configparser._SectionProxy = configparser.SectionProxy
 
 class NewSectionProxy(configparser._SectionProxy):
 
-	def __getitem__(self, key):
-		val = configparser._SectionProxy.__getitem__(self, key)
+    def __getitem__(self, key):
+        val = configparser._SectionProxy.__getitem__(self, key)
 
-		if isinstance(val, configparser._SectionProxy):
-			return val
+        if isinstance(val, configparser._SectionProxy):
+            return val
 
-		# Lets try to make a nicer value
-		try:
-			return float(val)
-		except ValueError:
-			pass
-		except TypeError:
-			print(type(val))
+        # Lets try to make a nicer value
+        try:
+            return float(val)
+        except ValueError:
+            pass
+        except TypeError:
+            print(type(val))
 
-		if ',' in val:
-			try:
-				val = [float(i) for i in val.split(',')]
-			except ValueError:
-				val = val.split(',')
+        if ',' in val:
+            try:
+                val = [float(i) for i in val.split(',')]
+            except ValueError:
+                val = val.split(',')
 
-			if isinstance(val[0], str) and val[0].startswith('img:'):
-				val[0] = val[0].replace('img:', Theme.path)
-				val[1:] = [float(i) for i in val[1:]]
+            if isinstance(val[0], str) and val[0].startswith('img:'):
+                val[0] = val[0].replace('img:', Theme.path)
+                val[1:] = [float(i) for i in val[1:]]
 
-		return val
+        return val
 
 configparser.SectionProxy = NewSectionProxy
 
 
 class Theme(configparser.ConfigParser):
-	path = ''
+    path = ''
 
-	def __init__(self, file):
+    def __init__(self, file):
 
-		configparser.ConfigParser.__init__(self)
+        configparser.ConfigParser.__init__(self)
 
-		if file:
-			Theme.path = file + '/'
-		else:
-			Theme.path = './'
-			
-		if file:
-			self.read(Theme.path + 'theme.cfg')
-			
-		self._legacy_warnings = []
-		self._support_warnings = []
+        if file:
+            Theme.path = file + '/'
+        else:
+            Theme.path = './'
 
-	def supports(self, widget):
-		"""Checks to see if the theme supports a given widget.
+        if file:
+            self.read(Theme.path + 'theme.cfg')
 
-		:param widget: the widget to check for support
-		"""
+        self._legacy_warnings = []
+        self._support_warnings = []
 
-		# First we see if we have the right section
-		if not self.has_section(widget.theme_section):
-			return False
+    def supports(self, widget):
+        """Checks to see if the theme supports a given widget.
 
-		# Then we see if we have the required options
-		for opt in widget.theme_options:
-			if not self.has_option(widget.theme_section, opt):
-				return False
+        :param widget: the widget to check for support
+        """
 
-		# All looks good, return True
-		return True
+        # First we see if we have the right section
+        if not self.has_section(widget.theme_section):
+            return False
 
-	def warn_legacy(self, section):
-		if section not in self._legacy_warnings:
-			print("WARNING: Legacy theming used for", section)
-			self._legacy_warnings.append(section)
+        # Then we see if we have the required options
+        for opt in widget.theme_options:
+            if not self.has_option(widget.theme_section, opt):
+                return False
 
-	def warn_support(self, section):
-		if section not in self._support_warnings:
-			print("WARNING: Theming is enabled, but the current theme does not support", section)
-			self._support_warnings.append(section)
+        # All looks good, return True
+        return True
+
+    def warn_legacy(self, section):
+        if section not in self._legacy_warnings:
+            print("WARNING: Legacy theming used for", section)
+            self._legacy_warnings.append(section)
+
+    def warn_support(self, section):
+        if section not in self._support_warnings:
+            print("WARNING: Theming is enabled, but the current theme does not support", section)
+            self._support_warnings.append(section)
