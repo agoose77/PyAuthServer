@@ -7,10 +7,10 @@ from collections import deque
 from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR
 from time import monotonic
 
-__all__ = ['UDPSocket', 'UnreliableSocket', 'Network']
+__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMetrics']
 
 
-class UDPSocket(socket):
+class NonBlockingSocketUDP(socket):
     """Non blocking socket class"""
 
     def __init__(self, addr, port):
@@ -21,7 +21,7 @@ class UDPSocket(socket):
         self.setblocking(False)
 
 
-class UnreliableSocket(SignalListener, UDPSocket):
+class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
     """Non blocking socket class
     A SignalListener which applies artificial latency
     to outgoing packets"""
@@ -55,81 +55,105 @@ class UnreliableSocket(SignalListener, UDPSocket):
         return 0
 
 
-class Network:
-    """Network management class"""
+class NetworkMetrics:
 
-    def __init__(self, addr, port):
-        """Network socket initialiser"""
-        self._delta_timestamp = 0.0
-
+    def __init__(self):
         self._delta_received = 0
         self._delta_sent = 0
+        self._delta_timestamp = 0.0
 
-        self.sent_bytes = 0
-        self.received_bytes = 0
+        self._received_bytes = 0
+        self._sent_bytes = 0
 
-        self.socket = UDPSocket(addr, port)
+    @property
+    def sent_bytes(self):
+        return self._sent_bytes
+
+    @property
+    def received_bytes(self):
+        return self._received_bytes
 
     @property
     def send_rate(self):
-        return (self._delta_sent / (monotonic() - self._delta_timestamp))
+        return self._delta_sent / (monotonic() - self._delta_timestamp)
 
     @property
     def receive_rate(self):
-        return (self._delta_received / (monotonic() - self._delta_timestamp))
+        return self._delta_received / (monotonic() - self._delta_timestamp)
 
     @property
-    def metric_age(self):
+    def sample_age(self):
         return monotonic() - self._delta_timestamp
 
-    def reset_metrics(self):
+    def on_sent_bytes(self, sent_bytes):
+        """Update internal sent bytes"""
+        self._sent_bytes += sent_bytes
+        self._delta_sent += sent_bytes
+
+    def on_received_bytes(self, received_bytes):
+        """Update internal received bytes"""
+        self._received_bytes += received_bytes
+        self._delta_received += received_bytes
+
+    def reset_sample_window(self):
+        """Reset data used to calculate metrics"""
         self._delta_timestamp = monotonic()
         self._delta_sent = self._delta_received = 0
 
-    def stop(self):
-        self.socket.close()
 
-    def send_to(self, data, address):
-        """Overrides send_to method to record sent time"""
-        data_length = self.socket.sendto(data, address)
+class Network:
+    """Network management class"""
 
-        self.sent_bytes += data_length
-        self._delta_sent += data_length
-        return data_length
+    def __init__(self, address, port):
+        self.metrics = NetworkMetrics()
+        self.receive_buffer_size = 63553
+        self.socket = NonBlockingSocketUDP(address, port)
 
-    def receive_from(self, buff_size=63553):
+    @property
+    def received_data(self):
         """A partial function for receive_from
-        Used in iter(func, sentinel)"""
+        Used in iter(func, sentinel)
+        """
+        buff_size = self.receive_buffer_size
+        on_received_bytes = self.metrics.on_received_bytes
+
+        while True:
+            try:
+                data = self.socket.recvfrom(buff_size)
+
+            except SOCK_ERROR:
+                return
+
+            payload, _ = data
+            on_received_bytes(len(data))
+
+            yield data
+
+    @staticmethod
+    def connect_to(peer_data):
         try:
-            data = self.socket.recvfrom(buff_size)
+            return ConnectionInterface.get_from_graph(peer_data)
 
-        except SOCK_ERROR:
-            return
-
-        payload, _ = data
-        data_length = len(payload)
-
-        self.received_bytes += data_length
-        self._delta_received += data_length
-        return data
+        except LookupError:
+            return ConnectionInterface(peer_data)
 
     def receive(self):
         """Receive all data from socket"""
         # Get connections
-        get_connection = ConnectionInterface.get_from_graph  # @UndefinedVariable @IgnorePep8
+        get_connection = ConnectionInterface.get_from_graph
 
         # Receives all incoming data
-        for bytes_string, addr in iter(self.receive_from, None):
+        for data, address in self.received_data:
             # Find existing connection for address
             try:
-                connection = get_connection(addr)
+                connection = get_connection(address)
 
             # Create a new interface to handle connection
             except LookupError:
-                connection = ConnectionInterface(addr)
+                connection = ConnectionInterface(address)
 
             # Dispatch data to connection
-            connection.receive(bytes_string)
+            connection.receive(data)
 
         # Apply any changes to the Connection interface
         ConnectionInterface.update_graph()  # @UndefinedVariable
@@ -137,7 +161,7 @@ class Network:
     def send(self, full_update):
         """Send all connection data and update timeouts"""
         send_func = self.send_to
-        pending_state = ConnectionStatus.pending  # @UndefinedVariable @IgnorePep8
+        pending_state = ConnectionStatus.pending
 
         # Send all queued data
         for connection in ConnectionInterface:
@@ -155,12 +179,15 @@ class Network:
                 send_func(data, connection.instance_id)
 
         # Delete dead connections
-        ConnectionInterface.update_graph()  # @UndefinedVariable
+        ConnectionInterface.update_graph()
 
-    @staticmethod
-    def connect_to(peer_data):
-        try:
-            return ConnectionInterface.get_from_graph(peer_data)
+    def send_to(self, data, address):
+        """Overrides send_to method to record sent time"""
+        data_length = self.socket.sendto(data, address)
 
-        except LookupError:
-            return ConnectionInterface(peer_data)
+        self.metrics.on_sent_bytes(data_length)
+        return data_length
+
+    def stop(self):
+        """Close network socket"""
+        self.socket.close()
