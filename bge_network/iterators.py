@@ -2,6 +2,8 @@ __all__ = ["BidirectionalIterator"]
 
 
 class BidirectionalIterator:
+    """Iterator which can step in either direction"""
+
     def __init__(self, collection):
         self.collection = collection
         self.index = -1
@@ -14,7 +16,7 @@ class BidirectionalIterator:
             raise StopIteration
         return result
 
-    def __prev__(self):
+    def previous(self):
         self.index -= 1
         if self.index < 0:
             raise StopIteration
@@ -22,3 +24,5 @@ class BidirectionalIterator:
 
     def __iter__(self):
         return self
+
+    next = __next__
