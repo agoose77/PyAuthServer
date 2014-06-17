@@ -84,8 +84,8 @@ class RPCInterfaceFactory:
 
         self.validate_function(self._ordered_parameters, function)
 
-        self.original_function = function
-        self.has_marked_parameters = self.check_for_marked_parameters()
+        self.function = function
+        self.has_marked_parameters = self.check_for_marked_parameters(self._ordered_parameters)
 
     def __get__(self, instance, base):
         """Get descriptor for an RPC instance
@@ -103,7 +103,24 @@ class RPCInterfaceFactory:
 
         # Allow subclasses to call superclass methods without invocation
         except KeyError:
-            return self.original_function.__get__(instance)
+            return self.function.__get__(instance)
+
+    def __repr__(self):
+        return "<RPC Factory {}>".format(self.function.__qualname__)
+
+    @staticmethod
+    def check_for_marked_parameters(ordered_parameters):
+        """Checks for any MarkAttribute instances in parameter data"""
+        lookup_type = MarkAttribute
+
+        for argument in ordered_parameters.values():
+
+            for arg_value in argument.data.values():
+
+                if isinstance(arg_value, lookup_type):
+                    return True
+
+        return False
 
     def create_rpc_interface(self, instance):
         """Handles creation of a new instance's RPC interface
@@ -111,7 +128,7 @@ class RPCInterfaceFactory:
 
         :param instance: class instance which implements the RPC
         """
-        bound_function = self.original_function.__get__(instance)
+        bound_function = self.function.__get__(instance)
 
         # Create information for the serialiser
         if self._serialiser_parameters is None:
@@ -119,7 +136,6 @@ class RPCInterfaceFactory:
 
         self._by_instance[instance] = interface = RPCInterface(bound_function, self._serialiser_parameters)
 
-        interface.__self__ = instance
         return interface
 
     def get_serialiser_parameters(self, cls):
@@ -148,19 +164,6 @@ class RPCInterfaceFactory:
 
         return serialiser_info
 
-    def check_for_marked_parameters(self):
-        """Checks for any MarkAttribute instances in parameter data"""
-        lookup_type = MarkAttribute
-
-        for argument in self._ordered_parameters.values():
-
-            for arg_value in argument.data.values():
-
-                if isinstance(arg_value, lookup_type):
-                    return True
-
-        return False
-
     @staticmethod
     def order_arguments(signature):
         """Orders the parameters to the function
@@ -169,8 +172,8 @@ class RPCInterfaceFactory:
         parameter_values = signature.parameters.values()
         empty_parameter = Parameter.empty
 
-        return OrderedDict((value.name, None if value.annotation is empty_parameter else value.annotation)
-                           for value in parameter_values if isinstance(value.annotation, TypeFlag))
+        return OrderedDict((value.name, None if value.annotation is empty_parameter else value.annotation) for value
+                           in parameter_values if isinstance(value.annotation, TypeFlag))
 
     @staticmethod
     def validate_function(arguments, function):
@@ -186,6 +189,3 @@ class RPCInterfaceFactory:
             if parameter is None:
                 logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
                     function.__qualname__, parameter_name))
-
-    def __repr__(self):
-        return "<RPC Factory {}>".format(self.original_function.__qualname__)
