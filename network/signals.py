@@ -231,8 +231,8 @@ class Signal(metaclass=TypeRegister):
     @classmethod
     def update_graph(cls):
         """Update subscribers and children of this Signal class and any subclasses thereof"""
-        for cls in cls.subclasses.values():
-            cls.update_state()
+        for subclass in cls.subclasses.values():
+            subclass.update_state()
 
     @classmethod
     def invoke_signal(cls, args, target, kwargs, callback, supply_signal, supply_target):
