@@ -219,7 +219,7 @@ class Replicable(metaclass=ReplicableRegister):
         if not self.registered:
             return "(Replicable {})".format(class_name)
 
-        return ("(Replicable {0}: id={1.instance_id})".format(class_name, self))
+        return "(Replicable {0}: id={1.instance_id})".format(class_name, self)
 
 
 # Circular Reference on attribute
