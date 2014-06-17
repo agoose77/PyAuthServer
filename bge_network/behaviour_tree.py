@@ -329,7 +329,7 @@ class SequenceNode(ConcurrentNode):
 
     @property
     def resume_index(self):
-        ''':returns: index to resume from upon next evaluation'''
+        """:returns: index to resume from upon next evaluation"""
         return self._resume_index
 
     @resume_index.setter
