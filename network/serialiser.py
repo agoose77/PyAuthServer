@@ -1,46 +1,46 @@
 from math import ceil
-from struct import pack, unpack_from, calcsize
+from struct import Struct
 
 from .handler_interfaces import register_handler
 
-__all__ = ['IStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes',
-           'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',
-           'BytesHandler', 'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
+__all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', 'handler_from_bit_length',
+           'handler_from_int', 'handler_from_byte_length', 'StringHandler', 'BytesHandler', 'int_selector',
+           'next_or_equal_power_of_two', 'BoolHandler']
 
 
-class IStruct:
-    """Handler for struct types
+def build_handler(name, fmt):
+    """Create handler for data with struct formatting
 
-    Optimises methods to prevent unnecessary attribute lookups
+    :param name: name of handler class
+    :param fmt: format string of handler
     """
-    __slots__ = ["pack", "unpack_from", "size"]
+    cls_dict = {}
 
-    def __init__(self, fmt):
-        _size = calcsize(fmt)
+    struct_obj = Struct(fmt)
+    fmt_size = struct_obj.size
 
-        exec(self.st_pack.format(fmt))
-        exec(self.st_unpack.format(fmt, _size))
-        exec(self.st_size.format(_size))
+    methods = ("""def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
+               return unpacker(bytes_string, offset)[0], {size}""",
+               """def size(bytes_string=None):\n\treturn {size}""",
+               """pack=struct_obj.pack""")
 
-        self.pack = locals()['pack']
-        self.unpack_from = locals()['unpack_from']
-        self.size = locals()['size']
+    register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
+                         .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
 
-    st_pack = """def pack(int):\n\treturn pack('{}', int)"""
-    st_unpack = """def unpack_from(bytes_string, offset=0):\n\treturn unpack_from('{}', bytes_string, offset)[0], {}"""
-    st_size = """def size(bytes_string=None):\n\treturn {}"""
+    for method_string in methods:
+        func_string = method_string.format(fmt=fmt, size=fmt_size)
+        wrapped_string = register_string.format(func_string)
+        exec(wrapped_string)
 
-    def __str__(self):
-        return "<{} Byte Handler>".format(self.__class__.__name__)
+    return type(name, (), cls_dict)
 
 
-UInt32 = IStruct("!I")
-
-UInt16 = IStruct("!H")
-UInt64 = IStruct("!Q")
-UInt8 = IStruct("!B")
-Float32 = IStruct("!f")
-Float64 = IStruct("!d")
+UInt32 = build_handler("UInt32", "!I")
+UInt16 = build_handler("UInt16", "!H")
+UInt64 = build_handler("UInt64", "!Q")
+UInt8 = build_handler("UInt8", "!B")
+Float32 = build_handler("Float32", "!f")
+Float64 = build_handler("Float64", "!d")
 
 
 int_packers = [UInt8, UInt16, UInt32, UInt64]
@@ -70,6 +70,7 @@ def next_or_equal_power_of_two(value):
     while (value + 1) & value:
         value |= value >> shift
         shift *= 2
+
     return value + 1
 
 
@@ -92,7 +93,7 @@ def handler_from_byte_length(total_bytes):
     """Return the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IStruct`"""
+    :rtype: :py:class:`network.serialiser.IDataHandler`"""
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:
