@@ -7,6 +7,7 @@ from .signals import TimerUpdateSignal
 
 
 class ManualTimer:
+    """Manual timer class with callbacks"""
 
     def __init__(self, end=0.0, start=0.0, count_down=False, repeat=False, active=True, disposable=False):
 
@@ -47,6 +48,7 @@ class ManualTimer:
         return self.value == self.end
 
     def reset(self):
+        """Reset timer to start value"""
         self.value = self.start
         self.active = True
 
@@ -54,6 +56,7 @@ class ManualTimer:
             self.on_reset()
 
     def stop(self):
+        """Stop timer updating"""
         self.value = self.end
         self.active = False
 
@@ -64,6 +67,10 @@ class ManualTimer:
             self.delete()
 
     def update(self, delta_time):
+        """Update timer value
+
+        :param delta_time: time since last update
+        """
         if not self.active:
             return
 
@@ -85,6 +92,7 @@ class ManualTimer:
 
 
 class Timer(ManualTimer, SignalListener):
+    """Managed timer class with callbacks"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,6 +100,7 @@ class Timer(ManualTimer, SignalListener):
         self.register_signals()
 
     def delete(self):
+        """Unregister timer signals"""
         self.unregister_signals()
 
     @TimerUpdateSignal.global_listener
