@@ -80,7 +80,7 @@ def draw_square_pyramid(point, orientation, angle=45, depth=1, colour=[1, 1, 1],
                 render.drawLine(point, b + point, colour)
 
 
-def draw_plane(point, orientation, size=1, offset=0, colour=[1, 1, 1]):
+def draw_plane(point, orientation, size=1.0, offset=0, colour=[1, 1, 1]):
     angle = asin(size)
     draw_square_pyramid(point, orientation, angle, offset, colour, False)
 

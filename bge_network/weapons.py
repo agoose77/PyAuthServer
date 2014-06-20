@@ -1,27 +1,33 @@
 from network.decorators import requires_netmode
-from network.descriptors import Attribute, TypeFlag, MarkAttribute
+from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.world_info import WorldInfo
 
+from game_system.enums import Axis
+from game_system.resources import ResourceManager
+from game_system.signals import *
+from game_system.math import square_falloff
+
 from mathutils import Vector
 
-from .object_types import *
-from .resources import ResourceManager
-from .signals import *
-from .utilities import square_falloff
 
 __all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon', 'EmptyWeapon']
 
 
 class Weapon(Replicable):
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
     ammo = Attribute(70, notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     @property
     def can_fire(self):
-        return (bool(self.ammo) and (WorldInfo.tick - self.last_fired_tick) >= (self.shoot_interval *
-                                                                                WorldInfo.tick_rate))
+        cool_down_ticks = self.shoot_interval * WorldInfo.tick_rate
+        ticks_since_fired = (WorldInfo.tick - self.last_fired_tick)
+
+        cool_down_expired = ticks_since_fired >= cool_down_ticks
+        has_ammo = self.ammo != 0
+
+        return has_ammo and cool_down_expired
 
     @property
     def resources(self):
@@ -40,6 +46,7 @@ class Weapon(Replicable):
 
     def fire(self, camera):
         self.consume_ammo()
+
         self.last_fired_tick = WorldInfo.tick
 
     def conditions(self, is_owner, is_complaint, is_initial):
@@ -50,16 +57,14 @@ class Weapon(Replicable):
     def on_initialised(self):
         super().on_initialised()
 
-        self.shoot_interval = 0.5
-        self.last_fired_tick = 0
-        self.max_ammo = 70
-
-        self.momentum = 1
-        self.maximum_range = 20
-        self.effective_range = 10
-        self.base_damage = 40
-
         self.attachment_class = None
+        self.base_damage = 40
+        self.effective_range = 10
+        self.last_fired_tick = 0
+        self.maximum_range = 20
+        self.momentum = 1
+        self.max_ammo = 70
+        self.shoot_interval = 0.5
 
 
 class TraceWeapon(Weapon):
@@ -71,22 +76,25 @@ class TraceWeapon(Weapon):
 
     @requires_netmode(Netmodes.server)
     def trace_shot(self, camera):
+        # Get hit results
         hit_result = camera.trace_ray(self.maximum_range)
         if not hit_result:
             return
 
+        # Only damage Pawns
         if not isinstance(hit_result.hit_object, Pawn):
             return
 
+        # But don't damage our owner!
         replicable = hit_result.hit_object
-
         if replicable == self.owner.pawn:
             return
 
         hit_position = hit_result.hit_position
+        hit_vector = (hit_position - camera.world_position)
 
-        hit_vector = (hit_position - camera.position)
-        falloff = square_falloff(camera.position, self.maximum_range, hit_position, self.effective_range)
+        falloff = square_falloff(camera.world_position, self.maximum_range, hit_position, self.effective_range)
+
         damage = self.base_damage * falloff
         momentum = self.momentum * hit_vector.normalized() * falloff
 
@@ -109,11 +117,14 @@ class ProjectileWeapon(Weapon):
     @requires_netmode(Netmodes.server)
     def projectile_shot(self, camera):
         projectile = self.projectile_class()
-        forward_vector = Vector((0, 1, 0))
-        forward_vector.rotate(camera.rotation)
-        projectile.position = camera.position + forward_vector * 6.0
-        projectile.rotation = camera.rotation.copy()
-        projectile.velocity = self.projectile_velocity
+
+        forward_vector = camera.get_direction(Axis.y)
+        projectile_vector = self.projectile_velocity.copy()
+        projectile_vector.rotate(camera.world_rotation)
+
+        projectile.world_position = camera.world_position + forward_vector * 6.0
+        projectile.world_rotation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
+        projectile.local_velocity = self.projectile_velocity
         projectile.possessed_by(self)
 
 

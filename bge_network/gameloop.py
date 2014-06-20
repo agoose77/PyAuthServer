@@ -1,19 +1,18 @@
-from network.connection_interfaces import ConnectionInterface
+from collections import OrderedDict, namedtuple
+from contextlib import contextmanager
+
 from network.enums import Netmodes
+
 from network.logger import logger
 from network.network import Network
 from network.replicable import Replicable
 from network.signals import *
 from network.world_info import WorldInfo
-
-from bge import logic, events, types
-from collections import OrderedDict, namedtuple
-from contextlib import contextmanager
-
-from .actors import Camera, Pawn
+from .game_system.actors import Camera, Pawn
 from .physics import PhysicsSystem
-from .signals import *
-from .timer import Timer
+from .game_system.signals import *
+from .game_system.timer import Timer
+
 
 __all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
 

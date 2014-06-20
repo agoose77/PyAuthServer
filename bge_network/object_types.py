@@ -1,19 +1,15 @@
-from network.conditions import is_annotatable
-from network.decorators import simulated, simulate_methods
-from network.iterators import take_single
-
-from bge import logic, types
 from collections import namedtuple
 from contextlib import contextmanager
-from inspect import getmembers
-from mathutils import Vector, Euler, Matrix, Quaternion
 from math import radians
 
-from game_system.objects import IAnimatedObject, IPhysicsObject
+from network.decorators import simulated, simulate_methods
+from network.iterators import take_single
+from game_system.types.objects import IAnimatedObject, IPhysicsObject
+from game_system.enums import Axis, CollisionType, PhysicsType, AnimationBlend, AnimationMode
+from game_system.timer import Timer
+from game_system.signals import CollisionSignal, UpdateCollidersSignal
+from bge import logic, types
 
-from .enums import Axis, CollisionType, PhysicsType, AnimationBlend, AnimationMode
-from .timer import Timer
-from .signals import CollisionSignal, UpdateCollidersSignal
 
 __all__ = ["BGEBaseObject", "BGEActorBase", "BGECameraObject", "BGECameraBase", "RayTestResult", "BGEPawnBase",
            "BGELampBase", "BGENavmeshBase"]
@@ -48,24 +44,6 @@ def create_object(name, position=None, rotation=None, scale=None):
 
 class BGEBaseObject(IPhysicsObject):
     """Base class for Physics objects"""
-
-    @property
-    def angular(self):
-        """Angular velocity of object
-
-        :rtype: :py:class:`mathutils.Vector`
-        """
-        if not self.has_dynamics:
-            return Vector()
-
-        return self.object.localAngularVelocity
-
-    @angular.setter
-    def angular(self, vel):
-        if not self.has_dynamics:
-            return
-
-        self.object.localAngularVelocity = vel
 
     @property
     def collision_group(self):
@@ -143,6 +121,14 @@ class BGEBaseObject(IPhysicsObject):
             self._timer.on_target = self.delete
 
     @property
+    def local_angular(self):
+        return self.object.localAngularVelocity
+
+    @local_angular.setter
+    def local_angular(self, angular):
+        self.object.localAngularVelocity = angular
+
+    @property
     def local_position(self):
         """Local position of object
 
@@ -165,6 +151,14 @@ class BGEBaseObject(IPhysicsObject):
     @local_rotation.setter
     def local_rotation(self, ori):
         self.object.localOrientation = ori
+
+    @property
+    def local_velocity(self):
+        return self.object.localLinearVelocity
+
+    @local_velocity.setter
+    def local_velocity(self, velocity):
+        self.object.localLinearVelocity = velocity
 
     @property
     def mass(self):
@@ -204,30 +198,6 @@ class BGEBaseObject(IPhysicsObject):
                        logic.KX_PHYSICS_NO_COLLISION: PhysicsType.no_collision}
 
         return physics_map[physics_type]
-
-    @property
-    def position(self):
-        """World position of object
-
-        :rtype: :py:class:`mathutils.Vector`
-        """
-        return self.object.worldPosition
-
-    @position.setter
-    def position(self, pos):
-        self.object.worldPosition = pos
-
-    @property
-    def rotation(self):
-        """World rotation of object
-
-        :rtype: :py:class:`mathutils.Euler`
-        """
-        return self.object.worldOrientation.to_euler()
-
-    @rotation.setter
-    def rotation(self, rot):
-        self.object.worldOrientation = rot
 
     @property
     def sockets(self):
@@ -294,7 +264,49 @@ class BGEBaseObject(IPhysicsObject):
         self.object.worldTransform = val
 
     @property
-    def velocity(self):
+    def world_angular(self):
+        """World world_angular velocity of object
+
+        :rtype: :py:class:`mathutils.Vector`
+        """
+        if not self.has_dynamics:
+            return Vector()
+
+        return self.object.worldAngularVelocity
+
+    @world_angular.setter
+    def world_angular(self, vel):
+        if not self.has_dynamics:
+            return
+
+        self.object.worldAngularVelocity = vel
+
+    @property
+    def world_position(self):
+        """World position of object
+
+        :rtype: :py:class:`mathutils.Vector`
+        """
+        return self.object.worldPosition
+
+    @world_position.setter
+    def world_position(self, pos):
+        self.object.worldPosition = pos
+
+    @property
+    def world_rotation(self):
+        """World rotation of object
+
+        :rtype: :py:class:`mathutils.Vector`
+        """
+        return self.object.worldOrientation.to_euler()
+
+    @world_rotation.setter
+    def world_rotation(self, rotation):
+        self.object.worldOrientation = rotation
+
+    @property
+    def world_velocity(self):
         """World velocity of object
 
         :rtype: :py:class:`mathutils.Vector`
@@ -302,14 +314,14 @@ class BGEBaseObject(IPhysicsObject):
         if not self.has_dynamics:
             return Vector()
 
-        return self.object.localLinearVelocity
+        return self.object.worldLinearVelocity
 
-    @velocity.setter
-    def velocity(self, vel):
+    @world_velocity.setter
+    def world_velocity(self, vel):
         if not self.has_dynamics:
             return
 
-        self.object.localLinearVelocity = vel
+        self.object.worldLinearVelocity = vel
 
     @property
     def visible(self):
@@ -350,8 +362,8 @@ class BGEBaseObject(IPhysicsObject):
             forward_axis = "Z"
 
         rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
-        current_rotation = self.rotation.to_quaternion()
-        self.rotation = (current_rotation.slerp(rotation_quaternion, factor)).to_euler()
+        current_rotation = self.world_rotation.to_quaternion()
+        self.world_rotation = (current_rotation.slerp(rotation_quaternion, factor)).to_euler()
 
     def delete(self):
         # Unregister from parent
@@ -484,7 +496,7 @@ class BGEBaseObject(IPhysicsObject):
         :rtype: :py:class:`bge_network.object_types.RayTestResult`
         """
         if source is None:
-            source = self.position
+            source = self.world_position
 
         result = self.object.rayCast(target, source, distance)
 
@@ -527,13 +539,13 @@ class BGECameraObject(BGEBaseObject):
         self.object.fov = value
 
     @property
-    def rotation(self):
+    def world_rotation(self):
         rotation = Euler((-radians(90), 0, 0))
         rotation.rotate(self.object.worldOrientation)
         return rotation
 
-    @rotation.setter
-    def rotation(self, rot):
+    @world_rotation.setter
+    def world_rotation(self, rot):
         rotation = Euler((radians(90), 0, 0))
         rotation.rotate(rot)
         self.object.worldOrientation = rotation
@@ -591,7 +603,6 @@ class BGECameraObject(BGEBaseObject):
         elif axis == Axis.z:
             vector[1] = 1
         return Vector(self.object.getAxisVect(vector))
-
 
 
 class BGEAnimatedObject(BGEBaseObject, IAnimatedObject):
@@ -706,8 +717,7 @@ class BGEActorBase(BGEBaseObject):
             CollisionSignal.invoke(result, target=self)
 
     def _register_callback(self):
-        if self.physics in (PhysicsType.navigation_mesh,
-                            PhysicsType.no_collision):
+        if self.physics in (PhysicsType.navigation_mesh, PhysicsType.no_collision):
             return
 
         callbacks = self.object.collisionCallbacks
