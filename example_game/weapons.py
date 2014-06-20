@@ -1,4 +1,4 @@
-from bge_network.weapons import ProjectileWeapon
+from game_system.weapons import ProjectileWeapon
 
 from mathutils import Vector
 

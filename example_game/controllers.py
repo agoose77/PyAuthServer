@@ -3,7 +3,7 @@ from network.enums import Netmodes
 from network.replicable import Replicable
 
 from game_system.ai.behaviour_tree import SequenceNode, SelectorNode
-from game_system.controllers import AIController, PlayerController
+from game_system.controllers import AIControllerBase, PlayerControllerBase
 from game_system.enums import CollisionType
 from game_system.signals import *
 
@@ -15,7 +15,7 @@ from .signals import *
 __all__ = ["EnemyController", "CTFPlayerController"]
 
 
-class EnemyController(AIController):
+class EnemyController(AIControllerBase):
 
     def on_initialised(self):
         super().on_initialised()
@@ -26,12 +26,12 @@ class EnemyController(AIController):
         self.behaviour.root = behaviour
 
 
-CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
+CTFPlayerMovementStruct = PlayerControllerBase.create_movement_struct("forward", "backwards", "left", "right", "shoot",
                                                                   "run", "voice", "jump", "debug")
-CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
+CTFPlayerMissingMoveStruct = PlayerControllerBase.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
 
 
-class CTFPlayerController(PlayerController):
+class CTFPlayerController(PlayerControllerBase):
 
     movement_struct = CTFPlayerMovementStruct
     missing_movement_struct = CTFPlayerMissingMoveStruct

@@ -9,7 +9,7 @@ from .game_system.configuration import *
 from .inputs import *
 from .mathutils_handlers import *
 from .geometry import *
-from .object_types import *
+from .bge_network.types.object_types import *
 from .game_system.behaviour_tree import *
 from .draw_tools import *
 from .game_system.enums import *

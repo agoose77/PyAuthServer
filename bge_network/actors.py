@@ -1,4 +1,3 @@
-from math import radians
 from functools import partial
 
 from network.decorators import requires_netmode, simulated
@@ -6,12 +5,12 @@ from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.world_info import WorldInfo
-from mathutils import Euler, Vector, Matrix
+
 from .animation import Animation
-from .game_system.ai.behaviour_tree import BehaviourTree
-from .draw_tools import draw_arrow, draw_box, draw_circle, draw_square_pyramid
+from .ai.behaviour_tree import BehaviourTree
+from .coordinates import Euler, Vector
 from .enums import *
-from .game_system.types.object_types import ICameraObject, IPhysicsObject
+from .types.objects import BGEActorBase, BGECameraBase, BGELampBase, BGENavmeshBase, BGEPawnBase
 from .resources import ResourceManager
 from .signals import *
 from .timer import Timer
@@ -21,7 +20,7 @@ from .math import mean
 __all__ = ["Actor", "Camera", "Lamp", "Pawn", "WeaponAttachment"]
 
 
-class Actor(IPhysicsObject, Replicable):
+class Actor(BGEActorBase, Replicable):
     """Physics enabled network object"""
 
     # Physics data
@@ -130,7 +129,7 @@ class Actor(IPhysicsObject, Replicable):
             super().on_notify(name)
 
 
-class Camera(ICameraObject, Actor):
+class Camera(BGECameraBase, Actor):
 
     entity_name = "Camera"
 
@@ -145,32 +144,19 @@ class Camera(ICameraObject, Actor):
         if mode == self._mode:
             return
 
-        self.local_position = Vector() if mode == CameraMode.first_person else Vector((0, -self.gimbal_offset, 0))
-        self.local_rotation = Euler()
-
         self._mode = mode
+
+        if mode == CameraMode.first_person:
+            self.local_position = Vector()
+
+        elif mode == CameraMode.third_person:
+            self.local_position = Vector((0, -self.gimbal_offset, 0))
+
+        self.local_rotation = Euler()
 
     def draw(self):
         """Draws a colourful 3D camera object to the screen"""
-        orientation = self.world_rotation.to_matrix()
-        position = self.world_position
-
-        circle_size = 0.20
-        upwards_orientation = orientation * Matrix.Rotation(radians(90), 3, "X")
-        upwards_vector = Vector(upwards_orientation.col[1])
-
-        sideways_orientation = orientation * Matrix.Rotation(radians(-90), 3, "Z")
-        sideways_vector = (Vector(sideways_orientation.col[1]))
-        forwards_vector = Vector(orientation.col[1])
-
-        draw_arrow(position, orientation, colour=[0, 1, 0])
-        draw_arrow(position + upwards_vector * circle_size, upwards_orientation, colour=[0, 0, 1])
-        draw_arrow(position + sideways_vector * circle_size, sideways_orientation, colour=[1, 0, 0])
-
-        draw_circle(position, orientation, circle_size)
-        draw_box(position, orientation)
-        draw_square_pyramid(position + forwards_vector * 0.4, orientation, colour=[1, 1, 0], angle=self.fov,
-                            incline=False)
+        raise NotImplementedError()
 
     def on_initialised(self):
         super().on_initialised()
@@ -243,6 +229,7 @@ class Pawn(BGEPawnBase, Actor):
 
         if self.weapon_attachment is not None:
             self.weapon_attachment.unpossessed()
+
         self.weapon_attachment.possessed_by(self)
 
         self.weapon_attachment.local_position = Vector()
@@ -428,8 +415,3 @@ class WeaponAttachment(Actor):
 
     def play_fire_effects(self):
         pass
-
-
-class EmptyAttatchment(WeaponAttachment):
-
-    entity_name = "Empty.002"

@@ -1,13 +1,12 @@
+from bge_network.resources import ResourceManager
+
 from network.replicable import Replicable
 from network.decorators import simulated
 from network.descriptors import Attribute, TypeFlag
 from network.enums import Roles, Netmodes
-
-from game_system.actors import Actor
+from bge_network.actors import Actor
 from game_system.signals import CollisionSignal
 from game_system.enums import CollisionType
-from bge_network.resources import ResourceManager
-
 import aud
 
 

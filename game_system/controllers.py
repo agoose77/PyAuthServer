@@ -13,7 +13,9 @@ from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
 from network.structures import factory_dict
 from network.world_info import WorldInfo
-from .game_system.ai.behaviour_tree import BehaviourTree
+
+
+from .ai.behaviour_tree import BehaviourTree
 from .configuration import load_keybindings
 from .constants import MAX_32BIT_INT
 from .coordinates import Vector, Euler
@@ -26,12 +28,12 @@ from .stream import MicrophoneStream, SpeakerStream
 from .structs import RigidBodyState
 
 
-__all__ = ['Controller', 'PlayerController', 'AIController']
+__all__ = ['ControllerBase', 'PlayerControllerBase', 'AIControllerBase']
 
 TICK_FLAG = TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)
 
 
-class Controller(Replicable):
+class ControllerBase(Replicable):
 
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
     pawn = Attribute(type_of=Replicable, complain=True, notify=True)
@@ -146,7 +148,7 @@ class Controller(Replicable):
 
         weapon_sound = self.weapon.resources['sounds'][self.weapon.shoot_sound]
 
-        for controller in WorldInfo.subclass_of(Controller):
+        for controller in WorldInfo.subclass_of(ControllerBase):
             if controller == self:
                 continue
 
@@ -183,7 +185,7 @@ class Controller(Replicable):
         self._pawn = None
 
 
-class AIController(Controller):
+class AIControllerBase(ControllerBase):
 
     def get_visible(self, ignore_self=True):
         if not self.camera:
@@ -220,7 +222,7 @@ class AIController(Controller):
         self.behaviour.update()
 
 
-class PlayerController(Controller):
+class PlayerControllerBase(ControllerBase):
     """Player pawn controller network object"""
 
     movement_struct = None
@@ -228,7 +230,7 @@ class PlayerController(Controller):
 
     audio_manager_class = None
     input_lookup_cls = None
-    mouse_manager = None
+    mouse_manager_class = None
 
     MAX_POSITION_DIFFERENCE_SQUARED = 1.2
     MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
@@ -551,7 +553,7 @@ class PlayerController(Controller):
     @requires_netmode(Netmodes.client)
     def get_local_controller():
         """Get the local PlayerController instance opn the client"""
-        return take_single(WorldInfo.subclass_of(PlayerController))
+        return take_single(WorldInfo.subclass_of(PlayerControllerBase))
 
     def hear_sound(self, resource: TypeFlag(str), position: TypeFlag(Vector), rotation: TypeFlag(Euler),
                    velocity: TypeFlag(Vector)) -> Netmodes.client:
@@ -746,7 +748,7 @@ class PlayerController(Controller):
         :param data: voice data
         """
         info = self.info
-        for controller in WorldInfo.subclass_of(Controller):
+        for controller in WorldInfo.subclass_of(ControllerBase):
             if controller is self:
                 continue
 

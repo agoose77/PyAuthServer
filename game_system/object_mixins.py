@@ -1,4 +1,5 @@
-__all__ = ['IPhysicsObjectMixin', 'IAnimatedObjectMixin', 'ITransformObjectMixin']
+__all__ = ['IPhysicsObjectMixin', 'IAnimatedObjectMixin', 'ITransformObjectMixin', 'ILampObjectMixin',
+           'INavmeshObjectMixin']
 
 
 class IAnimatedObjectMixin:
@@ -152,6 +153,9 @@ class ICameraObjectMixin(IPhysicsObjectMixin):
     def fov(self, value):
         raise NotImplementedError()
 
+    def active_context(self):
+        raise NotImplementedError()
+
     def is_point_in_frustum(self, point):
         raise NotImplementedError()
 
@@ -159,4 +163,27 @@ class ICameraObjectMixin(IPhysicsObjectMixin):
         raise NotImplementedError()
 
     def screen_trace_ray(self, distance, x, y):
+        raise NotImplementedError()
+
+
+class ILampObjectMixin:
+
+    @property
+    def intensity(self):
+        raise NotImplementedError()
+
+    @intensity.setter
+    def intensity(self, energy):
+        raise NotImplementedError()
+
+
+class INavmeshObjectMixin:
+
+    def draw(self):
+        raise NotImplementedError()
+
+    def find_path(self, from_point, to_point):
+        raise NotImplementedError()
+
+    def get_wall_intersection(self, from_point, to_point):
         raise NotImplementedError()

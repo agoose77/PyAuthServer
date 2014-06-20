@@ -4,8 +4,8 @@ from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from game_system.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
-from game_system.controllers import PlayerController
+from bge_network.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
+from game_system.controllers import PlayerControllerBase
 from game_system.enums import Axis, CollisionType
 from game_system.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal, PawnKilledSignal
 from game_system.timer import Timer
@@ -95,7 +95,7 @@ class Barrel(Actor):
         if not collision_result.collision_type == CollisionType.started:
             return
 
-        player_controller = PlayerController.get_local_controller()
+        player_controller = PlayerControllerBase.get_local_controller()
 
         collision_sound = self.resources['sounds']['clang.mp3']
         player_controller.hear_sound(collision_sound, self.world_position, self.world_rotation, self.world_velocity)
@@ -221,7 +221,7 @@ class CTFFlag(Actor):
             team_relation = TeamRelation.neutral
 
         else:
-            player_controller = PlayerController.get_local_controller()
+            player_controller = PlayerControllerBase.get_local_controller()
             if not player_controller:
                 return
 

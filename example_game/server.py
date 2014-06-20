@@ -1,16 +1,17 @@
 from operator import gt as greater_than
 from random import choice
 
+from bge_network.resources import ResourceManager
+
 from network.connection_interfaces import ConnectionInterface
 from network.enums import ConnectionStatus, Netmodes
 from network.replication_rules import ReplicationRules
 from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
 from network.world_info import WorldInfo
-from game_system.actors import *
-from game_system.controllers import PlayerController
+from bge_network.actors import *
+from game_system.controllers import PlayerControllerBase
 from game_system.errors import AuthError, BlacklistError
 from bge_network.gameloop import ServerGameLoop
-from bge_network.resources import ResourceManager
 from game_system.signals import PawnKilledSignal, LogicUpdateSignal
 from game_system.timer import Timer
 from bge import logic
@@ -67,7 +68,7 @@ class TeamDeathMatch(ReplicationRules):
         if not self.allows_broadcast(sender, message):
             return
 
-        for replicable in WorldInfo.subclass_of(PlayerController):
+        for replicable in WorldInfo.subclass_of(PlayerControllerBase):
             replicable.receive_broadcast(message)
 
     def setup_fake_teams(self):

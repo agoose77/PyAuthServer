@@ -6,7 +6,10 @@ class ISoundHandle:
     def stop(self):
         raise NotImplementedError()
 
-    def start(self):
+    def resume(self):
+        raise NotImplementedError()
+
+    def pause(self):
         raise NotImplementedError()
 
 

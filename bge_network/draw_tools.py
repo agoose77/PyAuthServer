@@ -1,6 +1,7 @@
-from bge import render
 from itertools import product, tee
 from math import radians, sin, cos, pi, asin
+
+from bge import render
 from mathutils import Vector, Euler
 
 
