@@ -7,7 +7,7 @@ from network.decorators import requires_netmode
 from network.descriptors import Attribute, TypeFlag, MarkAttribute
 from network.enums import Netmodes, Roles, IterableCompressionType
 from network.iterators import take_single
-from network.logger import logger
+from network.logger import Logger
 from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
@@ -22,6 +22,7 @@ from .coordinates import Vector, Euler
 from .enums import *
 from .inputs import InputManager
 from .jitter_buffer import JitterBuffer
+from .network_locks import NetworkLocks
 from .resources import ResourceManager
 from .signals import *
 from .stream import MicrophoneStream, SpeakerStream
@@ -222,7 +223,7 @@ class AIControllerBase(ControllerBase):
         self.behaviour.update()
 
 
-class PlayerControllerBase(ControllerBase):
+class PlayerControllerBase(ControllerBase, NetworkLocks):
     """Player pawn controller network object"""
 
     movement_struct = None
@@ -232,9 +233,9 @@ class PlayerControllerBase(ControllerBase):
     input_lookup_class = None
     mouse_manager_class = None
 
-    MAX_POSITION_DIFFERENCE_SQUARED = 1.2
-    MAX_ROTATION_DIFFERENCE = ((2 * pi) / 100)
-    MOVE_BUFFERING_TIME = 0.15
+    maximum_squared_position_error = 1.2
+    maximum_rotation_error = ((2 * pi) / 100)
+    additional_move_buffering_latency = 0.15
 
     def apply_move(self, move):
         """Apply move contents to Controller state
@@ -255,7 +256,7 @@ class PlayerControllerBase(ControllerBase):
         :returns: result of acknowledgement attempt
         """
         if not self.pawn:
-            logger.warning("Could not find Pawn for {} in order to acknowledge a move".format(self))
+            Logger.warning("Could not find Pawn for {} in order to acknowledge a move".format(self))
             return False
 
         remove_move = self.pending_moves.pop
@@ -268,7 +269,7 @@ class PlayerControllerBase(ControllerBase):
             if self.pending_moves and move_id < take_single(self.pending_moves):
                 return False
 
-            logger.warning("Couldn't find move to acknowledge for move {}".format(move_id))
+            Logger.warning("Couldn't find move to acknowledge for move {}".format(move_id))
             return False
 
         # Remove any older moves
@@ -290,14 +291,14 @@ class PlayerControllerBase(ControllerBase):
         self.server_remove_buffered_lock(self.current_move.id + 1, "correction")
 
         if not self.pawn:
-            logger.warning("Could not find Pawn for {} in order to correct a move".format(self))
+            Logger.warning("Could not find Pawn for {} in order to correct a move".format(self))
             return
 
         if not self.client_acknowledge_move(move_id):
             return
 
         CopyStateToActor.invoke(correction, self.pawn)
-        logger.info("{}: Correcting prediction for move {}".format(self, move_id))
+        Logger.info("{}: Correcting prediction for move {}".format(self, move_id))
 
         # State call-backs
         apply_move = self.apply_move
@@ -327,10 +328,9 @@ class PlayerControllerBase(ControllerBase):
 
         self.inputs = InputManager(keybindings, self.input_lookup_class())
         self.mouse = self.mouse_manager_class(interpolation=0.6)
-
         self.move_history = self.missing_movement_struct()
 
-        logger.info("Created User Input Managers")
+        Logger.info("Created User Input Managers")
 
     @requires_netmode(Netmodes.client)
     def client_setup_sound(self):
@@ -351,7 +351,7 @@ class PlayerControllerBase(ControllerBase):
 
         # Log an error if we should be able to send a move
         if move is None:
-            logger.error("No move could be sent to the server for tick {}!".format(WorldInfo.tick))
+            Logger.error("No move could be sent to the server for tick {}!".format(WorldInfo.tick))
             return
 
         # Post physics state copying
@@ -537,8 +537,8 @@ class PlayerControllerBase(ControllerBase):
         pos_difference = self.pawn.world_position - move.position
         rot_difference = min(abs(self.pawn.world_rotation[-1] - move.rotation[-1]), 2 * pi)
 
-        position_invalid = (pos_difference.length_squared > self.MAX_POSITION_DIFFERENCE_SQUARED)
-        rotation_invalid = (rot_difference > self.MAX_ROTATION_DIFFERENCE)
+        position_invalid = (pos_difference.length_squared > self.maximum_squared_position_error)
+        rotation_invalid = (rot_difference > self.maximum_rotation_error)
 
         if not (position_invalid or rotation_invalid):
             return
@@ -586,15 +586,6 @@ class PlayerControllerBase(ControllerBase):
         player = self.voice_channels[info]
         player.decode(data)
 
-    @requires_netmode(Netmodes.server)
-    def is_locked(self, name):
-        """Determine if a server lock exists with a given name
-
-        :param name: name of lock to test for
-        :rtype: bool
-        """
-        return name in self.locks
-
     def load_keybindings(self):
         """Read config file for keyboard inputs
         Looks for config file with "ClassName.conf" in config filepath
@@ -615,7 +606,7 @@ class PlayerControllerBase(ControllerBase):
         keymap_absolute_path = ResourceManager.from_relative_path(keymap_relative_path)
 
         bindings = load_keybindings(keymap_absolute_path, class_name, input_fields, input_codes)
-        logger.info("Loaded {} key-bindings for {}".format(len(bindings), class_name))
+        Logger.info("Loaded {} key-bindings for {}".format(len(bindings), class_name))
         return bindings
 
     def on_initialised(self):
@@ -627,15 +618,12 @@ class PlayerControllerBase(ControllerBase):
 
         self.behaviour = BehaviourTree(self, default={"controller": self})
 
-        self.locks = set()
-        self.buffered_locks = factory_dict(dict, dict_type=OrderedDict, provide_key=False)
-
         # Permit move recovery by sending a history
         self.move_history_dict = {}
         self.move_history_base = None
 
         # Number of moves to buffer
-        buffer_length = WorldInfo.to_ticks(self.__class__.MOVE_BUFFERING_TIME)
+        buffer_length = WorldInfo.to_ticks(self.__class__.additional_move_buffering_latency)
 
         # Queued moves
         self.buffered_moves = JitterBuffer(buffer_length, id_getter=attrgetter("id"),
@@ -643,25 +631,6 @@ class PlayerControllerBase(ControllerBase):
 
         self.client_setup_input()
         self.client_setup_sound()
-
-    def recover_missing_moves(self, move, previous_move):
-        """Jitter buffer callback to find missing moves using move history
-
-        :param move: next move
-        :param previous_move: last valid move
-        """
-        required_ids = list(range(previous_move.id + 1, move.id))
-
-        recovered_moves = []
-
-        # Search every move history to find missing moves!
-        for move in self.move_history_dict.values():
-            for required_id in required_ids:
-                if required_id in move:
-                    recovered_moves.append(move[required_id])
-                    required_ids.remove(required_id)
-
-        return recovered_moves
 
     def on_notify(self, name):
         if name == "pawn":
@@ -742,6 +711,25 @@ class PlayerControllerBase(ControllerBase):
         """
         ReceiveMessage.invoke(message_string)
 
+    def recover_missing_moves(self, move, previous_move):
+        """Jitter buffer callback to find missing moves using move history
+
+        :param move: next move
+        :param previous_move: last valid move
+        """
+        required_ids = list(range(previous_move.id + 1, move.id))
+
+        recovered_moves = []
+
+        # Search every move history to find missing moves!
+        for move in self.move_history_dict.values():
+            for required_id in required_ids:
+                if required_id in move:
+                    recovered_moves.append(move[required_id])
+                    required_ids.remove(required_id)
+
+        return recovered_moves
+
     def server_receive_voice(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
         """Send voice information to the server
 
@@ -753,21 +741,6 @@ class PlayerControllerBase(ControllerBase):
                 continue
 
             controller.hear_voice(info, data)
-
-    def server_add_buffered_lock(self, move_id: TICK_FLAG, name: TypeFlag(str)) -> Netmodes.server:
-        """Add a named lock on the server with respect for the artificial latency
-
-        :param move_id: move ID that corresponds with the command creation time
-        :param name: name of lock to set
-        """
-        self.buffered_locks[move_id][name] = True
-
-    def server_add_lock(self, name: TypeFlag(str)) -> Netmodes.server:
-        """Add a named lock on the server
-
-        :param name: name of lock to set
-        """
-        self.locks.add(name)
 
     @requires_netmode(Netmodes.server)
     def server_check_move(self):
@@ -813,7 +786,7 @@ class PlayerControllerBase(ControllerBase):
 
     @requires_netmode(Netmodes.server)
     def server_fire(self):
-        logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
+        Logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
 
         if True:
             latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
@@ -822,25 +795,6 @@ class PlayerControllerBase(ControllerBase):
 
         else:
             super().server_fire()
-
-    def server_remove_buffered_lock(self, move_id: TICK_FLAG, name: TypeFlag(str)) -> Netmodes.server:
-        """Remove a named lock on the server with respect for the artificial latency
-
-        :param move_id: move ID that corresponds with the command creation time
-        :param name: name of lock to unset
-        """
-        self.buffered_locks[move_id][name] = False
-
-    def server_remove_lock(self, name: TypeFlag(str)) -> Netmodes.server:
-        """Remove a named lock on the server
-
-        :param name: name of lock to unset
-        """
-        try:
-            self.locks.remove(name)
-
-        except KeyError as err:
-            logger.exception("{} was not locked".format(name))
 
     def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct")),
                           previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
@@ -896,7 +850,7 @@ class PlayerControllerBase(ControllerBase):
             return
 
         if buffered_move is None:
-            logger.error("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
+            Logger.error("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
             return
 
         move_id = buffered_move.id
@@ -914,26 +868,4 @@ class PlayerControllerBase(ControllerBase):
         # Save expected move results
         self.pending_moves[move_id] = buffered_move
         self.current_move = buffered_move
-
-    def update_buffered_locks(self, move_id):
-        """Apply server lock changes according to their creation time
-
-        :param move_id: ID of move to process locks for
-        """
-        removed_keys = []
-        for lock_origin_id, locks in self.buffered_locks.items():
-            if lock_origin_id > move_id:
-                break
-
-            for lock_name, add_lock in locks.items():
-                if add_lock:
-                    self.server_add_lock(lock_name)
-
-                else:
-                    self.server_remove_lock(lock_name)
-
-            removed_keys.append(lock_origin_id)
-
-        for key in removed_keys:
-            self.buffered_locks.pop(key)
 

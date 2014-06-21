@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 from network.decorators import netmode_switch
 from network.enums import Netmodes, Roles
-from network.logger import logger
+from network.logger import Logger
 from network.netmode_switch import NetmodeSwitch
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
@@ -57,7 +57,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
                 return name_cls(instance_id=instance_id)
 
             except Exception:
-                logger.exception("Couldn't spawn {} replicable".format(name))
+                Logger.exception("Couldn't spawn {} replicable".format(name))
                 return
 
         except (AssertionError, LookupError) as e:

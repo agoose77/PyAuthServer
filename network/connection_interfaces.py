@@ -7,7 +7,7 @@ from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
-from .logger import logger
+from .logger import Logger
 from .netmode_switch import NetmodeSwitch
 from .packet import Packet, PacketCollection
 from .signals import *
@@ -131,7 +131,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         else:
             handling_error = TypeError("Unable to process packet with protocol {}".format(packet_protocol))
-            logger.error(handling_error)
+            Logger.error(handling_error)
 
             ConnectionErrorSignal.invoke(handling_error, target=self)
             self.request_unregistration()
@@ -201,14 +201,14 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     def on_connected(self):
         """Connected callback"""
         self.status = ConnectionStatus.connected  # @UndefinedVariable
-        logger.info("Successfully connected to server")
+        Logger.info("Successfully connected to server")
 
         ConnectionSuccessSignal.invoke(target=self)
 
     def on_failure(self):
         """Connection Failed callback"""
         self.status = ConnectionStatus.failed  # @UndefinedVariable
-        logger.error("Failed to connect to server")
+        Logger.error("Failed to connect to server")
 
     def on_unregistered(self):
         """Unregistered callback"""
@@ -385,7 +385,7 @@ class ServerInterface(ConnectionInterface):
                 return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_error,
                               on_success=ignore_arguments(self.on_failure))
 
-            logger.error("Warning: Connection failed for undocumented reason")
+            Logger.error("Warning: Connection failed for undocumented reason")
 
         else:
             # Send acknowledgement
@@ -412,7 +412,7 @@ class ServerInterface(ConnectionInterface):
 
         # If a NetworkError is raised store the result
         except NetworkError as err:
-            logger.exception("Connection was refused")
+            Logger.exception("Connection was refused")
             self._auth_error = err
 
         else:
@@ -457,7 +457,7 @@ class ClientInterface(ConnectionInterface):
             error_class = NetworkError.from_type_name(error_type)
             raised_error = error_class(error_message)
 
-            logger.error(raised_error)
+            Logger.error(raised_error)
             ConnectionErrorSignal.invoke(raised_error, target=self)
 
         # Get remote network mode
@@ -472,7 +472,7 @@ class ClientInterface(ConnectionInterface):
         else:
             unknown_error = NetworkError("Failed to determine handshake protocol")
 
-            logger.error(unknown_error)
+            Logger.error(unknown_error)
             ConnectionErrorSignal.invoke(unknown_error, target=self)
 
     def receive(self, bytes_string):

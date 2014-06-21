@@ -1,4 +1,4 @@
-from network.logger import logger
+from network.logger import Logger
 
 from .sorted_collection import SortedCollection
 
@@ -88,7 +88,7 @@ class JitterBuffer:
         if (result_id - previous_id) > 1:
             lost_items = result_id - previous_id - 1
             message = "items were" if lost_items > 1 else "item was"
-            logger.info("{} {} lost, attempting to recover one item".format(lost_items, message))
+            Logger.info("{} {} lost, attempting to recover one item".format(lost_items, message))
             return True
 
         return False
