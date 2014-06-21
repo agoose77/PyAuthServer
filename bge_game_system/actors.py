@@ -267,7 +267,7 @@ class Pawn(BGEPawnBase, Actor):
     @simulated
     def play_animation(self, name, start, end, layer=0, priority=0, blend=0.0, mode=AnimationMode.play, weight=0.0,
                        speed=1.0, blend_mode=AnimationBlend.interpolate):
-        """See :py:class:`bge_network.object_types.BGEAnimatedObject`"""
+        """See :py:class:`bge_game_system.object_types.BGEAnimatedObject`"""
         super().play_animation(name, start, end, layer, priority, blend, mode, weight, speed, blend_mode)
 
         is_playing_callback = partial(self.is_playing_animation, layer)

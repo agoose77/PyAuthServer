@@ -5,7 +5,7 @@ from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 
-from bge_network.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
+from bge_game_system.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
 
 from game_system.controllers import PlayerControllerBase
 from game_system.enums import Axis, CollisionType

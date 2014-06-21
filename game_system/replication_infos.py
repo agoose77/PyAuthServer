@@ -6,6 +6,7 @@ __all__ = ['AIReplicationInfo', 'PlayerReplicationInfo']
 
 
 class ReplicationInfo(Replicable):
+
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
 
     def on_initialised(self):

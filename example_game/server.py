@@ -13,8 +13,8 @@ from game_system.resources import ResourceManager
 from game_system.signals import PawnKilledSignal, LogicUpdateSignal
 from game_system.timer import Timer
 
-from bge_network.actors import *
-from bge_network.gameloop import ServerGameLoop
+from bge_game_system.actors import *
+from bge_game_system.gameloop import ServerGameLoop
 
 from .actors import *
 from .controllers import *

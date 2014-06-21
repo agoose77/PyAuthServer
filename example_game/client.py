@@ -1,4 +1,4 @@
-from bge_network.gameloop import ClientGameLoop
+from bge_game_system.gameloop import ClientGameLoop
 
 from game_system.resources import ResourceManager
 

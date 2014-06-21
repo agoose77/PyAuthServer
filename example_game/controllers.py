@@ -7,7 +7,7 @@ from game_system.controllers import AIControllerBase
 from game_system.enums import CollisionType
 from game_system.signals import *
 
-from bge_network.controllers import PlayerController
+from bge_game_system.controllers import PlayerController
 
 from .actors import CTFFlag
 from .controls import camera_control, inputs_control

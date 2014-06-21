@@ -1,6 +1,6 @@
 from game_system.signals import LogicUpdateSignal
 
-from bge_network.particles import Particle
+from bge_game_system.particles import Particle
 
 __all__ = ["TracerParticle"]
 

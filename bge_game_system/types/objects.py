@@ -183,7 +183,7 @@ class BGEBaseObject(IPhysicsObjectMixin, ITransformObjectMixin):
     def physics(self):
         """The physics type of this object
 
-        :returns: physics type of object, see :py:class:`bge_network.enums.PhysicsType`
+        :returns: physics type of object, see :py:class:`bge_game_system.enums.PhysicsType`
         """
         physics_type = self.object.physicsType
 
@@ -410,7 +410,7 @@ class BGEBaseObject(IPhysicsObjectMixin, ITransformObjectMixin):
     def get_direction(self, axis):
         """Get the axis vector of this object in world space
 
-        :param axis: :py:code:`bge_network.enums.Axis` value
+        :param axis: :py:code:`bge_game_system.enums.Axis` value
         :rtype: :py:code:`mathutils.Vector`
         """
         vector = [0, 0, 0]
@@ -496,7 +496,7 @@ class BGEBaseObject(IPhysicsObjectMixin, ITransformObjectMixin):
         :param target: target to trace towards
         :param source: optional origin of trace, otherwise object position
         :param distance: distance to use instead of vector length
-        :rtype: :py:class:`bge_network.object_types.RayTestResult`
+        :rtype: :py:class:`bge_game_system.object_types.RayTestResult`
         """
         if source is None:
             source = self.world_position
@@ -595,7 +595,7 @@ class BGECameraObject(BGEBaseObject, ICameraObjectMixin):
     def get_direction(self, axis):
         """Get the axis vector of this object in world space
 
-        :param axis: :py:code:`bge_network.enums.Axis` value
+        :param axis: :py:code:`bge_game_system.enums.Axis` value
         :rtype: :py:code:`mathutils.Vector`
         """
         vector = [0, 0, 0]
@@ -627,10 +627,10 @@ class BGEAnimatedObject(BGEBaseObject, IAnimatedObjectMixin):
         :param layer: layer to play animation on
         :param priority: priority of animation (lower is higher)
         :param blend: blending value
-        :param mode: see :py:class:`bge_network.enums.AnimationMode`
+        :param mode: see :py:class:`bge_game_system.enums.AnimationMode`
         :param weight: animation weighting
         :param speed: speed to play animation
-        :param blend_mode: see :py:class:`bge_network.enums.AnimationBlend`
+        :param blend_mode: see :py:class:`bge_game_system.enums.AnimationBlend`
         """
 
         # Define conversions from Blender behaviours to Network animation enum

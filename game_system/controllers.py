@@ -22,7 +22,7 @@ from .coordinates import Vector, Euler
 from .enums import *
 from .inputs import InputManager
 from .jitter_buffer import JitterBuffer
-from .network_locks import NetworkLocks
+from .network_locks import NetworkLocksMixin
 from .resources import ResourceManager
 from .signals import *
 from .stream import MicrophoneStream, SpeakerStream
@@ -223,7 +223,7 @@ class AIControllerBase(ControllerBase):
         self.behaviour.update()
 
 
-class PlayerControllerBase(ControllerBase, NetworkLocks):
+class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
     """Player pawn controller network object"""
 
     movement_struct = None
