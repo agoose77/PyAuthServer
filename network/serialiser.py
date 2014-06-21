@@ -43,8 +43,8 @@ Float32 = build_handler("Float32", "!f")
 Float64 = build_handler("Float64", "!d")
 
 
-int_packers = [UInt8, UInt16, UInt32, UInt64]
-int_sized = {x.size(): x for x in int_packers}
+int_handlers = [UInt8, UInt16, UInt32, UInt64]
+size_to_int_handler = {packer.size(): packer for packer in int_handlers}
 
 
 def bits_to_bytes(bits):
@@ -97,7 +97,7 @@ def handler_from_byte_length(total_bytes):
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:
-        return int_sized[rounded_bytes]
+        return size_to_int_handler[rounded_bytes]
 
     except KeyError as err:
         raise ValueError("Integer too large to pack: {} bytes".format(total_bytes)) from err

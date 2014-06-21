@@ -10,14 +10,26 @@ from inspect import signature, Parameter
 __all__ = ['RPCInterfaceFactory', 'RPCInterface']
 
 
+WorldInfo = None
+
+
+def import_world_info():
+    """Import and return the WorldInfo module
+    Overcome import limitations by importing after definition
+    """
+    global WorldInfo
+    from .world_info import WorldInfo as WorldInfo
+
+
+
 class RPCInterface:
     """Mediates RPC calls to/from peers"""
 
     def __init__(self, function, serialiser_info):
         # Used to isolate rpc_for_instance for each function for each instance
+        self._function_call = function.__call__
         self._function_name = function.__qualname__
         self._function_signature = signature(function)
-        self._function_call = function.__call__
 
         # Information about RPC
         update_wrapper(self, function)
@@ -29,12 +41,11 @@ class RPCInterface:
         self._binder = self._function_signature.bind
         self._serialiser = FlagSerialiser(serialiser_info)
 
-        from .world_info import WorldInfo
-        self._worldinfo = WorldInfo
+        import_world_info()
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
-        if self.target == self._worldinfo.netmode:
+        if self.target == WorldInfo.netmode:
             return self._function_call(*args, **kwargs)
 
         # Store serialised argument data for later sending

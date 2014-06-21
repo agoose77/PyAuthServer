@@ -2,13 +2,11 @@ from .replicable import Replicable
 from .descriptors import Attribute
 from .enums import Roles
 
-__all__ = ['ReplicationRules']
+__all__ = ['ReplicationRulesBase']
 
 
-class ReplicationRules(Replicable):
-    roles = Attribute(
-                      Roles(Roles.authority, Roles.none)  # @UndefinedVariable
-                      )
+class ReplicationRulesBase(Replicable):
+    roles = Attribute(Roles(Roles.authority, Roles.none))
 
     def pre_initialise(self, addr, netmode):
         raise NotImplementedError

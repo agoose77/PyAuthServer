@@ -3,7 +3,7 @@ from random import choice
 
 from network.connection_interfaces import ConnectionInterface
 from network.enums import ConnectionStatus, Netmodes
-from network.replication_rules import ReplicationRules
+from network.replication_rules import ReplicationRulesBase
 from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
 from network.world_info import WorldInfo
 
@@ -29,7 +29,7 @@ from bge import logic
 ResourceManager.data_path = logic.expandPath("//data")
 
 
-class TeamDeathMatch(ReplicationRules):
+class TeamDeathMatch(ReplicationRulesBase):
 
     countdown_running = False
     countdown_start = 0

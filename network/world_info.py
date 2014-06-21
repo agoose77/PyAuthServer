@@ -18,9 +18,9 @@ class _WorldInfo(Replicable):
     elapsed = Attribute(0.0, complain=False)
     tick_rate = Attribute(60, complain=True, notify=True)
 
+    clock_adjustment = 0.0
     netmode = Netmodes.server
     rules = None
-    clock_correction = 0.0
 
     def on_initialised(self):
         self._cache = {}
@@ -59,7 +59,7 @@ class _WorldInfo(Replicable):
     @property
     def tick(self):
         """:returns: current simulation tick"""
-        return self.to_ticks(self.elapsed + self.clock_correction)
+        return self.to_ticks(self.elapsed + self.clock_adjustment)
 
     @simulated
     def to_ticks(self, delta_time):
@@ -80,8 +80,7 @@ class _WorldInfo(Replicable):
             return self._cache[actor_type]
 
         except KeyError:
-            values = self._cache[actor_type] = [a for a in Replicable if
-                                                isinstance(a, actor_type)]
+            values = self._cache[actor_type] = [a for a in Replicable if isinstance(a, actor_type)]
             return values
 
     @simulated
