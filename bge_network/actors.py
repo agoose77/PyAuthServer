@@ -6,15 +6,17 @@ from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.world_info import WorldInfo
 
-from .animation import Animation
-from .ai.behaviour_tree import BehaviourTree
-from .coordinates import Euler, Vector
-from .enums import *
+from game_system.resources import ResourceManager
+from game_system.signals import *
+from game_system.enums import *
+from game_system.animation import Animation
+from game_system.ai.behaviour_tree import BehaviourTree
+from game_system.timer import Timer
+from game_system.math import mean
+
 from .types.objects import BGEActorBase, BGECameraBase, BGELampBase, BGENavmeshBase, BGEPawnBase
-from .resources import ResourceManager
-from .signals import *
-from .timer import Timer
-from .math import mean
+
+from mathutils import Euler, Vector
 
 
 __all__ = ["Actor", "Camera", "Lamp", "Pawn", "WeaponAttachment"]

@@ -11,6 +11,7 @@ def copy_operation(operation):
         new = self.copy()
         operation(new, arg)
         return new
+
     return wrapper
 
 
@@ -20,6 +21,7 @@ def mutable_operation(operation):
     def wrapper(self, arg):
         operation(self, arg)
         return self
+
     return wrapper
 
 

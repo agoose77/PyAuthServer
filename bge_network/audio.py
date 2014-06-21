@@ -1,11 +1,11 @@
-from game_system.audio import IAudioManager
+from game_system.audio import IAudioManager, ISoundHandle
 
 from aud import device, Factory
 
 _all__ = ["AUDAudioManager", "AUDSoundHandle"]
 
 
-class AUDSoundHandle:
+class AUDSoundHandle(ISoundHandle):
 
     def __init__(self, handle):
         self._handle = handle
@@ -20,7 +20,7 @@ class AUDSoundHandle:
         self._handle.resume()
 
 
-class AUDAudioManager:
+class AUDAudioManager(IAudioManager):
 
     def __init__(self):
         self._device = device()
@@ -59,5 +59,5 @@ class AUDAudioManager:
 
     def play_sound(self, sound_path):
         factory = Factory(sound_path)
-        handle = device.play(factory)
+        handle = self._device.play(factory)
         return AUDSoundHandle(handle)

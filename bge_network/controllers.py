@@ -9,5 +9,5 @@ __all__ = ["PlayerController"]
 class PlayerController(PlayerControllerBase):
 
     audio_manager_class = AUDAudioManager
-    input_lookup_cls = BGEInputStatusLookup
-    mouse_manager_cls = BGEMouseManager
+    input_lookup_class = BGEInputStatusLookup
+    mouse_manager_class = BGEMouseManager

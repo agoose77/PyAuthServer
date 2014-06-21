@@ -93,4 +93,4 @@ class _ResourceManager(Resource):
         return path.join(self.data_path, relative_path)
 
 
-resource_manager = _ResourceManager()
+ResourceManager = _ResourceManager()

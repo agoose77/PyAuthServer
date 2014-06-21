@@ -1,11 +1,11 @@
 from network.structures import factory_dict
+
+from game_system.enums import InputEvents
 from game_system.inputs import IInputStatusLookup
+from game_system.math import clamp
 
 from bge import events, logic, render
 from mathutils import Vector
-
-from .game_system.enums import InputEvents
-from .game_system.utilities.math import clamp
 
 __all__ = ['BGEInputStatusLookup', 'BGEMouseManager']
 

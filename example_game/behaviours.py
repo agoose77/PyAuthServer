@@ -1,8 +1,9 @@
 from random import random, randrange
-from functools import partial
-from time import monotonic
 
-from bge_network import *
+from game_system.ai.behaviour_tree import *
+from game_system.enums import *
+from game_system.signals import *
+
 from mathutils import Vector
 from bge import logic, render
 
@@ -45,9 +46,8 @@ def dying_behaviour():
                          GetAttacker(),
                          SetCollisionFlags(mask=CollisionGroups.geometry),
                          Delay(5),
-                         Signal(PawnKilledSignal,
-                               from_blackboard={"target": "pawn",
-                                                "attacker": "attacker"})
+                         InvokeSignal(PawnKilledSignal,
+                                      from_blackboard={"target": "pawn", "attacker": "attacker"})
                          )
     group.name = "DyingBehaviour"
 
@@ -89,12 +89,12 @@ def attack_behaviour():
                                  ConvertState(EvaluationState.failure,
                                               EvaluationState.running,
 
-                                              CheckTimer()
+                                              #CheckTimer()
                                               ),
                                  #Alert("{pawn} Attacking {actor}"),
                                  AimAtActor(),
                                  FireWeapon(),
-                                 SetTimer()
+                                 #SetTimer()
                                  )
 
     group = SequenceNode(
@@ -121,7 +121,7 @@ def climb_behaviour():
 
     root = SequenceNode(
                         GetPawn(),
-                        FindObstacle(),
+                        #FindObstacle(),
                         )
     return root
 
@@ -359,9 +359,7 @@ class IsPlayingAnimation(ConditionNode):
         self._kwargs = kwargs
 
     def condition(self, blackboard):
-        return blackboard['pawn'].is_playing_animation(
-                                           self._kwargs.get("layer", 0)
-                                           )
+        return blackboard['pawn'].is_playing_animation(self._kwargs.get("layer", 0))
 
 
 class HasAmmo(ConditionNode):
@@ -393,7 +391,7 @@ class ConvertState(StateModifier):
         return self._map.get(old_state, old_state)
 
 
-class Signal(LeafNode):
+class InvokeSignal(LeafNode):
 
     def __init__(self, event_cls, *args, from_blackboard={}, **kwargs):
         super().__init__()
@@ -405,7 +403,9 @@ class Signal(LeafNode):
     def evaluate(self, blackboard):
         runtime_args = {k: blackboard[v] for k, v in self._runtime.items()}
         runtime_args.update(self._kwargs)
+
         self._event.invoke(*self._args, **runtime_args)
+
         return EvaluationState.success
 
 
@@ -421,7 +421,6 @@ class AimAtActor(LeafNode):
         target = self.get_target_position(blackboard)
 
         target_vector = (target - camera.world_position).normalized()
-        world_z = Vector((0, 0, 1))
         turn_speed = 0.1
 
         camera.align_to(target_vector, factor=turn_speed)

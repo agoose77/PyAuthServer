@@ -4,7 +4,7 @@ from network.enums import Enumeration
 __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
            'MovementState', 'AIState', 'Axis', 'CollisionGroups',
            'AnimationMode', 'AnimationBlend', 'CollisionType',
-           'InputEvents']
+           'InputEvents', 'AudioDistanceModel']
 
 
 class PhysicsType(metaclass=Enumeration):

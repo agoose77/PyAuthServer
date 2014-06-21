@@ -229,7 +229,7 @@ class PlayerControllerBase(ControllerBase):
     missing_movement_struct = None
 
     audio_manager_class = None
-    input_lookup_cls = None
+    input_lookup_class = None
     mouse_manager_class = None
 
     MAX_POSITION_DIFFERENCE_SQUARED = 1.2
@@ -325,7 +325,7 @@ class PlayerControllerBase(ControllerBase):
         """Create the input manager for the client"""
         keybindings = self.load_keybindings()
 
-        self.inputs = InputManager(keybindings, self.input_lookup_cls())
+        self.inputs = InputManager(keybindings, self.input_lookup_class())
         self.mouse = self.mouse_manager_class(interpolation=0.6)
 
         self.move_history = self.missing_movement_struct()

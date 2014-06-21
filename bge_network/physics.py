@@ -9,13 +9,16 @@ from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.type_register import TypeRegister
 from network.world_info import WorldInfo
-from bge import logic
+
 from bge_network.actors import Actor, Camera, Pawn
+
 from game_system.controllers import ControllerBase
-from .game_system.weapons import Weapon
+from game_system.weapons import Weapon
 from game_system.replication_infos import ReplicationInfo
 from game_system.enums import PhysicsType
 from game_system.signals import *
+
+from bge import logic
 from mathutils import Vector
 
 

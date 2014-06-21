@@ -2,14 +2,15 @@ from network.descriptors import TypeFlag
 from network.enums import Netmodes
 from network.replicable import Replicable
 
-from game_system.ai.behaviour_tree import SequenceNode, SelectorNode
-from game_system.controllers import AIControllerBase, PlayerControllerBase
+from game_system.ai.behaviour_tree import SequenceNode
+from game_system.controllers import AIControllerBase
 from game_system.enums import CollisionType
 from game_system.signals import *
 
+from bge_network.controllers import PlayerController
+
 from .actors import CTFFlag
 from .controls import camera_control, inputs_control
-from .behaviours import attack_behaviour, dying_behaviour, idle_behaviour
 from .signals import *
 
 __all__ = ["EnemyController", "CTFPlayerController"]
@@ -20,18 +21,17 @@ class EnemyController(AIControllerBase):
     def on_initialised(self):
         super().on_initialised()
 
-        behaviour = SelectorNode(dying_behaviour(), attack_behaviour(), idle_behaviour())
+        #behaviour = SelectorNode(dying_behaviour(), attack_behaviour(), idle_behaviour())
+        #behaviour.should_restart = True
+        #self.behaviour.root = behaviour
 
-        behaviour.should_restart = True
-        self.behaviour.root = behaviour
 
-
-CTFPlayerMovementStruct = PlayerControllerBase.create_movement_struct("forward", "backwards", "left", "right", "shoot",
+CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
                                                                   "run", "voice", "jump", "debug")
-CTFPlayerMissingMoveStruct = PlayerControllerBase.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
+CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
 
 
-class CTFPlayerController(PlayerControllerBase):
+class CTFPlayerController(PlayerController):
 
     movement_struct = CTFPlayerMovementStruct
     missing_movement_struct = CTFPlayerMissingMoveStruct

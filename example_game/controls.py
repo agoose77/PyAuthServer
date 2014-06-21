@@ -1,6 +1,8 @@
-from bge_network import *
-from mathutils import Vector, Euler
+from game_system.ai.behaviour_tree import *
+from game_system.enums import *
 from math import radians, sin, cos, copysign
+
+from mathutils import Vector, Euler
 
 from .behaviours import *
 
@@ -137,6 +139,7 @@ class HandleInputs(LeafNode):
         x_plane = inputs.right - inputs.left
 
         movement_mode = MovementState.run if inputs.run else MovementState.walk
+
         if movement_mode == MovementState.walk:
             forward_speed = pawn.walk_speed
 

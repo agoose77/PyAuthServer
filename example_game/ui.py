@@ -1,14 +1,13 @@
-import bge
-import bgui
-
-from bgl import *
+from network import SignalListener
+from game_system.signals import UIRenderSignal, UIUpdateSignal
 
 from os import path, listdir
-
 from collections import OrderedDict
-from network import SignalListener
-from bge_network import UIRenderSignal, UIUpdateSignal
 from math import ceil
+
+import bge
+import bgui
+from bgl import *
 
 CENTERY = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERX

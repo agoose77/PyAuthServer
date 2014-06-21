@@ -1,4 +1,4 @@
-from bge_network import Signal
+from network.signals import Signal
 
 
 __all__ = ["ConnectToSignal", "UIWeaponDataChangedSignal", "UIWeaponChangedSignal",

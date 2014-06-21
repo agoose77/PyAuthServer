@@ -7,8 +7,9 @@ from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerControllerBase
 from game_system.replication_infos import ReplicationInfo, PlayerReplicationInfo
-from bge_network.resources import ResourceManager
 from game_system.signals import BroadcastMessage
+
+from game_system.resources import ResourceManager
 
 from .enums import TeamRelation
 

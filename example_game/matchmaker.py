@@ -6,6 +6,7 @@ from urllib import request, parse
 
 from game_system.signals import GameExitSignal, LogicUpdateSignal
 from game_system.threads import SafeThread
+
 from network.signals import SignalListener
 
 

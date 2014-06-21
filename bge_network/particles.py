@@ -1,6 +1,6 @@
 from network.signals import SignalListener
 
-from .bge_network.types.object_types import BGEBaseObject
+from .types.objects import BGEBaseObject
 
 
 __all__ = ['Particle']

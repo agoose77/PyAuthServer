@@ -4,19 +4,21 @@ from time import monotonic
 from socket import inet_aton
 from uuid import uuid4 as random_id
 
-from bge_network.resources import ResourceManager
-
 from network.decorators import ignore_arguments
 from network.hosts import exists as host_exists
 from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
 from network.world_info import WorldInfo
+
+from game_system.resources import ResourceManager
 from game_system.controllers import PlayerControllerBase
 from game_system.signals import ReceiveMessage
 from game_system.timer import Timer
 from game_system.math import lerp
+
 from .replication_infos import TeamReplicationInfo
 from .signals import *
 from .matchmaker import Matchmaker
+
 from .ui import *
 from bge import logic, render
 from bgui import Image, Frame, FrameButton, Label, ListBox, TextInput, BGUI_INPUT_INTEGER, BGUI_DEFAULT

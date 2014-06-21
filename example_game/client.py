@@ -1,5 +1,6 @@
 from bge_network.gameloop import ClientGameLoop
-from bge_network.resources import ResourceManager
+
+from game_system.resources import ResourceManager
 
 from .client_ui import FPSSystem
 from .signals import ConnectToSignal

@@ -9,7 +9,9 @@ from game_system.object_mixins import (IAnimatedObjectMixin, IPhysicsObjectMixin
 from game_system.enums import Axis, CollisionType, PhysicsType, AnimationBlend, AnimationMode
 from game_system.timer import Timer
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
+
 from bge import logic, types
+from mathutils import Vector, Euler, Matrix
 
 
 __all__ = ["BGEBaseObject", "BGEActorBase", "BGECameraObject", "BGECameraBase", "RayTestResult", "BGEPawnBase",

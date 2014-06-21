@@ -1,26 +1,29 @@
 from operator import gt as greater_than
 from random import choice
 
-from bge_network.resources import ResourceManager
-
 from network.connection_interfaces import ConnectionInterface
 from network.enums import ConnectionStatus, Netmodes
 from network.replication_rules import ReplicationRules
 from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
 from network.world_info import WorldInfo
-from bge_network.actors import *
+
 from game_system.controllers import PlayerControllerBase
 from game_system.errors import AuthError, BlacklistError
-from bge_network.gameloop import ServerGameLoop
+from game_system.resources import ResourceManager
 from game_system.signals import PawnKilledSignal, LogicUpdateSignal
 from game_system.timer import Timer
-from bge import logic
+
+from bge_network.actors import *
+from bge_network.gameloop import ServerGameLoop
+
 from .actors import *
 from .controllers import *
 from .matchmaker import BoundMatchmaker
 from .replication_infos import *
 from .signals import TeamSelectionQuerySignal
 from .weapons import BowWeapon
+
+from bge import logic
 
 
 ResourceManager.data_path = logic.expandPath("//data")
