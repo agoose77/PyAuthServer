@@ -374,9 +374,11 @@ class CachedSignal(Signal):
 
 class SignalValue:
 
-    __slots__ = ['_value', '_changed']
+    """Container for signal callback return arguments"""
+    __slots__ = ['_value', '_changed', '_single_value']
 
-    def __init__(self, default=None):
+    def __init__(self, default=None, single_value=False):
+        self._single_value = single_value
         self._value = default
         self._changed = False
 
@@ -390,12 +392,22 @@ class SignalValue:
 
     @value.setter
     def value(self, value):
+        if self._single_value and self._changed:
+            raise ValueError("Value already set")
+
         self._value = value
         self._changed = True
+
+    def create_getter(self):
+        def wrapper():
+            return self.value
+
+        return wrapper
 
     def create_setter(self, value):
         def wrapper():
             self.value = value
+
         return wrapper
 
 

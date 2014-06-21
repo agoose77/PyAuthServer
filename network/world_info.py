@@ -13,12 +13,7 @@ class _WorldInfo(Replicable):
     _MAXIMUM_TICK = (2 ** 32 - 1)
     _ID = 255
 
-    roles = Attribute(
-                      Roles(
-                            Roles.authority,  # @UndefinedVariable
-                            Roles.simulated_proxy  # @UndefinedVariable
-                            )
-                      )
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
 
     elapsed = Attribute(0.0, complain=False)
     tick_rate = Attribute(60, complain=True, notify=True)

@@ -4,7 +4,7 @@ from .decorators import netmode_switch
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handler_interfaces import static_description, get_handler
-from .logger import logger
+from .logger import Logger
 from .netmode_switch import NetmodeSwitch
 from .replicable import Replicable
 
@@ -71,7 +71,7 @@ class Channel(NetmodeSwitch):
             method = self.replicable.rpc_storage.functions[rpc_id]
 
         except IndexError:
-            logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+            Logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
 
         else:
             method.execute(rpc_call[rpc_header_size:])

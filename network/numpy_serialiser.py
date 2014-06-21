@@ -75,7 +75,7 @@ def handler_from_byte_length(total_bytes):
     """Find the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IStruct`"""
+    :rtype: :py:class:`network.serialiser.IDataHandler`"""
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:

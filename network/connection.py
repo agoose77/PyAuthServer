@@ -3,7 +3,7 @@ from .decorators import netmode_switch
 from .descriptors import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
-from .logger import logger
+from .logger import Logger
 from .netmode_switch import NetmodeSwitch
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
@@ -154,7 +154,7 @@ class ClientConnection(Connection):
                 channel = self.channels[instance_id]
 
             except KeyError:
-                logger.exception("Unable to find channel for network object with id {}".format(instance_id))
+                Logger.exception("Unable to find channel for network object with id {}".format(instance_id))
 
             else:
                 # Apply attributes and retrieve notify callback
@@ -245,7 +245,7 @@ class ServerConnection(Connection):
         # If we own a controller destroy it
         if self.replicable:
             # We must be connected to have a controller
-            logger.info("{} disconnected!".format(self.replicable))
+            Logger.info("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
     @ReplicableUnregisteredSignal.global_listener

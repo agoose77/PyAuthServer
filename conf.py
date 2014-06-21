@@ -14,8 +14,8 @@
 
 import sys, os
 
+
 def fake_imports():
-    import sys, os
     import types
 
     class Entry(types.ModuleType):
@@ -35,25 +35,32 @@ def fake_imports():
 
     bge.types = Entry("types")
     bge.types.KX_GameObject = GameObjType
-    bge.types.KX_Camera= GameObjType
-    bge.types.KX_LightObject= GameObjType
-    bge.types.BL_ArmatureObject= GameObjType
-    bge.types.KX_NavMeshObject= GameObjType
+    bge.types.KX_Camera = GameObjType
+    bge.types.KX_LightObject = GameObjType
+    bge.types.BL_ArmatureObject = GameObjType
+    bge.types.KX_NavMeshObject = GameObjType
     bge.types.KX_PythonLogicLoop = LoopType
 
-    class i:
+    class Iterable:
+
         def __iter__(self):
+
             return [].__iter__()
-    class VectorType(i):
+
+    class VectorType(Iterable):
+
         pass
 
-    class EulerType(i):
+    class EulerType(Iterable):
+
         pass
 
-    class QuatType(i):
+    class QuatType(Iterable):
+
         pass
 
-    class MatrixType(i):
+    class MatrixType(Iterable):
+
         pass
 
     mathutils = Entry("mathutils")
