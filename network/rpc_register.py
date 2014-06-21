@@ -16,6 +16,6 @@ class RPCMeta(type):
         ordered_members = RPCStorageContainer.get_ordered_members(members)
 
         factory_callback = partial(RPCStorageContainer, mapping=members, ordered_mapping=ordered_members)
-        cls._attribute_container = DescriptorFactory(factory_callback)
+        cls._rpc_container = DescriptorFactory(factory_callback)
 
         return cls

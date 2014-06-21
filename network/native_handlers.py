@@ -212,7 +212,6 @@ class IterableHandler:
         elements_count, count_size = count_unpacker(bytes_string, offset)
         element_unpack = self.element_packer.unpack_from
 
-        add_element = self.__class__.iterable_add
         elements = self.iterable_cls()
         update_elements = self.__class__.iterable_update
 
@@ -227,7 +226,7 @@ class IterableHandler:
                 bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
                 offset += bitfield_size
 
-                get = bitfield.__class__.__bases__[0].__getitem__
+                get = bitfield.__class__.__getitem__
                 for i in range(elements_count):
                     repeat, repeat_size = count_unpacker(bytes_string, offset)
                     offset += repeat_size
@@ -235,7 +234,6 @@ class IterableHandler:
                     element = get(bitfield, i)
                     extend_elements([element] * repeat)
 
-        # Faster unpacking
         else:
             for i in range(elements_count):
                 repeat, repeat_size = count_unpacker(bytes_string, offset)

@@ -36,10 +36,10 @@ class Replicable(metaclass=ReplicableRegister):
 
         # Setup the attribute storage
         # TODO remember if this needs to be moved to class for optimsations
-        self._rpc_storage = RPCStorageContainer(self)
+        #self._rpc_container = RPCStorageContainer(self)
 
         self._attribute_container.register_storage_interfaces()
-        self._rpc_storage.register_storage_interfaces()
+        self._rpc_container.register_storage_interfaces()
 
         self.owner = None
 

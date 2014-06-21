@@ -42,4 +42,4 @@ from .structures import *
 from .type_register import *
 from .testing import *
 
-run_tests()
+#run_tests()

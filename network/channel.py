@@ -29,6 +29,8 @@ class Channel(NetmodeSwitch):
         self.is_initial = True
         # Get network attributes
         self.attribute_storage = replicable._attribute_container
+        self.rpc_storage = replicable._rpc_container
+
         # Create a serialiser instance
         self.serialiser = FlagSerialiser(
                                      self.attribute_storage._ordered_mapping)
@@ -42,8 +44,7 @@ class Channel(NetmodeSwitch):
         parent = self.replicable.uppermost
 
         try:
-            return parent.instance_id == \
-                self.connection.replicable.instance_id
+            return parent.instance_id == self.connection.replicable.instance_id
 
         except AttributeError:
             return False
@@ -54,7 +55,7 @@ class Channel(NetmodeSwitch):
         id_packer = self.rpc_id_packer.pack
         get_reliable = is_reliable
 
-        storage_data = self.replicable.rpc_storage.data
+        storage_data = self.rpc_storage.data
 
         for (method, data) in storage_data:
             yield id_packer(method.rpc_id) + data, get_reliable(method)
@@ -68,7 +69,7 @@ class Channel(NetmodeSwitch):
         rpc_id, rpc_header_size = self.rpc_id_packer.unpack_from(rpc_call)
 
         try:
-            method = self.replicable.rpc_storage.functions[rpc_id]
+            method = self.rpc_storage.functions[rpc_id]
 
         except IndexError:
             Logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
@@ -79,7 +80,7 @@ class Channel(NetmodeSwitch):
     @property
     def has_rpc_calls(self):
         """Returns True if replicable has outgoing RPC calls"""
-        return bool(self.replicable.rpc_storage.data)
+        return bool(self.rpc_storage.data)
 
 
 @netmode_switch(Netmodes.client)
@@ -189,8 +190,7 @@ class ServerChannel(Channel):
 
                 # Get value hash
                 # Use the complaint hash if it is there to save computation
-                new_hash = complaint_hashes[attribute] if (attribute in
-                           complaint_hashes) else get_description(value)
+                new_hash = complaint_hashes[attribute] if (attribute in complaint_hashes) else get_description(value)
 
                 # If values match, don't update
                 if last_hash == new_hash:
