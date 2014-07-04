@@ -13,18 +13,19 @@ from network.signals import SignalListener
 class URLThread(SafeThread):
     """Thread responsible for handling URL requests"""
 
-    def handle_task(self, task, queue):
+    def handle_task(self):
         """Handles a URL request in a separate thread, returning the results to the output queue
 
         :param task: requested task
         :param queue: output queue for result
         """
-        callback, data, url = task
-        request_obj = request.Request(url, data=data)
-        response_obj = request.urlopen(request_obj)
+        with self.slave.guarded_request() as task:
+            callback, data, url = task
+            request_obj = request.Request(url, data=data)
+            response_obj = request.urlopen(request_obj)
 
-        response_data = response_obj.read().decode()
-        queue.put((callback, response_data))
+            response_data = response_obj.read().decode()
+            self.slave.commit((callback, response_data))
 
 
 def json_decoder(callback, data):
@@ -76,7 +77,7 @@ class Matchmaker(SignalListener):
         if is_json:
             callback = partial(json_decoder, callback)
 
-        self.thread.in_queue.put((callback, parsed_data, self.url))
+        self.thread.client.commit((callback, parsed_data, self.url))
 
     @staticmethod
     def server_query():
@@ -122,14 +123,14 @@ class Matchmaker(SignalListener):
 
     def update(self):
         while True:
-            try:
-                (callback, response) = self.thread.out_queue.get_nowait()
+            with self.thread.client.guarded_request() as request:
+                if request is None:
+                    break
 
-            except EmptyQueue:
-                break
+                callback, response = request
 
-            if callable(callback):
-                callback(response)
+                if callable(callback):
+                    callback(response)
 
     @GameExitSignal.global_listener
     def on_quit(self):

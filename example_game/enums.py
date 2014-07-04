@@ -5,3 +5,4 @@ __all__ = ['TeamRelation']
 
 class TeamRelation(metaclass=Enumeration):
     values = ["friendly", "enemy", "neutral"]
+

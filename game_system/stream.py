@@ -61,22 +61,21 @@ class MicrophoneStream(GenericStream):
     def encoder(self, data):
         return self._encoder.encode(data, self.chunk)
 
-    def get_task(self, interval, queue_):
-        return self.stream.read(self.chunk)
+    def handle_task(self):
+        task = self.stream.read(self.chunk)
 
-    def handle_task(self, task, queue):
         if self.active:
-            queue.put(task)
+            self.slave.commit(task)
 
-        elif not queue.empty():
-            with queue.mutex:
-                queue.queue.clear()
+        elif not self.slave.commits.empty():
+            with self.slave.commits.mutex:
+                self.slave.commits.queue.clear()
 
     def encode(self, clear=True):
         encoder = self.encoder
 
-        with self.out_queue.mutex:
-            queue = self.out_queue.queue
+        with self.client.requests.mutex:
+            queue = self.client.requests.queue
 
             if not queue:
                 return b''
@@ -116,21 +115,21 @@ class SpeakerStream(GenericStream):
 
             yield chunk
 
-    def handle_task(self, task, queue):
-        if self.active:
-            self.stream.write(task)
+    def handle_task(self):
+        with self.slave.guarded_request() as task:
+            if self.active:
+                self.stream.write(task)
 
-        # Clear playback buffer
-        elif not queue.empty():
-            with queue.mutex:
-                queue.queue.clear()
+            elif not self.slave.requests.empty():
+                with self.slave.requests.mutex:
+                    self.slave.requests.queue.clear()
 
     def decode(self, data, clear=False):
         if clear:
-            with self.in_queue.mutex:
-                self.in_queue.queue.clear()
+            with self.client.commits.mutex:
+                self.client.commits.queue.clear()
 
         decoder = self.decoder
         data = decoder(data)
         for chunk in self.slice_bytes(self.chunk_size, data):
-            self.in_queue.put(chunk)
+            self.client.commit(chunk)

@@ -799,9 +799,6 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
                           previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
 
-        if move and move.inputs.voice:
-            return
-
         # Store move
         self.buffered_moves.insert(move)
 

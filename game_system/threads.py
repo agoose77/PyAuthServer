@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from queue import Queue, Empty
 from threading import Event, Thread
 
@@ -13,41 +14,63 @@ class SafeProxy(Proxy):
         object.__getattribute__(self, "_obj").join()
 
 
+class ThreadDataInterface:
+
+    def __init__(self, requests, commits, timeout=0.0):
+        self.requests = requests
+        self.commits = commits
+        self._timeout = timeout
+
+    def commit(self, task):
+        self.commits.put(task, timeout=self._timeout)
+
+    @contextmanager
+    def guarded_request(self):
+        item = self.request()
+
+        yield item
+
+        if item is not None:
+            self.on_request_complete()
+
+    def on_request_complete(self):
+        self.requests.task_done()
+
+    def request(self):
+        try:
+            item = self.requests.get(timeout=self._timeout)
+
+        except Empty:
+            return
+
+        return item
+
+
 class QueuedThread(Thread):
     """
     A sample thread class
     """
 
     def __init__(self):
-        self.in_queue = Queue()
-        self.out_queue = Queue()
+        self._in_queue = Queue()
+        self._out_queue = Queue()
+
+        self.client = ThreadDataInterface(self._in_queue, self._out_queue)
+        self.slave = ThreadDataInterface(self._in_queue, self._out_queue, timeout=1/60)
 
         self._event = Event()
-        self._poll_interval = 1 / 60
 
         super().__init__()
 
-    def handle_task(self, task, queue):
+    def handle_task(self):
+        """Remove a task from the input queue, perform some operations and place result in output queue"""
         pass
-
-    def get_task(self, poll_interval, queue):
-        return queue.get(True, poll_interval)
 
     def run(self):
         while not self._event.isSet():
 
             try:
-                item = self.get_task(self._poll_interval, self.in_queue)
-
-            except Empty:
-                continue
-
-            except Exception as err:
-                print(err)
-                break
-
-            try:
-                self.handle_task(item, self.out_queue)
+                self.handle_task()
 
             except Exception as err:
                 print(err)
