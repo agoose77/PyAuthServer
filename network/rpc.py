@@ -1,5 +1,6 @@
+from .descriptors import MarkAttribute
 from .flag_serialiser import FlagSerialiser
-from .descriptors import TypeFlag, MarkAttribute
+from .type_flag import TypeFlag
 from .logger import logger
 
 from collections import OrderedDict
@@ -19,7 +20,6 @@ def import_world_info():
     """
     global WorldInfo
     from .world_info import WorldInfo as WorldInfo
-
 
 
 class RPCInterface:

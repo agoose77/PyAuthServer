@@ -2,26 +2,12 @@ from collections import namedtuple
 from copy import deepcopy
 
 from .handler_interfaces import static_description
-
+from .type_flag import TypeFlag
 
 __all__ = ['TypeFlag', 'Attribute', 'MarkAttribute', 'DescriptorFactory']
 
 
 MarkAttribute = namedtuple("MarkAttribute", "name")
-
-
-class TypeFlag:
-    """Container for static-type values
-    holds type for value and additional keyword arguments
-    Pretty printable"""
-    __slots__ = ['type', 'data']
-
-    def __init__(self, type_, **kwargs):
-        self.type = type_
-        self.data = kwargs
-
-    def __repr__(self):
-        return "<TypeFlag: type={}>".format(self.type)
 
 
 class Attribute(TypeFlag):

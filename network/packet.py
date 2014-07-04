@@ -1,5 +1,5 @@
 from .handler_interfaces import get_handler
-from .descriptors import TypeFlag
+from .type_flag import TypeFlag
 
 from functools import lru_cache
 

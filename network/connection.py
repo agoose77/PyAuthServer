@@ -1,10 +1,10 @@
 from .channel import Channel
 from .decorators import delegate_for_netmode
-from .descriptors import TypeFlag
+from .type_flag import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
 from .logger import logger
-from .netmode_switch import TaggedDelegateMeta
+from .tagged_delegate import TaggedDelegateMeta
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
 from .signals import *

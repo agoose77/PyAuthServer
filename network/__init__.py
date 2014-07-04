@@ -28,7 +28,7 @@ from .instance_register import *
 from .logger import *
 from .native_handlers import *
 from .network import *
-from .netmode_switch import *
+from .tagged_delegate import *
 from .network_struct import *
 from .packet import *
 from .profiler import *

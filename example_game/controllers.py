@@ -1,4 +1,4 @@
-from network.descriptors import TypeFlag
+from network.type_flag import TypeFlag
 from network.enums import Netmodes
 from network.replicable import Replicable
 

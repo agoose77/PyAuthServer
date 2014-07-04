@@ -4,7 +4,7 @@ from math import pi
 from operator import attrgetter
 
 from network.decorators import requires_netmode
-from network.descriptors import Attribute, TypeFlag, MarkAttribute
+from network.descriptors import Attribute, MarkAttribute
 from network.enums import Netmodes, Roles, IterableCompressionType
 from network.iterators import take_single
 from network.logger import logger
@@ -12,6 +12,7 @@ from network.network_struct import Struct
 from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
 from network.structures import factory_dict
+from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
 

@@ -1,5 +1,5 @@
 from network.bitfield import BitField
-from network.descriptors import TypeFlag
+from network.type_flag import TypeFlag
 from network.handler_interfaces import get_handler, register_handler
 
 from collections import OrderedDict

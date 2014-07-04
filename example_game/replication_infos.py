@@ -1,5 +1,6 @@
 from network.decorators import requires_netmode, simulated
-from network.descriptors import Attribute, TypeFlag
+from network.descriptors import Attribute
+from network.type_flag import TypeFlag
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.structures import TypedList, TypedSet

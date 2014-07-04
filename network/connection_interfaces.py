@@ -2,13 +2,13 @@ from .bitfield import BitField
 from .connection import Connection
 from .conversions import conversion
 from .decorators import delegate_for_netmode, ignore_arguments
-from .descriptors import TypeFlag
+from .type_flag import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
 from .logger import logger
-from .netmode_switch import TaggedDelegateMeta
+from .tagged_delegate import TaggedDelegateMeta
 from .packet import Packet, PacketCollection
 from .signals import *
 from .world_info import WorldInfo

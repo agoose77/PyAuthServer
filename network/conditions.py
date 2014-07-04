@@ -1,6 +1,6 @@
 from inspect import isfunction
 
-__all__ = ["is_reliable", "is_simulated", "is_signal_listener", "is_annotatable", "get_annotation", "is_class_method",
+__all__ = ["is_reliable", "is_simulated", "is_signal_listener", "is_annotatable", "is_class_method",
            "is_instance_method", "is_static_method"]
 
 """API Helper functions for internal operations"""
@@ -67,13 +67,3 @@ def is_annotatable(func):
     :returns: result of condition
     """
     return hasattr(func, "__annotations__")
-
-
-def get_annotation(func, name, default=None):
-    """Find an anootation of the function with a given name
-
-    :param func: function to search
-    :param name: name of annotation
-    :param default: default if annotation not found [None]
-    """
-    return func.__annotations__.get(name, default)

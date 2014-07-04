@@ -1,11 +1,11 @@
 from .conditions import is_reliable
-from .descriptors import TypeFlag
+from .type_flag import TypeFlag
 from .decorators import delegate_for_netmode
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handler_interfaces import static_description, get_handler
 from .logger import logger
-from .netmode_switch import TaggedDelegateMeta
+from .tagged_delegate import TaggedDelegateMeta
 from .replicable import Replicable
 
 from functools import partial

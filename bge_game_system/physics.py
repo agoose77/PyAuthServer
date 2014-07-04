@@ -5,7 +5,7 @@ from operator import itemgetter
 from network.decorators import delegate_for_netmode
 from network.enums import Netmodes, Roles
 from network.logger import logger
-from network.netmode_switch import TaggedDelegateMeta
+from network.tagged_delegate import TaggedDelegateMeta
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.type_register import TypeRegister

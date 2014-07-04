@@ -1,7 +1,8 @@
 import unittest
 
 from ..bitfield import BitField, CBitField, PyBitField
-from ..descriptors import Attribute, TypeFlag
+from ..descriptors import Attribute
+from ..type_flag import TypeFlag
 from ..handler_interfaces import get_handler
 from ..native_handlers import *
 from ..network_struct import Struct

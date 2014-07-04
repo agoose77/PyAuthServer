@@ -1,5 +1,5 @@
 from .bitfield import BitField
-from .descriptors import TypeFlag
+from .type_flag import TypeFlag
 from .enums import IterableCompressionType, Roles
 from .handler_interfaces import *
 from .iterators import partition_iterable

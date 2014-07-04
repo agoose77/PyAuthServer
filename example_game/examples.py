@@ -2,7 +2,8 @@ from bge_game_system.resources import ResourceManager
 
 from network.replicable import Replicable
 from network.decorators import simulated
-from network.descriptors import Attribute, TypeFlag
+from network.descriptors import Attribute
+from network.type_flag import TypeFlag
 from network.enums import Roles, Netmodes
 from bge_game_system.actors import Actor
 from game_system.signals import CollisionSignal
