@@ -1,11 +1,11 @@
 from .conditions import is_reliable
 from .descriptors import TypeFlag
-from .decorators import netmode_switch
+from .decorators import delegate_for_netmode
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handler_interfaces import static_description, get_handler
-from .logger import Logger
-from .netmode_switch import NetmodeSwitch
+from .logger import logger
+from .netmode_switch import TaggedDelegateMeta
 from .replicable import Replicable
 
 from functools import partial
@@ -14,7 +14,7 @@ from time import monotonic
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
-class Channel(NetmodeSwitch):
+class Channel(TaggedDelegateMeta):
     """Channel for replication information
     Belongs to an instance of Replicable and a connection"""
 
@@ -72,7 +72,7 @@ class Channel(NetmodeSwitch):
             method = self.rpc_storage.functions[rpc_id]
 
         except IndexError:
-            Logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+            logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
 
         else:
             method.execute(rpc_call[rpc_header_size:])
@@ -83,7 +83,7 @@ class Channel(NetmodeSwitch):
         return bool(self.rpc_storage.data)
 
 
-@netmode_switch(Netmodes.client)
+@delegate_for_netmode(Netmodes.client)
 class ClientChannel(Channel):
 
     def notify_callback(self, notifications):
@@ -128,7 +128,7 @@ class ClientChannel(Channel):
             return partial(self.notify_callback, notifications)
 
 
-@netmode_switch(Netmodes.server)
+@delegate_for_netmode(Netmodes.server)
 class ServerChannel(Channel):
 
     def __init__(self, *args, **kwargs):

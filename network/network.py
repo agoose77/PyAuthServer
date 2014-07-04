@@ -22,9 +22,11 @@ class NonBlockingSocketUDP(socket):
 
 
 class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
-    """Non blocking socket class
+    """Non blocking socket class.
+
     A SignalListener which applies artificial latency
-    to outgoing packets"""
+    to outgoing packets
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -111,9 +113,6 @@ class Network:
 
     @property
     def received_data(self):
-        """A partial function for receive_from
-        Used in iter(func, sentinel)
-        """
         buff_size = self.receive_buffer_size
         on_received_bytes = self.metrics.on_received_bytes
 
@@ -159,7 +158,10 @@ class Network:
         ConnectionInterface.update_graph()  # @UndefinedVariable
 
     def send(self, full_update):
-        """Send all connection data and update timeouts"""
+        """Send all connection data and update timeouts
+
+        :param full_update: whether this is a full send call
+        """
         send_func = self.send_to
         pending_state = ConnectionStatus.pending
 
@@ -182,7 +184,11 @@ class Network:
         ConnectionInterface.update_graph()
 
     def send_to(self, data, address):
-        """Overrides send_to method to record sent time"""
+        """Send data to remote peer
+
+        :param data: data to send
+        :param address: address of remote peer
+        """
         data_length = self.socket.sendto(data, address)
 
         self.metrics.on_sent_bytes(data_length)

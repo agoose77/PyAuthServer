@@ -3,7 +3,7 @@ from network.enums import Netmodes
 from network.decorators import requires_netmode
 from network.descriptors import TypeFlag
 from network.world_info import WorldInfo
-from network.logger import Logger
+from network.logger import logger
 from network.structures import factory_dict
 
 from collections import OrderedDict
@@ -64,7 +64,7 @@ class NetworkLocksMixin(Replicable):
             self.locks.remove(name)
 
         except KeyError as err:
-            Logger.exception("{} was not locked".format(name))
+            logger.exception("{} was not locked".format(name))
 
     def update_buffered_locks(self, move_id):
         """Apply server lock changes according to their creation time

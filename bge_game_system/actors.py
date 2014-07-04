@@ -122,11 +122,12 @@ class Actor(BGEActorBase, Replicable):
             self.collision_mask = self._collision_mask
         elif name == "_angular":
             self.world_angular = self._angular
+            print(self.world_angular)
         elif name == "_rotation":
-            self.world_rotation = self._rotation
+            self.world_rotation = self.world_rotation.to_quaternion().slerp(self._rotation.to_quaternion(), 0.3)
         elif name == "_position":
-            #self.on_replicated_physics(self._position, self._velocity, self._replication_time)
-            self.world_position = self._position
+            self.on_replicated_physics(self._position, self._velocity, self._replication_time)
+            #self.world_position = self._position
         else:
             super().on_notify(name)
 

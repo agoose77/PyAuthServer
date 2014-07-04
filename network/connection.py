@@ -1,10 +1,10 @@
 from .channel import Channel
-from .decorators import netmode_switch
+from .decorators import delegate_for_netmode
 from .descriptors import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
-from .logger import Logger
-from .netmode_switch import NetmodeSwitch
+from .logger import logger
+from .netmode_switch import TaggedDelegateMeta
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
 from .signals import *
@@ -24,7 +24,7 @@ def consume(iterable):
         pass
 
 
-class Connection(SignalListener, NetmodeSwitch):
+class Connection(SignalListener, TaggedDelegateMeta):
     """Connection between loacl host and remote peer
     Represents a successful connection"""
 
@@ -125,7 +125,7 @@ class Connection(SignalListener, NetmodeSwitch):
         pass
 
 
-@netmode_switch(Netmodes.client)
+@delegate_for_netmode(Netmodes.client)
 class ClientConnection(Connection):
 
     def __init__(self, netmode):
@@ -154,7 +154,7 @@ class ClientConnection(Connection):
                 channel = self.channels[instance_id]
 
             except KeyError:
-                Logger.exception("Unable to find channel for network object with id {}".format(instance_id))
+                logger.exception("Unable to find channel for network object with id {}".format(instance_id))
 
             else:
                 # Apply attributes and retrieve notify callback
@@ -229,7 +229,7 @@ class ClientConnection(Connection):
             self.set_replication(packet)
 
 
-@netmode_switch(Netmodes.server)
+@delegate_for_netmode(Netmodes.server)
 class ServerConnection(Connection):
 
     def __init__(self, netmode):
@@ -245,7 +245,7 @@ class ServerConnection(Connection):
         # If we own a controller destroy it
         if self.replicable:
             # We must be connected to have a controller
-            Logger.info("{} disconnected!".format(self.replicable))
+            logger.info("{} disconnected!".format(self.replicable))
             self.replicable.request_unregistration()
 
     @ReplicableUnregisteredSignal.global_listener

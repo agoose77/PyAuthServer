@@ -2,7 +2,7 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
 from network.enums import Netmodes
-from network.logger import Logger
+from network.logger import logger
 from network.network import Network
 from network.replicable import Replicable
 from network.signals import *
@@ -306,10 +306,10 @@ class ServerGameLoop(GameLoop):
 
         except KeyError as err:
             if (WorldInfo.tick - target_tick) > self._rewind_length:
-                Logger.exception("Could not rewind to tick {}, it was too far in the past".format(target_tick))
+                logger.exception("Could not rewind to tick {}, it was too far in the past".format(target_tick))
 
             else:
-                Logger.exception("Could not rewind to tick {}, unknown error".format(target_tick))
+                logger.exception("Could not rewind to tick {}, unknown error".format(target_tick))
 
             return
 

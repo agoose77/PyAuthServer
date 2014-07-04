@@ -31,7 +31,8 @@ class Struct(metaclass=StructMeta):
     def __deepcopy__(self, memo):
         """Serialiser description of tuple
 
-        :returns: new struct instance"""
+        :returns: new struct instance
+        """
         new_struct = self.__class__()
         # Local lookups
         old_attribute_container_data = self._attribute_container.data
@@ -59,7 +60,8 @@ class Struct(metaclass=StructMeta):
         """Create a struct from bytes
 
         :param bytes_string: Packed byte representation of struct contents
-        :returns: Struct instance"""
+        :returns: Struct instance
+        """
         struct = cls()
         struct.read_bytes(bytes_string, offset)
 
@@ -70,7 +72,8 @@ class Struct(metaclass=StructMeta):
         """Create a struct from a tuple
 
         :param tuple_: Tuple representation of struct contents
-        :returns: Struct instance"""
+        :returns: Struct instance
+        """
         struct = cls()
         struct.read_tuple(tuple_)
 
@@ -87,7 +90,7 @@ class Struct(metaclass=StructMeta):
 
         # Process and store new values
         for attribute_name, value in self._serialiser.unpack(bytes_string, previous_values=replicable_data,
-                                                             read_offset=offset):
+                                                             offset=offset):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
@@ -95,7 +98,8 @@ class Struct(metaclass=StructMeta):
     def read_tuple(self, tuple_):
         """Update struct contents with a tuple
 
-        :param tuple_: Tuple representation of struct contents"""
+        :param tuple_: Tuple representation of struct contents
+        """
         data = self._attribute_container.data
         members = self._attribute_container._ordered_mapping.values()
 
@@ -105,17 +109,16 @@ class Struct(metaclass=StructMeta):
     def to_bytes(self):
         """Write struct contents to bytes
 
-        :returns: packed contents"""
+        :returns: packed contents
+        """
         return self._serialiser.pack({a.name: v for a, v in self._attribute_container.data.items()})
 
     def to_list(self):
         """Write struct contents to a list
 
-        :returns: contents tuple"""
+        :returns: contents tuple
+        """
         container = self._attribute_container
+        attribute_data = container.data
         attributes = container._ordered_mapping.values()
-        data = container.data
-        return [data[k] for k in attributes]
-
-    def on_notify(self, name):
-        pass
+        return [attribute_data[attribute] for attribute in attributes]

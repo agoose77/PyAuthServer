@@ -82,21 +82,17 @@ def get_handler(type_flag):
 
     except KeyError:
         try:
-            handled_superclasses = (cls for cls in value_type.__mro__
-                                    if cls in handlers)
+            handled_superclasses = (cls for cls in value_type.__mro__ if cls in handlers)
             handled_type = next(handled_superclasses)
 
         except StopIteration as err:
-            raise TypeError("No handler found for object with type {}"
-                            .format(value_type)) from err
+            raise TypeError("No handler found for object with type {}".format(value_type)) from err
 
         except AttributeError as err:
-            raise ValueError("Invalid handler type provided: {}"
-                             .format(value_type)) from err
+            raise ValueError("Invalid handler type provided: {}".format(value_type)) from err
 
         else:
             # Remember this for later call
-            handler, is_callable = handlers[value_type] = \
-                handlers[handled_type]
+            handler, is_callable = handlers[value_type] = handlers[handled_type]
 
     return handler(type_flag) if is_callable else handler

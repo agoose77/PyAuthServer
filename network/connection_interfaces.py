@@ -1,14 +1,14 @@
 from .bitfield import BitField
 from .connection import Connection
 from .conversions import conversion
-from .decorators import netmode_switch, ignore_arguments
+from .decorators import delegate_for_netmode, ignore_arguments
 from .descriptors import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
-from .logger import Logger
-from .netmode_switch import NetmodeSwitch
+from .logger import logger
+from .netmode_switch import TaggedDelegateMeta
 from .packet import Packet, PacketCollection
 from .signals import *
 from .world_info import WorldInfo
@@ -20,7 +20,7 @@ from time import monotonic
 __all__ = ["ConnectionInterface", "ClientInterface", "ServerInterface"]
 
 
-class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
+class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
     """Interface for remote peer
 
     Mediates a connection instance between local and remote peer
@@ -77,7 +77,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         # Estimate RTT
         self.latency = 0.0
-        self.latency_smoothing = 0.1
+        self.latency_smoothing = 0.8
 
         # Internal packet data
         self.internal_data = []
@@ -131,7 +131,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
 
         else:
             handling_error = TypeError("Unable to process packet with protocol {}".format(packet_protocol))
-            Logger.error(handling_error)
+            logger.error(handling_error)
 
             ConnectionErrorSignal.invoke(handling_error, target=self)
             self.request_unregistration()
@@ -201,14 +201,14 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
     def on_connected(self):
         """Connected callback"""
         self.status = ConnectionStatus.connected  # @UndefinedVariable
-        Logger.info("Successfully connected to server")
+        logger.info("Successfully connected to server")
 
         ConnectionSuccessSignal.invoke(target=self)
 
     def on_failure(self):
         """Connection Failed callback"""
         self.status = ConnectionStatus.failed  # @UndefinedVariable
-        Logger.error("Failed to connect to server")
+        logger.error("Failed to connect to server")
 
     def on_unregistered(self):
         """Unregistered callback"""
@@ -342,7 +342,7 @@ class ConnectionInterface(NetmodeSwitch, metaclass=InstanceRegister):
         self.latency = (smooth_factor * self.latency) + (1 - smooth_factor) * new_latency
 
 
-@netmode_switch(Netmodes.server)  # @UndefinedVariable
+@delegate_for_netmode(Netmodes.server)  # @UndefinedVariable
 class ServerInterface(ConnectionInterface):
 
     def on_initialised(self):
@@ -385,7 +385,7 @@ class ServerInterface(ConnectionInterface):
                 return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_error,
                               on_success=ignore_arguments(self.on_failure))
 
-            Logger.error("Warning: Connection failed for undocumented reason")
+            logger.error("Warning: Connection failed for undocumented reason")
 
         else:
             # Send acknowledgement
@@ -412,7 +412,7 @@ class ServerInterface(ConnectionInterface):
 
         # If a NetworkError is raised store the result
         except NetworkError as err:
-            Logger.exception("Connection was refused")
+            logger.exception("Connection was refused")
             self._auth_error = err
 
         else:
@@ -424,7 +424,7 @@ class ServerInterface(ConnectionInterface):
                 connection.replicable = returned_replicable
 
 
-@netmode_switch(Netmodes.client)
+@delegate_for_netmode(Netmodes.client)
 class ClientInterface(ConnectionInterface):
 
     @DisconnectSignal.global_listener
@@ -457,7 +457,7 @@ class ClientInterface(ConnectionInterface):
             error_class = NetworkError.from_type_name(error_type)
             raised_error = error_class(error_message)
 
-            Logger.error(raised_error)
+            logger.error(raised_error)
             ConnectionErrorSignal.invoke(raised_error, target=self)
 
         # Get remote network mode
@@ -472,7 +472,7 @@ class ClientInterface(ConnectionInterface):
         else:
             unknown_error = NetworkError("Failed to determine handshake protocol")
 
-            Logger.error(unknown_error)
+            logger.error(unknown_error)
             ConnectionErrorSignal.invoke(unknown_error, target=self)
 
     def receive(self, bytes_string):

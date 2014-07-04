@@ -49,7 +49,7 @@ class HandleMouseYaw(LeafNode):
         mouse_diff_x, *_ = blackboard['mouse']
         pawn = blackboard['pawn']
 
-        pawn.world_angular = Vector((0, 0, mouse_diff_x * 20 * pawn.turn_speed))
+        pawn.world_angular = Vector((0, 0, mouse_diff_x * 40 * pawn.turn_speed))
         return EvaluationState.success
 
 
@@ -67,7 +67,7 @@ class HandleFirstPersonCamera(LeafNode):
         pawn = blackboard['pawn']
         camera = blackboard['camera']
 
-        look_speed = 2
+        look_speed = 1
         look_limit = radians(45)
 
         delta_pitch = mouse_diff_y * look_speed

@@ -1,6 +1,6 @@
 from .flag_serialiser import FlagSerialiser
 from .descriptors import TypeFlag, MarkAttribute
-from .logger import Logger
+from .logger import logger
 
 from collections import OrderedDict
 from copy import deepcopy
@@ -56,7 +56,7 @@ class RPCInterface:
             self._interface.set(packed_data)
 
         except Exception:
-            Logger.exception("Could not package RPC call: '{}'".format(self._function_name))
+            logger.exception("Could not package RPC call: '{}'".format(self._function_name))
 
     def __repr__(self):
         return "<RPC Interface {}>".format(self._function_name)
@@ -71,7 +71,7 @@ class RPCInterface:
             self._function_call(**dict(unpacked_data))
 
         except Exception:
-            Logger.exception("Could not invoke RPC call: '{}'".format(self._function_name))
+            logger.exception("Could not invoke RPC call: '{}'".format(self._function_name))
 
     def register(self, interface, rpc_id):
         """Register individual RPC interface for a class Instance
@@ -198,5 +198,5 @@ class RPCInterfaceFactory:
         for parameter_name, parameter in arguments.items():
 
             if parameter is None:
-                Logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
+                logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
                     function.__qualname__, parameter_name))

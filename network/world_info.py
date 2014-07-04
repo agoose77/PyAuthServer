@@ -23,7 +23,7 @@ class _WorldInfo(Replicable):
     rules = None
 
     def on_initialised(self):
-        self._cache = {}
+        self._replicable_lookup_cache = {}
 
         self.always_relevant = True
 
@@ -33,7 +33,7 @@ class _WorldInfo(Replicable):
         """Stores replicable instance for fast lookup by type
 
         :param target: Replicable instance"""
-        for cls_type, values in self._cache.items():
+        for cls_type, values in self._replicable_lookup_cache.items():
             if isinstance(target, cls_type):
                 values.append(target)
 
@@ -43,7 +43,7 @@ class _WorldInfo(Replicable):
         """Removes stored replicable instance for fast lookup by type
 
         :param target: Replicable instance"""
-        for values in self._cache.values():
+        for values in self._replicable_lookup_cache.values():
             if target in values:
                 values.remove(target)
 
@@ -77,10 +77,10 @@ class _WorldInfo(Replicable):
         :returns: list of subclass instances
         """
         try:
-            return self._cache[actor_type]
+            return self._replicable_lookup_cache[actor_type]
 
         except KeyError:
-            values = self._cache[actor_type] = [a for a in Replicable if isinstance(a, actor_type)]
+            values = self._replicable_lookup_cache[actor_type] = [a for a in Replicable if isinstance(a, actor_type)]
             return values
 
     @simulated

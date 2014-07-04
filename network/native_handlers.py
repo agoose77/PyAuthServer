@@ -3,7 +3,7 @@ from .descriptors import TypeFlag
 from .enums import IterableCompressionType, Roles
 from .handler_interfaces import *
 from .iterators import partition_iterable
-from .logger import Logger
+from .logger import logger
 from .replicable import Replicable
 from .run_length_encoding import RunLengthCodec
 from .serialiser import *
@@ -415,7 +415,7 @@ class ReplicableBaseHandler:
             return replicable, id_size
 
         except LookupError:
-            Logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
+            logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
             return None, id_size
 
     def size(self, bytes_string=None):

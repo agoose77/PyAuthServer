@@ -36,6 +36,11 @@ class FlagSerialiser:
         self.contents_packer = get_handler(TypeFlag(BitField, fields=len(self.content_bits)))
 
     def report_information(self, bytes_string, offset=0):
+        """Display the contents of a serialised stream
+
+        :param bytes_string: data to interpret
+        :param offset: offset from start of stream
+        """
         content_packer = self.contents_packer
         # Get header of packed data
         content_bitfield, contents_size = content_packer.unpack_from(bytes_string, offset)
@@ -81,13 +86,13 @@ class FlagSerialiser:
         contents_size = contents_packer.unpack_merge(self.none_bits, bytes_string, offset)
         return contents_size
 
-    def unpack(self, bytes_string, previous_values={}, read_offset=0):
+    def unpack(self, bytes_string, previous_values={}, offset=0):
         """Unpack bytes into Python objects
 
         :param bytes_string: packed data
         :param previous_values: previous packed values (optional)"""
         # Get the contents header
-        read_offset += self.read_contents(bytes_string, read_offset)
+        offset += self.read_contents(bytes_string, offset)
         content_values = list(self.content_bits)
 
         has_none_types = content_values[self.NONE_CONTENT_INDEX]
@@ -95,7 +100,7 @@ class FlagSerialiser:
 
         # If there are NoneType values they will be first
         if has_none_types:
-            read_offset += self.read_nonetype_values(bytes_string, read_offset)
+            offset += self.read_nonetype_values(bytes_string, offset)
 
         # Ensure that the NoneType values are cleared
         else:
@@ -117,21 +122,21 @@ class FlagSerialiser:
                 previous_value = previous_values.get(key)
                 if previous_value is not None and hasattr(handler, "unpack_merge"):
                     # If we can't merge use default unpack
-                    value_size = handler.unpack_merge(previous_value, bytes_string, read_offset)
+                    value_size = handler.unpack_merge(previous_value, bytes_string, offset)
 
                 # Otherwise ask for a new value
                 else:
-                    value, value_size = handler.unpack_from(bytes_string, read_offset)
+                    value, value_size = handler.unpack_from(bytes_string, offset)
 
                 # We have unpacked a value, so shift by its size
-                read_offset += value_size
+                offset += value_size
 
             yield (key, value)
 
         # If there are Boolean values included in the data
         if has_booleans:
             # Read data from Boolean bitfields
-            read_offset += self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, read_offset)
+            offset += self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, offset)
 
             found_booleans = content_values[self.total_none_booleans:]
             none_booleans = none_values[self.total_none_booleans:]
@@ -144,6 +149,10 @@ class FlagSerialiser:
                     yield (key, None if none_value else value)
 
     def pack(self, data):
+        """Pack data into bytes
+
+        :param data: data to be packed
+        """
         content_bits = self.content_bits
         none_bits = self.none_bits
 

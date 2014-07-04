@@ -1,11 +1,11 @@
 from logging import Formatter, getLogger, INFO, DEBUG, StreamHandler
 
-__all__ = ['Logger']
+__all__ = ['logger']
 
 
-Logger = getLogger("network")
+logger = getLogger("network")
 
-Logger.info("Initialised logger")
+logger.info("Initialised logger")
 
 _handler = StreamHandler()
 _handler.setLevel(INFO)
@@ -13,4 +13,4 @@ _handler.setLevel(INFO)
 formatter = Formatter('%(levelname)s - [%(asctime)s - %(name)s] {%(message)s\}')
 _handler.setFormatter(formatter)
 
-Logger.addHandler(_handler)
+logger.addHandler(_handler)

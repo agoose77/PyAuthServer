@@ -26,8 +26,7 @@ class Replicable(metaclass=ReplicableRegister):
     _by_types = defaultdict(list)
     subclasses = {}
 
-    def __init__(self, instance_id=None, register=False,
-                 static=True, **kwargs):
+    def __init__(self, instance_id=None, register=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
 

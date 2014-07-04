@@ -5,7 +5,7 @@ from .conditions import is_simulated, is_annotatable
 from .enums import Roles
 
 
-__all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'netmode_switch', 'ignore_arguments',
+__all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'delegate_for_netmode', 'ignore_arguments',
            'set_annotation', 'set_annotation', 'get_annotation', 'IgnoreDescriptor', 'simulate_methods']
 
 
@@ -26,6 +26,7 @@ def set_annotation(name, value=True):
             raise ValueError("Function does not support annotations: {}".format(func.__qualname__))
 
         return func
+
     return wrapper
 
 
@@ -45,6 +46,7 @@ def get_annotation(name, default=None, modify=False):
 
         if modify:
             return annotations.setdefault(name, default)
+
         return annotations.get(name, default)
 
     return wrapper
@@ -79,6 +81,7 @@ def signal_listener(signal_type, global_listener):
         signals = get_annotation('signals', default=[], modify=True)(func)
         signals.append((signal_type, not global_listener))
         return func
+
     return wrapper
 
 
@@ -134,7 +137,20 @@ def requires_permission(func):
     return func_wrapper
 
 
-def netmode_switch(netmode):
+def set_class_tag(cls, value):
+    """Set the tag value for the given class
+
+    :param value: new value of tag
+    """
+    cls._tag = value
+
+
+def get_class_tag(cls):
+    """Get the tag value for the given class"""
+    return cls._tag
+
+
+def delegate_for_netmode(netmode):
     """Create a closure decorator that marks a class as belonging to a specific netmode context
 
     :param netmode: netmode that the class belongs to
@@ -145,7 +161,7 @@ def netmode_switch(netmode):
         if not isclass(cls):
             raise TypeError("Unable to decorate non-class types {}".format(cls))
 
-        cls._netmode = netmode
+        set_class_tag(cls, netmode)
 
         return cls
 
@@ -193,4 +209,5 @@ def simulate_methods(cls):
             continue
 
         simulated(member)
+
     return cls

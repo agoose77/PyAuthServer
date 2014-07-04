@@ -1,9 +1,10 @@
 class TypeRegister(type):
     """Registers all subclasses of parent class
-    Stores class name: class mapping on parent.subclasses"""
+    Stores class name: class mapping on parent.subclasses
+    """
 
-    def __new__(self, name, parents, attrs):
-        cls = super().__new__(self, name, parents, attrs)
+    def __new__(meta, name, parents, attributes):
+        cls = super().__new__(meta, name, parents, attributes)
 
         try:
             subclasses = cls.subclasses
@@ -15,6 +16,7 @@ class TypeRegister(type):
         for parent in cls.__mro__[1:]:
             if hasattr(parent, "subclasses"):
                 subclasses[name] = cls
+
                 if hasattr(cls, "register_subtype"):
                     cls.register_subtype()
 
@@ -26,21 +28,20 @@ class TypeRegister(type):
         return cls
 
     @property
-    def type_name(self):
-        """Property
-        Gets the class type name
-
-        :returns: name of class type"""
-        return self.__name__
+    def type_name(cls):
+        return cls.__name__
 
     def from_type_name(self, type_name):
         """Gets class type from type_name
 
         :param type_name: name of class type
-        :returns: class reference"""
+        :returns: class reference
+        """
         try:
             return self.subclasses[type_name]
+
         except KeyError:
-            raise LookupError("No class with name {}".format(type_name))
+            raise LookupError("No class with name {} can be found in this subclass tree".format(type_name))
+
         except AttributeError:
-            raise TypeError("This class is not included in the subclass tree")
+            raise TypeError("This class does not implement a subclass dictionary")

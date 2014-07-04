@@ -61,14 +61,16 @@ class TypedIterableBase:
         else:
             super().__init__()
 
-    def copy(self):
-        return self.__class__(self._type, super().copy())
-
     def __deepcopy__(self, memo):
         return self.__class__(self._type, deepcopy([i for i in self], memo))
 
+    def copy(self):
+        return self.__class__(self._type, super().copy())
+
 
 class TypedList(TypedIterableBase, list):
+
+    """List class with static type checking"""
 
     def append(self, obj):
         if not isinstance(obj, self._type):
@@ -94,26 +96,7 @@ class TypedList(TypedIterableBase, list):
 
 class TypedSet(TypedIterableBase, set):
 
-    def add(self, element):
-        if not isinstance(element, self._type):
-            raise TypeError("Elements must be of type {}".format(self._type))
-
-        super().add(element)
-
-    def update(self, other):
-        self._verify_iterable(other)
-
-        super().update(other)
-
-    def intersection_update(self, other):
-        self._verify_iterable(other)
-
-        super().intersection_update(other)
-
-    def symmetric_difference_update(self, other):
-        self._verify_iterable(other)
-
-        super().symmetric_difference_update(other)
+    """Set class with static type checking"""
 
     def _verify_iterable(self, iterable):
         """Verifies that all members are typed correctly
@@ -127,6 +110,27 @@ class TypedSet(TypedIterableBase, set):
 
         elif iterable._type != self._type:
             raise TypeError("{} must be of the same type".format(self.__class__.__name__))
+
+    def add(self, element):
+        if not isinstance(element, self._type):
+            raise TypeError("Elements must be of type {}".format(self._type))
+
+        super().add(element)
+
+    def intersection_update(self, other):
+        self._verify_iterable(other)
+
+        super().intersection_update(other)
+
+    def symmetric_difference_update(self, other):
+        self._verify_iterable(other)
+
+        super().symmetric_difference_update(other)
+
+    def update(self, other):
+        self._verify_iterable(other)
+
+        super().update(other)
 
     __ior__ = mutable_operation(update)
     __ixor__ = mutable_operation(symmetric_difference_update)

@@ -1,10 +1,11 @@
 from collections import defaultdict
 from contextlib import contextmanager
+from operator import itemgetter
 
-from network.decorators import netmode_switch
+from network.decorators import delegate_for_netmode
 from network.enums import Netmodes, Roles
-from network.logger import Logger
-from network.netmode_switch import NetmodeSwitch
+from network.logger import logger
+from network.netmode_switch import TaggedDelegateMeta
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.type_register import TypeRegister
@@ -13,6 +14,7 @@ from network.world_info import WorldInfo
 from bge_game_system.actors import Actor, Camera, Pawn
 
 from game_system.controllers import ControllerBase
+from game_system.jitter_buffer import JitterBuffer
 from game_system.weapons import Weapon
 from game_system.replication_infos import ReplicationInfo
 from game_system.enums import PhysicsType
@@ -25,7 +27,7 @@ from mathutils import Vector
 __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics", "EPICExtrapolator"]
 
 
-class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
+class PhysicsSystem(TaggedDelegateMeta, SignalListener):
     subclasses = {}
 
     def __init__(self, update_func, apply_func):
@@ -57,7 +59,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
                 return name_cls(instance_id=instance_id)
 
             except Exception:
-                Logger.exception("Couldn't spawn {} replicable".format(name))
+                logger.exception("Couldn't spawn {} replicable".format(name))
                 return
 
         except (AssertionError, LookupError) as e:
@@ -199,7 +201,7 @@ class PhysicsSystem(NetmodeSwitch, SignalListener, metaclass=TypeRegister):
         state.collision_mask = actor.collision_mask
 
 
-@netmode_switch(Netmodes.server)
+@delegate_for_netmode(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
     def save_network_states(self):
@@ -216,7 +218,7 @@ class ServerPhysics(PhysicsSystem):
         self.save_network_states()
 
 
-@netmode_switch(Netmodes.client)
+@delegate_for_netmode(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
     def __init__(self, *args, **kwargs):
@@ -230,6 +232,7 @@ class ClientPhysics(PhysicsSystem):
         simulated_proxy = Roles.simulated_proxy
         for replicable, extrapolator in self._extrapolators.items():
             result = extrapolator.read_sample(current_time)
+
             if replicable.roles.local != simulated_proxy:
                 continue
 
@@ -247,6 +250,13 @@ class ClientPhysics(PhysicsSystem):
 
     @PhysicsReplicatedSignal.global_listener
     def on_physics_replicated(self, timestamp, position, velocity, target):
+        if type(target).type_name != "Barrel":
+            return
+        print(position, timestamp)
+        if not hasattr(target, "f"):
+            target.f = target.object.scene.addObject("Flag", target.object)
+
+        target.f.worldPosition=position
         extrapolator = self._extrapolators[target]
         extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.world_position, position, velocity)
 
@@ -262,6 +272,104 @@ class ClientPhysics(PhysicsSystem):
         super().update(scene, delta_time)
 
         self.extrapolate_network_states()
+
+
+@delegate_for_netmode(Netmodes.client)
+class ClienstPhysics(PhysicsSystem):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._interpolation_buffers = defaultdict(self.create_interpolator)
+
+    def create_interpolator(self):
+        return Interpolator(0.1)
+
+    def interpolate_states(self):
+        """Apply state from interpolation buffers to replicated actors"""
+        current_time = WorldInfo.elapsed
+        simulated_proxy = Roles.simulated_proxy
+        for replicable, interpolation_buffer in self._interpolation_buffers.items():
+
+            result = interpolation_buffer.read_sample()
+            if replicable.roles.local != simulated_proxy:
+                continue
+
+            if result is None:
+                continue
+            position, velocity = result
+
+            replicable.world_position = position
+            replicable.world_velocity = velocity
+
+    def spawn_actor(self, lookup, name, type_of):
+        """Overrides spawning for clients to ensure only static actors spawn"""
+        if not name + "_id" in lookup:
+            return
+
+        return super().spawn_actor(lookup, name, type_of)
+
+    @PhysicsReplicatedSignal.global_listener
+    def on_physics_replicated(self, timestamp, position, velocity, target):
+        buffer = self._interpolation_buffers[target]
+        buffer.add_sample(timestamp, (position, velocity))
+
+    @ReplicableUnregisteredSignal.global_listener
+    def on_replicable_unregistered(self, target):
+        if target in self._interpolation_buffers:
+            self._interpolation_buffers.pop(target)
+
+    @PhysicsTickSignal.global_listener
+    def update(self, scene, delta_time):
+        """Listener for PhysicsTickSignal
+        Copy physics state to network variable for Actor instances"""
+        super().update(scene, delta_time)
+
+        self.interpolate_states()
+
+
+class Interpolator:
+    def __init__(self, offset):
+        self.samples = []
+        self.offset = offset
+
+        self.calibration = None
+
+    def add_sample(self, timestamp, sample):
+        self.samples.append((timestamp, sample))
+
+        from time import monotonic
+        if self.calibration is None:
+            self.calibration = timestamp - monotonic()
+
+    def read_sample(self):
+
+        from time import monotonic
+        projected_time = monotonic() + self.calibration + .5
+        if self.samples:
+            print("\n",projected_time, self.samples[-1][0])
+
+        last_entry = None
+        for entry in self.samples:
+            timestamp, *_ = entry
+
+            if timestamp > projected_time:
+                break
+
+            last_entry = entry
+
+        else:
+            return None
+
+        factor = (projected_time - last_entry[0]) / (timestamp - last_entry[0])
+
+        data = []
+        for old_state, new_state in zip(last_entry[1], entry[1]):
+            data.append(old_state.lerp(new_state, factor))
+
+        return data
+
+
 
 
 class EPICExtrapolator:
