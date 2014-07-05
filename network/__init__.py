@@ -4,7 +4,7 @@ Extendable for new data types
 """
 
 NUMPY_SERIALISER = False
-
+# TODO listen server support
 
 from .bitfield import *
 from .serialiser import *

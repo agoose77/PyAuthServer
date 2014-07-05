@@ -55,16 +55,14 @@ class AbstractStorageContainer:
             return self._lazy_name_mapping[member]
 
         except KeyError:
-            name = self._lazy_name_mapping[member] = next(n for n, a in
-                                          self._mapping.items() if a == member)
+            name = self._lazy_name_mapping[member] = next(n for n, a in self._mapping.items() if a is member)
             return name
 
     @classmethod
     def get_member_instances(cls, instance_cls):
         is_supported = cls.check_is_supported
 
-        return {name: value for name, value in getmembers(instance_cls,
-                                                          is_supported)}
+        return {name: value for name, value in getmembers(instance_cls, is_supported)}
 
     def get_storage_accessors(self, member):
         getter = partial(self.data.__getitem__, member)
@@ -128,8 +126,10 @@ class RPCStorageContainer(AbstractStorageContainer):
 
 
 class AttributeStorageContainer(AbstractStorageContainer):
-    """Storage container for Attributes
-    Handles data storage, access and complaints"""
+    """Storage container for Attributes.
+
+    Handles data storage, access and complaints.
+    """
 
     def __init__(self, instance, *args, **kwargs):
         super().__init__(instance, *args, **kwargs)

@@ -46,7 +46,8 @@ class ControllerBase(Replicable):
     def attach_camera(self, camera):
         """Connects camera to pawn
 
-        :param camera: camera instance"""
+        :param camera: camera instance
+        """
         self._camera = camera
         camera.set_parent(self.pawn, "camera")
         camera.local_position = Vector()
@@ -66,7 +67,8 @@ class ControllerBase(Replicable):
     def on_camera_replicated(self, camera):
         """Called when camera attribute is replicated
 
-        :param camera: camera attribute"""
+        :param camera: camera attribute
+        """
         if camera:
             self.attach_camera(camera)
             camera.active = True
@@ -115,7 +117,8 @@ class ControllerBase(Replicable):
     def register_listener_to_pawn(self, pawn):
         """Registers as listener for pawn events
 
-        :param pawn: pawn instance"""
+        :param pawn: pawn instance
+        """
         self._pawn = pawn
         pawn.register_child(self, greedy=True)
 
@@ -182,7 +185,7 @@ class ControllerBase(Replicable):
         self.pawn = None
 
     def unregister_listener_to_pawn(self):
-        """Unregisters as listener for pawn events"""
+        """Unregister as listener for pawn events"""
         self._pawn.unregister_child(self, greedy=True)
         self._pawn = None
 
@@ -419,15 +422,17 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
                     setattr(move_history, list_name, field)
                 field.append(getattr(move.inputs, field_name))
 
-
             # Add other fields
             if move_history.mouse_x_list is None:
                 move_history.mouse_x_list = []
+
             if move_history.mouse_y_list is None:
                 move_history.mouse_y_list = []
+
             move_history.mouse_x_list.append(move.mouse_x)
             move_history.mouse_y_list.append(move.mouse_y)
             move_history.id_end = move.id
+
             # Enforce upper limit
             if len(move_history) > history_length:
                 move_history.popleft()

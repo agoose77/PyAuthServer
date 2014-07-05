@@ -14,14 +14,13 @@ def get_scalar(fmt):
     return scalar_a * scalar_b
 
 
-def conversion(value, from_fmt, to_fmt, round_to_int=True,
-               round_func=math.ceil):
+def conversion(value, from_fmt, to_fmt, round_to_int=True, round_func=math.ceil):
     try:
         from_scalar = get_scalar(from_fmt)
         to_scalar = get_scalar(to_fmt)
+
     except KeyError:
-        raise TypeError("Converter could not convert {} to {}"
-                        .format(from_fmt, to_fmt))
+        raise TypeError("Converter could not convert {} to {}".format(from_fmt, to_fmt))
 
     result = value * (from_scalar / to_scalar)
 
