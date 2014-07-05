@@ -26,7 +26,8 @@ def consume(iterable):
 
 class Connection(SignalListener, TaggedDelegateMeta):
     """Connection between loacl host and remote peer
-    Represents a successful connection"""
+    Represents a successful connection
+    """
 
     subclasses = {}
 
@@ -61,7 +62,8 @@ class Connection(SignalListener, TaggedDelegateMeta):
         """Handles un-registration of a replicable instance
         Deletes channel for replicable instance
 
-        :param target: replicable that was unregistered"""
+        :param target: replicable that was unregistered
+        """
         self.channels.pop(target.instance_id)
 
     @ReplicableRegisteredSignal.global_listener
@@ -69,7 +71,8 @@ class Connection(SignalListener, TaggedDelegateMeta):
         """Handles registration of a replicable instance
         Create channel for replicable instance
 
-        :param target: replicable that was registered"""
+        :param target: replicable that was registered
+        """
         if not target.registered:
             return
 
@@ -84,7 +87,8 @@ class Connection(SignalListener, TaggedDelegateMeta):
         """Returns a generator for replicables
         with a remote role != Roles.none
 
-        :yield: replicable, (is_owner and relevant_to_owner), channel"""
+        :yield: replicable, (is_owner and relevant_to_owner), channel
+        """
         no_role = Roles.none  # @UndefinedVariable
 
         for channel in sorted(self.channels.values(), reverse=True, key=attrgetter("replication_priority")):
@@ -97,13 +101,14 @@ class Connection(SignalListener, TaggedDelegateMeta):
             yield channel, replicable.relevant_to_owner and channel.is_owner
 
     @staticmethod
-    def get_method_replication(replicables, collection, bandwidth):
+    def write_replicated_method_calls(replicables, collection, bandwidth):
         """Writes replicated function calls to packet collection
 
         :param replicables: iterable of replicables to consider replication
         :param collection: PacketCollection instance
         :param bandwidth: available bandwidth
-        :yield: each entry in replicables"""
+        :yield: each entry in replicables
+        """
         method_invoke = Protocols.method_invoke  # @UndefinedVariable
         make_packet = Packet
         store_packet = collection.members.append
@@ -143,7 +148,8 @@ class ClientConnection(Connection):
         """Replication function
         Accepts replication packets and responds to protocol
 
-        :param packet: replication packet"""
+        :param packet: replication packet
+        """
 
         instance_id, id_size = self.replicable_packer.unpack_id(packet.payload)
         payload_following_id = packet.payload[id_size:]
@@ -172,8 +178,7 @@ class ClientConnection(Connection):
                 channel = self.channels[instance_id]
 
             except KeyError:
-                print("Unable to find network object with id {}"
-                      .format(instance_id))
+                print("Unable to find network object with id {}".format(instance_id))
 
             else:
                 if channel.is_owner:
@@ -186,11 +191,12 @@ class ClientConnection(Connection):
 
             is_connection_host, is_host_size = self.bool_packer.unpack_from(payload_following_id)
 
+            # Find replicable class
+            replicable_cls = Replicable.from_type_name(type_name)
             # Create replicable of same type
-            replicable_cls = Replicable.from_type_name(type_name)  # @UndefinedVariable @IgnorePep8
-            replicable = Replicable.create_or_return(replicable_cls, instance_id, register=True)
+            replicable = replicable_cls.create_or_return(replicable_cls, instance_id, register=True)
             # Perform incomplete role switch when spawning (later set by server)
-            (replicable.roles.local, replicable.roles.remote) = (replicable.roles.remote, replicable.roles.local)
+            replicable.roles.local, replicable.roles.remote = replicable.roles.remote, replicable.roles.local
             # If replicable is parent (top owner)
             if is_connection_host:
                 # Register as own replicable
@@ -213,18 +219,20 @@ class ClientConnection(Connection):
 
         :param network_tick: unused argument
         :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance"""
+        :returns: PacketCollection instance
+        """
         collection = PacketCollection()
-        replicables = self.get_method_replication(self.prioritised_channels, collection, available_bandwidth)
+        replicables = self.write_replicated_method_calls(self.prioritised_channels, collection, available_bandwidth)
 
         # Consume iterable
         consume(replicables)
         return collection
 
     def receive(self, packet):
-        """Handles incoming PacketCollection instance
+        """Handles incoming Packet from server
 
-        :param packets: PacketCollection instance"""
+        :param packet: Packet instance
+        """
         if packet.protocol in Protocols:
             self.set_replication(packet)
 
@@ -238,8 +246,10 @@ class ServerConnection(Connection):
         self.cached_packets = set()
 
     def on_delete(self):
-        """Callback for connection deletion
-        Called by ConnectionStatus when deleted"""
+        """Callback for connection deletion.
+
+        Called when connection.status holds the value of ConnectionStatus.deleted.
+        """
         super().on_delete()
 
         # If we own a controller destroy it
@@ -252,7 +262,8 @@ class ServerConnection(Connection):
     def notify_unregistration(self, target):
         """Called when replicable dies
 
-        :param replicable: replicable that died"""
+        :param target: replicable that was unregistered
+        """
 
         # If the target is not in channel list, we don't need to delete
         if not target.instance_id in self.channels:
@@ -265,7 +276,7 @@ class ServerConnection(Connection):
 
         super().notify_unregistration(target)
 
-    def get_attribute_replication(self, replicables, collection, bandwidth, send_attributes=True):
+    def write_replicated_attributes(self, replicables, collection, bandwidth, send_attributes=True):
         """Generator
         Writes to packet collection, respecting bandwidth for attribute
         replication
@@ -348,9 +359,10 @@ class ServerConnection(Connection):
             self.cached_packets.clear()
 
     def receive(self, packet):
-        """Handles incoming PacketCollection instance
+        """Handles incoming Packet from client
 
-        :param packets: PacketCollection instance"""
+        :param packet: Packet instance
+        """
         # Local space variables
         channels = self.channels
 
@@ -358,27 +370,31 @@ class ServerConnection(Connection):
         method_invoke = Protocols.method_invoke
 
         # If it is an RPC packet
-        if packet.protocol == method_invoke:
-            # Unpack data
-            instance_id, id_size = unpacker(packet.payload)
-            channel = channels[instance_id]
+        if packet.protocol != method_invoke:
+            return
 
-            # If we have permission to execute
-            if channel.is_owner:
-                channel.invoke_rpc_call(packet.payload[id_size:])
+        # Unpack data
+        instance_id, id_size = unpacker(packet.payload)
+        channel = channels[instance_id]
+
+        # If we have permission to execute
+        if channel.is_owner:
+            channel_data = packet.payload[id_size:]
+            channel.invoke_rpc_call(channel_data)
 
     def send(self, network_tick, available_bandwidth):
         """Creates a packet collection of replicated function calls
 
         :param network_tick: non urgent data is included in collection
         :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance"""
+        :returns: PacketCollection instance
+        """
 
         collection = PacketCollection()
         replicables = self.prioritised_channels
 
-        replicables = self.get_attribute_replication(replicables, collection, available_bandwidth, network_tick)
-        replicables = self.get_method_replication(replicables, collection, available_bandwidth)
+        replicables = self.write_replicated_attributes(replicables, collection, available_bandwidth, network_tick)
+        replicables = self.write_replicated_method_calls(replicables, collection, available_bandwidth)
 
         # Consume iterable
         consume(replicables)

@@ -7,7 +7,7 @@ from collections import defaultdict
 from inspect import getmembers, signature
 
 __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
-           'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'ProfileSignal', 'SignalValue',  'DisconnectSignal',
+           'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal',
            'ConnectionDeletedSignal', 'LatencyUpdatedSignal']
 
 
@@ -18,15 +18,18 @@ def members_predicate(member):
 def create_signals_cache(cls):
     """Callback to register decorated functions for signals
 
-    :param cls: Class to inspet for cache"""
+    :param cls: Class to inspect for cache
+    """
     signal_names = cls.lookup_dict[cls] = [name for name, val in getmembers(cls, members_predicate)]
     return signal_names
 
 
 class SignalListener:
-    """Provides interface for class based signal listeners
-    Uses class instance as target for signal binding
-    Optional greedy binding (binds the events supported by either class)
+    """Provides interface for class based signal listeners.
+
+    Uses class instance as target for signal binding.
+
+    Optional greedy binding (binds the events supported by either class).
     """
 
     lookup_dict = factory_dict(create_signals_cache)
@@ -34,6 +37,7 @@ class SignalListener:
     @property
     def signal_callbacks(self):
         """Gets the marked signal callbacks
+
         :return: generator of (name, attribute) pairs
         """
         for name in self.lookup_dict[self.__class__]:
@@ -42,9 +46,9 @@ class SignalListener:
     def register_child(self, child, signal_store=None, greedy=False):
         """Subscribes child to parent for signals
 
-        :param child: Child to subscribe for
+        :param child: child to subscribe for
         :param signal_store: SignalListener subclass instance, default=None
-        :param greedy: Determines if child should bind its own events, default=False
+        :param greedy: determines if child should bind its own events, default=False
         """
         # Mirror own signals by default
         if signal_store is None:
@@ -61,9 +65,9 @@ class SignalListener:
     def unregister_child(self, child, signal_store=None, greedy=False):
         """Unsubscribe the child to parent for signals
 
-        :param child: Child to be unsubscribed
+        :param child:cChild to be unsubscribed
         :param signal_store: SignalListener subclass instance, default=None
-        :param greedy: Determines if child should un-bind its own events,
+        :param greedy: determines if child should un-bind its own events,
         default=False
         """
         # Mirror own signals by default
@@ -249,9 +253,11 @@ class Signal(metaclass=TypeRegister):
 
     @classmethod
     def invoke_targets(cls, target_dict, *args, target=None, addressee=None, **kwargs):
-        """Invoke signals for targeted recipient
-        If recipient has children, invoke them as well
-        Children do not require parents to listen for the signal
+        """Invoke signals for targeted recipient.
+
+        If recipient has children, invoke them as well.
+
+        Children do not require parents to listen for the signal.
 
         :param target_dict: mapping from listener to listener information
         :param target: target referred to by Signal invocation
@@ -373,9 +379,9 @@ class CachedSignal(Signal):
 
 
 class SignalValue:
-
     """Container for signal callback return arguments"""
-    __slots__ = ['_value', '_changed', '_single_value']
+
+    __slots__ = '_value', '_changed', '_single_value'
 
     def __init__(self, default=None, single_value=False):
         self._single_value = single_value
@@ -399,12 +405,17 @@ class SignalValue:
         self._changed = True
 
     def create_getter(self):
+        """Create a getter function for the internal value"""
         def wrapper():
             return self.value
 
         return wrapper
 
     def create_setter(self, value):
+        """Create a setter function for the internal value
+
+        :param value: value to set when invoked
+        """
         def wrapper():
             self.value = value
 
@@ -432,10 +443,6 @@ class ConnectionSuccessSignal(Signal):
 
 
 class ConnectionDeletedSignal(Signal):
-    pass
-
-
-class ProfileSignal(Signal):
     pass
 
 

@@ -76,6 +76,7 @@ def next_or_equal_power_of_two(value):
 
 def float_selector(type_flag):
     """Return the correct float handler using meta information from a given type_flag
+
     :param type_flag: type flag for float value
     """
     return Float64 if type_flag.data.get("max_precision") else Float32
@@ -83,6 +84,7 @@ def float_selector(type_flag):
 
 def handler_from_bit_length(total_bits):
     """Return the correct integer handler for a given number of bits
+
     :param total_bits: total number of bits required
     """
     total_bytes = bits_to_bytes(total_bits)
@@ -93,7 +95,8 @@ def handler_from_byte_length(total_bytes):
     """Return the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IDataHandler`"""
+    :rtype: :py:class:`network.serialiser.IDataHandler`
+    """
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:
@@ -107,13 +110,15 @@ def handler_from_byte_length(total_bytes):
 
 def handler_from_int(value):
     """Return the smallest integer packer capable of packing a given integer
-    :param value: value to test for
+
+    :param value: integer value
     """
     return handler_from_bit_length(value.bit_length())
 
 
 def int_selector(type_flag):
     """Return the correct integer handler using meta information from a given type_flag
+
     :param type_flag: type flag for integer value
     """
     if "max_value" in type_flag.data:

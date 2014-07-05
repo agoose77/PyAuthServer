@@ -8,16 +8,6 @@ __all__ = ["BitField", "CBitField", "PyBitField"]
 
 class CBitField(array_field):
 
-    @classmethod
-    def from_iterable(cls, iterable):
-        """Factory function to create a BitField from an iterable object
-
-        :param iterable: source iterable
-        :requires: fixed length iterable object
-        :returns: BitField instance of length equal to ``len(iterable)``
-        ``Bitfield.from_iterable()``"""
-        return cls(iterable)
-
     def __bool__(self):
         return any(self)
 
@@ -33,16 +23,20 @@ class CBitField(array_field):
         result = super().__getitem__(value)
         if isinstance(result, array_field):
             return result.tolist()
+
         return result
 
     def __setitem__(self, index, value):
         if isinstance(value, list):
             value = array_field(value)
+
         return super().__setitem__(index, value)
 
-    @staticmethod
-    def calculate_footprint(bits):
-        return bits_to_bytes(bits)
+    __len__ = array_field.length
+
+    def clear(self):
+        """Clears the BitField to zero"""
+        self[:] = array_field([False] * self.length())
 
     @classmethod
     def from_bytes(cls, length, bytes_string, offset=0):
@@ -50,31 +44,33 @@ class CBitField(array_field):
         field_size = bits_to_bytes(length)
         field.frombytes(bytes_string[offset: offset + field_size])
         field[:] = field[:length]
-        return field, field_size
+        return field,
 
-    def clear(self):
-        """Clears the BitField to zero"""
-        self[:] = array_field([False] * self.length())
+    @classmethod
+    def from_iterable(cls, iterable):
+        """Factory function to create a BitField from an iterable object
 
+        :param iterable: source iterable
+        :requires: fixed length iterable object
+        :returns: BitField instance of length equal to ``len(iterable)``
+        ``Bitfield.from_iterable()``"""
+        return cls(iterable)
+
+    calculate_footprint = staticmethod(bits_to_bytes)
     to_bytes = array_field.tobytes
-
-    __len__ = array_field.length
 
 
 class PyBitField:
 
     """BitField data type which supports slicing operations"""
 
-    def __bool__(self):
-        return self._value != 0
-
     def __init__(self, size, value=0):
         self._value = value
 
         self.resize(size)
 
-    def __iter__(self):
-        return (self[i] for i in range(self._size))
+    def __bool__(self):
+        return self._value != 0
 
     def __getitem__(self,  value):
         if isinstance(value, slice):
@@ -90,6 +86,9 @@ class PyBitField:
                 raise IndexError("Index out of range")
 
             return (self._value & (1 << value)) != 0
+
+    def __iter__(self):
+        return (self[i] for i in range(self._size))
 
     def __setitem__(self, index, value):
         if isinstance(index, slice):

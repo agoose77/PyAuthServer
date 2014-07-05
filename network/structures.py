@@ -69,7 +69,6 @@ class TypedIterableBase:
 
 
 class TypedList(TypedIterableBase, list):
-
     """List class with static type checking"""
 
     def append(self, obj):
@@ -95,7 +94,6 @@ class TypedList(TypedIterableBase, list):
 
 
 class TypedSet(TypedIterableBase, set):
-
     """Set class with static type checking"""
 
     def _verify_iterable(self, iterable):

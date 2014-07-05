@@ -158,7 +158,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
                 sent_packet = requested_ack.pop(sequence_)
                 sent_packet.on_ack()
 
-                self.update_latency_estimate(current_time - sent_packet.timestamp)
+                self.update_latency_estimate(current_time - sent_packet.sent_timestamp)
 
                 # If a packet has had time to return since throttling began
                 if sequence_ == self.tagged_throttle_sequence:
@@ -169,7 +169,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
             sent_packet = requested_ack.pop(ack_base)
             sent_packet.on_ack()
 
-            self.update_latency_estimate(current_time - sent_packet.timestamp)
+            self.update_latency_estimate(current_time - sent_packet.sent_timestamp)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
@@ -296,7 +296,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         ack_bitfield = self.get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
-        packet_collection.timestamp = monotonic()
+        packet_collection.sent_timestamp = monotonic()
         self.requested_ack[sequence] = packet_collection
 
         # Construct header information
@@ -342,58 +342,8 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         self.latency = (smooth_factor * self.latency) + (1 - smooth_factor) * new_latency
 
 
-@delegate_for_netmode(Netmodes.server)  # @UndefinedVariable
+@delegate_for_netmode(Netmodes.server)
 class ServerInterface(ConnectionInterface):
-
-    def on_initialised(self):
-        """Initialised callback"""
-        super().on_initialised()
-
-        self._auth_error = None
-
-    def on_unregistered(self):
-        if self.connection is not None:
-            ConnectionDeletedSignal.invoke(self.connection.replicable)
-
-        super().on_unregistered()
-
-    def on_disconnect(self):
-        self.status = ConnectionStatus.disconnected  # @UndefinedVariable
-
-    def handle_packet(self, packet):
-        if packet.protocol == Protocols.request_disconnect:
-            self.on_disconnect()
-
-        else:
-            super().handle_packet(packet)
-
-    def send_handshake(self):
-        """Creates a handshake packet, either acknowledges connection or sends error state"""
-        connection_failed = self.connection is None
-
-        if connection_failed:
-
-            if self._auth_error:
-                # Send the error code
-                handshake_type = self.handshake_packer.pack(HandshakeState.failure)
-                error_name = type(self._auth_error).type_name
-                packed_error_name = self.error_packer.pack(error_name)
-                packed_error_body = self.error_packer.pack(self._auth_error.args[0])
-                packed_error = packed_error_name + packed_error_body
-
-                # Yield a reliable packet
-                return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_error,
-                              on_success=ignore_arguments(self.on_failure))
-
-            logger.error("Warning: Connection failed for undocumented reason")
-
-        else:
-            # Send acknowledgement
-            handshake_type = self.handshake_packer.pack(HandshakeState.success)
-            packed_netmode = self.netmode_packer.pack(WorldInfo.netmode)
-
-            return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_netmode,
-                          on_success=ignore_arguments(self.on_connected))
 
     def handle_handshake(self, packet):
         """Receives a handshake packet, either proceeds to setup connection or stores the error"""
@@ -422,6 +372,56 @@ class ServerInterface(ConnectionInterface):
             # User can force register though!
             if returned_replicable is not None:
                 connection.replicable = returned_replicable
+
+    def handle_packet(self, packet):
+        if packet.protocol == Protocols.request_disconnect:
+            self.on_disconnect()
+
+        else:
+            super().handle_packet(packet)
+
+    def on_disconnect(self):
+        self.status = ConnectionStatus.disconnected
+
+    def on_initialised(self):
+        """Initialised callback"""
+        super().on_initialised()
+
+        self._auth_error = None
+
+    def on_unregistered(self):
+        if self.connection is not None:
+            ConnectionDeletedSignal.invoke(self.connection.replicable)
+
+        super().on_unregistered()
+
+    def send_handshake(self):
+        """Creates a handshake packet, either acknowledges connection or sends error state"""
+        connection_failed = self.connection is None
+
+        if connection_failed:
+
+            if self._auth_error:
+                # Send the error code
+                handshake_type = self.handshake_packer.pack(HandshakeState.failure)
+                error_name = type(self._auth_error).type_name
+                packed_error_name = self.error_packer.pack(error_name)
+                packed_error_body = self.error_packer.pack(self._auth_error.args[0])
+                packed_error = packed_error_name + packed_error_body
+
+                # Yield a reliable packet
+                return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_error,
+                              on_success=ignore_arguments(self.on_failure))
+
+            logger.error("Warning: Connection failed for undocumented reason")
+
+        else:
+            # Send acknowledgement
+            handshake_type = self.handshake_packer.pack(HandshakeState.success)
+            packed_netmode = self.netmode_packer.pack(WorldInfo.netmode)
+
+            return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_netmode,
+                          on_success=ignore_arguments(self.on_connected))
 
 
 @delegate_for_netmode(Netmodes.client)

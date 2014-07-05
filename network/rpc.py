@@ -93,15 +93,16 @@ class RPCInterfaceFactory:
         self._ordered_parameters = self.order_arguments(signature(function))
         self._serialiser_parameters = None
 
-        self.validate_function(self._ordered_parameters, function)
+        self.validate_function_definition(self._ordered_parameters, function)
 
         self.function = function
         self.has_marked_parameters = self.check_for_marked_parameters(self._ordered_parameters)
 
     def __get__(self, instance, base):
-        """Get descriptor for an RPC instance
-        Permits super() calls to return a generic function if a child
-        redefines it
+        """Return the registered RPCInterface for the current class instance.
+
+        If there is no RPCInterface for the current class instance, return the raw function, this may occur when
+        the RPCInterfaceFactory descriptor is overridden in a subclass
 
         :param instance: class instance which hosts the rpc call
         :param base: base type of class which hosts the rpc call
@@ -121,7 +122,10 @@ class RPCInterfaceFactory:
 
     @staticmethod
     def check_for_marked_parameters(ordered_parameters):
-        """Checks for any MarkAttribute instances in parameter data"""
+        """Check for any MarkAttribute instances in parameter data
+
+        :param ordered_parameters: OrderedDict of function call parameters
+        """
         lookup_type = MarkAttribute
 
         for argument in ordered_parameters.values():
@@ -134,25 +138,23 @@ class RPCInterfaceFactory:
         return False
 
     def create_rpc_interface(self, instance):
-        """Handles creation of a new instance's RPC interface
-        Ensures RPC interfaces exist only for classes which implement them
+        """Create a new RPC interface for a class instance.
 
-        :param instance: class instance which implements the RPC
+        :param instance: class instance which defines the replicated function call
         """
         bound_function = self.function.__get__(instance)
 
         # Create information for the serialiser
         if self._serialiser_parameters is None:
-            self._serialiser_parameters = self.get_serialiser_parameters(instance.__class__)
+            self._serialiser_parameters = self.get_serialiser_parameters_for(instance.__class__)
 
         self._by_instance[instance] = interface = RPCInterface(bound_function, self._serialiser_parameters)
 
         return interface
 
-    def get_serialiser_parameters(self, cls):
-        """Returns modified parameter dictionary
-        Updates requests to reference class attributes with
-        MarkAttribute instances
+    def get_serialiser_parameters_for(self, cls):
+        """Return an OrderedDict of function parameters, replace any MarkedAttribute instances with current class
+        attribute values.
 
         :param cls: class reference
         """
@@ -176,27 +178,26 @@ class RPCInterfaceFactory:
         return serialiser_info
 
     @staticmethod
-    def order_arguments(signature):
-        """Orders the parameters to the function
+    def order_arguments(function_signature):
+        """Order the parameters to the given function
 
-        :param signature: function signature"""
-        parameter_values = signature.parameters.values()
+        :param function_signature: function signature
+        """
+        parameter_values = function_signature.parameters.values()
         empty_parameter = Parameter.empty
 
         return OrderedDict((value.name, None if value.annotation is empty_parameter else value.annotation) for value
                            in parameter_values if isinstance(value.annotation, TypeFlag))
 
     @staticmethod
-    def validate_function(arguments, function):
-        """Validates the format of an RPC call
-        Checks that all arguments have provided type annotations
+    def validate_function_definition(arguments, function):
+        """Validate the format of an RPC function, to ensure that all arguments have provided type annotations.
 
-        :param arguments: ordered dictionary of arguments
-        :param function: function to test
+        :param arguments: dictionary of function arguments
+        :param function: function to validate
         """
         # Read all arguments
         for parameter_name, parameter in arguments.items():
-
             if parameter is None:
                 logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
                     function.__qualname__, parameter_name))

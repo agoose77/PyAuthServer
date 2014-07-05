@@ -32,8 +32,7 @@ class Channel(TaggedDelegateMeta):
         self.rpc_storage = replicable._rpc_container
 
         # Create a serialiser instance
-        self.serialiser = FlagSerialiser(
-                                     self.attribute_storage._ordered_mapping)
+        self.serialiser = FlagSerialiser(self.attribute_storage._ordered_mapping)
 
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))
@@ -120,8 +119,6 @@ class ClientChannel(Channel):
             # Check if needs notification
             if attribute.notify:
                 notify(attribute_name)
-
-        # Process and store new values
 
         # Notify after all values are set
         if notifications:

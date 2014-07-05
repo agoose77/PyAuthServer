@@ -1,31 +1,45 @@
 from cProfile import Profile
 from collections import defaultdict
+from functools import wraps
+from pstats import Stats
 
-from .logger import logger
-from .signals import ProfileSignal, SignalListener
-
-__all__ = ['ProfileManager', 'profiler']
+__all__ = ['ProfileManager', "ContextProfile", 'profiler']
 
 
-class ProfileManager(SignalListener):
+class ContextProfile(Profile):
+    """Profile class which implements the context manager protocol"""
+
+    def __enter__(self):
+        self.enable()
+
+    def __exit__(self, type, value, traceback):
+        self.disable()
+
+
+class ProfileManager:
+    """Profiling interface class"""
 
     def __init__(self):
-        self.register_signals()
+        self._profiles = defaultdict(ContextProfile)
 
-        self._profiles = defaultdict(Profile)
+    def decorate(self, func):
+        """Profile decorated function
 
-    @ProfileSignal.global_listener
-    def update_profiler(self, profile_id, start, dump=True):
-        profile = self._profiles[profile_id]
-        if start:
-            profile.enable()
-        else:
-            profile.disable()
-            if not dump:
-                return
+        :param func: decorated function
+        """
+        func_name = func.__qualname__
+        profile = self._profiles[func_name]
 
-            filepath = "C:/{}.results".format(profile_id)
-            logger.info("Writing profile information to {}".format(filepath))
-            profile.dump_stats(filepath)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            with profile:
+                func(*args, **kwargs)
+
+        return wrapper
+
+    def get_stats(self):
+        """Create dictionary of profile name: Stats object for each profile"""
+        return {profile_name: Stats(profile) for profile_name, profile in self._profiles.items()}
+
 
 profiler = ProfileManager()

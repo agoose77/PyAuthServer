@@ -75,7 +75,7 @@ class Replicable(metaclass=ReplicableRegister):
         return last
 
     @classmethod
-    def create_or_return(cls, base_cls, instance_id, register=True):
+    def create_or_return(cls, instance_id, register=True):
         """Creates a replicable if it is not already registered.
 
         Called by the replication system to establish
@@ -84,8 +84,6 @@ class Replicable(metaclass=ReplicableRegister):
         If the instance_id is registered, take precedence over non-static
         instances.
 
-        :param base_cls: subclass class of\
-        :py:class:`network.replicable.Replicable` to instantiate
         :param register: if registration should occur immediately
         """
         # Try and match an existing instance
@@ -94,8 +92,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         # If we don't find one, make one
         except LookupError:
-            return base_cls(instance_id=instance_id,
-                            register=register, static=False)
+            return cls(instance_id=instance_id, register=register, static=False)
 
         else:
             # If we find a locally defined replicable
@@ -103,8 +100,7 @@ class Replicable(metaclass=ReplicableRegister):
             # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
             if existing._local_authority:
                 # Make the class and overwrite the id
-                return base_cls(instance_id=instance_id,
-                                register=register, static=False)
+                return cls(instance_id=instance_id, register=register, static=False)
 
             return existing
 

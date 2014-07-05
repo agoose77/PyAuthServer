@@ -10,14 +10,13 @@ __all__ = ['StorageInterface', 'RPCStorageInterface', 'AttributeStorageInterface
            'RPCStorageContainer', 'AttributeStorageContainer']
 
 
-StorageInterface = namedtuple("StorageInterface", "get set")
-RPCStorageInterface = namedtuple("StorageInterface", "set")
 AttributeStorageInterface = namedtuple("StorageInterface", "get set complain")
+RPCStorageInterface = namedtuple("StorageInterface", "set")
+StorageInterface = namedtuple("StorageInterface", "get set")
 
 
 class AbstractStorageContainer:
-    """Abstract base class for reading and writing data values
-    belonging an object"""
+    """Abstract base class for reading and writing data values belonging an object"""
 
     def __init__(self, instance, mapping=None, ordered_mapping=None):
         self._lazy_name_mapping = {}
@@ -92,8 +91,10 @@ class AbstractStorageContainer:
 
 
 class RPCStorageContainer(AbstractStorageContainer):
-    """Storage container for RPC calls
-    Handles stored data only"""
+    """Storage container for RPC calls.
+
+    Handles stored data only.
+    """
 
     def __init__(self, instance, *args, **kwargs):
         super().__init__(instance, *args, **kwargs)
@@ -104,26 +105,23 @@ class RPCStorageContainer(AbstractStorageContainer):
     def check_is_supported(cls, member):
         return isinstance(member, RPCInterfaceFactory)
 
+    def _queue_function_call(self, member, value):
+        self.data.append((member, value))
+
     def get_default_data(self):
         return deque()
 
-    def _add_call(self, member, value):
-        self.data.append((member, value))
-
-    def store_rpc(self, func):
-        self.functions.append(func)
-        return self.functions.index(func)
-
     def interface_register(self, instance):
-        return partial(self._add_call, instance)
+        return partial(self._queue_function_call, instance)
 
     def new_storage_interface(self, name, member):
         rpc_instance = member.create_rpc_interface(self._instance)
-        rpc_id = self.store_rpc(rpc_instance)
+        self.functions.append(rpc_instance)
+        rpc_id = len(self.functions) - 1
 
-        adder_func = partial(self._add_call, rpc_instance)
+        queue_func = partial(self._queue_function_call, rpc_instance)
 
-        interface = RPCStorageInterface(adder_func)
+        interface = RPCStorageInterface(queue_func)
         rpc_instance.register(interface, rpc_id)
 
         return interface

@@ -5,7 +5,6 @@ __all__ = ['TaggedDelegateMeta']
 
 
 class TaggedDelegateMeta(metaclass=TypeRegister):
-
     """Provides an interface to select a subclass by a tag value"""
 
     def __new__(cls, *args, **kwargs):

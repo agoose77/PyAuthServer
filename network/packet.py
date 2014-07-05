@@ -7,7 +7,7 @@ __all__ = ['PacketCollection', 'Packet']
 
 
 class PacketCollection:
-    __slots__ = "members", "timestamp"
+    __slots__ = "members", "sent_timestamp"
 
     def __init__(self, members=None):
         if members is None:
@@ -21,7 +21,7 @@ class PacketCollection:
         else:
             self.members = [m for p in members for m in p.members]
 
-        self.timestamp = None
+        self.sent_timestamp = None
 
     @property
     def reliable_members(self):

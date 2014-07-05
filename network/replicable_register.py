@@ -12,22 +12,24 @@ __all__ = ['ReplicableRegister']
 
 
 class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
-    """Creates interfaces for RPCs and Attributes in Replicable class
-    Wraps methods in protectors for simulated decorators"""     
+    """Creates interfaces for RPCs and Attributes in Replicable class.
+
+    Wraps methods in protectors for simulated decorators.
+    """
 
     forced_redefinitions = {}
 
-    def __new__(meta, cls_name, bases, cls_dict):
+    def __new__(metacls, cls_name, bases, cls_dict):
         # We cannot operate on base classes
         if not bases:
-            return super().__new__(meta, cls_name, bases, cls_dict)
+            return super().__new__(metacls, cls_name, bases, cls_dict)
 
         # Some replicated functions might have marked parameters, they will be recreated per subclass type
         marked_parameter_functions = {}
 
         # Include certain RPCs for redefinition
-        for parent_cls in set(bases).intersection(meta.forced_redefinitions):
-            rpc_functions = meta.forced_redefinitions[parent_cls]
+        for parent_cls in set(bases).intersection(metacls.forced_redefinitions):
+            rpc_functions = metacls.forced_redefinitions[parent_cls]
 
             for name, function in rpc_functions.items():
                 # Only redefine inherited rpc calls
@@ -40,14 +42,14 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         # Get all the member methods
         for name, value in cls_dict.items():
             # Only wrap valid members
-            if not meta.is_wrappable(value) or meta.is_found_in_parents(name, bases):
+            if not metacls.is_wrappable(value) or metacls.is_found_in_parents(name, bases):
                 continue
 
             # Wrap function with permission wrapper
             value = requires_permission(value)
 
             # Automatically wrap RPC
-            if meta.is_unbound_rpc_function(value):
+            if metacls.is_unbound_rpc_function(value):
                 value = RPCInterfaceFactory(value)
 
                 # If subclasses will need copies (because of MarkedAttribute annotations)
@@ -56,11 +58,11 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
             cls_dict[name] = value
 
-        cls = super().__new__(meta, cls_name, bases, cls_dict)
+        cls = super().__new__(metacls, cls_name, bases, cls_dict)
 
         # If we will require redefinitions
         if marked_parameter_functions:
-            meta.forced_redefinitions[cls] = marked_parameter_functions
+            metacls.forced_redefinitions[cls] = marked_parameter_functions
 
         return cls
 

@@ -226,8 +226,12 @@ class Pawn(BGEPawnBase, Actor):
                 yield "health"
 
     @simulated
-    def create_weapon_attachment(self, cls):
-        self.weapon_attachment = cls()
+    def create_weapon_attachment(self, weapon_attachment_class):
+        """Create a weapon attachment instance
+
+        :param weapon_attachment_class: class used to create instance
+        """
+        self.weapon_attachment = weapon_attachment_class()
         self.weapon_attachment.set_parent(self, "weapon")
 
         if self.weapon_attachment is not None:
