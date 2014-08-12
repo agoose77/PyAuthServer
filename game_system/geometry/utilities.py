@@ -1,3 +1,5 @@
+from itertools import cycle
+
 __all__ = ["triangle_area_squared", "point_in_polygon"]
 
 
@@ -5,19 +7,24 @@ def point_in_polygon(point, vertex_positions):
     """Determine if a point lies within a polygon defined by its vertices
 
     :param point: named container x, y
-    :param vertex_positions: sequence of points
+    :param vertex_positions: sequence of points (named container x, y)
     """
-    vertex_count = len(vertex_positions)
-    j = vertex_count - 1
     odd_nodes = False
-    x_pos, y_pos, *_ = point
 
-    for i, i_pos in enumerate(vertex_positions):
-        j_pos = vertex_positions[j]
-        if (i_pos.y < y_pos <= j_pos.y) or (j_pos.y < y_pos <= i_pos.y) and (i_pos.x <= x_pos or j_pos.x <= x_pos):
-            if (i_pos.x + (y_pos - i_pos.y)/(j_pos.y - i_pos.y) * (j_pos.x - i_pos.x)) < x_pos:
+    positions_ = cycle(vertex_positions)
+    next(positions_)
+
+    x_pos = point.x
+    y_pos = point.y
+
+    for i_pos, j_pos in zip(vertex_positions, positions_):
+        i_y = i_pos.y
+        i_x = i_pos.x
+        j_y = j_pos.y
+        j_x = j_pos.x
+        if (i_y < y_pos <= j_y) or (j_y < y_pos <= i_y) and (i_x <= x_pos or j_x <= x_pos):
+            if (i_x + (y_pos - i_y)/(j_y - i_y) * (j_x - i_x)) < x_pos:
                 odd_nodes = not odd_nodes
-        j = i
 
     return odd_nodes
 
@@ -29,6 +36,7 @@ def triangle_area_squared(a, b, c):
     :param c: named container x, y
     :param b: named container x, y
     """
-    ax, ay, *_ = b - a
-    bx, by, *_ = c - a
-    return (bx * ay) - (ax * by)
+    side_a = b - a
+    side_b = c - a
+
+    return (side_b.x * side_a.y) * (side_a.x - side_b.y)
