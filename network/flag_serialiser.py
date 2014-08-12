@@ -20,6 +20,9 @@ class FlagSerialiser:
         self.non_bool_args = [(key, value) for key, value in arguments.items() if value.type is not bool]
         self.non_bool_handlers = [(key, get_handler(value)) for key, value in self.non_bool_args]
 
+        self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
+        self.enumerated_bool_args = list(enumerate(self.bool_args))
+
         # Maintain count of data types
         self.total_none_booleans = len(self.non_bool_args)
         self.total_booleans = len(self.bool_args)
@@ -73,7 +76,8 @@ class FlagSerialiser:
     def read_contents(self, bytes_string, offset):
         """Determine the included entries of the packed data
 
-        :param bytes_string: packed data"""
+        :param bytes_string: packed data
+        """
         contents_packer = self.contents_packer
         contents_size = contents_packer.unpack_merge(self.content_bits, bytes_string, offset)
         return contents_size
@@ -81,7 +85,8 @@ class FlagSerialiser:
     def read_nonetype_values(self, bytes_string, offset):
         """Determine the NoneType entries of the packed data
 
-        :param bytes_string: packed data"""
+        :param bytes_string: packed data
+        """
         contents_packer = self.contents_packer
         contents_size = contents_packer.unpack_merge(self.none_bits, bytes_string, offset)
         return contents_size
@@ -90,7 +95,8 @@ class FlagSerialiser:
         """Unpack bytes into Python objects
 
         :param bytes_string: packed data
-        :param previous_values: previous packed values (optional)"""
+        :param previous_values: previous packed values (optional)
+        """
         # Get the contents header
         offset += self.read_contents(bytes_string, offset)
         content_values = list(self.content_bits)
@@ -136,7 +142,8 @@ class FlagSerialiser:
         # If there are Boolean values included in the data
         if has_booleans:
             # Read data from Boolean bitfields
-            offset += self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, offset)
+            # Increment offset by this return value if any later reading occurs
+            self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, offset)
 
             found_booleans = content_values[self.total_none_booleans:]
             none_booleans = none_values[self.total_none_booleans:]
@@ -165,7 +172,7 @@ class FlagSerialiser:
         append_value = data_values.append
 
         # Iterate over non booleans
-        for index, (key, handler) in enumerate(self.non_bool_handlers):
+        for index, (key, handler) in self.enumerated_non_bool_handlers:
             if not key in data:
                 continue
 
@@ -186,11 +193,11 @@ class FlagSerialiser:
 
         if has_booleans:
             # Reset booleans bitmask
-            bools = self.bool_bits
-            bools.clear()
+            boolean_bitmask = self.bool_bits
+            boolean_bitmask.clear()
 
             index_shift = total_none_booleans
-            for index, (key, _) in enumerate(self.bool_args):
+            for index, (key, _) in self.enumerated_bool_args:
                 if not key in data:
                     continue
 
@@ -206,12 +213,12 @@ class FlagSerialiser:
 
                 # Or save a boolean value
                 else:
-                    bools[index] = value
+                    boolean_bitmask[index] = value
 
                 content_bits[content_index] = True
 
             # Mark Boolean values as included
-            append_value(self.boolean_packer.pack(bools))
+            append_value(self.boolean_packer.pack(boolean_bitmask))
             content_bits[self.BOOL_CONTENT_INDEX] = True
 
         # If NoneType values have been set, mark them as included
