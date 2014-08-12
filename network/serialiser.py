@@ -4,11 +4,11 @@ from struct import Struct
 from .handler_interfaces import register_handler
 
 __all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', 'handler_from_bit_length',
-           'handler_from_int', 'handler_from_byte_length', 'StringHandler', 'BytesHandler', 'int_selector',
-           'next_or_equal_power_of_two', 'BoolHandler']
+           'handler_from_int', 'handler_from_byte_length', 'string_handler_builder', 'bytes_handler_builder',
+           'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
 
 
-def build_handler(name, fmt):
+def build_struct_handler(name, fmt):
     """Create handler for data with struct formatting
 
     :param name: name of handler class
@@ -35,12 +35,12 @@ def build_handler(name, fmt):
     return type(name, (), cls_dict)
 
 
-UInt32 = build_handler("UInt32", "!I")
-UInt16 = build_handler("UInt16", "!H")
-UInt64 = build_handler("UInt64", "!Q")
-UInt8 = build_handler("UInt8", "!B")
-Float32 = build_handler("Float32", "!f")
-Float64 = build_handler("Float64", "!d")
+UInt32 = build_struct_handler("UInt32", "!I")
+UInt16 = build_struct_handler("UInt16", "!H")
+UInt64 = build_struct_handler("UInt64", "!Q")
+UInt8 = build_struct_handler("UInt8", "!B")
+Float32 = build_struct_handler("Float32", "!f")
+Float64 = build_struct_handler("Float64", "!d")
 
 
 int_handlers = [UInt8, UInt16, UInt32, UInt64]
@@ -140,42 +140,64 @@ class BoolHandler:
     pack = UInt8.pack
 
 
-class BytesHandler:
-    """Handler for bytes type"""
+def bytes_handler_builder(type_flag):
+    """Builds an optimised handler for a bytes type
 
-    def __init__(self, type_flag):
-        header_max_value = type_flag.data.get("max_length", 255)
-        self.packer = handler_from_int(header_max_value)
+    :param type_flag: type flag for bytes value
+    """
+    header_max_value = type_flag.data.get("max_length", 255)
+    packer = handler_from_int(header_max_value)
 
-    def pack(self, bytes_string):
-        return self.packer.pack(len(bytes_string)) + bytes_string
+    methods = ("""def unpack_from(bytes_string, offset=0):\n\t"""
+               """length, length_size = unpacker(bytes_string, offset)\n\t"""
+               """end_index = length + length_size\n\t"""
+               """value = bytes_string[length_size + offset: end_index + offset]\n\t"""
+               """return value, end_index""",
+               """def size(bytes_string, unpacker=packer.unpack_from):\n\t"""
+               """length, length_size = unpacker(bytes_string)\n\treturn length + length_size""",
+               """def pack(bytes_string, packer=packer.pack):\n\treturn packer(len(bytes_string)) + bytes_string""")
 
-    def size(self, bytes_string):
-        length, length_size = self.packer.unpack_from(bytes_string)
-        return length + length_size
+    register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
+                         .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
 
-    def unpack_from(self, bytes_string, offset=0):
-        length, length_size = self.packer.unpack_from(bytes_string, offset)
-        end_index = length + length_size
-        value = bytes_string[length_size + offset: end_index + offset]
+    cls_dict = {}
+    for method_string in methods:
+        wrapped_string = register_string.format(method_string)
+        exec(wrapped_string)
 
-        return value, end_index
+    return type("BytesHandler", (), cls_dict)
 
 
-class StringHandler(BytesHandler):
-    """Handler for string type"""
+def string_handler_builder(type_flag):
+    """Builds an optimised handler for a string type
 
-    def pack(self, str_):
-        return super().pack(str_.encode())
+    :param type_flag: type flag for string value
+    """
+    header_max_value = type_flag.data.get("max_length", 255)
+    packer = handler_from_int(header_max_value)
 
-    def unpack_from(self, bytes_string, offset=0):
-        encoded_string, size = super().unpack_from(bytes_string, offset)
+    methods = ("""def unpack_from(bytes_string, offset=0, unpacker=packer.unpack_from):
+                length, length_size = unpacker(bytes_string, offset)\n\t
+                end_index = length + length_size\n\t
+                value = bytes_string[length_size + offset: end_index + offset]\n\t
+                return value.decode(), end_index""",
+               """def pack(string_, packer=packer.pack):\n\treturn packer(len(string_)) + string_.encode()""")
 
-        return bytes(encoded_string).decode(), size
+    register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
+                         .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
+
+    cls_dict = {}
+    for method_string in methods:
+        wrapped_string = register_string.format(method_string)
+        exec(wrapped_string)
+
+    bytes_cls = bytes_handler_builder(type_flag)
+    return type("StringHandler", (bytes_cls,), cls_dict)
+
 
 # Register handlers for native types
 register_handler(bool, BoolHandler)
-register_handler(str, StringHandler, is_callable=True)
-register_handler(bytes, BytesHandler, is_callable=True)
+register_handler(str, string_handler_builder, is_callable=True)
+register_handler(bytes, bytes_handler_builder, is_callable=True)
 register_handler(int, int_selector, is_callable=True)
 register_handler(float, float_selector, is_callable=True)
