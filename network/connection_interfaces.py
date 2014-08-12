@@ -158,7 +158,9 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
                 sent_packet = requested_ack.pop(sequence_)
                 sent_packet.on_ack()
 
-                self.update_latency_estimate(current_time - sent_packet.sent_timestamp)
+                # Update heuristic for latency
+                sent_packet.received_time = current_time
+                self.update_latency_estimate(sent_packet.latency)
 
                 # If a packet has had time to return since throttling began
                 if sequence_ == self.tagged_throttle_sequence:
@@ -169,7 +171,9 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
             sent_packet = requested_ack.pop(ack_base)
             sent_packet.on_ack()
 
-            self.update_latency_estimate(current_time - sent_packet.sent_timestamp)
+            # Update heuristic for latency
+            sent_packet.received_time = current_time
+            self.update_latency_estimate(sent_packet.latency)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
