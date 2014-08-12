@@ -300,7 +300,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         ack_bitfield = self.get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
-        packet_collection.sent_timestamp = monotonic()
+        packet_collection.sent_time = monotonic()
         self.requested_ack[sequence] = packet_collection
 
         # Construct header information
