@@ -540,6 +540,7 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
 
         if move.position is None or move.rotation is None:
             return None
+
         pos_difference = self.pawn.world_position - move.position
         rot_difference = min(abs(self.pawn.world_rotation[-1] - move.rotation[-1]), 2 * pi)
 
