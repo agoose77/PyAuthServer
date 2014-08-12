@@ -44,7 +44,7 @@ class CBitField(array_field):
         field_size = bits_to_bytes(length)
         field.frombytes(bytes_string[offset: offset + field_size])
         field[:] = field[:length]
-        return field,
+        return field, field_size
 
     @classmethod
     def from_iterable(cls, iterable):
