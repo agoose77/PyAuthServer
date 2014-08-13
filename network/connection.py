@@ -194,7 +194,7 @@ class ClientConnection(Connection):
             # Find replicable class
             replicable_cls = Replicable.from_type_name(type_name)
             # Create replicable of same type
-            replicable = replicable_cls.create_or_return(replicable_cls, instance_id, register=True)
+            replicable = replicable_cls.create_or_return(instance_id, register=True)
             # Perform incomplete role switch when spawning (later set by server)
             replicable.roles.local, replicable.roles.remote = replicable.roles.remote, replicable.roles.local
             # If replicable is parent (top owner)
@@ -298,6 +298,8 @@ class ServerConnection(Connection):
 
         used_bandwidth = 0
         free_bandwidth = bandwidth > 0
+
+        replicables = list(replicables)
 
         for item in replicables:
 

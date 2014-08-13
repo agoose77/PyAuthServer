@@ -37,11 +37,11 @@ class _ManagedInstanceBase(SignalListener):
     def on_unregistered(self):
         pass
 
-    def request_registration(self, instance_id, register_immediately=False):
+    def request_registration(self, instance_id, register=False):
         """Mark the instance for registration on the next graph update
 
         :param instance_id: ID to register to
-        :param register_immediately: Avoid graph update and register immediately
+        :param register: Avoid graph update and register immediately
         """
         cls = self.__class__
 
@@ -53,18 +53,18 @@ class _ManagedInstanceBase(SignalListener):
 
         self.instance_id = instance_id
 
-        if register_immediately:
+        if register:
             cls._register_to_graph(self)
 
         else:
             cls._pending_registration.add(self)
 
-    def request_unregistration(self, unregister_immediately=False):
+    def request_unregistration(self, unregister=False):
         """Mark the instance for unregistration on the next graph update
 
-        :param register_immediately: Avoid graph update and unregister immediately
+        :param register: Avoid graph update and unregister immediately
         """
-        if unregister_immediately:
+        if unregister:
             self.__class__._unregister_from_graph(self)
 
         else:
@@ -88,7 +88,7 @@ class _ManagedInstanceBase(SignalListener):
             return "(Instance {})".format(class_name)
 
         else:
-            return "(Instance {}: id={})".format(class_name)
+            return "(Instance {}: id={})".format(class_name, self.instance_id)
 
 
 class InstanceRegister(TypeRegister):
@@ -160,7 +160,7 @@ class InstanceRegister(TypeRegister):
 
         while cls._instances:
             instance = take_single(cls._instances.values())
-            instance.request_unregistration(unregister_immediately=True)
+            instance.request_unregistration(unregister=True)
 
     def get_next_id(cls):
         """Gets the next free ID

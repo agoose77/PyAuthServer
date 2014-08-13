@@ -1,6 +1,6 @@
 import unittest
 
-from ..bitfield import BitField, CBitField, PyBitField
+from ..bitfield import BitField, USE_BITARRAY
 from ..descriptors import Attribute
 from ..type_flag import TypeFlag
 from ..handler_interfaces import get_handler
@@ -107,7 +107,7 @@ class SerialiserTest(unittest.TestCase):
         struct = self.create_struct()
         handler = StructHandler(TypeFlag(type(struct)))
 
-        if BitField is PyBitField:
+        if not USE_BITARRAY:
             struct_bytes = self.py_struct_bytes
 
         else:
@@ -119,7 +119,7 @@ class SerialiserTest(unittest.TestCase):
         struct = self.create_struct()
         handler = StructHandler(TypeFlag(type(struct)))
 
-        if BitField is PyBitField:
+        if not USE_BITARRAY:
             struct_bytes = self.py_struct_bytes
 
         else:
@@ -139,7 +139,7 @@ class SerialiserTest(unittest.TestCase):
         bitfield_handler = get_handler(bitfield_flag)
 
         # Create bitfield
-        bitfield = PyBitField(size)
+        bitfield = BitField(size)
         bitfield[:] = self.bitfield_list
 
         packed_value = bitfield_handler.pack(bitfield)
@@ -151,7 +151,7 @@ class SerialiserTest(unittest.TestCase):
         bitfield_handler = get_handler(bitfield_flag)
 
         # Create bitfield
-        bitfield = PyBitField(8)
+        bitfield = BitField(8)
         bitfield[:] = self.bitfield_list
 
         packed_value = bitfield_handler.pack(bitfield)

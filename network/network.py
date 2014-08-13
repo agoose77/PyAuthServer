@@ -111,6 +111,12 @@ class Network:
         self.receive_buffer_size = 63553
         self.socket = NonBlockingSocketUDP(address, port)
 
+        self.address = address
+        self.port = port
+
+    def __repr__(self):
+        return "<Network Manager: {}:{}>".format(self.address, self.port)
+
     @property
     def received_data(self):
         buff_size = self.receive_buffer_size
@@ -144,12 +150,14 @@ class Network:
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
+
             try:
-                connection = get_connection(address)
+                connection = get_connection(address, only_registered=False)
 
             # Create a new interface to handle connection
             except LookupError:
                 connection = ConnectionInterface(address)
+                print("CReate conn", address,data,id(connection))
 
             # Dispatch data to connection
             connection.receive(data)

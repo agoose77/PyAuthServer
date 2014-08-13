@@ -123,6 +123,8 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         # Called for handshake protocol
         packet_protocol = packet.protocol
 
+        print("Handle {}".format(Protocols[packet_protocol]))
+
         if packet_protocol > Protocols.request_handshake and self.status != ConnectionStatus.pending:
             self.connection.receive(packet)
 
@@ -130,7 +132,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
             self.handle_handshake(packet)
 
         else:
-            handling_error = TypeError("Unable to process packet with protocol {}".format(packet_protocol))
+            handling_error = TypeError("Unable to process packet with protocol {}".format(Protocols[packet_protocol]))
             logger.error(handling_error)
 
             ConnectionErrorSignal.invoke(handling_error, target=self)
@@ -282,8 +284,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
 
         # If connected send normal data
         elif self.status == ConnectionStatus.connected:  # @UndefinedVariable
-            packet_collection = self.connection.send(network_tick,
-                                                     self.bandwidth)
+            packet_collection = self.connection.send(network_tick, self.bandwidth)
 
         # Don't send any data between states
         else:
@@ -356,6 +357,8 @@ class ServerInterface(ConnectionInterface):
         handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
         netmode, netmode_size = self.netmode_packer.unpack_from(packet.payload, handshake_size)
 
+        print("ON handshake")
+
         # Store replicable
         try:
             if self.connection is not None:
@@ -370,12 +373,13 @@ class ServerInterface(ConnectionInterface):
             self._auth_error = err
 
         else:
-            self.connection = connection = Connection(netmode)
-            returned_replicable = WorldInfo.rules.post_initialise(connection)
-            # Replicable is boolean false until registered
-            # User can force register though!
-            if returned_replicable is not None:
-                connection.replicable = returned_replicable
+            if self.connection is None:
+                self.connection = connection = Connection(netmode)
+                returned_replicable = WorldInfo.rules.post_initialise(connection)
+                # Replicable is boolean false until registered
+                # User can force register though!
+                if returned_replicable is not None:
+                    connection.replicable = returned_replicable
 
     def handle_packet(self, packet):
         if packet.protocol == Protocols.request_disconnect:
@@ -402,7 +406,7 @@ class ServerInterface(ConnectionInterface):
     def send_handshake(self):
         """Creates a handshake packet, either acknowledges connection or sends error state"""
         connection_failed = self.connection is None
-
+        print(id(self))
         if connection_failed:
 
             if self._auth_error:
@@ -468,7 +472,6 @@ class ClientInterface(ConnectionInterface):
         elif handshake_type == HandshakeState.success:
             netmode, netmode_size = self.netmode_packer.unpack_from(packet_payload, offset)
             offset += netmode_size
-
             # If we did not have an error then we succeeded
             self.connection = Connection(netmode)
             self.on_connected()

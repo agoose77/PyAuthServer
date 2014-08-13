@@ -1,161 +1,161 @@
-from bitarray import bitarray as array_field
 from .handler_interfaces import get_handler
 from .type_flag import TypeFlag
 from .serialiser import bits_to_bytes, next_or_equal_power_of_two
 
-__all__ = ["BitField", "CBitField", "PyBitField"]
+__all__ = ["BitField"]
 
+USE_BITARRAY = False
 
-class CBitField(array_field):
+if USE_BITARRAY:
+    from bitarray import bitarray as array_field
 
-    def __bool__(self):
-        return any(self)
+    class BitField(array_field):
 
-    def __new__(cls, other=None):
-        if isinstance(other, int):
-            other = [False] * other
+        def __bool__(self):
+            return any(self)
 
-        inst = super().__new__(cls, other)
+        def __new__(cls, other=None):
+            if isinstance(other, int):
+                other = [False] * other
 
-        return inst
+            inst = super().__new__(cls, other)
 
-    def __getitem__(self,  value):
-        result = super().__getitem__(value)
-        if isinstance(result, array_field):
-            return result.tolist()
+            return inst
 
-        return result
+        def __getitem__(self,  value):
+            result = super().__getitem__(value)
+            if isinstance(result, array_field):
+                return result.tolist()
 
-    def __setitem__(self, index, value):
-        if isinstance(value, list):
-            value = array_field(value)
+            return result
 
-        return super().__setitem__(index, value)
+        def __setitem__(self, index, value):
+            if isinstance(value, list):
+                value = array_field(value)
 
-    __len__ = array_field.length
+            return super().__setitem__(index, value)
 
-    def clear(self):
-        """Clears the BitField to zero"""
-        self[:] = array_field([False] * self.length())
+        __len__ = array_field.length
 
-    @classmethod
-    def from_bytes(cls, length, bytes_string, offset=0):
-        field = cls()
-        field_size = bits_to_bytes(length)
-        field.frombytes(bytes_string[offset: offset + field_size])
-        field[:] = field[:length]
-        return field, field_size
+        def clear(self):
+            """Clears the BitField to zero"""
+            self[:] = array_field([False] * self.length())
 
-    @classmethod
-    def from_iterable(cls, iterable):
-        """Factory function to create a BitField from an iterable object
+        @classmethod
+        def from_bytes(cls, length, bytes_string, offset=0):
+            field = cls()
+            field_size = bits_to_bytes(length)
+            field.frombytes(bytes_string[offset: offset + field_size])
+            field[:] = field[:length]
+            return field, field_size
 
-        :param iterable: source iterable
-        :requires: fixed length iterable object
-        :returns: BitField instance of length equal to ``len(iterable)``
-        ``Bitfield.from_iterable()``"""
-        return cls(iterable)
+        @classmethod
+        def from_iterable(cls, iterable):
+            """Factory function to create a BitField from an iterable object
 
-    calculate_footprint = staticmethod(bits_to_bytes)
-    to_bytes = array_field.tobytes
+            :param iterable: source iterable
+            :requires: fixed length iterable object
+            :returns: BitField instance of length equal to ``len(iterable)``
+            ``Bitfield.from_iterable()``"""
+            return cls(iterable)
 
+        calculate_footprint = staticmethod(bits_to_bytes)
+        to_bytes = array_field.tobytes
 
-class PyBitField:
+else:
+    class BitField:
 
-    """BitField data type which supports slicing operations"""
+        """BitField data type which supports slicing operations"""
 
-    def __init__(self, size, value=0):
-        self._value = value
+        def __init__(self, size, value=0):
+            self._value = value
 
-        self.resize(size)
+            self.resize(size)
 
-    def __bool__(self):
-        return self._value != 0
+        def __bool__(self):
+            return self._value != 0
 
-    def __getitem__(self,  value):
-        if isinstance(value, slice):
-            _value = self._value
-            return [bool(_value & (1 << index)) for index in range(*value.indices(self._size))]
-
-        else:
-            # Relative indices
-            if value < 0:
-                value += self._size
-
-            if value >= self._size:
-                raise IndexError("Index out of range")
-
-            return (self._value & (1 << value)) != 0
-
-    def __iter__(self):
-        return (self[i] for i in range(self._size))
-
-    def __setitem__(self, index, value):
-        if isinstance(index, slice):
-
-            current_value = self._value
-            for shift_depth, slice_value in zip(range(*index.indices(self._size)), value):
-
-                if slice_value:
-                    current_value |= 1 << shift_depth
-                else:
-                    current_value &= ~(1 << shift_depth)
-
-            self._value = current_value
-
-        else:
-            if index < 0:
-                index += self._size
-
-            elif index >= self._size:
-                raise IndexError("Index out of range")
-
-            if value:
-                self._value |= (1 << index)
+        def __getitem__(self,  value):
+            if isinstance(value, slice):
+                _value = self._value
+                return [bool(_value & (1 << index)) for index in range(*value.indices(self._size))]
 
             else:
-                self._value &= ~(1 << index)
+                # Relative indices
+                if value < 0:
+                    value += self._size
 
-    def __len__(self):
-        return self._size
+                if value >= self._size:
+                    raise IndexError("Index out of range")
 
-    @staticmethod
-    def calculate_footprint(bits):
-        return next_or_equal_power_of_two(bits_to_bytes(bits))
+                return (self._value & (1 << value)) != 0
 
-    @classmethod
-    def from_bytes(cls, length, bytes_string, offset=0):
-        field = cls(length)
-        field._value, field_size = field._handler.unpack_from(bytes_string, offset)
-        return field, field_size
+        def __iter__(self):
+            return (self[i] for i in range(self._size))
 
-    @classmethod
-    def from_iterable(cls, iterable):
-        """Factory function to create a BitField from an iterable object
+        def __setitem__(self, index, value):
+            if isinstance(index, slice):
 
-        :param iterable: source iterable
-        :requires: fixed length iterable object
-        :returns: BitField instance of length equal to ``len(iterable)``
-        ``Bitfield.from_iterable()``"""
-        size = len(iterable)
-        field = cls(size)
-        field[:size] = iterable
-        return field
+                current_value = self._value
+                for shift_depth, slice_value in zip(range(*index.indices(self._size)), value):
 
-    def clear(self):
-        """Clears the BitField to zero"""
-        self._value = 0
+                    if slice_value:
+                        current_value |= 1 << shift_depth
+                    else:
+                        current_value &= ~(1 << shift_depth)
 
-    def resize(self, size):
-        """Resizes the BitField
+                self._value = current_value
 
-        :param size: new size of BitField instance"""
-        self._size = size
-        self._handler = get_handler(TypeFlag(int, max_bits=size))
+            else:
+                if index < 0:
+                    index += self._size
 
-    def to_bytes(self):
-        """Represent bitfield as bytes"""
-        return self._handler.pack(self._value)
+                elif index >= self._size:
+                    raise IndexError("Index out of range")
 
+                if value:
+                    self._value |= (1 << index)
 
-BitField = CBitField
+                else:
+                    self._value &= ~(1 << index)
+
+        def __len__(self):
+            return self._size
+
+        @staticmethod
+        def calculate_footprint(bits):
+            return next_or_equal_power_of_two(bits_to_bytes(bits))
+
+        @classmethod
+        def from_bytes(cls, length, bytes_string, offset=0):
+            field = cls(length)
+            field._value, field_size = field._handler.unpack_from(bytes_string, offset)
+            return field, field_size
+
+        @classmethod
+        def from_iterable(cls, iterable):
+            """Factory function to create a BitField from an iterable object
+
+            :param iterable: source iterable
+            :requires: fixed length iterable object
+            :returns: BitField instance of length equal to ``len(iterable)``
+            ``Bitfield.from_iterable()``"""
+            size = len(iterable)
+            field = cls(size)
+            field[:size] = iterable
+            return field
+
+        def clear(self):
+            """Clears the BitField to zero"""
+            self._value = 0
+
+        def resize(self, size):
+            """Resizes the BitField
+
+            :param size: new size of BitField instance"""
+            self._size = size
+            self._handler = get_handler(TypeFlag(int, max_bits=size))
+
+        def to_bytes(self):
+            """Represent bitfield as bytes"""
+            return self._handler.pack(self._value)

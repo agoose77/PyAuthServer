@@ -52,8 +52,7 @@ class _WorldInfo(Replicable):
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
 
-        if is_initial:
-            yield "elapsed"
+        yield "elapsed"
 
         if is_complain:
             yield "tick_rate"

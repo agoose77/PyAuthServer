@@ -1,4 +1,4 @@
-from logging import Formatter, getLogger, INFO, DEBUG, StreamHandler
+from logging import Formatter, getLogger, INFO, StreamHandler
 
 __all__ = ['logger']
 
@@ -6,6 +6,7 @@ __all__ = ['logger']
 logger = getLogger("network")
 
 logger.info("Initialised logger")
+logger.setLevel(INFO)
 
 _handler = StreamHandler()
 _handler.setLevel(INFO)
