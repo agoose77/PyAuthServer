@@ -6,9 +6,11 @@ from .world_info import WorldInfo
 from .signals import Signal
 
 from time import monotonic
-     
 
-class BasicNetwork(Network):
+__all__ = ["SimpleNetwork"]
+
+
+class SimpleNetwork(Network):
 
     """Simple network update loop"""
 
@@ -19,7 +21,21 @@ class BasicNetwork(Network):
         self.on_finished = None
         self.on_update = None
 
-    def run(self, timeout, update_rate=1/60):
+    def step(self):
+        self.receive()
+
+        Replicable.update_graph()
+        Signal.update_graph()
+
+        full_update = True
+
+        on_update = self.on_update
+        if callable(on_update):
+            full_update = on_update()
+
+        self.send(full_update)
+
+    def start(self, timeout=None, update_rate=1/60):
         # Handle successive runs (initialisation)
         ConnectionInterface.clear_graph()
         Replicable.clear_graph()
@@ -27,8 +43,6 @@ class BasicNetwork(Network):
         
         if callable(self.on_initialised):
             self.on_initialised()
-
-        on_update = self.on_update
 
         started = monotonic()
         now = started
@@ -41,19 +55,15 @@ class BasicNetwork(Network):
             now = _now
             
             any_connected = bool(ConnectionInterface.by_status(ConnectionStatus.connected))
-            if not any_connected and (now - started) > timeout:
+
+            timed_out = False
+            if timeout is not None:
+                timed_out = (now - started) > timeout
+
+            if not any_connected and timed_out:
                 break
              
-            self.receive()
-            
-            Replicable.update_graph()
-            Signal.update_graph()
-  
-            full_update = True
-            if callable(on_update):
-                full_update = on_update()
-            
-            self.send(full_update)
+            self.step()
 
         if callable(self.on_finished):
             self.on_finished()

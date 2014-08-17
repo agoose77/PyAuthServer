@@ -450,9 +450,13 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
 
             move_history.id_start += 1
 
+        def __bool__(self):
+            return bool(len(self))
+
         def __contains__(move_history, index):
-            if len(move_history) == 0:
+            if not move_history:
                 return False
+
             return move_history.id_start <= index <= move_history.id_end
 
         def __getitem__(move_history, index):

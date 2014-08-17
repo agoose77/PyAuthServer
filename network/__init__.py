@@ -38,6 +38,7 @@ from .world_info import *
 from .replication_rules import *
 from .rpc import *
 from .signals import *
+from .simple_network import *
 from .structures import *
 from .type_register import *
 from .testing import *

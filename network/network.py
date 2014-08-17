@@ -4,13 +4,14 @@ from .enums import ConnectionStatus
 from .signals import SignalListener
 
 from collections import deque
-from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR
+from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostbyname
 from time import monotonic
 
 __all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMetrics']
 
 
 class NonBlockingSocketUDP(socket):
+
     """Non blocking socket class"""
 
     def __init__(self, addr, port):
@@ -36,20 +37,23 @@ class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
 
     @ignore_arguments
     def delayed_send(self):
-        systime = monotonic()
-        sendable = []
+        current_time = monotonic()
 
         # Check if we can send delayed data
-        for data in self._buffer_out:
-            if (systime - data[0]) >= self.delay:
-                sendable.append(data)
+        delay = self.delay
+
+        index = 0
+        for index, (timestamp, *payload) in enumerate(self._buffer_out):
+            if (current_time - timestamp) < delay:
+                break
+
+        pending_send = self._buffer_out[:index]
+        self._buffer_out[:] = self._buffer_out[index:]
 
         # Send the delayed data
-        for data in sendable:
-            self._buffer_out.remove(data)
-
-            args_, kwargs_ = data[1:]
-            super().sendto(*args_, **kwargs_)
+        send = super().sendto
+        for timestamp, (args, kwargs) in pending_send:
+            send(*args, **kwargs)
 
     def sendto(self, *args, **kwargs):
         # Store data for delay
@@ -58,6 +62,7 @@ class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
 
 
 class NetworkMetrics:
+    """Metrics object for network transfers"""
 
     def __init__(self):
         self._delta_received = 0
@@ -136,11 +141,15 @@ class Network:
 
     @staticmethod
     def connect_to(peer_data):
+        address, port = peer_data
+        address = gethostbyname(address)
+        ip_info = address, port
+
         try:
-            return ConnectionInterface.get_from_graph(peer_data)
+            return ConnectionInterface.get_from_graph(ip_info)
 
         except LookupError:
-            return ConnectionInterface(peer_data)
+            return ConnectionInterface(ip_info)
 
     def receive(self):
         """Receive all data from socket"""
@@ -157,7 +166,6 @@ class Network:
             # Create a new interface to handle connection
             except LookupError:
                 connection = ConnectionInterface(address)
-                print("CReate conn", address,data,id(connection))
 
             # Dispatch data to connection
             connection.receive(data)

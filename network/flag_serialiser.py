@@ -189,7 +189,7 @@ class FlagSerialiser:
 
         # Any remaining data will be Boolean values
         total_none_booleans = self.total_none_booleans
-        has_booleans = len(data) > total_none_booleans
+        has_booleans = len(data_values) != len(data)
 
         if has_booleans:
             # Reset booleans bitmask

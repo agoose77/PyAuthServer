@@ -123,8 +123,6 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         # Called for handshake protocol
         packet_protocol = packet.protocol
 
-        print("Handle {}".format(Protocols[packet_protocol]))
-
         if packet_protocol > Protocols.request_handshake and self.status != ConnectionStatus.pending:
             self.connection.receive(packet)
 
@@ -357,14 +355,14 @@ class ServerInterface(ConnectionInterface):
         handshake_type, handshake_size = self.handshake_packer.unpack_from(packet.payload)
         netmode, netmode_size = self.netmode_packer.unpack_from(packet.payload, handshake_size)
 
-        print("ON handshake")
-
         # Store replicable
         try:
             if self.connection is not None:
                 raise NetworkError("Connection already in mediation")
+
             if handshake_type != HandshakeState.request:
                 raise NetworkError("Handshake request was invalid")
+
             WorldInfo.rules.pre_initialise(self.instance_id, netmode)
 
         # If a NetworkError is raised store the result
@@ -406,7 +404,7 @@ class ServerInterface(ConnectionInterface):
     def send_handshake(self):
         """Creates a handshake packet, either acknowledges connection or sends error state"""
         connection_failed = self.connection is None
-        print(id(self))
+
         if connection_failed:
 
             if self._auth_error:
