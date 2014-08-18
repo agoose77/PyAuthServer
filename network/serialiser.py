@@ -148,7 +148,7 @@ def bytes_handler_builder(type_flag):
     header_max_value = type_flag.data.get("max_length", 255)
     packer = handler_from_int(header_max_value)
 
-    methods = ("""def unpack_from(bytes_string, offset=0):\n\t"""
+    methods = ("""def unpack_from(bytes_string, offset=0, *, unpacker=packer.unpack_from):\n\t"""
                """length, length_size = unpacker(bytes_string, offset)\n\t"""
                """end_index = length + length_size\n\t"""
                """value = bytes_string[length_size + offset: end_index + offset]\n\t"""
@@ -176,7 +176,7 @@ def string_handler_builder(type_flag):
     header_max_value = type_flag.data.get("max_length", 255)
     packer = handler_from_int(header_max_value)
 
-    methods = ("""def unpack_from(bytes_string, offset=0, unpacker=packer.unpack_from):
+    methods = ("""def unpack_from(bytes_string, offset=0, *, unpacker=packer.unpack_from):
                 length, length_size = unpacker(bytes_string, offset)\n\t
                 end_index = length + length_size\n\t
                 value = bytes_string[length_size + offset: end_index + offset]\n\t
