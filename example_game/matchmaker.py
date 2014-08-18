@@ -20,6 +20,9 @@ class URLThread(SafeThread):
         :param queue: output queue for result
         """
         with self.slave.guarded_request() as task:
+            if task is None:
+                return
+            print(task)
             callback, data, url = task
             request_obj = request.Request(url, data=data)
             response_obj = request.urlopen(request_obj)
@@ -77,7 +80,8 @@ class Matchmaker(SignalListener):
         if is_json:
             callback = partial(json_decoder, callback)
 
-        self.thread.client.commit((callback, parsed_data, self.url))
+        request = (callback, parsed_data, self.url)
+        self.thread.client.commit(request)
 
     @staticmethod
     def server_query():
@@ -183,5 +187,4 @@ class BoundMatchmaker(Matchmaker):
     @GameExitSignal.global_listener
     def on_quit(self):
         self.unregister()
-
         super().on_quit()

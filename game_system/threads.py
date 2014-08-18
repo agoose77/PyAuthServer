@@ -11,7 +11,8 @@ __all__ = ["SafeProxy", "QueuedThread", "SafeThread"]
 class SafeProxy(Proxy):
 
     def __del__(self):
-        object.__getattribute__(self, "_obj").join()
+        obj = object.__getattribute__(self, "_obj")
+        obj.join()
 
 
 class ThreadDataInterface:
@@ -52,11 +53,11 @@ class QueuedThread(Thread):
     """
 
     def __init__(self):
-        self._in_queue = Queue()
-        self._out_queue = Queue()
+        self._queue_a = Queue()
+        self._queue_b = Queue()
 
-        self.client = ThreadDataInterface(self._in_queue, self._out_queue)
-        self.slave = ThreadDataInterface(self._in_queue, self._out_queue, timeout=1/60)
+        self.client = ThreadDataInterface(self._queue_a, self._queue_b)
+        self.slave = ThreadDataInterface(self._queue_b, self._queue_a, timeout=1/30)
 
         self._event = Event()
 
@@ -68,12 +69,12 @@ class QueuedThread(Thread):
 
     def run(self):
         while not self._event.isSet():
-
             try:
                 self.handle_task()
 
-            except Exception as err:
-                print(err)
+            except Exception:
+                import traceback
+                traceback.print_exc()
                 break
 
     def join(self, timeout=None):
