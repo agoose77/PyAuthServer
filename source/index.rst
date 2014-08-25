@@ -1,17 +1,16 @@
-.. trunk documentation master file, created by
-   sphinx-quickstart on Thu Feb 20 17:28:50 2014.
+.. PyAuthServer documentation master file, created by
+   sphinx-quickstart on Mon Aug 25 23:45:41 2014.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Welcome to PyAuthServer's documentation!
-=================================
+========================================
 
-Modules:
+Contents:
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   modules
 
 
 Indices and tables
