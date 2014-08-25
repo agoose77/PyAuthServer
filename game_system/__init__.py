@@ -2,5 +2,5 @@
 
 from .geometry.mesh import *
 from .resources import *
-from .object_mixins import *
 from .definitions import *
+from .entities import *

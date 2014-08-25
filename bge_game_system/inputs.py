@@ -1,7 +1,8 @@
+from network.decorators import with_tag
 from network.structures import factory_dict
 
 from game_system.enums import InputEvents
-from game_system.inputs import IInputStatusLookup
+from game_system.inputs import MouseManager, InputManager
 from game_system.math import clamp
 
 from bge import events, logic, render
@@ -10,7 +11,7 @@ from mathutils import Vector
 __all__ = ['BGEInputStatusLookup', 'BGEMouseManager']
 
 
-class BGEInputStatusLookup(IInputStatusLookup):
+class BGEInputStatusLookup:
     """BGE interface for Input Status lookups"""
 
     def __init__(self):
@@ -48,7 +49,17 @@ class BGEInputStatusLookup(IInputStatusLookup):
         return keyboard if event in keyboard.events else logic.mouse
 
 
-class BGEMouseManager:
+@with_tag("BGE")
+class BGEInputManager(InputManager):
+
+    def __init__(self, ordered_keybindings):
+        self.keybinding_indices = None
+        self.ordered_keybindings = ordered_keybindings
+        self.status_lookup = BGEInputStatusLookup
+
+
+@with_tag("BGE")
+class BGEMouseManager(MouseManager):
 
     def __init__(self, locked=True, interpolation=1):
         self.window_size = Vector((render.getWindowWidth(), render.getWindowHeight()))

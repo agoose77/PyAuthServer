@@ -1,11 +1,13 @@
-from game_system.audio import IAudioManager, ISoundHandle
+from network.decorators import with_tag
+
+from game_system.audio import AudioManager
 
 from aud import device, Factory
 
 _all__ = ["AUDAudioManager", "AUDSoundHandle"]
 
 
-class AUDSoundHandle(ISoundHandle):
+class AUDSoundHandle:
 
     def __init__(self, handle):
         self._handle = handle
@@ -20,7 +22,8 @@ class AUDSoundHandle(ISoundHandle):
         self._handle.resume()
 
 
-class AUDAudioManager(IAudioManager):
+@with_tag("BGE")
+class AUDAudioManager(AudioManager):
 
     def __init__(self):
         self._device = device()
@@ -61,3 +64,4 @@ class AUDAudioManager(IAudioManager):
         factory = Factory(sound_path)
         handle = self._device.play(factory)
         return AUDSoundHandle(handle)
+

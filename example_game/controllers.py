@@ -3,11 +3,9 @@ from network.enums import Netmodes
 from network.replicable import Replicable
 
 from game_system.ai.behaviour_tree import SequenceNode
-from game_system.controllers import AIControllerBase
+from game_system.controllers import AIController, PlayerController
 from game_system.enums import CollisionType
 from game_system.signals import *
-
-from bge_game_system.controllers import PlayerController
 
 from .actors import CTFFlag
 from .controls import camera_control, inputs_control
@@ -16,7 +14,7 @@ from .signals import *
 __all__ = ["EnemyController", "CTFPlayerController"]
 
 
-class EnemyController(AIControllerBase):
+class EnemyController(AIController):
 
     def on_initialised(self):
         super().on_initialised()

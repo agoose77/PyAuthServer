@@ -143,6 +143,10 @@ def set_class_tag(cls, value):
     :param value: new value of tag
     """
     cls._tag = value
+    try:
+        cls.update_cache()
+    except AttributeError:
+        raise TypeError("{} does not implement machinery for tagging".format(cls.__name__))
 
 
 def get_class_tag(cls):

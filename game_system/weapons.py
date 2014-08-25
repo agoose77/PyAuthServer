@@ -12,10 +12,11 @@ from .math import square_falloff
 from .coordinates import Vector
 
 
-__all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon', 'EmptyWeapon']
+__all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon']
 
 
 class Weapon(Replicable):
+
     ammo = Attribute(70, notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
@@ -77,23 +78,24 @@ class TraceWeapon(Weapon):
     @requires_netmode(Netmodes.server)
     def trace_shot(self, camera):
         # Get hit results
-        hit_result = camera.trace_ray(self.maximum_range)
-        if not hit_result:
-            return
 
-        # Only damage Pawns
-        if not isinstance(hit_result.hit_object, Pawn):
+        camera_physics = camera.physics
+        camera_position = camera_physics.world_position
+        position = camera_position + camera_physics.get_direction_vector(Axis.y)
+        hit_result = camera_physics.ray_test(position, self.maximum_range)
+
+        if not hit_result:
             return
 
         # But don't damage our owner!
         replicable = hit_result.hit_object
-        if replicable == self.owner.pawn:
+        if replicable is self.owner.pawn:
             return
 
         hit_position = hit_result.hit_position
-        hit_vector = (hit_position - camera.world_position)
+        hit_vector = (hit_position - camera_position)
 
-        falloff = square_falloff(camera.world_position, self.maximum_range, hit_position, self.effective_range)
+        falloff = square_falloff(camera_position, self.maximum_range, hit_position, self.effective_range)
 
         damage = self.base_damage * falloff
         momentum = self.momentum * hit_vector.normalized() * falloff
@@ -118,7 +120,7 @@ class ProjectileWeapon(Weapon):
     def projectile_shot(self, camera):
         projectile = self.projectile_class()
 
-        forward_vector = camera.get_direction(Axis.y)
+        forward_vector = camera.physics.get_direction(Axis.y)
         projectile_vector = self.projectile_velocity.copy()
         projectile_vector.rotate(camera.world_rotation)
 
@@ -126,8 +128,3 @@ class ProjectileWeapon(Weapon):
         projectile.world_rotation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
         projectile.local_velocity = self.projectile_velocity
         projectile.possessed_by(self)
-
-
-class EmptyWeapon(Weapon):
-
-    ammo = Attribute(0)

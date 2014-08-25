@@ -1,4 +1,4 @@
-from bge import logic
+from bge import logic, types
 from collections import namedtuple
 from contextlib import contextmanager
 
@@ -7,9 +7,10 @@ from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
 
 from game_system.definitions import ComponentLoader
-from game_system.enums import AnimationMode, AnimationBlend, CollisionType, PhysicsType
+from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionType, PhysicsType
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
+from mathutils import Vector
 
 RayTestResult = namedtuple("RayTestResult", "hit_position hit_normal hit_object distance")
 CollisionResult = namedtuple("CollisionResult", "hit_object collision_type hit_contacts")
@@ -183,6 +184,25 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
                 result = CollisionResult(hit_entity, ended_collision, None)
                 callback(result, target=entity)
 
+    def get_direction_vector(self, axis):
+        """Get the axis vector of this object in world space
+
+        :param axis: :py:code:`bge_game_system.enums.Axis` value
+        :rtype: :py:code:`mathutils.Vector`
+        """
+        vector = [0, 0, 0]
+
+        if axis == Axis.x:
+            vector[0] = 1
+
+        elif axis == Axis.y:
+            vector[1] = 1
+
+        elif axis == Axis.z:
+            vector[2] = 1
+
+        return Vector(self.object.getAxisVect(vector))
+
     def ray_test(self, target, source=None, distance=0.0):
         """Perform a ray trace to a target
 
@@ -210,8 +230,14 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
 class BGEAnimationInterface(BGEComponent):
     """Animation implementation for BGE entity"""
 
-    def __init__(self, config_secton, entity, obj):
-        self._obj = obj
+    def __init__(self, config_section, entity, obj):
+        try:
+            skeleton = next(o for o in obj.childrenRecursive if isinstance(obj, types.BL_ArmatureObject))
+
+        except StopIteration:
+            raise TypeError("Animation component requires Armature object")
+
+        self._obj = skeleton
 
         # Define conversions from Blender behaviours to Network animation enum
         self._bge_play_constants = {AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
@@ -221,14 +247,14 @@ class BGEAnimationInterface(BGEComponent):
         self._bge_blend_constants = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
                                      AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}
 
-    def get_animation_frame(self, animation):
+    def get_frame(self, animation):
         """Get the current frame of the animation
 
         :param animation: animation object
         """
         return int(self._obj.getActionFrame(animation.layer))
 
-    def play_animation(self, animation):
+    def play(self, animation):
         """Play animation on bound object
 
         :param animation: animation resource
@@ -238,7 +264,7 @@ class BGEAnimationInterface(BGEComponent):
         self._obj.playAction(animation.name, animation.start, animation.end, animation.layer, animation.priority,
                              animation.blend, play_mode, animation.weight, speed=animation.speed, blend_mode=blend_mode)
 
-    def stop_animation(self, animation):
+    def stop(self, animation):
         """Stop a playing animation on bound object
 
         :param animation: animation resource
@@ -333,6 +359,7 @@ class BGENavmeshInterface(BGEComponent):
 class BGEComponentLoader(ComponentLoader):
 
     def __init__(self, *component_tags):
+        self.component_tags = component_tags
         self.component_classes = {tag: BGEComponent.find_subclass_for(tag) for tag in component_tags}
 
     def load_components(self, entity, config_parser):

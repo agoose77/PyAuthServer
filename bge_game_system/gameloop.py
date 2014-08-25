@@ -1,6 +1,7 @@
 from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
+from network.decorators import with_tag
 from network.enums import Netmodes
 from network.logger import logger
 from network.network import Network
@@ -8,16 +9,17 @@ from network.replicable import Replicable
 from network.signals import *
 from network.world_info import WorldInfo
 
+from game_system.gameloop import ServerGameLoop,  ClientGameLoop
 from game_system.signals import *
 from game_system.timer import Timer
+from game_system.entities import Camera, Pawn
 
-from .actors import Camera, Pawn
 from .physics import PhysicsSystem
 
 from bge import types, logic
 
 
-__all__ = ['GameLoop', 'ServerGameLoop', 'ClientGameLoop', 'RewindState']
+__all__ = ['GameLoop', 'Server', 'Client', 'RewindState']
 
 
 RewindState = namedtuple("RewindState", "position rotation animations")
@@ -36,6 +38,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     def __init__(self):
         self.register_signals()
+
+        WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
         # Copy BGE data
         self.use_tick_rate = logic.getUseFrameRate()
@@ -133,63 +137,64 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             Replicable.update_graph()
             Signal.update_graph()
 
+    def update(self, delta_time):
+        self.update_graphs()
+
+        self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
+        self.network_system.receive()
+        self.update_graphs()
+
+        # Update Timers
+        self.profile = logic.KX_ENGINE_DEBUG_LOGIC
+        TimerUpdateSignal.invoke(delta_time)
+
+        # Update Player Controller inputs for client
+        if WorldInfo.netmode != Netmodes.server:
+            PlayerInputSignal.invoke(delta_time)
+            self.update_graphs()
+
+        # Update main logic (Replicable update)
+        LogicUpdateSignal.invoke(delta_time)
+        self.update_graphs()
+
+        # Update Physics, which also handles Scene-graph
+        self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
+        PhysicsTickSignal.invoke(delta_time)
+        self.update_graphs()
+
+        # Clean up following Physics update
+        PostPhysicsSignal.invoke()
+        self.update_graphs()
+
+        # Update Animation system
+        self.profile = logic.KX_ENGINE_DEBUG_ANIMATIONS
+        self.update_animations(self.current_time)
+
+        # Transmit new state to remote peer
+        self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
+        is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
+
+        if is_full_update:
+            self.last_sent_time = self.current_time
+
+        self.network_system.send(is_full_update)
+
+        network_metrics = self.network_system.metrics
+        if network_metrics.sample_age >= self.metric_interval:
+            network_metrics.reset_sample_window()
+
+        # Update UI
+        self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
+        UIUpdateSignal.invoke(delta_time)
+
+        self.update_graphs()
+
     def update_scene(self, scene, delta_time):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         self.update_logic_bricks(self.current_time)
 
         if scene == self.network_scene:
-            self.update_graphs()
-
-            self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
-            self.network_system.receive()
-            self.update_graphs()
-
-            # Update Timers
-            self.profile = logic.KX_ENGINE_DEBUG_LOGIC
-            TimerUpdateSignal.invoke(delta_time)
-
-            # Update Player Controller inputs for client
-            if WorldInfo.netmode != Netmodes.server:
-                PlayerInputSignal.invoke(delta_time)
-                self.update_graphs()
-
-            # Update main logic (Replicable update)
-            LogicUpdateSignal.invoke(delta_time)
-            self.update_graphs()
-
-            # Update Physics, which also handles Scene-graph
-            self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
-            PhysicsTickSignal.invoke(scene, delta_time)
-            self.update_graphs()
-
-            # Clean up following Physics update
-            PostPhysicsSignal.invoke()
-            self.update_graphs()
-
-            # Update Animation system
-            self.profile = logic.KX_ENGINE_DEBUG_ANIMATIONS
-            self.update_animations(self.current_time)
-
-            # Transmit new state to remote peer
-            self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
-            is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
-
-            if is_full_update:
-                self.last_sent_time = self.current_time
-
-            self.network_system.send(is_full_update)
-
-            network_metrics = self.network_system.metrics
-            if network_metrics.sample_age >= self.metric_interval:
-                # print("{:.1f} sent bytes/second, {:.1f} received bytes/second, {} connections"
-                #       .format(network_metrics.send_rate, network_metrics.receive_rate, len(ConnectionInterface)))
-                network_metrics.reset_sample_window()
-
-            # Update UI
-            self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
-            UIUpdateSignal.invoke(delta_time)
-
-            self.update_graphs()
+            self.update(delta_time)
 
         else:
             self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
@@ -198,7 +203,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.profile = logic.KX_ENGINE_DEBUG_SCENEGRAPH
             self.update_scenegraph(self.current_time)
 
-    def on_quit(self):
+    def quit(self):
         self.can_quit.value = True
 
     def dispatch(self):
@@ -229,7 +234,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 self.update_blender()
 
                 if self.check_quit():
-                    self.on_quit()
+                    self.quit()
 
                 # Handle this outside of usual update
                 WorldInfo.update_clock(step_time)
@@ -275,14 +280,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.clean_up()
 
 
-class ServerGameLoop(GameLoop):
+@with_tag("BGE")
+class Server(GameLoop, ServerGameLoop):
 
-    #render = False
+    render = True
 
     def __init__(self):
         super().__init__()
-
-        WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
         self._rewind_data = OrderedDict()
         self._rewind_length = 1 * WorldInfo.tick_rate
@@ -292,74 +296,12 @@ class ServerGameLoop(GameLoop):
 
         return Network("", 1200)
 
-    @staticmethod
-    def get_pawn_states():
-        state_data = {p: RewindState(p.world_position.copy(), p.world_rotation.copy(), {a: p.get_animation_frame(i)
-                                     for i, a in p.playing_animations.items()})
-                      for p in WorldInfo.subclass_of(Pawn)}
-        return state_data
 
-    @PhysicsRewindSignal.global_listener
-    def execute_in_past(self, callback, target_tick):
-        try:
-            past_state = self._rewind_data[target_tick]
+@with_tag("BGE")
+class Client(GameLoop, ClientGameLoop):
 
-        except KeyError as err:
-            if (WorldInfo.tick - target_tick) > self._rewind_length:
-                logger.exception("Could not rewind to tick {}, it was too far in the past".format(target_tick))
-
-            else:
-                logger.exception("Could not rewind to tick {}, unknown error".format(target_tick))
-
-            return
-
-        # So we can revert to the past state
-        current_state = self.get_pawn_states()
-
-        # Apply rewinding
-        for pawn, state in past_state.items():
-            if not pawn.registered:
-                continue
-            pawn.world_position = state.position
-            pawn.world_rotation = state.rotation
-
-            for animation, frame in state.animations.items():
-                pawn.play_animation(animation.name, frame, animation.end,
-                                    animation.layer, animation.priority,
-                                    animation.blend, animation.mode,
-                                    animation.weight, animation.speed,
-                                    animation.lend_mode)
-
-        self.update_scenegraph(self.current_time)
-        self.update_animations(self.current_time)
-
-        callback()
-
-        for pawn, state in current_state.items():
-            pawn.world_position = state.position
-            pawn.world_rotation = state.rotation
-
-        self.update_scenegraph(self.current_time)
-        self.update_animations(self.current_time)
-
-    def save_pawn_states(self, tick):
-        """Save pawn physics state for this tick"""
-        self._rewind_data[tick] = self.get_pawn_states()
-
-        # Cap rewind length
-        if len(self._rewind_data) > self._rewind_length:
-            self._rewind_data.popitem(last=False)
-
-    def update_scene(self, scene, delta_time):
-        super().update_scene(scene, delta_time)
-
-        self.save_pawn_states(WorldInfo.tick)
-
-
-class ClientGameLoop(GameLoop):
-
-    def on_quit(self):
-        quit_func = super().on_quit
+    def quit(self):
+        quit_func = super().quit
         # Try and quit gracefully
         DisconnectSignal.invoke(quit_func)
         # Else abort

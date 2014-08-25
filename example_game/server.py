@@ -2,18 +2,16 @@ from operator import gt as greater_than
 from random import choice
 
 from network.connection_interfaces import ConnectionInterface
-from network.enums import ConnectionStatus, Netmodes
+from network.enums import ConnectionStatus
 from network.replication_rules import ReplicationRulesBase
 from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
-from network.world_info import WorldInfo
 
-from game_system.controllers import PlayerControllerBase
+from game_system.controllers import PlayerController
 from game_system.errors import AuthError, BlacklistError
-from game_system.resources import ResourceManager
-from game_system.signals import PawnKilledSignal, LogicUpdateSignal
+from game_system.signals import PawnKilledSignal
 from game_system.timer import Timer
 
-from bge_game_system.actors import *
+from game_system.entities import *
 from bge_game_system.gameloop import ServerGameLoop
 
 from .actors import *
@@ -22,11 +20,6 @@ from .matchmaker import BoundMatchmaker
 from .replication_infos import *
 from .signals import TeamSelectionQuerySignal
 from .weapons import BowWeapon
-
-from bge import logic
-
-
-ResourceManager.data_path = logic.expandPath("//data")
 
 
 class TeamDeathMatch(ReplicationRulesBase):
@@ -71,7 +64,7 @@ class TeamDeathMatch(ReplicationRulesBase):
         if not self.allows_broadcast(sender, message):
             return
 
-        for replicable in WorldInfo.subclass_of(PlayerControllerBase):
+        for replicable in WorldInfo.subclass_of(PlayerController):
             replicable.receive_broadcast(message)
 
     def setup_fake_teams(self):

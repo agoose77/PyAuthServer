@@ -5,9 +5,8 @@ from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 
-from bge_game_system.actors import Actor, Camera, Pawn, Projectile, WeaponAttachment
-
-from game_system.controllers import PlayerControllerBase
+from game_system.entities import Actor, Camera, Pawn, Projectile, WeaponAttachment
+from game_system.controllers import PlayerController
 from game_system.enums import Axis, CollisionType
 from game_system.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal, PawnKilledSignal
 from game_system.timer import Timer
@@ -27,20 +26,20 @@ class CameraAnimationActor(Camera):
     def on_initialised(self):
         super().on_initialised()
 
-        displacement = (self.get_direction(Axis.y) + self.get_direction(Axis.z)*0.3) * 50
+        displacement = (self.physics.get_direction(Axis.y) + self.physics.get_direction(Axis.z)*0.3) * 50
 
         self.orbit_frequency = 1 / 40
         self.origin = Vector((0, -20, 20))
-        self.world_position = self.origin + displacement
+        self.physics.world_position = self.origin + displacement
 
     @LogicUpdateSignal.global_listener
     @simulated
     def update(self, delta_time):
-        from_origin = self.world_position - self.origin
+        from_origin = self.physics.world_position - self.origin
         from_origin.rotate(Euler((0, 0, radians(360) * delta_time * self.orbit_frequency)))
 
-        self.world_position = self.origin + from_origin
-        self.align_to(-from_origin, factor=.43, axis=Axis.y)
+        self.physics.world_position = self.origin + from_origin
+        #self.physics.align_to(-from_origin, factor=.43, axis=Axis.y)
 
 
 class ArrowProjectile(Projectile):
@@ -98,7 +97,7 @@ class Barrel(Actor):
         if not collision_result.collision_type == CollisionType.started:
             return
 
-        player_controller = PlayerControllerBase.get_local_controller()
+        player_controller = PlayerController.get_local_controller()
 
         collision_sound = self.resources['sounds']['clang.mp3']
         player_controller.hear_sound(collision_sound, self.world_position, self.world_rotation, self.world_velocity)
@@ -224,7 +223,7 @@ class CTFFlag(Actor):
             team_relation = TeamRelation.neutral
 
         else:
-            player_controller = PlayerControllerBase.get_local_controller()
+            player_controller = PlayerController.get_local_controller()
             if not player_controller:
                 return
 

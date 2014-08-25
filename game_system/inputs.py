@@ -2,27 +2,18 @@ from network.bitfield import BitField
 from network.type_flag import TypeFlag
 from network.handler_interfaces import get_handler, register_handler
 
+from .tagged_delegate import EnvironmentDefinitionByTag
+
 from collections import OrderedDict
 from contextlib import contextmanager
 
-__all__ = ['IInputStatusLookup', 'BGEInputStatusLookup', 'MouseManager',
-           'InputManager', 'InputPacker']
+__all__ = ['MouseManager', 'InputManager', 'InputPacker']
 
 
-class IInputStatusLookup:
-    """Base class for a Status Lookup interface"""
-
-    def __call__(self, event):
-        raise NotImplementedError()
-
-
-class InputManager:
+class InputManager(EnvironmentDefinitionByTag):
     """Manager for user input"""
 
-    def __init__(self, ordered_keybindings, status_lookup):
-        self.status_lookup = status_lookup
-        self.ordered_keybindings = ordered_keybindings
-        self.keybinding_indices = None
+    subclasses = {}
 
     @contextmanager
     def using_interface(self, lookup_func):
@@ -68,12 +59,9 @@ class InputManager:
         return prefix + "\n".join(contents)
 
 
-#==============================================================================
-# TODO: profile code
-# Latency predominantly on Server
-# Either in unpacking methods, or in attribute lookups
-# Perhaps in how Inputs are unpacked
-#==============================================================================
+class MouseManager(EnvironmentDefinitionByTag):
+
+    subclasses = {}
 
 
 class InputPacker:
@@ -95,7 +83,6 @@ class InputPacker:
 
     def size(self, bytes_string):
         return self._bitfield_packer.size(bytes_string)
-
 
 # Register handler for input manager
 register_handler(InputManager, InputPacker, True)

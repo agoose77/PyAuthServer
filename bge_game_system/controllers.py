@@ -1,4 +1,4 @@
-from game_system.controllers import PlayerControllerBase
+from game_system.controllers import PlayerController
 
 from .audio import AUDAudioManager
 from .inputs import BGEMouseManager, BGEInputStatusLookup
@@ -6,7 +6,7 @@ from .inputs import BGEMouseManager, BGEInputStatusLookup
 __all__ = ["PlayerController"]
 
 
-class PlayerController(PlayerControllerBase):
+class PlayerController(PlayerController):
 
     audio_manager_class = AUDAudioManager
     input_lookup_class = BGEInputStatusLookup

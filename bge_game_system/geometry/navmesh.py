@@ -230,7 +230,7 @@ class NavmeshProxy(types.KX_NavMeshObject):
             if point in p:
                 return p
 
-    def __init__(self, obj):
+    def __init__(self, _):
         self.mesh = BGEMesh(self)
 
         astar = AStarAlgorithm()

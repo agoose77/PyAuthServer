@@ -6,7 +6,7 @@ from network.replicable import Replicable
 from network.structures import TypedList, TypedSet
 from network.world_info import WorldInfo
 
-from game_system.controllers import PlayerControllerBase
+from game_system.controllers import PlayerController
 from game_system.replication_infos import ReplicationInfo, PlayerReplicationInfo
 from game_system.signals import BroadcastMessage
 
@@ -39,7 +39,7 @@ class GameReplicationInfo(ReplicationInfo):
     @requires_netmode(Netmodes.server)
     @BroadcastMessage.global_listener
     def send_broadcast(self, message):
-        player_controllers = WorldInfo.subclass_of(PlayerControllerBase)
+        player_controllers = WorldInfo.subclass_of(PlayerController)
 
         for controller in player_controllers:
             controller.receive_broadcast(message)

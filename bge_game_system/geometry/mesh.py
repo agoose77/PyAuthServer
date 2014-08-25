@@ -4,6 +4,8 @@ from functools import lru_cache
 from mathutils import Vector, geometry
 
 from game_system.geometry.mesh import IVertex, IPolygon
+
+
 from .kdtree import KDTree
 from ..game_system.utilities.math import mean
 from ..bge_network.geometry.geometry import point_in_polygon

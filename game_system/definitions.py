@@ -1,4 +1,4 @@
-from .tagged_delgate import EnvironmentDefinitionByTag
+from .tagged_delegate import EnvironmentDefinitionByTag
 
 
 class ComponentLoader(EnvironmentDefinitionByTag):

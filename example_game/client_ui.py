@@ -10,7 +10,7 @@ from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
 from network.world_info import WorldInfo
 
 from game_system.resources import ResourceManager
-from game_system.controllers import PlayerControllerBase
+from game_system.controllers import PlayerController
 from game_system.signals import ReceiveMessage
 from game_system.timer import Timer
 from game_system.math import lerp
@@ -549,7 +549,7 @@ class TeamSelectionPanel(Panel):
         except ValueError:
             return
 
-        player_controller = PlayerControllerBase.get_local_controller()
+        player_controller = PlayerController.get_local_controller()
 
         if not player_controller:
             return

@@ -1,6 +1,5 @@
 from collections import defaultdict
 from contextlib import contextmanager
-from operator import itemgetter
 
 from network.decorators import with_tag
 from network.enums import Netmodes, Roles
@@ -8,13 +7,10 @@ from network.logger import logger
 from network.tagged_delegate import DelegateByNetmode
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
-from network.type_register import TypeRegister
 from network.world_info import WorldInfo
 
-from bge_game_system.actors import Actor, Camera, Pawn
-
-from game_system.controllers import ControllerBase
-from game_system.jitter_buffer import JitterBuffer
+from game_system.entities import Actor, Camera, Pawn
+from game_system.controllers import Controller
 from game_system.weapons import Weapon
 from game_system.replication_infos import ReplicationInfo
 from game_system.enums import PhysicsType
@@ -37,7 +33,8 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
         self._apply_func = apply_func
         self._active_physics = [PhysicsType.dynamic, PhysicsType.rigid_body]
 
-    def on_conversion_error(self, lookup, err):
+    @staticmethod
+    def on_conversion_error(lookup, err):
         print("Unable to convert {}: {}".format(lookup, err))
 
     def spawn_actor(self, lookup, name, type_of):
@@ -70,7 +67,7 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
 
         :param pawn: Pawn object
         :param obj: BGE proxy object"""
-        controller = self.spawn_actor(obj, "controller", ControllerBase)
+        controller = self.spawn_actor(obj, "controller", Controller)
         camera = self.spawn_actor(obj, "camera", Camera)
         info = self.spawn_actor(obj, "info", ReplicationInfo)
 
@@ -163,11 +160,10 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
         self._apply_func()
 
     @PhysicsTickSignal.global_listener
-    def update(self, scene, delta_time):
+    def update(self, delta_time):
         """Listener for PhysicsTickSignal
         Updates Physics simulation for entire world
 
-        :param scene: BGE scene reference
         :param delta_time: Time to progress simulation"""
         self._update_func(delta_time)
         self._apply_func()
@@ -210,10 +206,10 @@ class ServerPhysics(PhysicsSystem):
             replicable.copy_state_to_network()
 
     @PhysicsTickSignal.global_listener
-    def update(self, scene, delta_time):
+    def update(self, delta_time):
         """Listener for PhysicsTickSignal
         Copy physics state to network variable for Actor instances"""
-        super().update(scene, delta_time)
+        super().update(delta_time)
 
         self.save_network_states()
 
@@ -266,10 +262,12 @@ class ClientPhysics(PhysicsSystem):
             self._extrapolators.pop(target)
 
     @PhysicsTickSignal.global_listener
-    def update(self, scene, delta_time):
+    def update(self, delta_time):
         """Listener for PhysicsTickSignal
-        Copy physics state to network variable for Actor instances"""
-        super().update(scene, delta_time)
+
+        Copy physics state to network variable for Actor instances
+        """
+        super().update(delta_time)
 
         self.extrapolate_network_states()
 
@@ -320,10 +318,12 @@ class ClienstPhysics(PhysicsSystem):
             self._interpolation_buffers.pop(target)
 
     @PhysicsTickSignal.global_listener
-    def update(self, scene, delta_time):
+    def update(self, delta_time):
         """Listener for PhysicsTickSignal
-        Copy physics state to network variable for Actor instances"""
-        super().update(scene, delta_time)
+
+        Copy physics state to network variable for Actor instances
+        """
+        super().update(delta_time)
 
         self.interpolate_states()
 
