@@ -1,4 +1,4 @@
 network
-bge_network
-blender_example
+bge_game_system
+example_game
 game_system
