@@ -1,34 +1,25 @@
-from configparser import ConfigParser
 from .resources import ResourceManager
-from network.tagged_delegate import TaggedDelegateMeta
+from network.tagged_delegate import DelegateByTag
 
 
-class EnvironmentDefinitionMeta(TaggedDelegateMeta):
+class EnvironmentDefinitionByTag(DelegateByTag):
 
     @staticmethod
     def get_current_tag():
         return ResourceManager.environment
 
 
-class ActorDefinition(EnvironmentDefinitionMeta):
+class ComponentLoader(EnvironmentDefinitionByTag):
+
     subclasses = {}
 
-    pass
+    def _load_components(self, config_obj, *args, **kwargs):
+        # Load all components
+        components = {}
 
+        for tag, component_cls in self.component_classes.items():
+            config_data = config_obj.get(tag)
+            component = component_cls(config_data, *args, **kwargs)
+            components[tag] = component
 
-class Actor:
-
-    def load_components(self):
-        class_name = self.__class__.__name__
-        resources = ResourceManager[class_name]
-        platform = ResourceManager.environment
-        definition = resources["definition.cfg"]
-        definition_sections = ConfigParser()
-        full_path = ResourceManager.from_relative_path(definition)
-        definition_sections.read(full_path)
-
-        platform_definition = definition_sections[platform]
-        actor_definition = ActorDefinition(platform_definition)
-
-        self.physics = actor_definition.physics
-        self.animation = actor_definition.animation
+        return components
