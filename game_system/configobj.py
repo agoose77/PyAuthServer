@@ -410,10 +410,10 @@ class InterpolationEngine(object):
 class ConfigParserInterpolation(InterpolationEngine):
     """Behaves like ConfigParser."""
     _cookie = '%'
-    _KEYCRE = re.compile(r"%\(([^)]*)\)s")
+    _KEYCRE = re.compile(r"({([A-z][A-z0-9]+)\})|(%\(([^)]*)\)s)")
 
     def _parse_match(self, match):
-        key = match.group(1)
+        key = match.group(2) or match.group(4)
         value, section = self._fetch(key)
         return key, value, section
 
