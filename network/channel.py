@@ -1,11 +1,11 @@
 from .conditions import is_reliable
 from .type_flag import TypeFlag
-from .decorators import delegate_for_netmode
+from .decorators import with_tag
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handler_interfaces import static_description, get_handler
 from .logger import logger
-from .tagged_delegate import TaggedDelegateMeta
+from .tagged_delegate import NetmodeDelegateMeta
 from .replicable import Replicable
 
 from functools import partial
@@ -14,7 +14,7 @@ from time import monotonic
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
-class Channel(TaggedDelegateMeta):
+class Channel(NetmodeDelegateMeta):
     """Channel for replication information
     Belongs to an instance of Replicable and a connection"""
 
@@ -82,7 +82,7 @@ class Channel(TaggedDelegateMeta):
         return bool(self.rpc_storage.data)
 
 
-@delegate_for_netmode(Netmodes.client)
+@with_tag(Netmodes.client)
 class ClientChannel(Channel):
 
     def notify_callback(self, notifications):
@@ -125,7 +125,7 @@ class ClientChannel(Channel):
             return partial(self.notify_callback, notifications)
 
 
-@delegate_for_netmode(Netmodes.server)
+@with_tag(Netmodes.server)
 class ServerChannel(Channel):
 
     def __init__(self, *args, **kwargs):

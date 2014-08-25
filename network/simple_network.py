@@ -1,4 +1,4 @@
-from network.replicable import Replicable
+from .replicable import Replicable
 from .enums import ConnectionStatus
 from .network import Network
 from .connection_interfaces import ConnectionInterface
