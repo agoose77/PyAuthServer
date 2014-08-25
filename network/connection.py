@@ -1,10 +1,10 @@
 from .channel import Channel
-from .decorators import delegate_for_netmode
+from .decorators import with_tag
 from .type_flag import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
 from .logger import logger
-from .tagged_delegate import TaggedDelegateMeta
+from .tagged_delegate import NetmodeDelegateMeta
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
 from .signals import *
@@ -24,7 +24,7 @@ def consume(iterable):
         pass
 
 
-class Connection(SignalListener, TaggedDelegateMeta):
+class Connection(SignalListener, NetmodeDelegateMeta):
     """Connection between loacl host and remote peer
     Represents a successful connection
     """
@@ -130,7 +130,7 @@ class Connection(SignalListener, TaggedDelegateMeta):
         pass
 
 
-@delegate_for_netmode(Netmodes.client)
+@with_tag(Netmodes.client)
 class ClientConnection(Connection):
 
     def __init__(self, netmode):
@@ -237,7 +237,7 @@ class ClientConnection(Connection):
             self.set_replication(packet)
 
 
-@delegate_for_netmode(Netmodes.server)
+@with_tag(Netmodes.server)
 class ServerConnection(Connection):
 
     def __init__(self, netmode):

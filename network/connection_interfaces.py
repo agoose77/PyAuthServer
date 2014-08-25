@@ -1,14 +1,14 @@
 from .bitfield import BitField
 from .connection import Connection
 from .conversions import conversion
-from .decorators import delegate_for_netmode, ignore_arguments
+from .decorators import with_tag, ignore_arguments
 from .type_flag import TypeFlag
 from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
 from .logger import logger
-from .tagged_delegate import TaggedDelegateMeta
+from .tagged_delegate import NetmodeDelegateMeta
 from .packet import Packet, PacketCollection
 from .signals import *
 from .world_info import WorldInfo
@@ -20,7 +20,7 @@ from time import monotonic
 __all__ = ["ConnectionInterface", "ClientInterface", "ServerInterface"]
 
 
-class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
+class ConnectionInterface(NetmodeDelegateMeta, metaclass=InstanceRegister):
     """Interface for remote peer
 
     Mediates a connection instance between local and remote peer
@@ -345,7 +345,7 @@ class ConnectionInterface(TaggedDelegateMeta, metaclass=InstanceRegister):
         self.latency = (smooth_factor * self.latency) + (1 - smooth_factor) * new_latency
 
 
-@delegate_for_netmode(Netmodes.server)
+@with_tag(Netmodes.server)
 class ServerInterface(ConnectionInterface):
 
     def handle_handshake(self, packet):
@@ -430,7 +430,7 @@ class ServerInterface(ConnectionInterface):
                           on_success=ignore_arguments(self.on_connected))
 
 
-@delegate_for_netmode(Netmodes.client)
+@with_tag(Netmodes.client)
 class ClientInterface(ConnectionInterface):
 
     @DisconnectSignal.global_listener

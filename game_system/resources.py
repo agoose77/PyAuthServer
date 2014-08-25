@@ -78,6 +78,8 @@ class _ResourceManager(Resource):
     def __init__(self):
         self._data_path = ""
 
+        self.environment = None
+
         super().__init__(parent=None, folder="")
 
     @property

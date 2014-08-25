@@ -1,8 +1,8 @@
 from itertools import islice
 from threading import Event
 
-from opus import encoder, decoder
-from pyaudio import paInt16, PyAudio
+#from opus import encoder, decoder
+#from pyaudio import paInt16, PyAudio
 
 from .threads import SafeThread
 

@@ -5,7 +5,7 @@ from .conditions import is_simulated, is_annotatable
 from .enums import Roles
 
 
-__all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'delegate_for_netmode', 'ignore_arguments',
+__all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'with_tag', 'ignore_arguments',
            'set_annotation', 'set_annotation', 'get_annotation', 'IgnoreDescriptor', 'simulate_methods']
 
 
@@ -150,18 +150,18 @@ def get_class_tag(cls):
     return cls._tag
 
 
-def delegate_for_netmode(netmode):
-    """Create a closure decorator that marks a class as belonging to a specific netmode context
+def with_tag(value):
+    """Create a closure decorator that marks a class as belonging to a specific tag value
 
-    :param netmode: netmode that the class belongs to
-    :requires: provided netmode context
-    :returns: decorator that prohibits function execution for incorrect netmode
+    :param value: tag value that the class belongs to
+    :requires: provided tag value
+    :returns: decorator that prohibits function execution for incorrect tag
     """
     def wrapper(cls):
         if not isclass(cls):
             raise TypeError("Unable to decorate non-class types {}".format(cls))
 
-        set_class_tag(cls, netmode)
+        set_class_tag(cls, value)
 
         return cls
 

@@ -2,10 +2,10 @@ from collections import defaultdict
 from contextlib import contextmanager
 from operator import itemgetter
 
-from network.decorators import delegate_for_netmode
+from network.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.logger import logger
-from network.tagged_delegate import TaggedDelegateMeta
+from network.tagged_delegate import NetmodeDelegateMeta
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.type_register import TypeRegister
@@ -27,7 +27,7 @@ from mathutils import Vector
 __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics", "EPICExtrapolator"]
 
 
-class PhysicsSystem(TaggedDelegateMeta, SignalListener):
+class PhysicsSystem(NetmodeDelegateMeta, SignalListener):
     subclasses = {}
 
     def __init__(self, update_func, apply_func):
@@ -201,7 +201,7 @@ class PhysicsSystem(TaggedDelegateMeta, SignalListener):
         state.collision_mask = actor.collision_mask
 
 
-@delegate_for_netmode(Netmodes.server)
+@with_tag(Netmodes.server)
 class ServerPhysics(PhysicsSystem):
 
     def save_network_states(self):
@@ -218,7 +218,7 @@ class ServerPhysics(PhysicsSystem):
         self.save_network_states()
 
 
-@delegate_for_netmode(Netmodes.client)
+@with_tag(Netmodes.client)
 class ClientPhysics(PhysicsSystem):
 
     def __init__(self, *args, **kwargs):
@@ -274,7 +274,7 @@ class ClientPhysics(PhysicsSystem):
         self.extrapolate_network_states()
 
 
-@delegate_for_netmode(Netmodes.client)
+@with_tag(Netmodes.client)
 class ClienstPhysics(PhysicsSystem):
 
     def __init__(self, *args, **kwargs):
