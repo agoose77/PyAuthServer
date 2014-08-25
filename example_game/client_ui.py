@@ -11,7 +11,7 @@ from network.world_info import WorldInfo
 
 from game_system.resources import ResourceManager
 from game_system.controllers import PlayerController
-from game_system.signals import ReceiveMessage
+from game_system.signals import ConnectToSignal, ReceiveMessage
 from game_system.timer import Timer
 from game_system.math import lerp
 

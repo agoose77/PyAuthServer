@@ -29,6 +29,10 @@ class PhysicsRewindSignal(Signal):
     pass
 
 
+class ConnectToSignal(Signal):
+    pass
+
+
 class CopyStateToActor(Signal):
     pass
 

@@ -1,18 +1,15 @@
 from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
-from network.decorators import with_tag
 from network.enums import Netmodes
-from network.logger import logger
 from network.network import Network
 from network.replicable import Replicable
 from network.signals import *
 from network.world_info import WorldInfo
 
-from game_system.gameloop import ServerGameLoop,  ClientGameLoop
 from game_system.signals import *
 from game_system.timer import Timer
-from game_system.entities import Camera, Pawn
+from game_system.entities import Camera
 
 from .physics import PhysicsSystem
 
@@ -280,8 +277,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             self.clean_up()
 
 
-@with_tag("BGE")
-class Server(GameLoop, ServerGameLoop):
+class Server(GameLoop):
 
     render = True
 
@@ -292,13 +288,10 @@ class Server(GameLoop, ServerGameLoop):
         self._rewind_length = 1 * WorldInfo.tick_rate
 
     def create_network(self):
-        WorldInfo.netmode = Netmodes.server
-
         return Network("", 1200)
 
 
-@with_tag("BGE")
-class Client(GameLoop, ClientGameLoop):
+class Client(GameLoop):
 
     def quit(self):
         quit_func = super().quit
@@ -309,6 +302,8 @@ class Client(GameLoop, ClientGameLoop):
         timeout.on_target = quit_func
 
     def create_network(self):
-        WorldInfo.netmode = Netmodes.client
-
         return Network("", 0)
+
+    @ConnectToSignal.global_listener
+    def new_connection(self, addr, port):
+        self.network_system.connect_to((addr, port))

@@ -12,7 +12,6 @@ from game_system.signals import PawnKilledSignal
 from game_system.timer import Timer
 
 from game_system.entities import *
-from bge_game_system.gameloop import ServerGameLoop
 
 from .actors import *
 from .controllers import *
@@ -218,12 +217,3 @@ class TeamDeathMatch(ReplicationRulesBase):
     @ConnectionSuccessSignal.global_listener
     def update_matchmaker(self):
         self.matchmaker.poll("Test Map", self.player_limit, self.connected_players)
-
-
-class Server(ServerGameLoop):
-
-    def create_network(self):
-        network = super().create_network()
-
-        WorldInfo.rules = TeamDeathMatch(register=True)
-        return network

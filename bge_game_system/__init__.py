@@ -10,5 +10,6 @@ from .definitions import *
 from .draw_tools import *
 from .geometry import *
 from .inputs import *
+from .patch import *
 from .physics import *
-#from .gameloop import *
+from .gameloop import *

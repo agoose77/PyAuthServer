@@ -1,12 +1,8 @@
 from network.signals import Signal
 
 
-__all__ = ["ConnectToSignal", "UIWeaponDataChangedSignal", "UIWeaponChangedSignal",
-           "UIHealthChangedSignal", "TeamSelectionQuerySignal", "TeamSelectionUpdatedSignal"]
-
-
-class ConnectToSignal(Signal):
-    pass
+__all__ = ["UIWeaponDataChangedSignal", "UIWeaponChangedSignal", "UIHealthChangedSignal", "TeamSelectionQuerySignal",
+           "TeamSelectionUpdatedSignal"]
 
 
 class UIWeaponDataChangedSignal(Signal):
