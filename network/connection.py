@@ -4,7 +4,7 @@ from .type_flag import TypeFlag
 from .enums import Roles, Protocols, Netmodes
 from .handler_interfaces import get_handler
 from .logger import logger
-from .tagged_delegate import NetmodeDelegateMeta
+from .tagged_delegate import DelegateByNetmode
 from .packet import Packet, PacketCollection
 from .replicable import Replicable
 from .signals import *
@@ -24,7 +24,7 @@ def consume(iterable):
         pass
 
 
-class Connection(SignalListener, NetmodeDelegateMeta):
+class Connection(SignalListener, DelegateByNetmode):
     """Connection between loacl host and remote peer
     Represents a successful connection
     """

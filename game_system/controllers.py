@@ -49,6 +49,7 @@ class ControllerBase(Replicable):
         :param camera: camera instance
         """
         self._camera = camera
+
         camera.set_parent(self.pawn, "camera")
         camera.local_position = Vector()
 
@@ -637,8 +638,8 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
         buffer_length = WorldInfo.to_ticks(self.__class__.additional_move_buffering_latency)
 
         # Queued moves
-        self.buffered_moves = JitterBuffer(buffer_length, id_getter=attrgetter("id"),
-                                           recovery_getter=self.recover_missing_moves)
+        self.buffered_moves = JitterBuffer(int(buffer_length * 1.5), buffer_length,
+                                           on_discontinuity=self.recover_missing_moves)
 
         self.client_setup_input()
         self.client_setup_sound()
@@ -722,13 +723,13 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
         """
         ReceiveMessage.invoke(message_string)
 
-    def recover_missing_moves(self, previous_move, move):
+    def recover_missing_moves(self, previous_id, next_id):
         """Jitter buffer callback to find missing moves using move history
 
         :param move: next move
         :param previous_move: last valid move
         """
-        required_ids = list(range(previous_move.id + 1, move.id))
+        required_ids = list(range(previous_id + 1, next_id))
         recovered_moves = []
 
         # Search every move history to find missing moves!
@@ -786,8 +787,8 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
 
         :param oldest_id: oldest stored move ID
         """
-        # Search from current oldest history to newest move
-        for search_id in range(self.move_history_base, self.buffered_moves[0].id):
+        # Search from current oldest history to oldest move
+        for search_id in range(self.move_history_base, oldest_id):
             if not search_id in self.move_history_dict:
                 continue
 
@@ -811,7 +812,7 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
         """Store a client move for later processing and clock validation"""
 
         # Store move
-        self.buffered_moves.insert(move)
+        self.buffered_moves.insert(move.id, move)
 
         # Could optimise using an increment and try-pop
         if previous_moves is None:
@@ -823,7 +824,7 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
             self.move_history_base = move.id
 
         else:
-            oldest_id = self.buffered_moves[0].id
+            oldest_id, _ = self.buffered_moves[0]
 
             if self.move_history_base < oldest_id:
                 self.server_cull_excess_history(oldest_id)
@@ -850,18 +851,18 @@ class PlayerControllerBase(ControllerBase, NetworkLocksMixin):
     def update(self, delta_time):
         """Validate client clock and apply moves
 
-        :param delta_time: elapsed time since last update"""
+        :param delta_time: elapsed time since last update
+        """
 
-        buffered_move = self.buffered_moves.read_next()
+        try:
+            move_id, buffered_move = self.buffered_moves.popitem()
+
+        except ValueError:
+            logger.exception("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
+            return
 
         if not self.pawn:
             return
-
-        if buffered_move is None:
-            logger.error("No move was received from {} in time for tick {}!".format(self, WorldInfo.tick))
-            return
-
-        move_id = buffered_move.id
 
         # Process any buffered locks
         self.update_buffered_locks(move_id)

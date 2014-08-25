@@ -5,7 +5,7 @@ from operator import itemgetter
 from network.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.logger import logger
-from network.tagged_delegate import NetmodeDelegateMeta
+from network.tagged_delegate import DelegateByNetmode
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.type_register import TypeRegister
@@ -27,7 +27,7 @@ from mathutils import Vector
 __all__ = ["PhysicsSystem", "ServerPhysics", "ClientPhysics", "EPICExtrapolator"]
 
 
-class PhysicsSystem(NetmodeDelegateMeta, SignalListener):
+class PhysicsSystem(DelegateByNetmode, SignalListener):
     subclasses = {}
 
     def __init__(self, update_func, apply_func):
@@ -252,7 +252,7 @@ class ClientPhysics(PhysicsSystem):
     def on_physics_replicated(self, timestamp, position, velocity, target):
         if type(target).type_name != "Barrel":
             return
-        print(position, timestamp)
+
         if not hasattr(target, "f"):
             target.f = target.object.scene.addObject("Flag", target.object)
 

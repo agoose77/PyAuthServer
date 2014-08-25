@@ -5,257 +5,148 @@ from .sorted_collection import SortedCollection
 __all__ = ["JitterBuffer"]
 
 
-class JitterBfuffer:
+class JitterBuffer:
 
-    def __init__(self, length, soft_overflow=True, id_getter=None, recovery_getter=None, maximum_length=None):
-        self.minimum_length = length
-        self.maximum_length = maximum_length or round(self.minimum_length * 2.5)
+    def __init__(self, max_length, full_length, on_discontinuity=None):
+        self.highest_inserted_index = -1
+        self.last_read_index = -1
+        self.last_read_item = None
 
-        self._index = None
-        self._buffer = [None] * self.maximum_length
-        self._valid_items = 0
+        self.just_inserted = False
 
-        self.on_filled = None
-        self.on_empty = None
+        self._buffer = [None] * max_length
+        self.max_length = max_length
+        self.full_length = full_length
 
-        self._previous_item = None
-        self._recover_previous = recovery_getter
+        self._filling = True
+        self._length = 0
 
-        self._get_id = id_getter
-        self._soft_overflow = soft_overflow
-
-        self._previous_item = None
-        self.base_index = 0
-        self.base_id = None
-
-    def __bool__(self):
-        return self.readable_items != 0
+        self._on_discontinuity = on_discontinuity
 
     def __len__(self):
-        return self.readable_items
+        return self._length
+
+    def __bool__(self):
+        return not self._filling
 
     def __getitem__(self, index):
-        readable_items = self.readable_items
-        maximum_length = self.maximum_length
+        index_ = (self.last_read_index + 1 + index) % self.max_length
+        return self._buffer[index_]
+
+    def insert(self, key, value):
+        # Last read item
+        max_length = self.max_length
+
+        base_item = self._buffer[self.highest_inserted_index]
+
+        # If exhausted all items, first insert
+        if not self.just_inserted and self._filling:
+            insert_index = 0
+            self.last_read_index = -1
+            self.last_read_item = None
+
+        # Insert according to the base read key
+        else:
+            try:
+                insert_offset = key - base_item[0]
+            except TypeError:
+                print(self._buffer, key, self.highest_inserted_index)
+                import bge;bge.logic.endGame()
+            insert_index = (self.highest_inserted_index + insert_offset) % max_length
 
-        if self._index is None:
-            raise ValueError("Buffer cannot be read from whilst filling")
+        # Get reading data
+        last_read_index = self.last_read_index
+        next_read_index = (last_read_index + 1) % max_length
 
-        if isinstance(index, slice):
-            start, stop, step = index.indices(readable_items)
+        # If we hit the full index after successive fill operations, stop filling
+        if self.just_inserted:
+            # If we are filling from empty
+            if insert_index == (self.full_length - 1):
+                self._filling = False
 
-            buffer = self._buffer
-            start_index = self._index
+            # If the next read is at the last insertion
+            elif insert_index == next_read_index:
+                self.last_read_index = insert_index
+                self.last_read_item = (key, value)
 
-            indices = range(start, min(readable_items, stop), step)
-            return [buffer[start_index + (i % maximum_length)] for i in indices]
+        # Used to mark successive insert operations (before reads)
+        self.just_inserted = True
 
-        if index >= readable_items:
-            raise IndexError("Buffer index {} out of range".format(index))
+        # If this is a newer insert
+        last_inserted = self._buffer[self.highest_inserted_index]
+        if not (last_inserted and last_inserted[0] > key):
+            self.highest_inserted_index = insert_index
 
-        return self._buffer[self._index + (index % maximum_length)]
+        self._buffer[insert_index] = key, value
+        self._length += 1
 
-    def __setitem__(self, index, value):
-        writeable_items = self.readable_items
+    def popitem(self):
+        if self._filling:
+            raise ValueError("Buffer is filling")
 
-        if self._index is None:
-            raise ValueError("Buffer cannot be written to whilst filling")
+        last_read_index = self.last_read_index
+        last_insert_index = self.highest_inserted_index
+        buffer = self._buffer
 
-        if isinstance(index, slice):
-            start, stop, step = index.indices(writeable_items)
-            iterable = iter(value)
+        # Read index
+        read_index = (last_read_index + 1) % self.max_length
 
-            maximum_length = self.maximum_length
-            buffer = self._buffer
+        # This is a read operation
+        if self.just_inserted:
+            self.just_inserted = False
 
-            indices = range(start, min(writeable_items, stop), step)
-            for i, value in zip(indices, iterable):
-                index = i % maximum_length
-                buffer[index] = value
+        # If we have already read into the last inserted item
+        elif read_index == last_insert_index:
+            self._filling = True
 
-        if index >= writeable_items:
-            raise IndexError("Buffer index {} out of range".format(index))
+        # Read item from buffer
+        read_item = buffer[read_index]
 
-        self._buffer[index % self.maximum_length] = value
+        # Find missing item!
+        if read_item is None:
+            # Handle discontinuity
+            if callable(self._on_discontinuity):
+                # If we recovered some moves
+                if self.recover_discontinuity(read_index):
+                    return self.popitem()
 
-    def __str__(self):
-        delimited_contents = ", ".join(str(x) for x in self[:])
-        return "Jitter Buffer: [{}]".format(delimited_contents)
+            raise ValueError("Discontinuous buffer")
 
-    def _handle_for_missing_items(self, previous_item):
-        next_item = self._get_next_valid_item()
+        # Read was valid
+        self._length -= 1
 
-        if next_item is None:
-            return
+        self.last_read_index = read_index
+        self.last_read_item = read_item
 
-        next_id = self._get_id(next_item)
-        previous_id = self._get_id(previous_item)
+        buffer[read_index] = None
 
-        if next_id < previous_id:
-            return
+        return read_item
 
-        recovered_moves = self._recover_moves(previous_item, next_item)
-        if not recovered_moves:
-            return
+    def recover_discontinuity(self, read_index):
+        buffer = self._buffer
+        max_length = self.max_length
+        last_item = self.last_read_item
 
-        for move in reversed(recovered_moves):
-            self.insert(move)
+        # Fast forward to next item
+        read_item = buffer[(read_index + 1) % max_length]
+        while read_item is None:
+            read_item = buffer[(read_index + 1) % max_length]
 
-        return move
+        # Recover items
+        insert = self.insert
+        recovered = self._on_discontinuity(last_item, read_item)
 
-    def _on_empty(self):
-        """Internal dispatcher for emptied event"""
-        emptied_callback = self.on_empty
-        if emptied_callback is not None:
-            emptied_callback()
+        if recovered:
+            last_read_index = self.last_read_index
+            for key, value in recovered:
+                insert(key, value)
 
-    def _on_filled(self):
-        """Internal dispatcher for filled event"""
-        filled_callback = self.on_filled
-        if filled_callback is not None:
-            filled_callback()
+            self.last_read_index = last_read_index
 
-    def _set_filling(self):
-        """Set the index to None, causing the filling attribute to return True"""
-        self._index = None
-        self.base_index = 0
-        self.base_id = None
+        return bool(recovered)
 
-    def _set_next_index(self):
-        """Increment the internal index
 
-         If the index is out of bounds, wrap around
-         """
-        self._index = (self._index + 1) % self.maximum_length
-
-    def _get_next_valid_item(self):
-        maximum_length = self.maximum_length
-        offset = self._index
-
-        for i in range(self.maximum_length):
-            next_index = (i + offset) % maximum_length
-            next_item = self._buffer[next_index]
-
-            if next_item is not None:
-                return next_item
-
-    def _get_overflow_offset(self, index):
-        """Determine the minimum offset required to accomodate index
-
-        :param index: out of bounds index
-        """
-        return (self.maximum_length - index) + 1
-
-    def _fast_forward_index(self, offset):
-        """Move the internal index to account for overflow
-
-        :param index: lookup index
-        """
-        for i in range(offset):
-            self._set_next_index()
-
-    def _recover_moves(self, previous_move, next_move):
-        recover_previous = self._recover_previous
-        if recover_previous is None:
-            return None
-
-        # Make recovery
-        return recover_previous(previous_move, next_move)
-
-    @property
-    def filling(self):
-        return self._index is None
-
-    @property
-    def readable_items(self):
-        return min(self.minimum_length, self._valid_items)
-
-    def clear(self):
-        """Mark the buffer as cleared"""
-        self._set_filling()
-        self._valid_items = 0
-
-    def insert(self, item):
-        """Insert an item into the jitter buffer, respecting its ID for sorting
-
-        :param item: item to insert
-        """
-        has_items = self._valid_items != 0
-
-        identifier = self._get_id(item)
-
-        if self.base_id is None:
-            self.base_id = identifier
-
-        insertion_base = self.base_index
-        base = self.base_id
-
-        insertion_index = identifier - base
-
-        if insertion_index >= self.maximum_length:
-
-            if not self._soft_overflow:
-                raise ValueError("Item ID {} is too far from base {}".format(identifier, base))
-
-            # Determine the amount of overflow and fast forward
-            overflow = self._get_overflow_offset(insertion_index)
-            insertion_index += overflow
-
-            print("OVERFLOW")
-
-            self._fast_forward_index(overflow)
-
-        buffer_index = (insertion_index + insertion_base) % self.maximum_length
-
-        self._buffer[buffer_index] = item
-        self._valid_items += 1
-
-        # When we are refilled, reset the lookup
-        if self.filling and self._valid_items >= self.minimum_length:
-            self._index = 0
-            # Notify any interested parties
-            self._on_filled()
-
-    def read_next(self):
-        """Read the first item in the buffer and move to the next item"""
-        if self.filling:
-            return
-
-        # Increment our lookup index
-        index = self._index
-        self._set_next_index()
-
-        item = self._buffer[index]
-
-        # Recover missing items
-        if item is None:
-            previous_item = self._previous_item
-
-            if previous_item is not None:
-                item = self._handle_for_missing_items(previous_item)
-
-        # Allow recovery to return an item
-        if item is not None:
-            self._previous_item = item
-            self.base_id = self._get_id(item)
-            self.base_index = index
-
-            # Consume an item
-            self._valid_items -= 1
-
-            # If we cannot remove any more items after this call
-            if not self._valid_items:
-                # Mark the filling state
-                self._set_filling()
-                # Notify any interested parties
-                self._on_empty()
-
-        self._buffer[index] = None
-
-        return item
-
-
-class JitterBuffer:
+class JitterBuffer_:
     """Interface for reordering and recovering temporally inconsistent data"""
 
     def __init__(self, length, id_getter=None, recovery_getter=None, maximum_length=None):

@@ -8,7 +8,7 @@ from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
 from .logger import logger
-from .tagged_delegate import NetmodeDelegateMeta
+from .tagged_delegate import DelegateByNetmode
 from .packet import Packet, PacketCollection
 from .signals import *
 from .world_info import WorldInfo
@@ -20,7 +20,7 @@ from time import monotonic
 __all__ = ["ConnectionInterface", "ClientInterface", "ServerInterface"]
 
 
-class ConnectionInterface(NetmodeDelegateMeta, metaclass=InstanceRegister):
+class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
     """Interface for remote peer
 
     Mediates a connection instance between local and remote peer

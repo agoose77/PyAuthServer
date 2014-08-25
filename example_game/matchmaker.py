@@ -22,7 +22,7 @@ class URLThread(SafeThread):
         with self.slave.guarded_request() as task:
             if task is None:
                 return
-            print(task)
+
             callback, data, url = task
             request_obj = request.Request(url, data=data)
             response_obj = request.urlopen(request_obj)

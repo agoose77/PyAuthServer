@@ -5,7 +5,7 @@ from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handler_interfaces import static_description, get_handler
 from .logger import logger
-from .tagged_delegate import NetmodeDelegateMeta
+from .tagged_delegate import DelegateByNetmode
 from .replicable import Replicable
 
 from functools import partial
@@ -14,7 +14,7 @@ from time import monotonic
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
-class Channel(NetmodeDelegateMeta):
+class Channel(DelegateByNetmode):
     """Channel for replication information
     Belongs to an instance of Replicable and a connection"""
 
