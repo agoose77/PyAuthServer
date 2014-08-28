@@ -9,7 +9,7 @@ from .ai.behaviour_tree import BehaviourTree
 from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
-from .enums import Axis, CameraMode, CollisionGroups, CollisionType
+from .enums import Axis, CameraMode, CollisionGroups, CollisionState
 from .math import mean
 from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
@@ -120,7 +120,7 @@ class Actor(Entity, Replicable):
         self.network_position = self.physics.world_position.copy()
         self.network_angular = self.physics.world_angular.copy()
         self.network_velocity = self.physics.world_velocity.copy()
-        self.network_orientation = self.physics.world_rotation.copy()
+        self.network_orientation = self.physics.world_orientation.copy()
         self.network_collision_group = self.physics.collision_group
         self.network_collision_mask = self.physics.collision_mask
         self.network_replication_time = WorldInfo.elapsed
@@ -165,9 +165,9 @@ class Actor(Entity, Replicable):
             self.physics.world_angular = self.network_angular
 
         elif name == "network_orientation":
-            current_rotation = self.physics.world_rotation.to_quaternion()
+            current_rotation = self.physics.world_orientation.to_quaternion()
             new_rotation = self.network_orientation.to_quaternion()
-            self.physics.world_rotation = current_rotation.slerp(new_rotation, 0.3)
+            self.physics.world_orientation = current_rotation.slerp(new_rotation, 0.3)
 
         elif name == "network_position":
             self.on_replicated_physics(self.network_position, self.network_velocity, self.network_replication_time)
@@ -323,10 +323,10 @@ class Projectile(Actor):
     @CollisionSignal.listener
     @simulated
     def on_collision(self, collision_result):
-        if not (collision_result.collision_type == CollisionType.started and self.in_flight):
+        if not (collision_result.state == CollisionState.started and self.in_flight):
             return
 
-        if isinstance(collision_result.hit_object, Pawn):
+        if isinstance(collision_result.entity, Pawn):
             self.server_deal_damage(collision_result)
 
         self.request_unregistration()
@@ -344,13 +344,13 @@ class Projectile(Actor):
         instigator = weapon.owner
 
         # Calculate hit information
-        hit_normal = mean(c.hit_normal for c in collision_result.hit_contacts).normalized()
-        hit_position = mean(c.hit_position for c in collision_result.hit_contacts)
+        hit_normal = mean(c.normal for c in collision_result.contacts).normalized()
+        hit_position = mean(c.position for c in collision_result.contacts)
         hit_velocity = self.physics.world_velocity.dot(hit_normal) * hit_normal
         hit_momentum = self.mass * hit_velocity
 
         ActorDamagedSignal.invoke(weapon.base_damage, instigator, hit_position, hit_momentum,
-                                  target=collision_result.hit_object)
+                                  target=collision_result.entity)
 
 
 class WeaponAttachment(Actor):
