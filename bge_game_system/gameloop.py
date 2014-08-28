@@ -68,16 +68,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         print("Network initialised")
 
-    @property
-    def scenes(self):
-        """Generator sets current scene before yielding item
-
-        :yields: KX_Scene instance"""
-        for scene in logic.getSceneList():
-            self.set_current_scene(scene)
-
-            yield scene
-
     @contextmanager
     def profile_as(self, context_profile):
         """Restores original profile after context collapses
@@ -237,7 +227,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
                 WorldInfo.update_clock(step_time)
 
                 # Update all scenes
-                for scene in self.scenes:
+                for scene in logic.getSceneList():
+                    self.set_current_scene(scene)
+
                     self.update_scene(scene, step_time)
 
                 # End of frame updates
@@ -287,13 +279,15 @@ class Server(GameLoop):
         self._rewind_data = OrderedDict()
         self._rewind_length = 1 * WorldInfo.tick_rate
 
-    def create_network(self):
+    @staticmethod
+    def create_network():
         return Network("", 1200)
 
 
 class Client(GameLoop):
 
     def quit(self):
+        """Gracefully quit server"""
         quit_func = super().quit
         # Try and quit gracefully
         DisconnectSignal.invoke(quit_func)
@@ -301,9 +295,10 @@ class Client(GameLoop):
         timeout = Timer(0.6)
         timeout.on_target = quit_func
 
-    def create_network(self):
+    @staticmethod
+    def create_network():
         return Network("", 0)
 
     @ConnectToSignal.global_listener
-    def new_connection(self, addr, port):
-        self.network_system.connect_to((addr, port))
+    def new_connection(self, address, port):
+        self.network_system.connect_to((address, port))
