@@ -7,14 +7,14 @@ from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
 
 from game_system.definitions import ComponentLoader
-from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionType, PhysicsType
+from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
 from mathutils import Vector
 
-RayTestResult = namedtuple("RayTestResult", "hit_position hit_normal hit_object distance")
-CollisionResult = namedtuple("CollisionResult", "hit_object collision_type hit_contacts")
-CollisionContact = namedtuple("CollisionContact", "hit_position hit_normal hit_impulse hit_force")
+RayTestResult = namedtuple("RayTestResult", "position normal entity distance")
+CollisionResult = namedtuple("CollisionResult", "entity state contacts")
+CollisionContact = namedtuple("CollisionContact", "position normal impulse force")
 
 
 def documentation():
@@ -94,6 +94,14 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
         return component._entity
 
     @property
+    def collision_group(self):
+        return self._obj.collisionGroup
+
+    @property
+    def collision_mask(self):
+        return self._obj.collisionMask
+
+    @property
     def physics(self):
         """The physics type of this object
 
@@ -116,6 +124,14 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
     @world_velocity.setter
     def world_velocity(self, velocity):
         self._obj.worldLinearVelocity = velocity
+
+    @property
+    def world_angular(self):
+        return self._obj.worldLinearVelocity
+
+    @world_angular.setter
+    def world_angular(self, velocity):
+        self._obj.worldAngularVelocity = velocity
 
     @property
     def world_orientation(self):
@@ -155,7 +171,7 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
             self._dispatched_entities.add(hit_entity)
 
         hit_contacts = self._convert_contacts(data)
-        result = CollisionResult(hit_entity, CollisionType.started, hit_contacts)
+        result = CollisionResult(hit_entity, CollisionState.started, hit_contacts)
 
         CollisionSignal.invoke(result, target=self._entity)
 
@@ -169,7 +185,7 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
             return
 
         callback = CollisionSignal.invoke
-        ended_collision = CollisionType.ended
+        ended_collision = CollisionState.ended
 
         entity = self._entity
         for obj in ended_collisions:
@@ -220,10 +236,10 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
             return None
 
         hit_bge_object, hit_position, hit_normal = result
-        hit_object = self.entity_from_object(hit_bge_object)
+        hit_entity = self.entity_from_object(hit_bge_object)
         hit_distance = (hit_position - source).length
 
-        return RayTestResult(hit_position, hit_normal, hit_object, hit_distance)
+        return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
 
 @with_tag("animation")
