@@ -98,8 +98,8 @@ class IterableHandler:
 
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
-        compression_type = static_value.data.get("compression", IterableCompressionType.no_compress)
-        supports_rle = not self.__class__.unique_members
+        compression_type = static_value.data.get("compression", IterableCompressionType.auto)
+        supports_compression = not self.__class__.unique_members
 
         # Select best compression method
         if compression_type == IterableCompressionType.auto:
@@ -107,7 +107,7 @@ class IterableHandler:
             self.unpack_from = self.auto_unpack_from
             self.size = self.auto_size
 
-        elif compression_type == IterableCompressionType.compress and supports_rle:
+        elif compression_type == IterableCompressionType.compress and supports_compression:
             self.pack = self.compressed_pack
             self.unpack_from = self.compressed_unpack_from
             self.size = self.compressed_size
@@ -185,19 +185,18 @@ class IterableHandler:
 
         # Unfortunate special boolean case
         if self.element_type != bool:
-            data = []
-            append = data.append
-
-            for length, key in encoded_pairs:
-                append(pack_length(length))
-                append(pack_key(key))
+            packed = [(pack_length(length), pack_key(key)) for length, key in encoded_pairs]
+            data = [x for y in packed for x in y]
 
         else:
+
             if encoded_pairs:
                 lengths, keys = zip(*encoded_pairs)
                 data = [pack_length(length) for length in lengths]
+
                 bitfield = BitField.from_iterable(keys)
                 data.insert(0, self.bitfield_packer.pack(bitfield))
+
             else:
                 data = []
 
@@ -212,16 +211,13 @@ class IterableHandler:
         elements_count, count_size = count_unpacker(bytes_string, offset)
         element_unpack = self.element_packer.unpack_from
 
-        elements = self.iterable_cls()
-        update_elements = self.__class__.iterable_update
-
         original_offset = offset
         offset += count_size
 
         element_list = []
         extend_elements = element_list.extend
 
-        if self.element_type == bool:
+        if self.element_type is bool:
             if elements_count:
                 bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
                 offset += bitfield_size
@@ -244,8 +240,7 @@ class IterableHandler:
 
                 extend_elements([element] * repeat)
 
-        update_elements(elements, element_list)
-
+        elements = self.iterable_cls(element_list)
         return elements, offset - original_offset
 
     def compressed_size(self, bytes_string):
@@ -260,7 +255,7 @@ class IterableHandler:
         total_size = count_size
 
         # Faster unpacking
-        if self.element_type == bool:
+        if self.element_type is bool:
             if elements_count:
                 bitfield_size = self.bitfield_packer.size(data)
                 total_size += bitfield_size + count_size * elements_count
@@ -283,6 +278,10 @@ class IterableHandler:
 
         :param iterable: iterable to pack
         """
+        if self.element_type is bool:
+            bitfield = BitField.from_iterable(iterable)
+            return self.bitfield_packer.pack(bitfield)
+
         element_pack = self.element_packer.pack
         element_count = self.count_packer.pack(len(iterable))
         packed_elements = b''.join([element_pack(x) for x in iterable])
@@ -294,6 +293,10 @@ class IterableHandler:
 
         :param bytes_string: incoming bytes offset to packed_iterable start
         """
+        if self.element_type is bool:
+            bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
+            return self.iterable_cls(bitfield), bitfield_size
+
         element_count, count_size = self.count_packer.unpack_from(bytes_string, offset)
 
         element_get_size = self.element_packer.size
