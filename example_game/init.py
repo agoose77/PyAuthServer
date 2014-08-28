@@ -13,6 +13,5 @@ def init_server():
 
 
 def init_client():
-    ui = FPSSystem()
+    WorldInfo.ui = FPSSystem() # Global reference to persist
     WorldInfo.netmode = Netmodes.client
-    WorldInfo.rules = TeamDeathMatch(register=True)

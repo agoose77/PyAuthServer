@@ -297,7 +297,7 @@ class FindCeiling(LeafNode):
         if not hit_result:
             return EvaluationState.failure
 
-        blackboard['ceiling'] = hit_result.hit_position
+        blackboard['ceiling'] = hit_result.position
 
 
 class IsWalking(ConditionNode):
@@ -319,8 +319,7 @@ class PlayAnimation(LeafNode):
 
     def on_enter(self, blackboard):
         pawn = blackboard['pawn']
-        pawn.play_animation(self._name, self._start,
-                            self._end, **self._kwargs)
+        pawn.animaion.play_animation(self._name, self._start, self._end, **self._kwargs)
 
     def evaluate(self, blackboard):
         pawn = blackboard['pawn']
@@ -345,7 +344,7 @@ class StopAnimation(LeafNode):
 
     def on_enter(self, blackboard):
         pawn = blackboard['pawn']
-        pawn.stop_animation(**self._kwargs)
+        pawn.animation.stop_animation(**self._kwargs)
 
     def evaluate(self, blackboard):
         return EvaluationState.success
@@ -412,7 +411,7 @@ class InvokeSignal(LeafNode):
 class AimAtActor(LeafNode):
 
     def get_target_position(self, blackboard):
-        return blackboard['actor'].world_position
+        return blackboard['actor'].physics.world_position
 
     def evaluate(self, blackboard):
         camera = blackboard['camera']
@@ -420,7 +419,7 @@ class AimAtActor(LeafNode):
 
         target = self.get_target_position(blackboard)
 
-        target_vector = (target - camera.world_position).normalized()
+        target_vector = (target - camera.physics.world_position).normalized()
         turn_speed = 0.1
 
         camera.align_to(target_vector, factor=turn_speed)
@@ -438,7 +437,7 @@ class WithinAttackRange(ConditionNode):
 
     def condition(self, blackboard):
 
-        return ((blackboard['actor'].world_position - blackboard['pawn'].world_position)
+        return ((blackboard['actor'].physics.world_position - blackboard['pawn'].physics.world_position)
                 .length <= blackboard['weapon'].maximum_range)
 
 
@@ -547,7 +546,7 @@ class GetNavmesh(LeafNode):
 class FindVisibleActor(LeafNode):
 
     def get_distance(self, pawn, actor):
-        return (pawn.world_position - actor.world_position).length
+        return (pawn.physics.world_position - actor.physics.world_position).length
 
     def on_enter(self, blackboard):
         found_actors = []
@@ -624,7 +623,7 @@ class MoveToActor(LeafNode):
         return blackboard['actor']
 
     def get_target_position(self, target):
-        return target.world_position
+        return target.physics.world_position
 
     def on_exit(self, blackboard):
         try:
@@ -645,13 +644,13 @@ class MoveToActor(LeafNode):
         pawn = blackboard['pawn']
         target = self.get_target(blackboard)
 
-        path = blackboard['navmesh'].find_path(pawn.world_position, self.get_target_position(target))
+        path = blackboard['navmesh'].find_path(pawn.physics.world_position, self.get_target_position(target))
 
         if not path:
             return EvaluationState.failure
 
         while path:
-            to_target = (path[0] - pawn.world_position)
+            to_target = (path[0] - pawn.physics.world_position)
             to_target.z = 0
 
             if to_target.magnitude < self.tolerance:

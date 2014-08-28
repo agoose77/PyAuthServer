@@ -129,8 +129,8 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
             print("Loaded {}".format(actor))
             found_actors[obj] = actor
 
-            actor.world_position = obj.worldPosition.copy()
-            actor.world_rotation = obj.worldOrientation.to_euler()
+            actor.physics.world_position = obj.worldPosition.copy()
+            actor.physics.world_orientation = obj.worldOrientation.to_euler()
 
             if isinstance(actor, Pawn):
                 self.create_pawn_controller(actor, obj)
@@ -176,25 +176,26 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
 
         :param source_state: State to copy from
         :param target_state: State to copy to"""
-        actor.world_position = state.position.copy()
-        actor.world_velocity = state.velocity.copy()
-        actor.world_angular = state.angular.copy()
-        actor.world_rotation = state.rotation.copy()
-        actor.collision_group = state.collision_group
-        actor.collision_mask = state.collision_mask
+        actor.physics.world_position = state.position.copy()
+        actor.physics.world_velocity = state.velocity.copy()
+        actor.physics.world_angular = state.angular.copy()
+        actor.physics.world_orientation = state.rotation.copy()
+        actor.physics.collision_group = state.collision_group
+        actor.physics.collision_mask = state.collision_mask
 
     @CopyActorToState.global_listener
     def copy_to_state(self, actor, state):
         """Copy state information from source to target
 
         :param source_state: State to copy from
-        :param target_state: State to copy to"""
-        state.position = actor.world_position.copy()
-        state.velocity = actor.world_velocity.copy()
-        state.angular = actor.world_angular.copy()
-        state.rotation = actor.world_rotation.copy()
-        state.collision_group = actor.collision_group
-        state.collision_mask = actor.collision_mask
+        :param target_state: State to copy to
+        """
+        state.position = actor.physics.world_position.copy()
+        state.velocity = actor.physics.world_velocity.copy()
+        state.angular = actor.physics.world_angular.copy()
+        state.rotation = actor.physics.world_orientation.copy()
+        state.collision_group = actor.physics.collision_group
+        state.collision_mask = actor.physics.collision_mask
 
 
 @with_tag(Netmodes.server)
@@ -226,16 +227,16 @@ class ClientPhysics(PhysicsSystem):
         """Apply state from extrapolators to replicated actors"""
         current_time = WorldInfo.elapsed
         simulated_proxy = Roles.simulated_proxy
-        for replicable, extrapolator in self._extrapolators.items():
+        for actor, extrapolator in self._extrapolators.items():
             result = extrapolator.read_sample(current_time)
 
-            if replicable.roles.local != simulated_proxy:
+            if actor.roles.local != simulated_proxy:
                 continue
 
             position, velocity = result
 
-            replicable.world_position = position
-            replicable.world_velocity = velocity
+            actor.physics.world_position = position
+            actor.physics.world_velocity = velocity
 
     def spawn_actor(self, lookup, name, type_of):
         """Overrides spawning for clients to ensure only static actors spawn"""
@@ -252,9 +253,9 @@ class ClientPhysics(PhysicsSystem):
         if not hasattr(target, "f"):
             target.f = target.object.scene.addObject("Flag", target.object)
 
-        target.f.worldPosition=position
+        target.f.worldPosition = position
         extrapolator = self._extrapolators[target]
-        extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.world_position, position, velocity)
+        extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.physics.world_position, position, velocity)
 
     @ReplicableUnregisteredSignal.global_listener
     def on_replicable_unregistered(self, target):
@@ -297,8 +298,8 @@ class ClienstPhysics(PhysicsSystem):
                 continue
             position, velocity = result
 
-            replicable.world_position = position
-            replicable.world_velocity = velocity
+            replicable.physics.world_position = position
+            replicable.physics.world_velocity = velocity
 
     def spawn_actor(self, lookup, name, type_of):
         """Overrides spawning for clients to ensure only static actors spawn"""

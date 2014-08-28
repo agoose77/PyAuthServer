@@ -4,7 +4,7 @@ from network.replicable import Replicable
 
 from game_system.ai.behaviour_tree import SequenceNode
 from game_system.controllers import AIController, PlayerController
-from game_system.enums import CollisionType
+from game_system.enums import CollisionState
 from game_system.signals import *
 
 from .actors import CTFFlag
@@ -42,10 +42,10 @@ class CTFPlayerController(PlayerController):
 
     @CollisionSignal.listener
     def on_collision(self, collision_result):
-        target = collision_result.hit_object
+        target = collision_result.entity
 
         # We need a valid collision
-        if not (target and collision_result.collision_type == CollisionType.started):
+        if not (target and collision_result.state == CollisionState.started):
             return
 
         # If we can pick it up

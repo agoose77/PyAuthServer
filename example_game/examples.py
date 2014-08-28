@@ -7,7 +7,7 @@ from network.type_flag import TypeFlag
 from network.enums import Roles, Netmodes
 from bge_game_system.actors import Actor
 from game_system.signals import CollisionSignal
-from game_system.enums import CollisionType
+from game_system.enums import CollisionState
 
 import aud
 
@@ -77,6 +77,6 @@ class Cube(Actor):
 
     @CollisionSignal.listener
     def on_collided(self, collision_result):
-        if collision_result.collision_type == CollisionType.started:
+        if collision_result.state == CollisionState.started:
             self.play_sound()
             self.handle_damage()

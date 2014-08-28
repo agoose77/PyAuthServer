@@ -88,11 +88,12 @@ class TraceWeapon(Weapon):
             return
 
         # But don't damage our owner!
-        replicable = hit_result.hit_object
+        replicable = hit_result.entity
+        # TODO input code needs refactoring
         if replicable is self.owner.pawn:
             return
 
-        hit_position = hit_result.hit_position
+        hit_position = hit_result._position
         hit_vector = (hit_position - camera_position)
 
         falloff = square_falloff(camera_position, self.maximum_range, hit_position, self.effective_range)
@@ -122,9 +123,9 @@ class ProjectileWeapon(Weapon):
 
         forward_vector = camera.physics.get_direction(Axis.y)
         projectile_vector = self.projectile_velocity.copy()
-        projectile_vector.rotate(camera.world_rotation)
+        projectile_vector.rotate(camera.physics.world_orientation)
 
-        projectile.world_position = camera.world_position + forward_vector * 6.0
-        projectile.world_rotation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
-        projectile.local_velocity = self.projectile_velocity
-        projectile.possessed_by(self)
+        projectile.physics.world_position = camera.physics.world_position + forward_vector * 6.0
+        projectile.physics.world_orientation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
+        projectile.physics.local_velocity = self.projectile_velocity
+        projectile.physics.possessed_by(self)

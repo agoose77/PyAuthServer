@@ -7,7 +7,7 @@ from network.replicable import Replicable
 
 from game_system.entities import Actor, Camera, Pawn, Projectile, WeaponAttachment
 from game_system.controllers import PlayerController
-from game_system.enums import Axis, CollisionType
+from game_system.enums import Axis, CollisionState
 from game_system.signals import BroadcastMessage, CollisionSignal, LogicUpdateSignal, PawnKilledSignal
 from game_system.timer import Timer
 from game_system.math import lerp
@@ -16,7 +16,7 @@ from .enums import TeamRelation
 from .signals import UIHealthChangedSignal
 
 
-__all__ = ["ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag", "Cone", "Palette", "SpawnPoint"]
+__all__ = ["TestBox", "ArrowProjectile", "Barrel", "BowAttachment", "CTFPawn", "CTFFlag", "Cone", "Palette", "SpawnPoint"]
 
 
 class CameraAnimationActor(Camera):
@@ -66,12 +66,12 @@ class ArrowProjectile(Projectile):
         if not weapon:
             return
 
-        hit_object = collision_result.hit_object
-        if not isinstance(hit_object, Pawn):
+        hit_entity = collision_result.entity
+        if not isinstance(hit_entity, Pawn):
             return
 
         # Get pawn's team
-        pawn_team = hit_object.info.team
+        pawn_team = hit_entity.info.team
 
         # Get weapon's owner (controller)
         instigator = weapon.owner
@@ -94,13 +94,14 @@ class Barrel(Actor):
     @requires_netmode(Netmodes.client)
     @simulated
     def on_collision(self, collision_result):
-        if not collision_result.collision_type == CollisionType.started:
+        if not collision_result.state == CollisionState.started:
             return
 
         player_controller = PlayerController.get_local_controller()
 
         collision_sound = self.resources['sounds']['clang.mp3']
-        player_controller.hear_sound(collision_sound, self.world_position, self.world_rotation, self.world_velocity)
+        player_controller.hear_sound(collision_sound, self.physics.world_position, self.physics.world_orientation,
+                                     self.physics.world_velocity)
 
 
 class BowAttachment(WeaponAttachment):
@@ -243,12 +244,12 @@ class CTFFlag(Actor):
         timer_progress = self._position_timer.progress
         divided_position = (1 + sin(radians(360 * timer_progress)))/2
 
-        floor_ray = self.trace_ray(self.world_position - self.get_direction(Axis.z), distance=100)
-        if floor_ray is None:
+        ray_result = self.trace_ray(self.physics.world_position - self.physics.get_direction(Axis.z), distance=100)
+        if ray_result is None:
             return
 
         relative_position_z = lerp(self.floor_offset_minimum, self.floor_offset_maximum, divided_position)
-        self.world_position = floor_ray.hit_position + floor_ray.hit_normal * relative_position_z
+        self.physics.world_position = ray_result.position + ray_result.normal * relative_position_z
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -267,10 +268,20 @@ class Palette(Actor):
 
 class SpawnPoint(Actor):
 
-    roles = Roles(Roles.authority,
-                              Roles.none)
+    roles = Roles(Roles.authority, Roles.none)
 
     entity_name = "SpawnPoint"
+
+
+class TestBox(Actor):
+
+    roles = Roles(Roles.authority, Roles.simulated_proxy)
+
+    @LogicUpdateSignal.global_listener
+    def update(self, delta_time):
+        orientation = self.physics.world_orientation
+        orientation.z += 6.28 * delta_time / 2
+        self.physics.world_orientation = orientation
 
 
 class DeathPlane(Actor):
@@ -280,10 +291,10 @@ class DeathPlane(Actor):
 
     @CollisionSignal.listener
     def on_collision(self, collision_result):
-        if not collision_result.collision_type == CollisionType.started:
+        if not collision_result.state == CollisionState.started:
             return
 
-        if not isinstance(collision_result.hit_object, Pawn):
+        if not isinstance(collision_result.entity, Pawn):
             return
 
-        PawnKilledSignal.invoke(self, target=collision_result.hit_object)
+        PawnKilledSignal.invoke(self, target=collision_result.entity)

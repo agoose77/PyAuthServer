@@ -89,7 +89,7 @@ class TeamDeathMatch(ReplicationRulesBase):
             if player_pawn:
 
                 # First check by distance
-                position_difference = replicable.world_position - player_pawn.world_position
+                position_difference = replicable.physics.world_position - player_pawn.physics.world_position
                 in_range = position_difference.length_squared <= self.relevant_radius_squared
 
                 if in_range:
@@ -184,7 +184,7 @@ class TeamDeathMatch(ReplicationRulesBase):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).world_position
+        pawn.physics.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).physics.world_position
         return controller
 
     def setup_player_pawn(self, controller):
@@ -203,7 +203,7 @@ class TeamDeathMatch(ReplicationRulesBase):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).world_position
+        pawn.physics.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).physics.world_position
         return controller
 
     @LogicUpdateSignal.global_listener
