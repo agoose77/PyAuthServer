@@ -7,7 +7,9 @@ __all__ = ['DelegateByNetmode', 'DelegateByTag', 'FindByTag']
 class FindByTag(metaclass=TypeRegister):
     """Provides an interface to select a subclass by a tag value"""
 
-    _cache = {}
+    @classmethod
+    def register_type(cls):
+        cls._cache = {}
 
     @classmethod
     def update_cache(cls):
