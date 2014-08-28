@@ -10,8 +10,8 @@ class TypeFlag:
     """
     __slots__ = ['type', 'data']
 
-    def __init__(self, type_, **kwargs):
-        self.type = type_
+    def __init__(self, type, **kwargs):
+        self.type = type
         self.data = kwargs
 
     def __repr__(self):
