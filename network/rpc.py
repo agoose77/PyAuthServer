@@ -1,4 +1,4 @@
-from .descriptors import MarkAttribute
+from .descriptors import FromClass
 from .flag_serialiser import FlagSerialiser
 from .type_flag import TypeFlag
 from .logger import logger
@@ -126,7 +126,7 @@ class RPCInterfaceFactory:
 
         :param ordered_parameters: OrderedDict of function call parameters
         """
-        lookup_type = MarkAttribute
+        lookup_type = FromClass
 
         for argument in ordered_parameters.values():
 
@@ -159,7 +159,7 @@ class RPCInterfaceFactory:
         :param cls: class reference
         """
         serialiser_info = deepcopy(self._ordered_parameters)
-        lookup_type = MarkAttribute
+        lookup_type = FromClass
 
         # Update with new values
         for argument in serialiser_info.values():

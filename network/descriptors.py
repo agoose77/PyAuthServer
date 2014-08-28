@@ -4,10 +4,10 @@ from copy import deepcopy
 from .handler_interfaces import static_description
 from .type_flag import TypeFlag
 
-__all__ = ['TypeFlag', 'Attribute', 'MarkAttribute', 'DescriptorFactory']
+__all__ = ['TypeFlag', 'Attribute', 'FromClass', 'DescriptorFactory']
 
 
-MarkAttribute = namedtuple("MarkAttribute", "name")
+FromClass = namedtuple("MarkAttribute", "name")
 
 
 class Attribute(TypeFlag):
