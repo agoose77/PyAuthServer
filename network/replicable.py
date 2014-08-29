@@ -113,7 +113,7 @@ class Replicable(metaclass=ReplicableRegister):
         """
         return range(cls._MAXIMUM_REPLICABLES)
 
-    def request_registration(self, instance_id, register=False):
+    def request_registration(self, instance_id=None, register=False):
         """Handles registration of instances.
 
         Modifies behaviour to allow network priority over local instances.
