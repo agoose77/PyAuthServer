@@ -7,7 +7,7 @@ from .signals import Signal
 
 from time import monotonic
 
-__all__ = ["SimpleNetwork"]
+__all__ = ["SimpleNetwork", "respect_interval"]
 
 
 class SimpleNetwork(Network):
@@ -23,7 +23,6 @@ class SimpleNetwork(Network):
 
     def step(self):
         self.receive()
-
         Replicable.update_graph()
         Signal.update_graph()
 
@@ -39,7 +38,9 @@ class SimpleNetwork(Network):
         # Handle successive runs (initialisation)
         ConnectionInterface.clear_graph()
         Replicable.clear_graph()
+
         WorldInfo.request_registration(instance_id=WorldInfo.instance_id, register=True)
+        Signal.update_graph()
         
         if callable(self.on_initialised):
             self.on_initialised()
@@ -69,3 +70,20 @@ class SimpleNetwork(Network):
             self.on_finished()
 
         self.stop()
+
+
+def respect_interval(interval, function):
+    def wrapper():
+        last_called = monotonic()
+
+        while True:
+            now = monotonic()
+            dt = now - last_called
+
+            if dt >= interval:
+                function()
+                last_called = now
+
+            yield
+
+    return wrapper().__next__
