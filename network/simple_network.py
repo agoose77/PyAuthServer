@@ -38,6 +38,7 @@ class SimpleNetwork(Network):
         # Handle successive runs (initialisation)
         ConnectionInterface.clear_graph()
         Replicable.clear_graph()
+        Signal.update_graph()
 
         WorldInfo.request_registration(instance_id=WorldInfo.instance_id, register=True)
         Signal.update_graph()
