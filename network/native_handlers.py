@@ -102,12 +102,15 @@ class IterableHandler:
         supports_compression = not self.__class__.unique_members
 
         # Select best compression method
+        if not supports_compression:
+            compression_type = IterableCompressionType.no_compress
+
         if compression_type == IterableCompressionType.auto:
             self.pack = self.auto_pack
             self.unpack_from = self.auto_unpack_from
             self.size = self.auto_size
 
-        elif compression_type == IterableCompressionType.compress and supports_compression:
+        elif compression_type == IterableCompressionType.compress:
             self.pack = self.compressed_pack
             self.unpack_from = self.compressed_unpack_from
             self.size = self.compressed_size

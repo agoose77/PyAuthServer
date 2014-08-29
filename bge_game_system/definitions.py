@@ -40,6 +40,15 @@ def documentation():
     """
 
 
+class BGESocket:
+
+    def __init__(self, name, parent, obj):
+        self.name = name
+        self._parent = parent
+        self._obj = obj
+        self.children = set()
+
+
 class BGEComponent(FindByTag):
     subclasses = {}
 
@@ -81,7 +90,33 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
         self._dispatched = set()
         self._dispatched_entities = set()
 
+        self._parent = None
+        self.children = set()
+
+        self.create_sockets()
         self.register_signals()
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @parent.setter
+    def parent(self, value):
+        if value is self._parent:
+            return
+
+        self._parent.children.remove(self._entity)
+        self._obj.removeParent()
+
+        if value is None:
+            return
+
+        if not hasattr(value, "_obj"):
+            raise TypeError("Invalid parent type {}".format(value.__class__.__name__))
+
+        self._obj.setParent(value._obj)
+        value.children.add(self._entity)
+        self._parent = value
 
     @staticmethod
     def entity_from_object(obj):
@@ -153,6 +188,58 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
         """
         return entity in self._dispatched_entities
 
+    def create_sockets(self):
+        self.sockets = set()
+
+        for obj in self._obj.childrenRecursive:
+            socket_name = obj.get("socket")
+            if not socket_name:
+                continue
+
+            socket = BGESocket(socket_name, self, obj)
+            self.sockets.add(socket)
+
+    def get_direction_vector(self, axis):
+        """Get the axis vector of this object in world space
+
+        :param axis: :py:code:`bge_game_system.enums.Axis` value
+        :rtype: :py:code:`mathutils.Vector`
+        """
+        vector = [0, 0, 0]
+
+        if axis == Axis.x:
+            vector[0] = 1
+
+        elif axis == Axis.y:
+            vector[1] = 1
+
+        elif axis == Axis.z:
+            vector[2] = 1
+
+        return Vector(self.object.getAxisVect(vector))
+
+    def ray_test(self, target, source=None, distance=0.0):
+        """Perform a ray trace to a target
+
+        :param target: target to trace towards
+        :param source: optional origin of trace, otherwise object position
+        :param distance: distance to use instead of vector length
+        :rtype: :py:class:`bge_game_system.object_types.RayTestResult`
+        """
+        if source is None:
+            source = self._obj.worldPosition
+
+        result = self._obj.rayCast(target, source, distance)
+
+        if not any(result):
+            return None
+
+        hit_bge_object, hit_position, hit_normal = result
+        hit_entity = self.entity_from_object(hit_bge_object)
+        hit_distance = (hit_position - source).length
+
+        return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
+
     @staticmethod
     def _convert_contacts(contacts):
         return [CollisionContact(c.hitPosition, c.hitNormal, c.hitImpulse, c.hitForce) for c in contacts]
@@ -199,47 +286,6 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
 
                 result = CollisionResult(hit_entity, ended_collision, None)
                 callback(result, target=entity)
-
-    def get_direction_vector(self, axis):
-        """Get the axis vector of this object in world space
-
-        :param axis: :py:code:`bge_game_system.enums.Axis` value
-        :rtype: :py:code:`mathutils.Vector`
-        """
-        vector = [0, 0, 0]
-
-        if axis == Axis.x:
-            vector[0] = 1
-
-        elif axis == Axis.y:
-            vector[1] = 1
-
-        elif axis == Axis.z:
-            vector[2] = 1
-
-        return Vector(self.object.getAxisVect(vector))
-
-    def ray_test(self, target, source=None, distance=0.0):
-        """Perform a ray trace to a target
-
-        :param target: target to trace towards
-        :param source: optional origin of trace, otherwise object position
-        :param distance: distance to use instead of vector length
-        :rtype: :py:class:`bge_game_system.object_types.RayTestResult`
-        """
-        if source is None:
-            source = self._obj.worldPosition
-
-        result = self._obj.rayCast(target, source, distance)
-
-        if not any(result):
-            return None
-
-        hit_bge_object, hit_position, hit_normal = result
-        hit_entity = self.entity_from_object(hit_bge_object)
-        hit_distance = (hit_position - source).length
-
-        return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
 
 @with_tag("animation")

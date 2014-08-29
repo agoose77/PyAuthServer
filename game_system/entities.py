@@ -136,7 +136,7 @@ class Actor(Entity, Replicable):
         self.replicate_simulated_physics = True
 
     def on_unregistered(self):
-        for child in self.children:
+        for child in self.physics.children:
             if child.indestructable:
                 continue
 
