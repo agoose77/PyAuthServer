@@ -20,7 +20,6 @@ class _ManagedInstanceBase(SignalListener):
 
         # Initial value
         self.instance_id = None
-        self.register_signals()
 
         # Run clean init function
         self.on_initialised()
@@ -128,9 +127,11 @@ class InstanceRegister(TypeRegister):
             return
 
         cls._instances[instance.instance_id] = instance
+        instance.register_signals()
 
         try:
             instance.on_registered()
+
         except Exception as err:
             raise err
 
