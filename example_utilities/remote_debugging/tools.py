@@ -2,6 +2,7 @@ import sys
 
 from io import StringIO
 from contextlib import contextmanager
+from codeop import CommandCompiler
 
 @contextmanager
 def stdout_io(stdout=None):
@@ -13,14 +14,30 @@ def stdout_io(stdout=None):
     yield stdout
     sys.stdout = old
 
+_compile = CommandCompiler()
 
-def input_multiple(cmd):
-    results = []
+
+def multiline_input(single_prompt=">>> ", additional_prompt="... "):
+    header = single_prompt
+    commands = []
+
     while True:
-        result = input("[{}] {}".format(len(results), cmd))
-        if result == "":
+        source = input(header)
+        commands.append(source)
+
+        try:
+            all_commands = "\n".join(commands)
+            code = _compile(all_commands, "<dummy>", "single")
+
+        except (OverflowError, SyntaxError, ValueError):
+            import traceback
+            traceback.print_exc()
             break
 
-        results.append(result)
+        else:
+            if code is not None:
+                break
 
-    return '\n'.join(results)
+            header = additional_prompt
+
+    return "\n".join(commands)

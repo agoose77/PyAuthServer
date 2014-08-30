@@ -17,15 +17,23 @@ class RemoteTerminal(Replicable):
         self.data = {}
         self.data.update(globals())
 
-    def execute(self, command: TypeFlag(str, max_length=1000)) -> Netmodes.server:
+    def execute(self, command, on_received):
+        self.on_received = on_received
+        self.server_execute(command)
+
+    def server_execute(self, command: TypeFlag(str, max_length=1000)) -> Netmodes.server:
         with stdout_io() as s:
             try:
-                exec(command, self.data)
+                # Create a code object in order to print result
+                code = compile(command, "<dummy>", "single")
+                exec(code, self.data)
 
             except Exception:
                 print_exc()
 
-        self.result(s.getvalue())
+        result = s.getvalue()[:-1]
+        self.result(result)
 
     def result(self, result: TypeFlag(str, max_length=1000)) -> Netmodes.client:
         print(result)
+        self.on_received()

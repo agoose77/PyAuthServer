@@ -42,7 +42,7 @@ def application():
 
     while True:
         name = reference_data['name']
-        print("Running app as {}".format(name))
+      #  print("Running app as {}".format(name))
         update_network()
 
 
