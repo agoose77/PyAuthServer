@@ -1,8 +1,8 @@
 from game_system.ai.behaviour_tree import *
 from game_system.enums import *
-from math import radians, sin, cos, copysign
+from game_system.coordinates import Vector, Euler
 
-from mathutils import Vector, Euler
+from math import radians, sin, cos, copysign
 
 from .behaviours import *
 

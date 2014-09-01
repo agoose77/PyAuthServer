@@ -1,7 +1,6 @@
 from collections import Mapping
 from functools import partial
 from json import loads
-from queue import Empty as EmptyQueue
 from urllib import request, parse
 
 from game_system.signals import GameExitSignal, LogicUpdateSignal

@@ -5,6 +5,7 @@ from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 
+from game_system.coordinates import Euler, Vector
 from game_system.entities import Actor, Camera, Pawn, Projectile, WeaponAttachment
 from game_system.controllers import PlayerController
 from game_system.enums import Axis, CollisionState
@@ -43,7 +44,6 @@ class CameraAnimationActor(Camera):
 
 
 class ArrowProjectile(Projectile):
-    entity_name = "Arrow"
 
     def on_initialised(self):
         super().on_initialised()
@@ -56,7 +56,7 @@ class ArrowProjectile(Projectile):
         if not self.in_flight:
             return
 
-        self.align_to(self.world_velocity, factor=0.3)
+        self.physics.align_to(self.physics.world_velocity, factor=0.3)
 
     @requires_netmode(Netmodes.server)
     def server_deal_damage(self, collision_result):
@@ -123,31 +123,31 @@ class CTFPawn(Pawn):
             yield "flag"
 
     @simulated
-    def attach_flag(self, flag):
+    def pickup_flag(self, flag):
         # Store reference
         self._flag = flag
         # Network info
         flag.possessed_by(self)
         # Physics info
-        flag.set_parent(self, "weapon")
-        flag.local_position = Vector()
+        flag.physics.parent = self.physics.sockets['weapon']
+        flag.physics.local_position = Vector()
 
     @simulated
-    def remove_flag(self):
+    def drop_flag(self):
         self._flag = None
         # Network info
         self._flag.unpossessed()
         # Physics info
-        self._flag.remove_parent()
+        self._flag.physics.parent = None
 
     @simulated
     def on_flag_replicated(self, flag):
         """Called when flag is changed"""
         if flag is None:
-            self.remove_flag()
+            self.drop_flag()
 
         else:
-            self.attach_flag(flag)
+            self.pickup_flag(flag)
 
     def on_notify(self, name):
         # play weapon effects
@@ -244,12 +244,13 @@ class CTFFlag(Actor):
         timer_progress = self._position_timer.progress
         divided_position = (1 + sin(radians(360 * timer_progress)))/2
 
-        ray_result = self.trace_ray(self.physics.world_position - self.physics.get_direction(Axis.z), distance=100)
+        physics = self.physics
+        ray_result = physics.trace_ray(physics.world_position - physics.get_direction(Axis.z), distance=100)
         if ray_result is None:
             return
 
         relative_position_z = lerp(self.floor_offset_minimum, self.floor_offset_maximum, divided_position)
-        self.physics.world_position = ray_result.position + ray_result.normal * relative_position_z
+        physics.world_position = ray_result.position + ray_result.normal * relative_position_z
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)

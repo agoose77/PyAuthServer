@@ -1,5 +1,8 @@
 from network import SignalListener
+
+from game_system.inputs import MouseManager
 from game_system.signals import UIRenderSignal, UIUpdateSignal
+from game_system.resources import ResourceManager
 
 from os import path, listdir
 from collections import OrderedDict
@@ -12,6 +15,9 @@ from bgl import *
 CENTERY = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERY
 CENTERX = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERX
 CENTERED = bgui.BGUI_DEFAULT | bgui.BGUI_CENTERED
+
+
+# TODO clean up
 
 
 class TableRenderer(bgui.ListBoxRenderer):
@@ -65,29 +71,20 @@ class TableRenderer(bgui.ListBoxRenderer):
 class System(SignalListener, bgui.System):
 
     def __init__(self):
-        theme_path = bge.logic.expandPath("//themes")
+        theme_path = ResourceManager["themes"].absolute_path
         super().__init__(theme_path)
 
         self.register_signals()
-        self.scene = bge.logic.getCurrentScene()
+
+        self.mouse_manager = MouseManager()
 
         self._subscribers = []
         self._keymap = {getattr(bge.events, val): getattr(bgui, val) for val in dir(bge.events) if (val.endswith('KEY')
                         or val.startswith('PAD')) and hasattr(bgui, val)}
 
-    render = UIRenderSignal.global_listener(bgui.System.render)
-
-    def print_children(self):
-        def printer(widget, par="System", vis=None):
-            if vis is None:
-                vis = []
-            for name, cw in widget.children.items():
-                str_ = par + "." + name[:5]
-                print(str_)
-                vis.append(cw)
-                printer(cw, str_, vis)
-        print("\n\n\n\n\n\n\n")
-        printer(self)
+    @UIRenderSignal.global_listener
+    def render(self):
+        super().render()
 
     @UIUpdateSignal.global_listener
     def update(self, delta_time):

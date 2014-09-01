@@ -1,6 +1,5 @@
 from game_system.weapons import ProjectileWeapon
-
-from mathutils import Vector
+from game_system.coordinates import Vector
 
 from .actors import ArrowProjectile, BowAttachment
 from .signals import UIWeaponDataChangedSignal

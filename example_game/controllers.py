@@ -85,7 +85,7 @@ class CTFPlayerController(PlayerController):
     def pickup_flag(self, flag):
         # Replication specifics
         self.inventory.append(flag)
-        self.pawn.attach_flag(flag)
+        self.pawn.pickup_flag(flag)
         self.pawn.flag = flag
 
     @PlayerInputSignal.global_listener

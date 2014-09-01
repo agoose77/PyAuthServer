@@ -3,9 +3,7 @@ from random import random, randrange
 from game_system.ai.behaviour_tree import *
 from game_system.enums import *
 from game_system.signals import *
-
-from mathutils import Vector
-from bge import logic, render
+from game_system.coordinates import Vector
 
 
 def dead_animation():
@@ -626,19 +624,7 @@ class MoveToActor(LeafNode):
         return target.physics.world_position
 
     def on_exit(self, blackboard):
-        try:
-            blackboard['pawn'].local_velocity.y = 0
-
-        except KeyError:
-            logic.endGame()
-
-    def draw(self, path):
-        start = path[0]
-        draw_line = render.drawLine
-        step = 1 / len(path)
-        for index, point in enumerate(path):
-            draw_line(start, point, [1.0 - index * step, 0, 0])
-            start = point
+        blackboard['pawn'].local_velocity.y = 0
 
     def evaluate(self, blackboard):
         pawn = blackboard['pawn']

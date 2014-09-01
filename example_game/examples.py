@@ -5,11 +5,9 @@ from network.decorators import simulated
 from network.descriptors import Attribute
 from network.type_flag import TypeFlag
 from network.enums import Roles, Netmodes
-from bge_game_system.actors import Actor
+from game_system.entities import Actor
 from game_system.signals import CollisionSignal
 from game_system.enums import CollisionState
-
-import aud
 
 
 class ReplicatedAttributes(Replicable):
@@ -62,12 +60,10 @@ class Cube(Actor):
 
     @simulated
     def play_sound(self):
+        # Do something with file path
         relative_file_path = self.resources["sounds"]["bump.mp3"]
         file_path = ResourceManager.from_relative_path(relative_file_path)
-
-        factory = aud.Factory.file(file_path)
-        device = aud.device()
-        return device.play(factory)
+        return
 
     def handle_damage(self):
         self.damage += 20
