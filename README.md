@@ -7,7 +7,7 @@ There is no substantial networking engine in Python for Blender that allows any 
 Faced with such a challenge, most users would prefer to use another own engine, or remove the feature from the design document. 
 
 This project intends to provide a useful Python framework for creating multiplayer games which eliminates the headache in writing and maintaining a networked game. It does not require the Blender Game Engine, but certain parts of the system must be realised by writing a new engine interface. Anything in the network library is pure python, and the `bge_game_system` is for BGE code. With the exception of mathutils (which is used in `game_system`, but aliased in the coordinates module for easy replacement), there should not be any BGE specific code in `game_system`.
-The `example_game` module should only make use of generic interfaces from `game_system`, meaning that _no BGE code should be defined in `game_system`_
+The `example_game` module should only make use of generic interfaces from `game_system`, meaning that _no BGE code should be defined in `game_system` or `example_game`_
 
 Based upon the Unreal Architecture, this library is statically typed and offers reliable and unreliable (all unordered) transmission of UDP packets. The Serialiser is based upon struct; everything is fixed type that is sent across the network. (In the event that this is undesirable, you could use JSON with a string variable, but this would be inefficient).
 
