@@ -1,4 +1,4 @@
-kfrom network.enums import Enumeration
+from network.enums import Enumeration
 
 __all__ = ['TeamRelation']
 
