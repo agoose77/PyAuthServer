@@ -180,6 +180,26 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
     def is_colliding(self):
         return bool(self._dispatched)
 
+    def align_to(self, vector, factor=1, axis=Axis.y):
+        if not vector.length_squared:
+            return
+
+        if axis == Axis.x:
+            forward_axis = "X"
+
+        elif axis == Axis.y:
+            forward_axis = "Y"
+
+        elif axis == Axis.z:
+            forward_axis = "Z"
+
+        else:
+            raise ValueError("Unknown Axis value: {}".format(axis))
+
+        rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
+        current_rotation = self.world_rotation.to_quaternion()
+        self.world_rotation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
+
     def is_colliding_with(self, entity):
         """Determines if the entity is colliding with another entity
 
