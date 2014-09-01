@@ -6,10 +6,13 @@ from network.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
 
+from game_system.animation import Animation
 from game_system.definitions import ComponentLoader
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
+
+from functools import partial
 from mathutils import Vector
 
 RayTestResult = namedtuple("RayTestResult", "position normal entity distance")
@@ -329,6 +332,38 @@ class BGEAnimationInterface(BGEComponent):
         self._bge_blend_constants = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
                                      AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}
 
+        self.animations = self.load_animations(skeleton, config_section)
+
+    @staticmethod
+    def load_animations(obj, data):
+        animations = {}
+
+        for animation_name, animation_data in data.items():
+            frame_info = animation_data['frame_info']
+            start = frame_info['start']
+            end = frame_info['end']
+
+            modes = animation_data['modes']
+            blend_mode = modes['blend']
+            play_mode = modes['play']
+
+            layer_data = animation_data['layers']
+            layer = layer_data['layer']
+            blending = layer_data['blending']
+            weight = layer_data['weight']
+
+            playback = animation_data['playback']
+            priority = playback['priority']
+            speed = playback['speed']
+
+            callback = partial(obj.isPlayingAction, layer)
+
+            animation = Animation(animation_name, start, end, layer, priority, blending, play_mode, weight, speed,
+                                  blend_mode, callback)
+            animations[animation_name] = animation
+
+        return animations
+
     def get_frame(self, animation):
         """Get the current frame of the animation
 
@@ -352,13 +387,6 @@ class BGEAnimationInterface(BGEComponent):
         :param animation: animation resource
         """
         self._obj.stopAction(animation.layer)
-
-    def is_playing(self, animation):
-        """Determine if playing animation on bound object
-
-        :param animation: animation resource
-        """
-        return self._obj.isPlayingAction(animation.layer)
 
 
 @with_tag("camera")
