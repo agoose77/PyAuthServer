@@ -10,7 +10,7 @@ from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
 from .enums import Axis, CameraMode, CollisionGroups, CollisionState
-from .math import mean
+from .math_utilities import mean
 from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
 

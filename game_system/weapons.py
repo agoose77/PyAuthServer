@@ -7,7 +7,7 @@ from network.world_info import WorldInfo
 from .enums import Axis
 from .resources import ResourceManager
 from .signals import *
-from .math import square_falloff
+from .math_utilities import square_falloff
 
 from .coordinates import Vector
 

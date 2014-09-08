@@ -3,7 +3,7 @@ from network.enums import Enumeration
 
 __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
            'MovementState', 'AIState', 'Axis', 'CollisionGroups',
-           'AnimationMode', 'AnimationBlend', 'CollisionType',
+           'AnimationMode', 'AnimationBlend', 'CollisionState',
            'InputEvents', 'AudioDistanceModel']
 
 
@@ -39,7 +39,7 @@ class CollisionGroups(metaclass=Enumeration):
     values = ("geometry", "pawn", "projectile")
 
 
-class CollisionType(metaclass=Enumeration):
+class CollisionState(metaclass=Enumeration):
     values = ("started", "ended")
 
 
