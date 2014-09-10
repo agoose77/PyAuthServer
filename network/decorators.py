@@ -1,5 +1,5 @@
-from functools import wraps, update_wrapper
-from inspect import isclass, getmembers
+from functools import partial, wraps, update_wrapper
+from inspect import getmembers
 
 from .conditions import is_simulated, is_annotatable
 from .enums import Roles
@@ -12,20 +12,41 @@ __all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'with
 """API functions to modify function behaviour"""
 
 
-def set_annotation(name, value=True):
+def set_annotation(name):
     """Create annotation decorator that assigns a value to a function's annotations
 
     :param name: name of annotation
-    :param value: value to assign [True]
+    """
+    def outer(value):
+        def inner(func):
+            try:
+                annotations = func.__annotations__
+
+            except AttributeError:
+                annotations = func.__annotations__ = {}
+
+            annotations[name] = value
+
+            return func
+
+        return inner
+
+    return outer
+
+
+def has_annotation(name):
+    """Create annotation decorator that looks for a value in a function's annotations
+
+    :param name: name of annotation
     """
     def wrapper(func):
         try:
-            func.__annotations__[name] = value
+            annotations = func.__annotations__
 
         except AttributeError:
-            raise ValueError("Function does not support annotations: {}".format(func.__qualname__))
+            return False
 
-        return func
+        return name in annotations
 
     return wrapper
 
@@ -42,7 +63,7 @@ def get_annotation(name, default=None, modify=False):
             annotations = func.__annotations__
 
         except AttributeError:
-            raise ValueError("Function does not support annotations: {}".format(func.__qualname__))
+            return None
 
         if modify:
             return annotations.setdefault(name, default)
@@ -52,13 +73,18 @@ def get_annotation(name, default=None, modify=False):
     return wrapper
 
 
+with_tag = set_annotation("tag")
+has_tag = has_annotation("tag")
+get_tag = get_annotation("tag")
+
+
 def reliable(func):
     """Mark a function to be reliably replicated
 
     :param func: function to be marked
     :returns: function that was passed as func
     """
-    return set_annotation("reliable", True)(func)
+    return set_annotation("reliable")(True)(func)
 
 
 def simulated(func):
@@ -67,7 +93,7 @@ def simulated(func):
     :param func: function to be marked
     :returns: function that was passed as func
     """
-    return set_annotation("simulated", True)(func)
+    return set_annotation("simulated")(True)(func)
 
 
 def signal_listener(signal_type, global_listener):
@@ -135,41 +161,6 @@ def requires_permission(func):
             return func(self, *args, **kwargs)
 
     return func_wrapper
-
-
-def set_class_tag(cls, value):
-    """Set the tag value for the given class
-
-    :param value: new value of tag
-    """
-    cls._tag = value
-    try:
-        cls.update_cache()
-    except AttributeError:
-        raise TypeError("{} does not implement machinery for tagging".format(cls.__name__))
-
-
-def get_class_tag(cls):
-    """Get the tag value for the given class"""
-    return cls._tag
-
-
-def with_tag(value):
-    """Create a closure decorator that marks a class as belonging to a specific tag value
-
-    :param value: tag value that the class belongs to
-    :requires: provided tag value
-    :returns: decorator that prohibits function execution for incorrect tag
-    """
-    def wrapper(cls):
-        if not isclass(cls):
-            raise TypeError("Unable to decorate non-class types {}".format(cls))
-
-        set_class_tag(cls, value)
-
-        return cls
-
-    return wrapper
 
 
 class IgnoreDescriptor:

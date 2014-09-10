@@ -1,3 +1,4 @@
+from.decorators import get_tag, has_tag
 from .type_register import TypeRegister
 from .world_info import WorldInfo
 
@@ -14,7 +15,7 @@ class FindByTag(metaclass=TypeRegister):
     @classmethod
     def update_cache(cls):
         try:
-            cache = {getattr(c, "_tag", None): c for c in cls.subclasses.values()}
+            cache = {get_tag(c): c for c in cls.subclasses.values() if has_tag(c)}
 
         except AttributeError:
             raise TypeError("Subclass dictionary was not implemented by {}".format(cls.type_name))
