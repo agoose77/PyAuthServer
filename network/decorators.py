@@ -6,7 +6,7 @@ from .enums import Roles
 
 
 __all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'with_tag', 'ignore_arguments',
-           'set_annotation', 'set_annotation', 'get_annotation', 'IgnoreDescriptor', 'simulate_methods']
+           'set_annotation', 'set_annotation', 'get_annotation', 'IgnoredArgumentsDescriptor', 'simulate_methods']
 
 
 """API functions to modify function behaviour"""
@@ -163,7 +163,7 @@ def requires_permission(func):
     return func_wrapper
 
 
-class IgnoreDescriptor:
+class IgnoredArgumentsDescriptor:
     """Descriptor for stripping arguments from function call"""
 
     def __init__(self, func):
@@ -178,10 +178,10 @@ class IgnoreDescriptor:
     def __get__(self, instance, owner):
         bound_func = self._func.__get__(instance, owner)
 
-        def closure(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             return bound_func()
 
-        return closure
+        return wrapper
 
 
 def ignore_arguments(func):
@@ -190,7 +190,7 @@ def ignore_arguments(func):
     :param func: function to decorate
     :returns: decorated function
     """
-    return IgnoreDescriptor(func)
+    return IgnoredArgumentsDescriptor(func)
 
 
 def simulate_methods(cls):
