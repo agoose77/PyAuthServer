@@ -77,7 +77,7 @@ def with_tag(value):
     setter = set_annotation("tag")
 
     def wrapper(func):
-        setter(func)
+        setter(value)
         func.update_cache()
 
     return wrapper
