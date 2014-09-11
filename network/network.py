@@ -11,7 +11,6 @@ __all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMet
 
 
 class NonBlockingSocketUDP(socket):
-
     """Non blocking socket class"""
 
     def __init__(self, addr, port):
@@ -141,6 +140,12 @@ class Network:
 
     @staticmethod
     def connect_to(peer_data):
+        """Return connection interface to remote peer.
+
+        If connection does not exist, create a new ConnectionInterface.
+
+        :param peer_data: tuple of address, port of remote peer
+        """
         address, port = peer_data
         address = gethostbyname(address)
         ip_info = address, port

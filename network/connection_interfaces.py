@@ -3,7 +3,7 @@ from .connection import Connection
 from .conversions import conversion
 from .decorators import with_tag, ignore_arguments
 from .type_flag import TypeFlag
-from .enums import ConnectionStatus, Netmodes, Protocols, HandshakeState
+from .enums import ConnectionStatus, Netmodes, ConnectionProtocols, HandshakeState
 from .errors import NetworkError, ConnectionTimeoutError
 from .handler_interfaces import get_handler
 from .instance_register import InstanceRegister
@@ -123,14 +123,14 @@ class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
         # Called for handshake protocol
         packet_protocol = packet.protocol
 
-        if packet_protocol > Protocols.request_handshake and self.status != ConnectionStatus.pending:
+        if packet_protocol > ConnectionProtocols.request_handshake and self.status != ConnectionStatus.pending:
             self.connection.receive(packet)
 
-        elif packet_protocol == Protocols.request_handshake:
+        elif packet_protocol == ConnectionProtocols.request_handshake:
             self.handle_handshake(packet)
 
         else:
-            handling_error = TypeError("Unable to process packet with protocol {}".format(Protocols[packet_protocol]))
+            handling_error = TypeError("Unable to process packet with protocol {}".format(ConnectionProtocols[packet_protocol]))
             logger.error(handling_error)
 
             ConnectionErrorSignal.invoke(handling_error, target=self)
@@ -202,18 +202,6 @@ class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
         if self.connection:
             self.connection.latency = self.latency
 
-    def on_connected(self):
-        """Connected callback"""
-        self.status = ConnectionStatus.connected  # @UndefinedVariable
-        logger.info("Successfully connected to server")
-
-        ConnectionSuccessSignal.invoke(target=self)
-
-    def on_failure(self):
-        """Connection Failed callback"""
-        self.status = ConnectionStatus.failed  # @UndefinedVariable
-        logger.error("Failed to connect to server")
-
     def on_unregistered(self):
         """Unregistered callback"""
         if self.connection:
@@ -251,22 +239,13 @@ class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
         self.last_received = monotonic()
 
         # Handle received packets
-        PacketCollection.iter_bytes(bytes_string[offset:], self.handle_packet)
+        PacketCollection.iter_bytes(bytes_string[offset:], self.connection.handle_packet)
 
     def send(self, network_tick):
         """Pull data from connection interfaces to send
 
         :param network_tick: if this is a network tick
         """
-
-        # Check for timeout
-        if (monotonic() - self.last_received) > self.time_out_delay:
-            self.status = ConnectionStatus.timeout  # @UndefinedVariable
-
-            err = ConnectionTimeoutError("Connection timed out")
-            ConnectionErrorSignal.invoke(err, target=self)
-            return
-
         # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
         sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
         remote_sequence = self.remote_sequence
@@ -275,17 +254,9 @@ class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
         if self.throttle_pending and self.tagged_throttle_sequence is None:
             self.tagged_throttle_sequence = sequence
 
-        # If not connected setup handshake
-        if self.status == ConnectionStatus.pending:  # @UndefinedVariable
-            packet_collection = PacketCollection(self.send_handshake())
-            self.status = ConnectionStatus.handshake
+        packet_collection = self.connection.send(network_tick, self.bandwidth)
 
-        # If connected send normal data
-        elif self.status == ConnectionStatus.connected:  # @UndefinedVariable
-            packet_collection = self.connection.send(network_tick, self.bandwidth)
-
-        # Don't send any data between states
-        else:
+        if packet_collection is None:
             return
 
         # Include data from the reliability system
@@ -308,8 +279,7 @@ class ConnectionInterface(DelegateByNetmode, metaclass=InstanceRegister):
 
         # Include user defined payload
         packet_bytes = packet_collection.to_bytes()
-        if packet_bytes:
-            payload.append(packet_bytes)
+        payload.append(packet_bytes)
 
         # Force bandwidth to grow (until throttled)
         self.bandwidth += self.packet_growth
@@ -380,7 +350,7 @@ class ServerInterface(ConnectionInterface):
                     connection.replicable = returned_replicable
 
     def handle_packet(self, packet):
-        if packet.protocol == Protocols.request_disconnect:
+        if packet.protocol == ConnectionProtocols.request_disconnect:
             self.on_disconnect()
 
         else:
@@ -416,7 +386,7 @@ class ServerInterface(ConnectionInterface):
                 packed_error = packed_error_name + packed_error_body
 
                 # Yield a reliable packet
-                return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_error,
+                return Packet(protocol=ConnectionProtocols.request_handshake, payload=handshake_type + packed_error,
                               on_success=ignore_arguments(self.on_failure))
 
             logger.error("Warning: Connection failed for undocumented reason")
@@ -426,7 +396,7 @@ class ServerInterface(ConnectionInterface):
             handshake_type = self.handshake_packer.pack(HandshakeState.success)
             packed_netmode = self.netmode_packer.pack(WorldInfo.netmode)
 
-            return Packet(protocol=Protocols.request_handshake, payload=handshake_type + packed_netmode,
+            return Packet(protocol=ConnectionProtocols.request_handshake, payload=handshake_type + packed_netmode,
                           on_success=ignore_arguments(self.on_connected))
 
 
@@ -435,7 +405,7 @@ class ClientInterface(ConnectionInterface):
 
     @DisconnectSignal.global_listener
     def disconnect_from_server(self, quit_callback):
-        packet = Packet(Protocols.request_disconnect, on_success=ignore_arguments(quit_callback))
+        packet = Packet(ConnectionProtocols.request_disconnect, on_success=ignore_arguments(quit_callback))
         self.internal_data.append(packet)
 
     def send_handshake(self):
@@ -443,7 +413,7 @@ class ClientInterface(ConnectionInterface):
         handshake_type = self.handshake_packer.pack(HandshakeState.request)
         netmode = self.netmode_packer.pack(WorldInfo.netmode)
 
-        return Packet(protocol=Protocols.request_handshake, payload=handshake_type + netmode, reliable=True)
+        return Packet(protocol=ConnectionProtocols.request_handshake, payload=handshake_type + netmode, reliable=True)
 
     def handle_handshake(self, packet):
         """Receives a handshake packet, rither proceeds to setup connection or invokes the error"""

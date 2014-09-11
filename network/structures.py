@@ -48,9 +48,9 @@ def factory_dict(factory_function, dict_type=dict, provide_key=True):
 class TypedIterableBase:
     """Iterable class which ensures every element is validated before addition"""
 
-    def __init__(self, type_=None, iterable=None):
+    def __init__(self, type=None, iterable=None):
         try:
-            self._type = type_ or iterable._type
+            self._type = type if type is not None else iterable._type
 
         except AttributeError as err:
             raise TypeError("{} requires type or typed iterable in arguments".format(self.__class__.__name__)) from err

@@ -118,7 +118,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         Modifies behaviour to allow network priority over local instances.
 
-        Handles edge cases such as static replicables
+        Handles edge cases such as static replicables.
 
         :param instance_id: instance id to register with
         :param register: if registration should be immediate

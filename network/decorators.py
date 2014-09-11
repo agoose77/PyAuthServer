@@ -73,7 +73,15 @@ def get_annotation(name, default=None, modify=False):
     return wrapper
 
 
-with_tag = set_annotation("tag")
+def with_tag(value):
+    setter = set_annotation("tag")
+
+    def wrapper(func):
+        setter(func)
+        func.update_cache()
+
+    return wrapper
+
 has_tag = has_annotation("tag")
 get_tag = get_annotation("tag")
 

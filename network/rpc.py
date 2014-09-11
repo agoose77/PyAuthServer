@@ -122,7 +122,7 @@ class RPCInterfaceFactory:
 
     @staticmethod
     def check_for_marked_parameters(ordered_parameters):
-        """Check for any MarkAttribute instances in parameter data
+        """Check for any FromClass instances in parameter data
 
         :param ordered_parameters: OrderedDict of function call parameters
         """

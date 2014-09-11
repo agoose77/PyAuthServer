@@ -1,403 +1,155 @@
 from .channel import Channel
-from .decorators import with_tag
+from .conditions import is_annotatable
+from .decorators import with_tag, get_annotation, set_annotation
 from .type_flag import TypeFlag
-from .enums import Roles, Protocols, Netmodes
+from .errors import NetworkError
+from .connection_stream import ConnectionStream
+from .enums import ConnectionProtocols, Netmodes
 from .handler_interfaces import get_handler
 from .logger import logger
 from .tagged_delegate import DelegateByNetmode
-from .packet import Packet, PacketCollection
-from .replicable import Replicable
+from .packet import Packet
+from .enums import ConnectionStatus
 from .signals import *
 from .world_info import WorldInfo
 
-from operator import attrgetter
+from inspect import getmembers
 
 __all__ = ['Connection', 'ServerConnection', 'ClientConnection']
 
-
-def consume(iterable):
-    """Consumes an iterable
-    Iterates over iterable until StopIteration is raised
-
-    :param iterable: Iterable object"""
-    for _ in iterable:
-        pass
+response_protocol = set_annotation("response_to")
+send_state = set_annotation("send_for")
 
 
-class Connection(SignalListener, DelegateByNetmode):
-    """Connection between loacl host and remote peer
+class Connection(DelegateByNetmode):
+    """Connection between local host and remote peer
     Represents a successful connection
     """
 
-    subclasses = {}
+    def __init__(self):
+        self.status = ConnectionStatus.pending
 
-    def __init__(self, netmode):
-        self.register_signals()
+    @classmethod
+    def register_subtype(cls):
+        cls.senders = senders = {}
+        cls.receivers = receivers = {}
 
-        self.netmode = netmode
-        self.replicable = None
+        send_getter = get_annotation("send_for")
+        receive_getter = get_annotation("response_to")
 
-        self.channels = {}
+        for name, value in getmembers(cls, is_annotatable):
+            sender_type = send_getter(value)
+            if sender_type is not None:
+                senders[sender_type] = value
 
-        self.string_packer = get_handler(TypeFlag(str))
-        self.int_packer = get_handler(TypeFlag(int))
-        self.bool_packer = get_handler(TypeFlag(bool))
-        self.replicable_packer = get_handler(TypeFlag(Replicable))
+            receiver_type = receive_getter(value)
+            if receiver_type is not None:
+                receivers[receiver_type] = value
 
-        self._latency = 0.0
-
-    @property
-    def latency(self):
-        return self._latency
-
-    @latency.setter
-    def latency(self, latency):
-        self._latency = latency
-
-        LatencyUpdatedSignal.invoke(self.latency, target=self.replicable)
-
-
-    @ReplicableUnregisteredSignal.global_listener
-    def notify_unregistration(self, target):
-        """Handles un-registration of a replicable instance
-        Deletes channel for replicable instance
-
-        :param target: replicable that was unregistered
-        """
-        self.channels.pop(target.instance_id)
-
-    @ReplicableRegisteredSignal.global_listener
-    def notify_registration(self, target):
-        """Handles registration of a replicable instance
-        Create channel for replicable instance
-
-        :param target: replicable that was registered
-        """
-        if not target.registered:
-            return
-
-        self.channels[target.instance_id] = Channel(self, target)
-
-    def on_delete(self):
-        """Delete callback"""
-        self.replicable.request_unregistration()
-
-    @property
-    def prioritised_channels(self):
-        """Returns a generator for replicables
-        with a remote role != Roles.none
-
-        :yield: replicable, (is_owner and relevant_to_owner), channel
-        """
-        no_role = Roles.none  # @UndefinedVariable
-
-        for channel in sorted(self.channels.values(), reverse=True, key=attrgetter("replication_priority")):
-            replicable = channel.replicable
-
-            # Check if remote role is permitted
-            if replicable.roles.remote == no_role:
-                continue
-
-            yield channel, replicable.relevant_to_owner and channel.is_owner
-
-    @staticmethod
-    def write_replicated_method_calls(replicables, collection, bandwidth):
-        """Writes replicated function calls to packet collection
-
-        :param replicables: iterable of replicables to consider replication
-        :param collection: PacketCollection instance
-        :param bandwidth: available bandwidth
-        :yield: each entry in replicables
-        """
-        method_invoke = Protocols.method_invoke  # @UndefinedVariable
-        make_packet = Packet
-        store_packet = collection.members.append
-
-        for item in replicables:
-            channel, is_owner_relevant = item
-
-            # Send RPC calls if we are the owner
-            if is_owner_relevant and channel.has_rpc_calls:
-                packed_id = channel.packed_id
-
-                for rpc_call, reliable in channel.take_rpc_calls():
-                    rpc_data = packed_id + rpc_call
-
-                    store_packet(make_packet(protocol=method_invoke, payload=rpc_data, reliable=reliable))
-            yield item
-
-    def received_all(self):
-        pass
-
-
-@with_tag(Netmodes.client)
-class ClientConnection(Connection):
-
-    def __init__(self, netmode):
-        super().__init__(netmode)
-
-        self.pending_notifications = []
-
-    def received_all(self):
-        for notification in self.pending_notifications:
-            notification()
-
-        self.pending_notifications.clear()
-
-    def set_replication(self, packet):
-        """Replication function
-        Accepts replication packets and responds to protocol
-
-        :param packet: replication packet
-        """
-
-        instance_id, id_size = self.replicable_packer.unpack_id(packet.payload)
-        payload_following_id = packet.payload[id_size:]
-
-        # If an update for a replicable
-        if packet.protocol == Protocols.replication_update:  # @UndefinedVariable @IgnorePep8
-            try:
-                channel = self.channels[instance_id]
-
-            except KeyError:
-                logger.exception("Unable to find channel for network object with id {}".format(instance_id))
-
-            else:
-                # Apply attributes and retrieve notify callback
-                notification_callback = channel.set_attributes(payload_following_id)
-
-                # Save callbacks
-                if notification_callback:
-                    self.pending_notifications.append(notification_callback)
-
-        # If it is an RPC call
-        elif packet.protocol == Protocols.method_invoke:  # @UndefinedVariable
-            self.received_all()
-
-            try:
-                channel = self.channels[instance_id]
-
-            except KeyError:
-                print("Unable to find network object with id {}".format(instance_id))
-
-            else:
-                if channel.is_owner:
-                    channel.invoke_rpc_call(payload_following_id)
-
-        # If construction for replicable
-        elif packet.protocol == Protocols.replication_init:  # @UndefinedVariable @IgnorePep8
-            type_name, type_size = self.string_packer.unpack_from(payload_following_id)
-            payload_following_id = payload_following_id[type_size:]
-
-            is_connection_host, is_host_size = self.bool_packer.unpack_from(payload_following_id)
-
-            # Find replicable class
-            replicable_cls = Replicable.from_type_name(type_name)
-            # Create replicable of same type
-            replicable = replicable_cls.create_or_return(instance_id, register=True)
-            # Perform incomplete role switch when spawning (later set by server)
-            replicable.roles.local, replicable.roles.remote = replicable.roles.remote, replicable.roles.local
-            # If replicable is parent (top owner)
-            if is_connection_host:
-                # Register as own replicable
-                self.replicable = replicable
-
-        # If it is the deletion request
-        elif packet.protocol == Protocols.replication_del:  # @UndefinedVariable @IgnorePep8
-            # If the replicable exists
-            try:
-                replicable = Replicable.get_from_graph(instance_id)  # @UndefinedVariable @IgnorePep8
-
-            except LookupError:
-                pass
-
-            else:
-                replicable.request_unregistration(True)
-
-    def send(self, network_tick, available_bandwidth):
-        """Creates a packet collection of replicated function calls
-
-        :param network_tick: unused argument
-        :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance
-        """
-        collection = PacketCollection()
-        replicables = self.write_replicated_method_calls(self.prioritised_channels, collection, available_bandwidth)
-
-        # Consume iterable
-        consume(replicables)
-        return collection
+    def send(self, network_tick, bandwidth):
+        sender = self.__class__.senders[self.status]
+        return sender(self, network_tick, bandwidth)
 
     def receive(self, packet):
-        """Handles incoming Packet from server
+        handler = self.__class__.receivers[packet.protocol]
+        handler(self, packet.payload)
 
-        :param packet: Packet instance
-        """
-        if packet.protocol in Protocols:
-            self.set_replication(packet)
+
+class StreamConnection(Connection):
+    subclasses = {}
+
+    def __init__(self):
+        # Additional data
+        self.netmode_packer = get_handler(TypeFlag(int))
+        self.string_packer = get_handler(TypeFlag(str))
+        self.stream = None
+
+    @send_state(ConnectionStatus.connected)
+    def send_stream_data(self, network_tick, bandwidth):
+        self.stream.send(network_tick, bandwidth)
+
+    @response_protocol(ConnectionProtocols.connected)
+    def receive_stream_data(self, data):
+        self.stream.receive(data)
 
 
 @with_tag(Netmodes.server)
-class ServerConnection(Connection):
+class ServerConnection(StreamConnection):
 
-    def __init__(self, netmode):
-        super().__init__(netmode)
+    def __init__(self):
+        # Additional data
+        self.netmode_packer = get_handler(TypeFlag(int))
+        self.string_packer = get_handler(TypeFlag(str))
 
-        self.cached_packets = set()
+        self.handshake_error = None
+        self.stream = None
 
-    def on_delete(self):
-        """Callback for connection deletion.
+    def on_ack_handshake_failed(self, packet):
+        self.status = ConnectionStatus.failed
 
-        Called when connection.status holds the value of ConnectionStatus.deleted.
-        """
-        super().on_delete()
+    def on_ack_handshake_success(self, packet):
+        self.status = ConnectionStatus.connected
 
-        # If we own a controller destroy it
-        if self.replicable:
-            # We must be connected to have a controller
-            logger.info("{} disconnected!".format(self.replicable))
-            self.replicable.request_unregistration()
+    @response_protocol(ConnectionProtocols.request_disconnect)
+    def receive_disconnect_request(self, data):
+        self.status = ConnectionStatus.disconnected
 
-    @ReplicableUnregisteredSignal.global_listener
-    def notify_unregistration(self, target):
-        """Called when replicable dies
+    @response_protocol(ConnectionProtocols.request_handshake)
+    def receive_handshake_request(self, data):
+        netmode, netmode_size = self.netmode_packer.unpack_from(data)
+        connection_info = self.connection_info
 
-        :param target: replicable that was unregistered
-        """
+        try:
+            WorldInfo.rules.pre_initialise(connection_info, netmode)
 
-        # If the target is not in channel list, we don't need to delete
-        if not target.instance_id in self.channels:
-            return
+        except NetworkError as err:
+            logger.exception("Connection was refused")
+            self.handshake_error = err
 
-        channel = self.channels[target.instance_id]
-        packet = Packet(protocol=Protocols.replication_del, payload=channel.packed_id, reliable=True)
-        # Send delete packet
-        self.cached_packets.add(packet)
+        else:
+            self.stream = ConnectionStream()
 
-        super().notify_unregistration(target)
+    @send_state(ConnectionStatus.pending)
+    def send_handshake_result(self, network_tick, bandwidth):
+        connection_failed = self.handshake_error is not None
+        self.status = ConnectionStatus.handshake
 
-    def write_replicated_attributes(self, replicables, collection, bandwidth, send_attributes=True):
-        """Generator
-        Writes to packet collection, respecting bandwidth for attribute
-        replication
+        if connection_failed:
+            pack_string = self.string_packer.pack
+            error_type = type(self._auth_error).type_name
+            error_body = self._auth_error.args[0]
+            error_data = pack_string(error_type + error_body)
+            return Packet(protocol=ConnectionProtocols.handshake_failed, payload=error_data,
+                          on_success=self.on_ack_handshake_failed)
 
-        :param replicables: iterable of replicables to consider replication
-        :param collection: PacketCollection instance
-        :param bandwidth: available bandwidth
-        :yield: each entry in replicables"""
+        else:
+            return Packet(protocol=ConnectionProtocols.handshake_succeeded, on_success=self.on_ack_handshake_success)
 
-        make_packet = Packet
-        store_packet = collection.members.append
-        insert_packet = collection.members.insert
 
-        replication_init = Protocols.replication_init  # @UndefinedVariable
-        replication_update = Protocols.replication_update  # @UndefinedVariable
+@with_tag(Netmodes.client)
+class ClientConnection(StreamConnection):
 
-        is_relevant = WorldInfo.rules.is_relevant
-        connection_replicable = self.replicable
+    @send_state(ConnectionStatus.pending)
+    def send_handshake_request(self, network_tick, bandwidth):
+        self.status = ConnectionStatus.handshake
 
-        used_bandwidth = 0
-        free_bandwidth = bandwidth > 0
+        netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
+        return Packet(protocol=ConnectionProtocols.handshake_request, payload=netmode_data)
 
-        replicables = list(replicables)
+    @response_protocol(ConnectionProtocols.handshake_success)
+    def receive_handshake_success(self, data):
+        self.stream = ConnectionStream()
+        self.status = ConnectionStatus.connected
 
-        for item in replicables:
+    @response_protocol(ConnectionProtocols.handshake_failed)
+    def receive_handshake_failed(self, data):
+        error_type, type_size = self.string_packer.unpack_from(data)
 
-            if not free_bandwidth:
-                yield item
-                continue
+        error_message, message_size = self.string_packer.unpack_from(data, type_size)
 
-            channel, is_owner = item
+        error_class = NetworkError.from_type_name(error_type)
+        raised_error = error_class(error_message)
 
-            # Get replicable
-            replicable = channel.replicable
-
-            # Only send attributes if relevant
-            if not (channel.awaiting_replication and (is_owner or is_relevant(connection_replicable, replicable))):
-                continue
-
-            # Get network ID
-            packed_id = channel.packed_id
-
-            # If we've never replicated to this channel
-            if channel.is_initial:
-                # Pack the class name
-                packed_class = self.string_packer.pack(replicable.__class__.type_name)
-                packed_is_host = self.bool_packer.pack(replicable == self.replicable)
-
-                # Send the protocol, class name and owner status to client
-                packet = make_packet(protocol=replication_init, payload=packed_id + packed_class + packed_is_host,
-                                     reliable=True)
-                # Insert the packet at the front (to ensure attribute
-                # references are valid to newly created replicables
-                insert_packet(0, packet)
-
-                used_bandwidth += packet.size
-
-            # Send changed attributes
-            if send_attributes or channel.is_initial:
-                attributes = channel.get_attributes(is_owner)
-
-                # If they have changed
-                if attributes:
-                    # This ensures references exist
-                    # By calling it after all creation packets are yielded
-                    update_payload = packed_id + attributes
-
-                    packet = make_packet(protocol=replication_update, payload=update_payload, reliable=True)
-
-                    store_packet(packet)
-                    used_bandwidth += packet.size
-
-                # If a temporary replicable remove from channels (but don't delete)
-                if replicable.replicate_temporarily:
-                    self.channels.pop(replicable.instance_id)
-
-            yield item
-
-        # Add queued packets to front of collection
-        if self.cached_packets:
-            collection.members[:0] = self.cached_packets
-            self.cached_packets.clear()
-
-    def receive(self, packet):
-        """Handles incoming Packet from client
-
-        :param packet: Packet instance
-        """
-        # Local space variables
-        channels = self.channels
-
-        unpacker = self.replicable_packer.unpack_id
-        method_invoke = Protocols.method_invoke
-
-        # If it is an RPC packet
-        if packet.protocol != method_invoke:
-            return
-
-        # Unpack data
-        instance_id, id_size = unpacker(packet.payload)
-        channel = channels[instance_id]
-
-        # If we have permission to execute
-        if channel.is_owner:
-            channel_data = packet.payload[id_size:]
-            channel.invoke_rpc_call(channel_data)
-
-    def send(self, network_tick, available_bandwidth):
-        """Creates a packet collection of replicated function calls
-
-        :param network_tick: non urgent data is included in collection
-        :param available_bandwidth: estimated available bandwidth
-        :returns: PacketCollection instance
-        """
-
-        collection = PacketCollection()
-        replicables = self.prioritised_channels
-
-        replicables = self.write_replicated_attributes(replicables, collection, available_bandwidth, network_tick)
-        replicables = self.write_replicated_method_calls(replicables, collection, available_bandwidth)
-
-        # Consume iterable
-        consume(replicables)
-        return collection
+        logger.error(raised_error)
+        ConnectionErrorSignal.invoke(raised_error, target=self)
+        self.status = ConnectionStatus.failed

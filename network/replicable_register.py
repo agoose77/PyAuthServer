@@ -42,7 +42,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         # Get all the member methods
         for name, value in cls_dict.items():
             # Only wrap valid members
-            if not metacls.is_wrappable(value) or metacls.is_found_in_parents(name, bases):
+            if not metacls.is_wrapable(value) or metacls.is_found_in_parents(name, bases):
                 continue
 
             # Wrap function with permission wrapper
@@ -79,7 +79,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         return return_type in Netmodes
 
     @classmethod
-    def is_wrappable(mcs, attribute):
+    def is_wrapable(mcs, attribute):
         """Determine if function can be wrapped as an RPC call
 
         :param attribute: attribute in question

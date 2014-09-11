@@ -14,6 +14,7 @@ from .channel import *
 from .conditions import *
 from .connection import *
 from .connection_interfaces import *
+from .connection_stream import *
 from .containers import *
 from .conversions import *
 from .decorators import *
