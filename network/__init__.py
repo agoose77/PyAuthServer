@@ -12,9 +12,9 @@ if NUMPY_SERIALISER:
     from .numpy_serialiser import *
 from .channel import *
 from .conditions import *
+from .streams import *
 from .connection import *
-from .connection_interfaces import *
-from .connection_stream import *
+from .replication_stream import *
 from .containers import *
 from .conversions import *
 from .decorators import *

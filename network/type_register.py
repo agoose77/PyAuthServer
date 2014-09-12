@@ -1,9 +1,22 @@
+class _TypeRegisterBase:
+
+    @classmethod
+    def register_subtype(cls):
+        pass
+
+    @classmethod
+    def register_type(cls):
+        pass
+
+
 class TypeRegister(type):
     """Registers all subclasses of parent class
     Stores class name: class mapping on parent.subclasses
     """
 
     def __new__(meta, name, parents, attributes):
+        parents += (_TypeRegisterBase,)
+
         cls = super().__new__(meta, name, parents, attributes)
 
         try:
@@ -17,13 +30,11 @@ class TypeRegister(type):
         if hasattr(parent, "subclasses"):
             subclasses[name] = cls
 
-            if hasattr(cls, "register_subtype"):
-                cls.register_subtype()
+            cls.register_subtype()
 
         # Otherwise we're a parent type
         else:
-            if hasattr(cls, "register_type"):
-                cls.register_type()
+            cls.register_type()
 
         return cls
 

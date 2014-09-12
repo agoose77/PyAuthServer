@@ -1,7 +1,7 @@
 from .replicable import Replicable
 from .enums import ConnectionStatus
 from .network import Network
-from .connection_interfaces import ConnectionInterface
+from .connection import Connection
 from .world_info import WorldInfo
 from .signals import Signal
 
@@ -36,7 +36,7 @@ class SimpleNetwork(Network):
 
     def start(self, timeout=None, update_rate=1/60):
         # Handle successive runs (initialisation)
-        ConnectionInterface.clear_graph()
+        Connection.clear_graph()
         Replicable.clear_graph()
         Signal.update_graph()
 
@@ -56,7 +56,7 @@ class SimpleNetwork(Network):
             
             now = _now
             
-            any_connected = bool(ConnectionInterface.by_status(ConnectionStatus.connected))
+            any_connected = bool(Connection.by_status(ConnectionStatus.connected))
 
             timed_out = False
             if timeout is not None:

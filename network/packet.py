@@ -220,4 +220,4 @@ class Packet:
         return '\n'.join(to_console)
 
     __radd__ = __add__
-    __bytes_string_ = to_bytes
+    __bytes__ = to_bytes

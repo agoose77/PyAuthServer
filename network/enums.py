@@ -51,11 +51,8 @@ class HandshakeState(metaclass=Enumeration):
 
 
 class ConnectionProtocols(metaclass=Enumeration):
-    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "connected"
-
-
-class StreamProtocols(metaclass=Enumeration):
-    values = "replication_init", "replication_del",  "attribute_update", "method_invoke",
+    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed",\
+             "connected", "replication_init", "replication_del",  "attribute_update", "method_invoke",
 
 
 class IterableCompressionType(metaclass=Enumeration):

@@ -1,4 +1,4 @@
-from .connection_interfaces import ConnectionInterface
+from .connection import Connection
 from .decorators import ignore_arguments
 from .enums import ConnectionStatus
 from .signals import SignalListener
@@ -151,15 +151,15 @@ class Network:
         ip_info = address, port
 
         try:
-            return ConnectionInterface.get_from_graph(ip_info)
+            return Connection.get_from_graph(ip_info)
 
         except LookupError:
-            return ConnectionInterface(ip_info)
+            return Connection(ip_info)
 
     def receive(self):
         """Receive all data from socket"""
         # Get connections
-        get_connection = ConnectionInterface.get_from_graph
+        get_connection = Connection.get_from_graph
 
         # Receives all incoming data
         for data, address in self.received_data:
@@ -170,13 +170,13 @@ class Network:
 
             # Create a new interface to handle connection
             except LookupError:
-                connection = ConnectionInterface(address)
+                connection = Connection(address)
 
             # Dispatch data to connection
             connection.receive(data)
 
         # Apply any changes to the Connection interface
-        ConnectionInterface.update_graph()  # @UndefinedVariable
+        Connection.update_graph()  # @UndefinedVariable
 
     def send(self, full_update):
         """Send all connection data and update timeouts
@@ -187,7 +187,7 @@ class Network:
         pending_state = ConnectionStatus.pending
 
         # Send all queued data
-        for connection in ConnectionInterface:
+        for connection in Connection:
 
             # If the connection should be removed (timeout or explicit)
             if connection.status < pending_state:
@@ -202,7 +202,7 @@ class Network:
                 send_func(data, connection.instance_id)
 
         # Delete dead connections
-        ConnectionInterface.update_graph()
+        Connection.update_graph()
 
     def send_to(self, data, address):
         """Send data to remote peer
