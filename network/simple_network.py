@@ -46,19 +46,22 @@ class SimpleNetwork(Network):
             self.on_initialised()
 
         started = clock()
-        now = started
+        last_time = started
 
         while True:
-            _now = clock()
-            if (_now - now) < update_rate:
+            current_time = clock()
+            if (current_time - last_time) < update_rate:
                 continue
-            now = _now
+
+            last_time = current_time
             
             any_connections = bool(Connection)
 
-            timed_out = False
-            if timeout is not None:
-                timed_out = (now - started) > timeout
+            if timeout is None:
+                timed_out = False
+
+            else:
+                timed_out = (current_time - started) > timeout
 
             if not any_connections and timed_out:
                 break
