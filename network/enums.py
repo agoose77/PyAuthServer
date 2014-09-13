@@ -42,10 +42,6 @@ class Netmodes(metaclass=Enumeration):
     values = "server", "client"
 
 
-class HandshakeState(metaclass=Enumeration):
-    values = "failure", "success", "request"
-
-
 class ConnectionProtocols(metaclass=Enumeration):
     values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
              "replication_del",  "attribute_update", "method_invoke",
