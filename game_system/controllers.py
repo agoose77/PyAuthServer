@@ -3,7 +3,7 @@ from functools import partial
 from math import pi
 
 from network.decorators import requires_netmode
-from network.descriptors import Attribute, MarkAttribute
+from network.descriptors import Attribute, FromClass
 from network.enums import Netmodes, Roles, IterableCompressionType
 from network.iterators import take_single
 from network.logger import logger
@@ -802,8 +802,8 @@ class PlayerController(Controller, NetworkLocksMixin):
         else:
             super().server_fire()
 
-    def server_store_move(self, move: TypeFlag(type_=MarkAttribute("movement_struct")),
-                          previous_moves: TypeFlag(type_=MarkAttribute("missing_movement_struct"))) -> Netmodes.server:
+    def server_store_move(self, move: TypeFlag(FromClass("movement_struct")),
+                          previous_moves: TypeFlag(FromClass("missing_movement_struct"))) -> Netmodes.server:
         """Store a client move for later processing and clock validation"""
 
         # Store move

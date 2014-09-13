@@ -130,6 +130,9 @@ class RPCInterfaceFactory:
 
         for argument in ordered_parameters.values():
 
+            if isinstance(argument.type, lookup_type):
+                return True
+
             for arg_value in argument.data.values():
 
                 if isinstance(arg_value, lookup_type):

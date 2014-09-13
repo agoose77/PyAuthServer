@@ -7,7 +7,7 @@ from .type_flag import TypeFlag
 __all__ = ['TypeFlag', 'Attribute', 'FromClass', 'DescriptorFactory']
 
 
-FromClass = namedtuple("MarkAttribute", "name")
+FromClass = namedtuple("FromClass", "name")
 
 
 class Attribute(TypeFlag):
