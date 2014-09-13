@@ -7,7 +7,7 @@ __all__ = ['PacketCollection', 'Packet']
 
 
 class PacketCollection:
-    __slots__ = "members", "sent_time", "received_time"
+    __slots__ = "members"
 
     def __init__(self, members=None):
         if members is None:
@@ -20,13 +20,6 @@ class PacketCollection:
         # Otherwise recreate members
         else:
             self.members = [m for p in members for m in p.members]
-
-        self.sent_time = None
-        self.received_time = None
-
-    @property
-    def latency(self):
-        return self.received_time - self.sent_time
 
     @property
     def reliable_members(self):

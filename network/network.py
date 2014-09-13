@@ -5,7 +5,7 @@ from .signals import SignalListener
 
 from collections import deque
 from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostbyname
-from time import monotonic
+from time import clock
 
 __all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMetrics']
 
@@ -36,7 +36,7 @@ class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
 
     @ignore_arguments
     def delayed_send(self):
-        current_time = monotonic()
+        current_time = clock()
 
         # Check if we can send delayed data
         delay = self.delay
@@ -56,7 +56,7 @@ class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
 
     def sendto(self, *args, **kwargs):
         # Store data for delay
-        self._buffer_out.append((monotonic(), args, kwargs))
+        self._buffer_out.append((clock(), args, kwargs))
         return 0
 
 
@@ -81,15 +81,15 @@ class NetworkMetrics:
 
     @property
     def send_rate(self):
-        return self._delta_sent / (monotonic() - self._delta_timestamp)
+        return self._delta_sent / (clock() - self._delta_timestamp)
 
     @property
     def receive_rate(self):
-        return self._delta_received / (monotonic() - self._delta_timestamp)
+        return self._delta_received / (clock() - self._delta_timestamp)
 
     @property
     def sample_age(self):
-        return monotonic() - self._delta_timestamp
+        return clock() - self._delta_timestamp
 
     def on_sent_bytes(self, sent_bytes):
         """Update internal sent bytes"""
@@ -103,7 +103,7 @@ class NetworkMetrics:
 
     def reset_sample_window(self):
         """Reset data used to calculate metrics"""
-        self._delta_timestamp = monotonic()
+        self._delta_timestamp = clock()
         self._delta_sent = self._delta_received = 0
 
 
@@ -184,16 +184,9 @@ class Network:
         :param full_update: whether this is a full send call
         """
         send_func = self.send_to
-        pending_state = ConnectionStatus.pending
 
         # Send all queued data
         for connection in Connection:
-
-            # If the connection should be removed (timeout or explicit)
-            if connection.status < pending_state:
-                connection.request_unregistration()
-                continue
-
             # Give the option to send nothing
             data = connection.send(full_update)
 

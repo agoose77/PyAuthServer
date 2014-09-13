@@ -1,10 +1,9 @@
-from .containers import AttributeStorageContainer, RPCStorageContainer
+from collections import defaultdict
+
 from .descriptors import Attribute
 from .enums import Roles
-from .replicable_register import ReplicableRegister
+from .metaclasses.replicable_register import ReplicableRegister
 from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
-
-from collections import defaultdict
 
 
 __all__ = ['Replicable']
@@ -26,7 +25,7 @@ class Replicable(metaclass=ReplicableRegister):
     _by_types = defaultdict(list)
     subclasses = {}
 
-    def __init__(self, instance_id=None, register=False, static=True, **kwargs):
+    def __init__(self, instance_id=None, register_immediately=False, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
 
@@ -51,7 +50,7 @@ class Replicable(metaclass=ReplicableRegister):
         self.replication_update_period = 1 / 20
 
         # Instantiate parent (this is when the creation callback may be called)
-        super().__init__(instance_id=instance_id, register=register,
+        super().__init__(instance_id=instance_id, register_immediately=register_immediately,
                          allow_random_key=True, **kwargs)
 
     @property
@@ -75,7 +74,7 @@ class Replicable(metaclass=ReplicableRegister):
         return last
 
     @classmethod
-    def create_or_return(cls, instance_id, register=True):
+    def create_or_return(cls, instance_id, register_immediately=True):
         """Creates a replicable if it is not already registered.
 
         Called by the replication system to establish
@@ -84,7 +83,7 @@ class Replicable(metaclass=ReplicableRegister):
         If the instance_id is registered, take precedence over non-static
         instances.
 
-        :param register: if registration should occur immediately
+        :param register_immediately: if registration should occur immediately
         """
         # Try and match an existing instance
         try:
@@ -92,7 +91,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         # If we don't find one, make one
         except LookupError:
-            return cls(instance_id=instance_id, register=register, static=False)
+            return cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
 
         else:
             # If we find a locally defined replicable
@@ -100,7 +99,7 @@ class Replicable(metaclass=ReplicableRegister):
             # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
             if existing._local_authority:
                 # Make the class and overwrite the id
-                return cls(instance_id=instance_id, register=register, static=False)
+                return cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
 
             return existing
 
@@ -113,15 +112,15 @@ class Replicable(metaclass=ReplicableRegister):
         """
         return range(cls._MAXIMUM_REPLICABLES)
 
-    def request_registration(self, instance_id=None, register=False):
-        """Handles registration of instances.
+    def register(self, instance_id=None, immediately=False):
+        """Handles registered of instances.
 
         Modifies behaviour to allow network priority over local instances.
 
         Handles edge cases such as static replicables.
 
         :param instance_id: instance id to register with
-        :param register: if registration should be immediate
+        :param register: if registered should be immediate
         """
         # This is not static or replicated then it's local
         if instance_id is None:
@@ -137,10 +136,10 @@ class Replicable(metaclass=ReplicableRegister):
             assert instance._local_authority, error_message
 
             # Forces reassignment of instance id
-            instance.request_registration(None, register)
+            instance.register(None, immediately)
 
         # Possess the instance id
-        super().request_registration(instance_id, register)
+        super().register(instance_id, immediately)
 
     def possessed_by(self, other):
         """Called on possession by other replicable
@@ -157,17 +156,17 @@ class Replicable(metaclass=ReplicableRegister):
         self.owner = None
 
     def on_registered(self):
-        """Called on registration of replicable.
+        """Called on registered of replicable.
 
         Registers instance to type list
         """
         super().on_registered()
-
+        print("REGISTERED", self, self.__class__.type_name)
         self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_unregistered(self):
-        """Called on unregistration of replicable.
+        """Called on unregistered of replicable.
 
         Removes instance from type list
         """

@@ -1,5 +1,5 @@
-from.decorators import get_tag, has_tag
-from .type_register import TypeRegister
+from .decorators import get_tag, has_tag
+from .metaclasses.type_register import TypeRegister
 from .world_info import WorldInfo
 
 __all__ = ['DelegateByNetmode', 'DelegateByTag', 'FindByTag']

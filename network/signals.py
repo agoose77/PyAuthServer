@@ -1,10 +1,11 @@
-from .type_register import TypeRegister
+from collections import defaultdict
+from inspect import getmembers, signature
+
+from .metaclasses.type_register import TypeRegister
 from .conditions import is_annotatable, is_signal_listener
 from .decorators import signal_listener
 from .structures import factory_dict
 
-from collections import defaultdict
-from inspect import getmembers, signature
 
 __all__ = ['SignalListener', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
            'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal',
@@ -431,6 +432,10 @@ class ReplicableUnregisteredSignal(Signal):
 
 
 class DisconnectSignal(Signal):
+    pass
+
+
+class ConnectionTimeoutSignal(Signal):
     pass
 
 

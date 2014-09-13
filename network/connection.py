@@ -1,20 +1,23 @@
+from collections import deque
+from time import clock
+
 from .bitfield import BitField
 from .conversions import conversion
 from .type_flag import TypeFlag
 from .handler_interfaces import get_handler
-from .instance_register import InstanceRegister
-from .packet import Packet, PacketCollection
+from .latency_calculator import LatencyCalculator
+from .metaclasses.instance_register import InstanceRegister
+from .packet import PacketCollection
 from .streams import Dispatcher, InjectorStream, HandshakeStream
-from collections import deque
-from time import clock
 
-__all__ = ["Connection"]
+
+__all__ = "Connection",
 
 
 class Connection(metaclass=InstanceRegister):
     """Interface for remote peer
 
-    Mediates a connection instance between local and remote peer
+    Mediates a connection between local and remote peer
     """
 
     subclasses = {}
@@ -61,13 +64,15 @@ class Connection(metaclass=InstanceRegister):
         self.throttle_pending = False
 
         # Estimate RTT
-        self.latency = 0.0
-        self.latency_smoothing = 0.8
+        self.latency_calculator = LatencyCalculator()
 
         # Internal packet data
         self.dispatcher = Dispatcher()
         self.injector = self.dispatcher.create_stream(InjectorStream)
+
         self.handshake = self.dispatcher.create_stream(HandshakeStream)
+        self.handshake.connection_info = self.instance_id
+        self.handshake.remove_connection = self.deregister
 
     def get_reliable_information(self, remote_sequence):
         """Update stored information for remote peer reliability feedback
@@ -97,7 +102,8 @@ class Connection(metaclass=InstanceRegister):
         """
         requested_ack = self.requested_ack
         window_size = self.ack_window
-        current_time = clock()
+
+        received_latency_sample = False
 
         # Iterate over ACK bitfield
         for relative_sequence in range(window_size):
@@ -109,8 +115,9 @@ class Connection(metaclass=InstanceRegister):
                 sent_packet.on_ack()
 
                 # Update heuristic for latency
-                sent_packet.received_time = current_time
-                self.update_latency_estimate(sent_packet.latency)
+                if not received_latency_sample:
+                    self.latency_calculator.stop_sample(absolute_sequence)
+                    received_latency_sample = True
 
                 # If a packet has had time to return since throttling began
                 if absolute_sequence == self.tagged_throttle_sequence:
@@ -122,8 +129,8 @@ class Connection(metaclass=InstanceRegister):
             sent_packet.on_ack()
 
             # Update heuristic for latency
-            sent_packet.received_time = current_time
-            self.update_latency_estimate(sent_packet.latency)
+            if not received_latency_sample:
+                self.latency_calculator.stop_sample(ack_base)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
@@ -182,7 +189,8 @@ class Connection(metaclass=InstanceRegister):
         self.last_received = clock()
 
         # Handle received packets
-        PacketCollection.iter_bytes(bytes_string[offset:], self.dispatcher.handle_packet)
+        packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
+        self.dispatcher.handle_packets(packet_collection)
 
     def send(self, network_tick):
         """Pull data from connection interfaces to send
@@ -203,7 +211,7 @@ class Connection(metaclass=InstanceRegister):
         ack_bitfield = self.get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
-        packet_collection.sent_time = clock()
+        self.latency_calculator.start_sample(sequence)
         self.requested_ack[sequence] = packet_collection
 
         # Construct header information
@@ -238,11 +246,3 @@ class Connection(metaclass=InstanceRegister):
         """Stop updating metric for bandwidth"""
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
-
-    def update_latency_estimate(self, new_latency):
-        """Smoothly update the internal latency value with a new determined value
-
-        :param new_latency: new latency value
-        """
-        smooth_factor = self.latency_smoothing
-        self.latency = (smooth_factor * self.latency) + (1 - smooth_factor) * new_latency

@@ -9,7 +9,7 @@ from .tagged_delegate import DelegateByNetmode
 from .replicable import Replicable
 
 from functools import partial
-from time import monotonic
+from time import clock
 
 __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
@@ -43,7 +43,7 @@ class Channel(DelegateByNetmode):
         parent = self.replicable.uppermost
 
         try:
-            return parent.instance_id == self.connection.replicable.instance_id
+            return parent == self.connection.replicable
 
         except AttributeError:
             return False
@@ -99,7 +99,7 @@ class ClientChannel(Channel):
         :returns: replication priority"""
         return self.replicable.replication_priority
 
-    def set_attributes(self, bytes_string):
+    def set_attributes(self, bytes_string, offset=0):
         """Unpacks byte stream and updates attributes
 
         :param bytes\_: byte stream of attribute"""
@@ -111,7 +111,7 @@ class ClientChannel(Channel):
         notifications = []
         notify = notifications.append
 
-        for attribute_name, value in self.serialiser.unpack(bytes_string, replicable_data):
+        for attribute_name, value in self.serialiser.unpack(bytes_string, replicable_data, offset=offset):
             attribute = get_attribute(attribute_name)
             # Store new value
             replicable_data[attribute] = value
@@ -140,13 +140,13 @@ class ServerChannel(Channel):
         of neglected replicables
 
         :returns: replication priority"""
-        interval = (monotonic() - self.last_replication_time)
+        interval = (clock() - self.last_replication_time)
         elapsed_fraction = (interval / self.replicable.replication_update_period)
         return self.replicable.replication_priority + (elapsed_fraction - 1)
 
     @property
     def awaiting_replication(self):
-        interval = (monotonic() - self.last_replication_time)
+        interval = (clock() - self.last_replication_time)
         return ((interval >= self.replicable.replication_update_period)
                 or self.is_initial)
 
@@ -204,7 +204,7 @@ class ServerChannel(Channel):
                     previous_complaints[attribute] = new_hash
 
             # We must have now replicated
-            self.last_replication_time = monotonic()
+            self.last_replication_time = clock()
             self.is_initial = False
 
             # Outputting bytes asserts we have data

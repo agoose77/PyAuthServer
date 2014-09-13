@@ -38,10 +38,6 @@ class ConnectionStatus(metaclass=Enumeration):
     values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
 
-class PacketHandler(metaclass=Enumeration):
-    values = ("send", "receive")
-
-
 class Netmodes(metaclass=Enumeration):
     values = "server", "client"
 
@@ -51,8 +47,8 @@ class HandshakeState(metaclass=Enumeration):
 
 
 class ConnectionProtocols(metaclass=Enumeration):
-    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed",\
-             "connected", "replication_init", "replication_del",  "attribute_update", "method_invoke",
+    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
+             "replication_del",  "attribute_update", "method_invoke",
 
 
 class IterableCompressionType(metaclass=Enumeration):

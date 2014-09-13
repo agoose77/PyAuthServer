@@ -110,4 +110,4 @@ class _WorldInfo(Replicable):
     has_replicable = simulated(Replicable.graph_has_instance)
 
 
-WorldInfo = _WorldInfo(_WorldInfo._ID, register=True)
+WorldInfo = _WorldInfo(_WorldInfo._ID, register_immediately=True)

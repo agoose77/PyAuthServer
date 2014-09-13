@@ -1,4 +1,4 @@
-from .type_register import TypeRegister  # @UnusedImport
+from .metaclasses.type_register import TypeRegister
 
 __all__ = ['NetworkError', 'ConnectionTimeoutError', 'ReplicableAccessError']
 

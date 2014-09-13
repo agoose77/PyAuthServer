@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from .attribute_register import AttributeMeta
+from .metaclasses.attribute_register import AttributeMeta
 from .flag_serialiser import FlagSerialiser
 
 __all__ = ['Struct', 'StructMeta']

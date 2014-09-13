@@ -1,11 +1,10 @@
 from .replicable import Replicable
-from .enums import ConnectionStatus
 from .network import Network
 from .connection import Connection
 from .world_info import WorldInfo
 from .signals import Signal
 
-from time import monotonic
+from time import clock
 
 __all__ = ["SimpleNetwork", "respect_interval"]
 
@@ -40,29 +39,28 @@ class SimpleNetwork(Network):
         Replicable.clear_graph()
         Signal.update_graph()
 
-        WorldInfo.request_registration(instance_id=WorldInfo.instance_id, register=True)
+        WorldInfo.register(instance_id=WorldInfo.instance_id, immediately=True)
         Signal.update_graph()
         
         if callable(self.on_initialised):
             self.on_initialised()
 
-        started = monotonic()
+        started = clock()
         now = started
 
         while True:
-            _now = monotonic()
+            _now = clock()
             if (_now - now) < update_rate:
                 continue
-            
             now = _now
             
-            any_connected = bool(Connection.by_status(ConnectionStatus.connected))
+            any_connections = bool(Connection)
 
             timed_out = False
             if timeout is not None:
                 timed_out = (now - started) > timeout
 
-            if not any_connected and timed_out:
+            if not any_connections and timed_out:
                 break
              
             self.step()
@@ -74,11 +72,16 @@ class SimpleNetwork(Network):
 
 
 def respect_interval(interval, function):
+    """Decorator to ensure function is only called after a minimum interval
+
+    :param interval: minimum interval between successive calls
+    :param function: function to call
+    """
     def wrapper():
-        last_called = monotonic()
+        last_called = clock()
 
         while True:
-            now = monotonic()
+            now = clock()
             dt = now - last_called
 
             if dt >= interval:

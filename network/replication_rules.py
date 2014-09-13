@@ -1,17 +1,15 @@
-from .replicable import Replicable
-from .descriptors import Attribute
-from .enums import Roles
-
 __all__ = ['ReplicationRulesBase']
 
 
-class ReplicationRulesBase(Replicable):
-    roles = Attribute(Roles(Roles.authority, Roles.none))
+class ReplicationRulesBase:
 
     def pre_initialise(self, addr, netmode):
         raise NotImplementedError
 
-    def post_initialise(self, connection):
+    def post_initialise(self, replication_stream):
+        raise NotImplementedError
+
+    def post_disconnected(self, replication_stream, replicable):
         raise NotImplementedError
 
     def is_relevant(self, conn, replicable):
