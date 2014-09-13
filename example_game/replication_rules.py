@@ -1,9 +1,8 @@
 from operator import gt as greater_than
 from random import choice
 
-from network.connection_interfaces import ConnectionInterface
-from network.enums import ConnectionStatus
-from network.replication_rules import ReplicationRulesBase
+from network.descriptors import Attribute
+from network.enums import Roles
 from network.signals import ConnectionDeletedSignal, ConnectionSuccessSignal
 
 from game_system.controllers import PlayerController
@@ -21,7 +20,8 @@ from .signals import TeamSelectionQuerySignal
 from .weapons import BowWeapon
 
 
-class TeamDeathMatch(ReplicationRulesBase):
+class TeamDeathMatch(Replicable):
+    roles = Attribute(Roles(Roles.authority, Roles.none))
 
     countdown_running = False
     countdown_start = 0
@@ -42,11 +42,6 @@ class TeamDeathMatch(ReplicationRulesBase):
     player_pawn_class = CTFPawn
     player_replication_info_class = CTFPlayerReplicationInfo
     player_weapon_class = BowWeapon
-
-    @property
-    def connected_players(self):
-        disconnected_status = ConnectionStatus.pending
-        return ConnectionInterface.by_status(disconnected_status, greater_than)
 
     def allows_broadcast(self, sender, message):
         return True
@@ -89,7 +84,7 @@ class TeamDeathMatch(ReplicationRulesBase):
             if player_pawn:
 
                 # First check by distance
-                position_difference = replicable.physics.world_position - player_pawn.physics.world_position
+                position_difference = replicable.transform.world_position - player_pawn.transform.world_position
                 in_range = position_difference.length_squared <= self.relevant_radius_squared
 
                 if in_range:
@@ -131,6 +126,8 @@ class TeamDeathMatch(ReplicationRulesBase):
         self.black_list = []
         self.setup_fake_teams()
 
+        self.connected_players = 0
+
     @ConnectionDeletedSignal.global_listener
     def on_disconnect(self, replicable):
         self.broadcast(replicable, "{} disconnected".format(replicable))
@@ -145,6 +142,8 @@ class TeamDeathMatch(ReplicationRulesBase):
         # Create player controller for player
         controller = self.player_controller_class(register_immediately=True)
         controller.info = self.player_replication_info_class(register_immediately=True)
+
+        self.connected_players += 1
 
         return controller
 
@@ -184,7 +183,7 @@ class TeamDeathMatch(ReplicationRulesBase):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.physics.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).physics.world_position
+        pawn.transform.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).transform.world_position
         return controller
 
     def setup_player_pawn(self, controller):
@@ -203,7 +202,8 @@ class TeamDeathMatch(ReplicationRulesBase):
         controller.set_camera(camera)
         controller.set_weapon(weapon)
 
-        pawn.physics.world_position = choice(WorldInfo.subclass_of(SpawnPoint)).physics.world_position
+        spawn_point = choice(WorldInfo.subclass_of(SpawnPoint))
+        pawn.transform.world_position = spawn_point.transform.world_position
         return controller
 
     @LogicUpdateSignal.global_listener

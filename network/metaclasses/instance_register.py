@@ -20,7 +20,7 @@ class _ManagedInstanceBase(SignalListener):
         self.allow_random_key = allow_random_key
 
         # Initial value
-        self.instance_id = None
+        self.instance_id = instance_id
 
         # Run clean init function
         self.on_initialised()
