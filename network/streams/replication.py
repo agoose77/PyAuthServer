@@ -7,8 +7,7 @@ from ..handler_interfaces import get_handler
 from ..logger import logger
 from ..packet import Packet, PacketCollection
 from ..replicable import Replicable
-from ..signals import (Signal, SignalListener, LatencyUpdatedSignal, ReplicableRegisteredSignal,
-                       ReplicableUnregisteredSignal)
+from ..signals import (Signal, SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
 from ..tagged_delegate import DelegateByNetmode
 from ..type_flag import TypeFlag
 from ..world_info import WorldInfo
@@ -88,7 +87,7 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
         self.channels[target.instance_id] = Channel(self, target)
 
-    def send_method_calls_only(self, replicables, available_bandwidth):
+    def send_method_calls(self, replicables, available_bandwidth):
         """Creates a packet collection of replicated function calls
 
         :param available_bandwidth: estimated available bandwidth
@@ -145,7 +144,7 @@ class ServerReplicationStream(ReplicationStream):
 
         super().notify_unregistered(target)
 
-    def send_method_calls_and_attributes(self, replicables, available_bandwidth):
+    def send_attributes(self, replicables, available_bandwidth):
         """Creates a packet collection of replicated function calls and attributes
 
         :param available_bandwidth: estimated available bandwidth
@@ -183,9 +182,9 @@ class ServerReplicationStream(ReplicationStream):
         replicables = self.prioritised_channels
 
         if network_tick:
-            replicables = self.send_method_calls_and_attributes(replicables, bandwidth)
+            replicables = self.send_attributes(replicables, bandwidth)
 
-        self.send_method_calls_only(replicables, bandwidth)
+        self.send_method_calls(replicables, bandwidth)
 
         members = []
 
@@ -298,7 +297,7 @@ class ClientReplicationStream(ReplicationStream):
 
     def pull_packets(self, network_tick, bandwidth):
         replicables = self.prioritised_channels
-        self.send_method_calls_only(replicables, bandwidth)
+        self.send_method_calls(replicables, bandwidth)
 
         members = self.method_queue
 
