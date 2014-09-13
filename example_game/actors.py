@@ -127,8 +127,8 @@ class CTFPawn(Pawn):
         # Network info
         flag.possessed_by(self)
         # Physics info
-        flag.physics.parent = self.physics.sockets['weapon']
-        flag.physics.local_position = Vector()
+        flag.transform.parent = self.transform.sockets['weapon']
+        flag.transform.local_position = Vector()
 
     @simulated
     def drop_flag(self):
@@ -136,7 +136,7 @@ class CTFPawn(Pawn):
         # Network info
         self._flag.unpossessed()
         # Physics info
-        self._flag.physics.parent = None
+        self._flag.transform.parent = None
 
     @simulated
     def on_flag_replicated(self, flag):
