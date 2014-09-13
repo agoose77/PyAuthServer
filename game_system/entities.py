@@ -75,7 +75,7 @@ class Entity:
 class Actor(Entity, Replicable):
     """Physics enabled network object"""
 
-    component_tags = ("physics",)
+    component_tags = ("physics", "transform")
 
     # Physics data
     network_position = Attribute(type_of=Vector, notify=True)
@@ -117,10 +117,10 @@ class Actor(Entity, Replicable):
 
     def copy_state_to_network(self):
         """Copies Physics State to network attributes"""
-        self.network_position = self.physics.world_position.copy()
+        self.network_position = self.transform.world_position.copy()
+        self.network_orientation = self.transform.world_orientation.copy()
         self.network_angular = self.physics.world_angular.copy()
         self.network_velocity = self.physics.world_velocity.copy()
-        self.network_orientation = self.physics.world_orientation.copy()
         self.network_collision_group = self.physics.collision_group
         self.network_collision_mask = self.physics.collision_mask
         self.network_replication_time = WorldInfo.elapsed
@@ -165,9 +165,9 @@ class Actor(Entity, Replicable):
             self.physics.world_angular = self.network_angular
 
         elif name == "network_orientation":
-            current_rotation = self.physics.world_orientation.to_quaternion()
+            current_rotation = self.transform.world_orientation.to_quaternion()
             new_rotation = self.network_orientation.to_quaternion()
-            self.physics.world_orientation = current_rotation.slerp(new_rotation, 0.3)
+            self.transform.world_orientation = current_rotation.slerp(new_rotation, 0.3)
 
         elif name == "network_position":
             self.on_replicated_physics(self.network_position, self.network_velocity, self.network_replication_time)
@@ -178,7 +178,7 @@ class Actor(Entity, Replicable):
 
 class Camera(Actor):
 
-    component_tags = ("physics", "camera")
+    component_tags = Actor.component_tags + ("camera",)
 
     @property
     def mode(self):
@@ -223,7 +223,7 @@ class Camera(Actor):
 
 class Pawn(Actor):
 
-    component_tags = ("physics", "animation")
+    component_tags = Actor.component_tags + ("animation",)
 
     # Network Attributes
     alive = Attribute(True, notify=True, complain=True)
@@ -238,7 +238,7 @@ class Pawn(Actor):
     @property
     def on_ground(self):
         downwards = -self.physics.get_direction(Axis.z)
-        target = self.physics.world_position + downwards
+        target = self.transform.world_position + downwards
         trace = self.physics.ray_test(target, distance=self.__class__.FLOOR_OFFSET + 0.5)
         return trace is not None
 
@@ -299,7 +299,7 @@ class Pawn(Actor):
 
 class Particle(Entity, SignalListener):
 
-    component_tags = ("physics",)
+    component_tags = ("physics", "transform")
 
     def __init__(self):
         self.register_signals()

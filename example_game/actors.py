@@ -31,15 +31,15 @@ class CameraAnimationActor(Camera):
 
         self.orbit_frequency = 1 / 40
         self.origin = Vector((0, -20, 20))
-        self.physics.world_position = self.origin + displacement
+        self.transform.world_position = self.origin + displacement
 
     @LogicUpdateSignal.global_listener
     @simulated
     def update(self, delta_time):
-        from_origin = self.physics.world_position - self.origin
+        from_origin = self.transform.world_position - self.origin
         from_origin.rotate(Euler((0, 0, radians(360) * delta_time * self.orbit_frequency)))
 
-        self.physics.world_position = self.origin + from_origin
+        self.transform.world_position = self.origin + from_origin
         #self.physics.align_to(-from_origin, factor=.43, axis=Axis.y)
 
 
@@ -88,8 +88,6 @@ class ArrowProjectile(Projectile):
 
 
 class Barrel(Actor):
-    entity_name = "Barrel"
-
     @CollisionSignal.listener
     @requires_netmode(Netmodes.client)
     @simulated
@@ -100,7 +98,7 @@ class Barrel(Actor):
         player_controller = PlayerController.get_local_controller()
 
         collision_sound = self.resources['sounds']['clang.mp3']
-        player_controller.hear_sound(collision_sound, self.physics.world_position, self.physics.world_orientation,
+        player_controller.hear_sound(collision_sound, self.transform.world_position, self.transform.world_orientation,
                                      self.physics.world_velocity)
 
 
@@ -245,12 +243,12 @@ class CTFFlag(Actor):
         divided_position = (1 + sin(radians(360 * timer_progress)))/2
 
         physics = self.physics
-        ray_result = physics.trace_ray(physics.world_position - physics.get_direction(Axis.z), distance=100)
+        ray_result = physics.trace_ray(transform.world_position - physics.get_direction(Axis.z), distance=100)
         if ray_result is None:
             return
 
         relative_position_z = lerp(self.floor_offset_minimum, self.floor_offset_maximum, divided_position)
-        physics.world_position = ray_result.position + ray_result.normal * relative_position_z
+        transform.world_position = ray_result.position + ray_result.normal * relative_position_z
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -280,9 +278,9 @@ class TestBox(Actor):
 
     @LogicUpdateSignal.global_listener
     def update(self, delta_time):
-        orientation = self.physics.world_orientation
+        orientation = self.transform.world_orientation
         orientation.z += 6.28 * delta_time / 2
-        self.physics.world_orientation = orientation
+        self.transform.world_orientation = orientation
 
 
 class DeathPlane(Actor):

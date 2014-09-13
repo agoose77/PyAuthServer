@@ -117,5 +117,3 @@ class BGEMouseManager(MouseManager):
             last_position = self.position.copy()
 
         self._last_position = last_position
-
-print(MouseManager._cache)

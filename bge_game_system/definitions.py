@@ -33,15 +33,16 @@ class BGEComponent(FindByTag):
 
 
 @with_tag("physics")
-class BGEPhysicsInterface(BGEComponent, SignalListener):
-    """Physics implementation for BGE entity"""
+class BGEPhysicsInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
         self._obj = obj
         self._entity = entity
 
-        # Used for raycast lookups
-        obj['physics_component'] = self
+        self._new_collisions = set()
+        self._old_collisions = set()
+        self._dispatched = set()
+        self._dispatched_entities = set()
 
         # Physics type
         physics_constants = {logic.KX_PHYSICS_STATIC: PhysicsType.static,
@@ -60,42 +61,13 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
         else:
             self._physics_type = PhysicsType.no_collision
 
-        # Collisions
-        if not self._physics_type in (PhysicsType.navigation_mesh, PhysicsType.no_collision):
+        # Collisions/
+        self.has_dynamics = not self._physics_type in (PhysicsType.navigation_mesh, PhysicsType.no_collision)
+        if self.has_dynamics:
             obj.collisionCallbacks.append(self._on_collision)
 
-        self._new_collisions = set()
-        self._old_collisions = set()
-        self._dispatched = set()
-        self._dispatched_entities = set()
-
-        self._parent = None
-        self.children = set()
-
-        self.create_sockets()
-        self.register_signals()
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @parent.setter
-    def parent(self, value):
-        if value is self._parent:
-            return
-
-        self._parent.children.remove(self._entity)
-        self._obj.removeParent()
-
-        if value is None:
-            return
-
-        if not hasattr(value, "_obj"):
-            raise TypeError("Invalid parent type {}".format(value.__class__.__name__))
-
-        self._obj.setParent(value._obj)
-        value.children.add(self._entity)
-        self._parent = value
+        # Used for raycast lookups
+        obj['physics_component'] = self
 
     @staticmethod
     def entity_from_object(obj):
@@ -124,98 +96,32 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
         return self._physics_type
 
     @property
-    def world_position(self):
-        return self._obj.worldPosition
-
-    @world_position.setter
-    def world_position(self, position):
-        self._obj.worldPosition = position
-
-    @property
     def world_velocity(self):
+        if not self.has_dynamics:
+            return Vector()
+
         return self._obj.worldLinearVelocity
 
     @world_velocity.setter
     def world_velocity(self, velocity):
+        if not self.has_dynamics:
+            return
+
         self._obj.worldLinearVelocity = velocity
 
     @property
     def world_angular(self):
+        if not self.has_dynamics:
+            return Vector()
+
         return self._obj.worldLinearVelocity
 
     @world_angular.setter
     def world_angular(self, velocity):
-        self._obj.worldAngularVelocity = velocity
-
-    @property
-    def world_orientation(self):
-        return self._obj.worldOrientation.to_euler()
-
-    @world_orientation.setter
-    def world_orientation(self, orientation):
-        self._obj.worldOrientation = orientation
-
-    @property
-    def is_colliding(self):
-        return bool(self._dispatched)
-
-    def align_to(self, vector, factor=1, axis=Axis.y):
-        if not vector.length_squared:
+        if not self.has_dynamics:
             return
 
-        if axis == Axis.x:
-            forward_axis = "X"
-
-        elif axis == Axis.y:
-            forward_axis = "Y"
-
-        elif axis == Axis.z:
-            forward_axis = "Z"
-
-        else:
-            raise ValueError("Unknown Axis value: {}".format(axis))
-
-        rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
-        current_rotation = self.world_rotation.to_quaternion()
-        self.world_rotation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
-
-    def is_colliding_with(self, entity):
-        """Determines if the entity is colliding with another entity
-
-        :param entity: entity to evaluate
-        :returns: result of condition
-        """
-        return entity in self._dispatched_entities
-
-    def create_sockets(self):
-        self.sockets = set()
-
-        for obj in self._obj.childrenRecursive:
-            socket_name = obj.get("socket")
-            if not socket_name:
-                continue
-
-            socket = BGESocket(socket_name, self, obj)
-            self.sockets.add(socket)
-
-    def get_direction_vector(self, axis):
-        """Get the axis vector of this object in world space
-
-        :param axis: :py:code:`bge_game_system.enums.Axis` value
-        :rtype: :py:code:`mathutils.Vector`
-        """
-        vector = [0, 0, 0]
-
-        if axis == Axis.x:
-            vector[0] = 1
-
-        elif axis == Axis.y:
-            vector[1] = 1
-
-        elif axis == Axis.z:
-            vector[2] = 1
-
-        return Vector(self.object.getAxisVect(vector))
+        self._obj.worldAngularVelocity = velocity
 
     def ray_test(self, target, source=None, distance=0.0):
         """Perform a ray trace to a target
@@ -285,6 +191,121 @@ class BGEPhysicsInterface(BGEComponent, SignalListener):
 
                 result = CollisionResult(hit_entity, ended_collision, None)
                 callback(result, target=entity)
+
+
+@with_tag("transform")
+class BGETransformInterface(BGEComponent, SignalListener):
+    """Physics implementation for BGE entity"""
+
+    def __init__(self, config_section, entity, obj):
+        self._obj = obj
+        self._entity = entity
+
+        self._parent = None
+        self.children = set()
+
+        self.create_sockets()
+        self.register_signals()
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @parent.setter
+    def parent(self, value):
+        if value is self._parent:
+            return
+
+        self._parent.children.remove(self._entity)
+        self._obj.removeParent()
+
+        if value is None:
+            return
+
+        if not hasattr(value, "_obj"):
+            raise TypeError("Invalid parent type {}".format(value.__class__.__name__))
+
+        self._obj.setParent(value._obj)
+        value.children.add(self._entity)
+        self._parent = value
+
+    @property
+    def world_position(self):
+        return self._obj.worldPosition
+
+    @world_position.setter
+    def world_position(self, position):
+        self._obj.worldPosition = position
+
+    @property
+    def world_orientation(self):
+        return self._obj.worldOrientation.to_euler()
+
+    @world_orientation.setter
+    def world_orientation(self, orientation):
+        self._obj.worldOrientation = orientation
+
+    @property
+    def is_colliding(self):
+        return bool(self._dispatched)
+
+    def align_to(self, vector, factor=1, axis=Axis.y):
+        if not vector.length_squared:
+            return
+
+        if axis == Axis.x:
+            forward_axis = "X"
+
+        elif axis == Axis.y:
+            forward_axis = "Y"
+
+        elif axis == Axis.z:
+            forward_axis = "Z"
+
+        else:
+            raise ValueError("Unknown Axis value: {}".format(axis))
+
+        rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
+        current_rotation = self.world_rotation.to_quaternion()
+        self.world_rotation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
+
+    def create_sockets(self):
+        self.sockets = set()
+
+        for obj in self._obj.childrenRecursive:
+            socket_name = obj.get("socket")
+            if not socket_name:
+                continue
+
+            socket = BGESocket(socket_name, self, obj)
+            self.sockets.add(socket)
+
+    def get_direction_vector(self, axis):
+        """Get the axis vector of this object in world space
+
+        :param axis: :py:code:`bge_game_system.enums.Axis` value
+        :rtype: :py:code:`mathutils.Vector`
+        """
+        vector = [0, 0, 0]
+
+        if axis == Axis.x:
+            vector[0] = 1
+
+        elif axis == Axis.y:
+            vector[1] = 1
+
+        elif axis == Axis.z:
+            vector[2] = 1
+
+        return Vector(self.object.getAxisVect(vector))
+
+    def is_colliding_with(self, entity):
+        """Determines if the entity is colliding with another entity
+
+        :param entity: entity to evaluate
+        :returns: result of condition
+        """
+        return entity in self._dispatched_entities
 
 
 @with_tag("animation")

@@ -129,8 +129,8 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
             print("Loaded {}".format(actor))
             found_actors[obj] = actor
 
-            actor.physics.world_position = obj.worldPosition.copy()
-            actor.physics.world_orientation = obj.worldOrientation.to_euler()
+            actor.transform.world_position = obj.worldPosition.copy()
+            actor.transform.world_orientation = obj.worldOrientation.to_euler()
 
             if isinstance(actor, Pawn):
                 self.create_pawn_controller(actor, obj)
@@ -176,10 +176,10 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
 
         :param source_state: State to copy from
         :param target_state: State to copy to"""
-        actor.physics.world_position = state.position.copy()
+        actor.transform.world_position = state.position.copy()
         actor.physics.world_velocity = state.velocity.copy()
         actor.physics.world_angular = state.angular.copy()
-        actor.physics.world_orientation = state.rotation.copy()
+        actor.transform.world_orientation = state.rotation.copy()
         actor.physics.collision_group = state.collision_group
         actor.physics.collision_mask = state.collision_mask
 
@@ -190,10 +190,10 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
         :param source_state: State to copy from
         :param target_state: State to copy to
         """
-        state.position = actor.physics.world_position.copy()
+        state.position = actor.transform.world_position.copy()
         state.velocity = actor.physics.world_velocity.copy()
         state.angular = actor.physics.world_angular.copy()
-        state.rotation = actor.physics.world_orientation.copy()
+        state.rotation = actor.transform.world_orientation.copy()
         state.collision_group = actor.physics.collision_group
         state.collision_mask = actor.physics.collision_mask
 
@@ -235,7 +235,7 @@ class ClientPhysics(PhysicsSystem):
 
             position, velocity = result
 
-            actor.physics.world_position = position
+            actor.transform.world_position = position
             actor.physics.world_velocity = velocity
 
     def spawn_actor(self, lookup, name, type_of):
@@ -255,7 +255,7 @@ class ClientPhysics(PhysicsSystem):
 
         target.f.worldPosition = position
         extrapolator = self._extrapolators[target]
-        extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.physics.world_position, position, velocity)
+        extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.transform.world_position, position, velocity)
 
     @ReplicableUnregisteredSignal.global_listener
     def on_replicable_unregistered(self, target):
@@ -298,7 +298,7 @@ class ClienstPhysics(PhysicsSystem):
                 continue
             position, velocity = result
 
-            replicable.physics.world_position = position
+            replicable.transform.world_position = position
             replicable.physics.world_velocity = velocity
 
     def spawn_actor(self, lookup, name, type_of):

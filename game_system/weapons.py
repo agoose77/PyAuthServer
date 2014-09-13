@@ -79,7 +79,7 @@ class TraceWeapon(Weapon):
         # Get hit results
 
         camera_physics = camera.physics
-        camera_position = camera_physics.world_position
+        camera_position = camera_transform.world_position
         position = camera_position + camera_physics.get_direction_vector(Axis.y)
         hit_result = camera_physics.ray_test(position, self.maximum_range)
 
@@ -122,9 +122,9 @@ class ProjectileWeapon(Weapon):
 
         forward_vector = camera.physics.get_direction(Axis.y)
         projectile_vector = self.projectile_velocity.copy()
-        projectile_vector.rotate(camera.physics.world_orientation)
+        projectile_vector.rotate(camera.transform.world_orientation)
 
-        projectile.physics.world_position = camera.physics.world_position + forward_vector * 6.0
-        projectile.physics.world_orientation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
+        projectile.transform.world_position = camera.transform.world_position + forward_vector * 6.0
+        projectile.transform.world_orientation = Vector((0, 1, 0)).rotation_difference(projectile_vector)
         projectile.physics.local_velocity = self.projectile_velocity
         projectile.physics.possessed_by(self)

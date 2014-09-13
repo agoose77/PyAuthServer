@@ -409,7 +409,7 @@ class InvokeSignal(LeafNode):
 class AimAtActor(LeafNode):
 
     def get_target_position(self, blackboard):
-        return blackboard['actor'].physics.world_position
+        return blackboard['actor'].transform.world_position
 
     def evaluate(self, blackboard):
         camera = blackboard['camera']
@@ -417,7 +417,7 @@ class AimAtActor(LeafNode):
 
         target = self.get_target_position(blackboard)
 
-        target_vector = (target - camera.physics.world_position).normalized()
+        target_vector = (target - camera.transform.world_position).normalized()
         turn_speed = 0.1
 
         camera.align_to(target_vector, factor=turn_speed)
@@ -435,7 +435,7 @@ class WithinAttackRange(ConditionNode):
 
     def condition(self, blackboard):
 
-        return ((blackboard['actor'].physics.world_position - blackboard['pawn'].physics.world_position)
+        return ((blackboard['actor'].transform.world_position - blackboard['pawn'].transform.world_position)
                 .length <= blackboard['weapon'].maximum_range)
 
 
@@ -544,7 +544,7 @@ class GetNavmesh(LeafNode):
 class FindVisibleActor(LeafNode):
 
     def get_distance(self, pawn, actor):
-        return (pawn.physics.world_position - actor.physics.world_position).length
+        return (pawn.transform.world_position - actor.transform.world_position).length
 
     def on_enter(self, blackboard):
         found_actors = []
@@ -621,7 +621,7 @@ class MoveToActor(LeafNode):
         return blackboard['actor']
 
     def get_target_position(self, target):
-        return target.physics.world_position
+        return target.transform.world_position
 
     def on_exit(self, blackboard):
         blackboard['pawn'].local_velocity.y = 0
@@ -630,13 +630,13 @@ class MoveToActor(LeafNode):
         pawn = blackboard['pawn']
         target = self.get_target(blackboard)
 
-        path = blackboard['navmesh'].find_path(pawn.physics.world_position, self.get_target_position(target))
+        path = blackboard['navmesh'].find_path(pawn.transform.world_position, self.get_target_position(target))
 
         if not path:
             return EvaluationState.failure
 
         while path:
-            to_target = (path[0] - pawn.physics.world_position)
+            to_target = (path[0] - pawn.transform.world_position)
             to_target.z = 0
 
             if to_target.magnitude < self.tolerance:
