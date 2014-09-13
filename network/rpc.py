@@ -200,7 +200,8 @@ class RPCInterfaceFactory:
         :param function: function to validate
         """
         # Read all arguments
+        function_name = function.__qualname__
         for parameter_name, parameter in arguments.items():
             if parameter is None:
-                logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'".format(
-                    function.__qualname__, parameter_name))
+                logger.error("RPC call '{}' has not provided a type annotation for parameter '{}'"
+                             .format(function_name, parameter_name))
