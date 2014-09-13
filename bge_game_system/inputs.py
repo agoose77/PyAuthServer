@@ -1,61 +1,68 @@
 from network.decorators import with_tag
+from network.maths_utilities import clamp
 from network.structures import factory_dict
 
 from game_system.enums import InputEvents
 from game_system.inputs import MouseManager, InputManager
-from game_system.math import clamp
 
 from bge import events, logic, render
 from mathutils import Vector
 
-__all__ = ['BGEInputStatusLookup', 'BGEMouseManager']
+__all__ = ['bge_status_lookup', 'convert_to_bge_event', 'get_dict_containing_events', 'BGEMouseManager']
 
 
-class BGEInputStatusLookup:
-    """BGE interface for Input Status lookups"""
+def get_dict_containing_events(event):
+    """Return the events dictionary for the host device for an event type
 
-    def __init__(self):
-        self._event_list_containing = factory_dict(self._get_containing_events)
+    :param event: BGE event
+    """
+    keyboard = logic.keyboard
+    return keyboard if event in keyboard.events else logic.mouse
 
-    def __call__(self, event):
-        bge_event = self._convert_to_bge_event(event)
-        device_events = self._event_list_containing[bge_event].events
-        return device_events[bge_event] in (logic.KX_INPUT_ACTIVE, logic.KX_INPUT_JUST_ACTIVATED)
 
-    @staticmethod
-    def _convert_to_bge_event(event):
-        """Parse an InputEvent and return BGE event code
+def get_event_code(event_name):
+    return getattr(events, event_name)
 
-        :param event: :py:code:`bge_game_system.enums.InputEvent` code
-        """
-        try:
-            event_name = InputEvents[event]
-        except KeyError:
-            raise ValueError("No such event {} is supported by this library".format(event_name))
 
-        try:
-            return getattr(events, event_name)
+event_manager = factory_dict(get_dict_containing_events)
+event_map = factory_dict(get_event_code)
 
-        except AttributeError as err:
-            raise LookupError("No event with name {} was found in platform event list".format(event_name)) from err
 
-    @staticmethod
-    def _get_containing_events(event):
-        """Return the events dictionary for the host device for an event type
+def convert_to_bge_event(event):
+    """Parse an InputEvent and return BGE event code
 
-        :param event: BGE event
-        """
-        keyboard = logic.keyboard
-        return keyboard if event in keyboard.events else logic.mouse
+    :param event: :py:code:`bge_game_system.enums.InputEvent` code
+    """
+    try:
+        event_name = InputEvents[event]
+
+    except KeyError:
+        raise ValueError("No such event {} is supported by this library".format(event))
+
+    try:
+        return event_map[event_name]
+
+    except AttributeError as err:
+        raise LookupError("No event with name {} was found in platform event list".format(event_name)) from err
+
+
+def bge_status_lookup(event):
+    """BGE interface for Input Status lookups
+
+    :param event: :py:code:`bge_game_system.enums.InputEvent` code
+    """
+    bge_event = convert_to_bge_event(event)
+    device_events = event_manager[bge_event].events
+    return device_events[bge_event] in (logic.KX_INPUT_ACTIVE, logic.KX_INPUT_JUST_ACTIVATED)
 
 
 @with_tag("BGE")
 class BGEInputManager(InputManager):
 
-    def __init__(self, ordered_keybindings):
+    def __init__(self, ordered_keybindings={}):
         self.keybinding_indices = None
         self.ordered_keybindings = ordered_keybindings
-        self.status_lookup = BGEInputStatusLookup
+        self.status_lookup = bge_status_lookup
 
 
 @with_tag("BGE")
@@ -110,3 +117,5 @@ class BGEMouseManager(MouseManager):
             last_position = self.position.copy()
 
         self._last_position = last_position
+
+print(MouseManager._cache)

@@ -91,7 +91,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self._profile = value
 
     @ReplicableRegisteredSignal.global_listener
-    def notify_registration(self, target):
+    def notify_registered(self, target):
         """Signal listener for replicable instantiation
         Listens for Camera creation to correct camera matrices
 

@@ -7,7 +7,6 @@ from network.world_info import WorldInfo
 from .enums import Axis
 from .resources import ResourceManager
 from .signals import *
-from .math_utilities import square_falloff
 
 from .coordinates import Vector
 
@@ -96,7 +95,7 @@ class TraceWeapon(Weapon):
         hit_position = hit_result._position
         hit_vector = (hit_position - camera_position)
 
-        falloff = square_falloff(camera_position, self.maximum_range, hit_position, self.effective_range)
+        falloff = 1.0
 
         damage = self.base_damage * falloff
         momentum = self.momentum * hit_vector.normalized() * falloff

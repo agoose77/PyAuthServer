@@ -1,11 +1,12 @@
 from copy import deepcopy
 from functools import partial
-from time import monotonic
+from time import clock
 from socket import inet_aton
 from uuid import uuid4 as random_id
 
 from network.decorators import ignore_arguments
 from network.hosts import exists as host_exists
+from network.maths_utilities import lerp
 from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
 from network.world_info import WorldInfo
 
@@ -13,7 +14,6 @@ from game_system.resources import ResourceManager
 from game_system.controllers import PlayerController
 from game_system.signals import ConnectToSignal, ReceiveMessage
 from game_system.timer import Timer
-from game_system.math import lerp
 
 from .replication_infos import TeamReplicationInfo
 from .signals import *
@@ -94,10 +94,10 @@ class DeltaTimeDecorator:
 
     def __init__(self, func):
         self.func = func
-        self.last_time = monotonic()
+        self.last_time = clock()
 
     def __call__(self, *args, **kwargs):
-        now = monotonic()
+        now = clock()
         delta_time = now - self.last_time
         self.last_time = now
         self.func(delta_time, *args, **kwargs)

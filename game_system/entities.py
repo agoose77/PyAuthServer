@@ -1,6 +1,7 @@
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
+from network.maths_utilities import mean
 from network.replicable import Replicable
 from network.signals import SignalListener
 from network.world_info import WorldInfo
@@ -10,7 +11,6 @@ from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
 from .enums import Axis, CameraMode, CollisionGroups, CollisionState
-from .math_utilities import mean
 from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
 
@@ -140,7 +140,7 @@ class Actor(Entity, Replicable):
             if child.indestructable:
                 continue
 
-            child.request_unregistration()
+            child.deregister()
 
         super().on_unregistered()
 
@@ -329,7 +329,7 @@ class Projectile(Actor):
         if isinstance(collision_result.entity, Pawn):
             self.server_deal_damage(collision_result)
 
-        self.request_unregistration()
+        self.deregister()
         self.in_flight = False
 
     @requires_netmode(Netmodes.server)

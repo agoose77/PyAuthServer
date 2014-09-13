@@ -69,7 +69,7 @@ class Cube(Actor):
         self.damage += 20
 
         if self.damage >= self.max_damage:
-            self.request_unregistration()
+            self.deregister()
 
     @CollisionSignal.listener
     def on_collided(self, collision_result):

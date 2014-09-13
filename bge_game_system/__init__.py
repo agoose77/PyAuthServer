@@ -5,7 +5,6 @@ Some functionality will be moved into the separate game_system module
 """
 from .mathutils_handlers import *
 from .audio import *
-from .controllers import *
 from .definitions import *
 from .draw_tools import *
 from .geometry import *

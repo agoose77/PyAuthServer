@@ -99,7 +99,7 @@ class Controller(Replicable):
 
         # The player is gone, remove info
         if self.info:
-            self.info.request_unregistration()
+            self.info.deregister()
 
         super().on_unregistered()
 
@@ -129,15 +129,15 @@ class Controller(Replicable):
 
     def forget_pawn(self):
         if self.pawn:
-            self.pawn.request_unregistration()
+            self.pawn.deregister()
             self.unpossess()
 
         if self.weapon:
-            self.weapon.request_unregistration()
+            self.weapon.deregister()
             self.weapon.unpossessed()
 
         if self.camera:
-            self.camera.request_unregistration()
+            self.camera.deregister()
             self.camera.unpossessed()
 
         self.camera = self.weapon = None

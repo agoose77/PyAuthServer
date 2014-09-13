@@ -14,7 +14,7 @@ class Rules:
         pass
 
     def post_initialise(self, connection):
-        terminal = RemoteTerminal(register=True)
+        terminal = RemoteTerminal(register_immediately=True)
         terminal.data['reference'] = self.reference
         return terminal
 

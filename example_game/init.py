@@ -9,7 +9,7 @@ __all__ = ["init_server", "init_client"]
 
 def init_server():
     WorldInfo.netmode = Netmodes.server
-    WorldInfo.rules = TeamDeathMatch(register=True)
+    WorldInfo.rules = TeamDeathMatch(register_immediately=True)
 
 
 def init_client():

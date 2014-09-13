@@ -12,7 +12,7 @@ from network.world_info import WorldInfo
 from game_system.entities import Actor, Camera, Pawn
 from game_system.controllers import Controller
 from game_system.weapons import Weapon
-from game_system.replication_infos import ReplicationInfo
+from game_system.replication_info import ReplicationInfo
 from game_system.enums import PhysicsType
 from game_system.signals import *
 
@@ -327,50 +327,6 @@ class ClienstPhysics(PhysicsSystem):
         super().update(delta_time)
 
         self.interpolate_states()
-
-
-class Interpolator:
-    def __init__(self, offset):
-        self.samples = []
-        self.offset = offset
-
-        self.calibration = None
-
-    def add_sample(self, timestamp, sample):
-        self.samples.append((timestamp, sample))
-
-        from time import monotonic
-        if self.calibration is None:
-            self.calibration = timestamp - monotonic()
-
-    def read_sample(self):
-
-        from time import monotonic
-        projected_time = monotonic() + self.calibration + .5
-        if self.samples:
-            print("\n",projected_time, self.samples[-1][0])
-
-        last_entry = None
-        for entry in self.samples:
-            timestamp, *_ = entry
-
-            if timestamp > projected_time:
-                break
-
-            last_entry = entry
-
-        else:
-            return None
-
-        factor = (projected_time - last_entry[0]) / (timestamp - last_entry[0])
-
-        data = []
-        for old_state, new_state in zip(last_entry[1], entry[1]):
-            data.append(old_state.lerp(new_state, factor))
-
-        return data
-
-
 
 
 class EPICExtrapolator:

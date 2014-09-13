@@ -117,7 +117,7 @@ class TeamDeathMatch(ReplicationRulesBase):
     def on_initialised(self):
         super().on_initialised()
 
-        self.info = GameReplicationInfo(register=True)
+        self.info = GameReplicationInfo(register_immediately=True)
 
         self.matchmaker = BoundMatchmaker("http://www.coldcinder.co.uk/networking/matchmaker")
         self.matchmaker.register("Demo Server", "Test Map", self.player_limit, 0)
@@ -143,8 +143,8 @@ class TeamDeathMatch(ReplicationRulesBase):
         :param connection: connection for client
         """
         # Create player controller for player
-        controller = self.player_controller_class(register=True)
-        controller.info = self.player_replication_info_class(register=True)
+        controller = self.player_controller_class(register_immediately=True)
+        controller.info = self.player_replication_info_class(register_immediately=True)
 
         return controller
 
@@ -195,9 +195,9 @@ class TeamDeathMatch(ReplicationRulesBase):
         :param controller: options, controller instance"""
         controller.forget_pawn()
 
-        pawn = self.player_pawn_class(register=True)
-        weapon = self.player_weapon_class(register=True)
-        camera = self.player_camera_class(register=True)
+        pawn = self.player_pawn_class(register_immediately=True)
+        weapon = self.player_weapon_class(register_immediately=True)
+        camera = self.player_camera_class(register_immediately=True)
 
         controller.possess(pawn)
         controller.set_camera(camera)

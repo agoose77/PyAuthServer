@@ -175,8 +175,8 @@ class IntervalDecorator(SequenceNode, InnerNode):
         return 0.0
 
     def evaluate(self, blackboard):
-        if (monotonic() - self.last_time) > self.interval:
-            self.last_time = monotonic()
+        if (clock() - self.last_time) > self.interval:
+            self.last_time = clock()
             return super().evaluate(blackboard)
 
         return EvaluationState.failure
