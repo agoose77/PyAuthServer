@@ -2,12 +2,97 @@ from network.bitfield import BitField
 from network.type_flag import TypeFlag
 from network.handler_interfaces import get_handler, register_handler
 
+from .enums import EventType
 from .tagged_delegate import EnvironmentDefinitionByTag
 
 from collections import OrderedDict
 from contextlib import contextmanager
 
 __all__ = ['MouseManager', 'InputManager', 'InputPacker']
+
+
+class InputManager:
+
+    def __init__(self):
+        self.in_actions = {}
+        self.out_actions = {}
+        self.states = {}
+        self.translator = None
+
+        self.active_states = set()
+
+    def add_listener(self, event, event_type, listener):
+        event_dict = self.get_event_dict(event_type)
+        event_dict.setdefault(event, []).append(listener)
+
+    def get_event_dict(self, event_type):
+        if event_type == EventType.action_in:
+            event_dict = self.in_actions
+
+        elif event_type == EventType.action_out:
+            event_dict = self.out_actions
+
+        elif event_type == EventType.state:
+            event_dict = self.states
+
+        else:
+            raise TypeError("Invalid event type {} given".format(event_type))
+
+        return event_dict
+
+    def get_view_writer(self, *events):
+        def write():
+            active_events = self.active_states
+            return [e in active_events for e in events]
+
+        return write
+
+    def get_view_reader(self, *events):
+        def read(view):
+            active_events = [e for e, v in zip(events, view) if v]
+            self.update(active_events)
+
+        return read
+
+    def remove_listener(self, event, event_type, listener):
+        event_dict = self.get_event_dict(event_type)
+
+        try:
+            listeners = event_dict[event]
+
+        except KeyError:
+            raise LookupError("No listeners for {} are registered".format(event))
+
+        listeners.append(listener)
+
+    def update(self, events):
+        if callable(self.translator):
+            events = self.translator(events)
+
+        all_events = set(events)
+        active_events = self.active_states
+
+        for new_event in all_events.difference(active_events):
+            if new_event in self.in_actions:
+                listeners = self.in_actions[new_event]
+                self.call_listeners(listeners)
+
+        for old_event in active_events.difference(all_events):
+            if old_event in self.out_actions:
+                listeners = self.out_actions[old_event]
+                self.call_listeners(listeners)
+
+        self.active_states = all_events
+
+        for event in all_events:
+            if event in self.states:
+                listeners = self.states[event]
+                self.call_listeners(listeners)
+
+    @staticmethod
+    def call_listeners(listeners):
+        for listener in listeners:
+            listener()
 
 
 class InputManager(EnvironmentDefinitionByTag):

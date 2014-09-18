@@ -24,15 +24,15 @@ class EnemyController(AIController):
         #self.behaviour.root = behaviour
 
 
-CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
-                                                                  "run", "voice", "jump", "debug")
-CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
+#CTFPlayerMovementStruct = PlayerController.create_movement_struct("forward", "backwards", "left", "right", "shoot",
+#                                                                  "run", "voice", "jump", "debug")
+#CTFPlayerMissingMoveStruct = PlayerController.create_missing_moves_struct(CTFPlayerMovementStruct, 20)
 
 
 class CTFPlayerController(PlayerController):
 
-    movement_struct = CTFPlayerMovementStruct
-    missing_movement_struct = CTFPlayerMissingMoveStruct
+    #movement_struct = CTFPlayerMovementStruct
+    #missing_movement_struct = CTFPlayerMissingMoveStruct
 
     def clear_inventory(self):
         for item in self.inventory:

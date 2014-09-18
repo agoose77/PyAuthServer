@@ -29,6 +29,10 @@ class Entity:
         super().__init__(*args, **kwargs)
 
     def load_components(self):
+        """Loads entity-specific components marked using the with_tag system/
+
+        Uses an abstract ComponentLoader to read a configuration file providing loader data
+        """
         self_class = self.__class__
 
         # Lazy load component loader
@@ -36,7 +40,7 @@ class Entity:
             component_loader = self_class._component_loader
 
             if component_loader.component_tags != self_class.component_tags:
-                raise AttributeError("Mismatch in component tags")
+                raise AttributeError("Mismatch in component tags, reloading")
 
         except AttributeError:
             component_loader = ComponentLoader(*self_class.component_tags)

@@ -3,6 +3,15 @@ from os import path, listdir
 __all__ = ["ResourceManager", "Resource", "_ResourceManager"]
 
 
+class BoundPath(str):
+
+    def __new__(cls, absolute_path, relative_path):
+        str_ = super().__new__(cls, relative_path)
+        str_.absolute = absolute_path
+
+        return str_
+
+
 class Resource:
 
     def __init__(self, parent, folder):
@@ -22,7 +31,7 @@ class Resource:
         elif name in self.files:
             return path.join(self.relative_path, name)
 
-    def __str__(self):
+    def __repr__(self):
         return "Resource: {}".format(self.relative_path)
 
     def _get_relative_path(self):
@@ -33,15 +42,15 @@ class Resource:
         while child:
             parent_folders.append(child.folder)
             child = child.parent
-        parent_folders.reverse()
 
+        parent_folders.reverse()
         return path.join(*parent_folders)
 
     @property
     def folders(self):
         if self._folders is None:
             absolute_path = self.absolute_path
-            self._folders = [f for f in listdir(self.absolute_path) if path.isdir(path.join(absolute_path, f))]
+            self._folders = [f for f in listdir(absolute_path) if path.isdir(path.join(absolute_path, f))]
 
         return self._folders
 
@@ -57,6 +66,7 @@ class Resource:
     def absolute_path(self):
         if self._absolute_path is None:
             self._absolute_path = path.join(self.root.data_path, self.relative_path)
+
         return self._absolute_path
 
     @property
@@ -64,6 +74,7 @@ class Resource:
         child = parent = self
         while parent is not None:
             child, parent = parent, child.parent
+
         return child
 
     def refresh(self):

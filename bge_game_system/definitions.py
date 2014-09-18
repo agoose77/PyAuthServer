@@ -31,6 +31,7 @@ class BGESocket:
 class BGEComponent(FindByTag):
     subclasses = {}
 
+# TODO use enums here
 
 @with_tag("physics")
 class BGEPhysicsInterface(BGEComponent):

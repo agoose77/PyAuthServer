@@ -161,7 +161,6 @@ class Replicable(metaclass=ReplicableRegister):
         Registers instance to type list
         """
         super().on_registered()
-        print("REGISTERED", self, self.__class__.type_name)
         self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 

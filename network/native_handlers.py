@@ -10,6 +10,8 @@ from .serialiser import *
 from .world_info import WorldInfo
 
 from inspect import signature
+from itertools import chain
+
 
 __all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableBaseHandler', 'StructHandler', 'BitFieldHandler',
            'class_type_description', 'iterable_description', 'is_variable_sized']
@@ -40,9 +42,20 @@ class ReplicableTypeHandler:
         return cls.string_packer.pack(cls_.type_name)
 
     @classmethod
+    def pack_multiple(cls, values, count):
+        names = [c.type_name for c in values]
+        return cls.string_packer.pack_multiple(names, count)
+
+    @classmethod
     def unpack_from(cls, bytes_string, offset=0):
         name, name_length = cls.string_packer.unpack_from(bytes_string, offset)
         return Replicable.from_type_name(name), name_length
+
+    @classmethod
+    def unpack_multiple(cls, bytes_string, count, offset=0):
+        names, names_length = cls.string_packer.unpack_multiple(bytes_string, count, offset)
+        get_class = Replicable.from_type_name
+        return [get_class(n) for n in names], names_length
 
     @classmethod
     def size(cls, bytes_string):
@@ -63,6 +76,12 @@ class RolesHandler:
         return pack(roles.remote) + pack(roles.local)
 
     @classmethod
+    def pack_multiple(cls, roles, count):
+        pack = cls.packer.pack
+        packed_roles = [(pack(roles_.remote), pack(roles_.local)) for roles_ in roles]
+        return b''.join(chain.from_iterable(packed_roles))
+
+    @classmethod
     def unpack_from(cls, bytes_string, offset=0):
         packer = cls.packer
         local_role, local_size = packer.unpack_from(bytes_string, offset)
@@ -70,12 +89,17 @@ class RolesHandler:
         return Roles(local_role, remote_role), remote_size + local_size
 
     @classmethod
+    def unpack_multiple(cls, bytes_string, count, offset=0):
+        role_values, size = cls.packer.unpack_multiple(bytes_string, count, offset)
+        roles = [Roles(role_values[i], role_values[(i + 1)]) for i in range(count)]
+        return roles, size
+
+    @classmethod
     def size(cls, bytes_string=None):
         return 2 * cls.packer.size()
 
 
 class IterableHandler:
-
     iterable_cls = None
     iterable_add = None
     iterable_update = None
@@ -188,11 +212,11 @@ class IterableHandler:
 
         # Unfortunate special boolean case
         if self.element_type != bool:
+            # Encode all lengths first then elements
             packed = [(pack_length(length), pack_key(key)) for length, key in encoded_pairs]
-            data = [x for y in packed for x in y]
+            data = [x for y in zip(*packed) for x in y]
 
         else:
-
             if encoded_pairs:
                 lengths, keys = zip(*encoded_pairs)
                 data = [pack_length(length) for length in lengths]
@@ -213,6 +237,7 @@ class IterableHandler:
         count_unpacker = self.count_packer.unpack_from
         elements_count, count_size = count_unpacker(bytes_string, offset)
         element_unpack = self.element_packer.unpack_from
+        count_multiple_unpacker = self.count_packer.unpack_multiple
 
         original_offset = offset
         offset += count_size
@@ -225,19 +250,18 @@ class IterableHandler:
                 bitfield, bitfield_size = self.bitfield_packer.unpack_from(bytes_string, offset)
                 offset += bitfield_size
 
-                get = bitfield.__class__.__getitem__
-                for i in range(elements_count):
-                    repeat, repeat_size = count_unpacker(bytes_string, offset)
-                    offset += repeat_size
+                element_counts, _offset = count_multiple_unpacker(bytes_string, elements_count, offset)
+                offset += _offset
 
-                    element = get(bitfield, i)
+                elements = bitfield[:element_counts]
+                for repeat, element in zip(element_counts, elements):
                     extend_elements([element] * repeat)
 
         else:
-            for i in range(elements_count):
-                repeat, repeat_size = count_unpacker(bytes_string, offset)
-                offset += repeat_size
-
+            element_counts, _offset = count_multiple_unpacker(bytes_string, elements_count, offset)
+            offset += _offset
+            # Todo all packers multiples
+            for repeat in element_counts:
                 element, element_size = element_unpack(bytes_string, offset)
                 offset += element_size
 
@@ -364,7 +388,7 @@ class ListHandler(IterableHandler):
     iterable_cls = list
     iterable_add = list.append
 
-    def iterable_update(list_, data):  # @NoSelf
+    def iterable_update(list_, data):
         list_[:] = data
 
 
@@ -381,7 +405,8 @@ class SetHandler(IterableHandler):
 
 class ReplicableBaseHandler:
     """Handler for packing replicable proxy
-    Packs replicable references and unpacks to proxy OR reference"""
+    Packs replicable references and unpacks to reference
+    """
 
     def __init__(self):
         id_flag = TypeFlag(int, max_value=Replicable._MAXIMUM_REPLICABLES)
@@ -400,6 +425,10 @@ class ReplicableBaseHandler:
         :param id_: instance ID
         """
         return self._packer.pack(id_)
+
+    def pack_multiple(self, replicables, count):
+        instance_ids = [r.instance_id for r in replicables]
+        return self._packer.pack_multiple(instance_ids, count)
 
     def unpack_id(self, bytes_string, offset=0):
         """Unpack replicable instance ID
@@ -424,6 +453,22 @@ class ReplicableBaseHandler:
             logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
             return None, id_size
 
+    def unpack_multiple(self, bytes_string, count, offset=0):
+        instance_ids, offset = self._packer.unpack_multiple(bytes_string, count, offset)
+        get_replicable = WorldInfo.get_replicable
+        replicables = []
+        for instance_id in instance_ids:
+            try:
+                replicable = get_replicable(instance_id)
+
+            except LookupError:
+                replicable = None
+                logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
+
+            replicables.append(replicable)
+
+        return replicables, offset
+
     def size(self, bytes_string=None):
         return self._packer.size()
 
@@ -441,6 +486,12 @@ class StructHandler:
         bytes_string = struct.to_bytes()
         return self.size_packer.pack(len(bytes_string)) + bytes_string
 
+    def pack_multiple(self, structs, count):
+        struct_data = [struct.to_bytes() for struct in structs]
+        lengths = [len(x) for x in struct_data]
+        size_data = self.size_packer.pack_multiple(lengths, count)
+        return b''.join(size_data + struct_data)
+
     def unpack_from(self, bytes_string, offset=0):
         struct = self.struct_cls()
         struct_size = self.unpack_merge(struct, bytes_string, offset)
@@ -450,6 +501,15 @@ class StructHandler:
         struct_size, length_size = self.size_packer.unpack_from(bytes_string, offset)
         struct.read_bytes(bytes_string, length_size + offset)
         return length_size + struct_size
+
+    def unpack_multiple(self, bytes_string, count, offset=0):
+        structs = []
+        for _ in range(count):
+            struct = self.struct_cls()
+            structs.append(struct)
+            struct_size, length_size = self.size_packer.unpack_from(bytes_string, offset)
+            struct.read_bytes(bytes_string, length_size + offset)
+            offset += length_size + struct_size
 
     def size(self, bytes_string):
         struct_size, length_size = self.size_packer.unpack_from(bytes_string)
@@ -464,15 +524,17 @@ class BitFieldHandler:
 
         if fields is None:
             self.pack = self.variable_pack
+            self.pack_multiple = self.variable_pack_multiple
             self.unpack_from = self.variable_unpack_from
-            self.unpack_merge = self.variable_unpack_merge
+            self.unpack_multiple = self.variable_unpack_multiple
             self.size = self.variable_size
             self._packer = handler_from_byte_length(1)
 
         else:
             self.pack = self.fixed_pack
+            self.pack_multiple = self.fixed_pack_multiple
             self.unpack_from = self.fixed_unpack_from
-            self.unpack_merge = self.fixed_unpack_merge
+            self.unpack_multiple = self.fixed_pack_multiple
             self.size = self.fixed_size
             self._size = fields
             self._packer = handler_from_bit_length(fields)
@@ -482,12 +544,15 @@ class BitFieldHandler:
         # Get the smallest needed packer for this bitfield
         return field.to_bytes()
 
+    def fixed_pack_multiple(self, fields, count):
+        return b''.join([field.to_bytes() for field in fields])
+
     def fixed_unpack_from(self, bytes_string, offset=0):
         return BitField.from_bytes(self._size, bytes_string, offset)
 
-    def fixed_unpack_merge(self, field, bytes_string, offset=0):
-        field[:], field_size = self.fixed_unpack_from(bytes_string, offset)
-        return field_size
+    def fixed_unpack_multiple(self, bytes_string, count, offset=0):
+        return [BitField.from_bytes(self._size, bytes_string, offset + i * self._size)
+                for i in range(count)], count * self._size
 
     def fixed_size(self, bytes_string=None):
         return self._packed_size
@@ -502,6 +567,11 @@ class BitFieldHandler:
         else:
             return packed_size
 
+    def variable_pack_multiple(self, fields, count):
+        lengths = [len(field) for field in fields]
+        data = [field.to_bytes() for field in fields]
+        return self._packer.pack_multiple(lengths, count) + b''.join(data)
+
     def variable_unpack_from(self, bytes_string, offset=0):
         field_bits, packer_size = self._packer.unpack_from(bytes_string, offset)
         offset += packer_size
@@ -509,8 +579,20 @@ class BitFieldHandler:
         field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string, offset)
         return field, field_size_bytes + packer_size
 
-    def variable_unpack_merge(self, field, bytes_string, offset=0):
-        field[:], packer_size = self.variable_unpack_from(bytes_string, offset)
+    def variable_unpack_multiple(self, bytes_string, count, offset=0):
+        _offset = offset
+        lengths, length_size = self._packer.unpack_multiple(bytes_string, count, offset)
+        offset += length_size
+        fields = []
+        for length in lengths:
+            field, field_size = BitField.from_bytes(length, bytes_string, offset)
+            offset += field_size
+            fields.append(field)
+
+        return fields, offset - _offset
+
+    def unpack_merge(self, field, bytes_string, offset=0):
+        field[:], packer_size = self.unpack_from(bytes_string, offset)
         return packer_size
 
     def variable_size(self, bytes_string):

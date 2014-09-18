@@ -1,11 +1,23 @@
 from math import ceil
-from struct import Struct
+from struct import Struct, pack, unpack_from
+from inspect import isfunction, getsource
 
 from .handler_interfaces import register_handler
 
 __all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', 'handler_from_bit_length',
            'handler_from_int', 'handler_from_byte_length', 'string_handler_builder', 'bytes_handler_builder',
            'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
+
+
+def build_function(function_string, data):
+    lookup = data.copy()
+    exec(function_string, globals(), lookup)
+    for name, value in lookup.items():
+        if data.get(name) != value:
+            new_key = name
+            break
+
+    return lookup[new_key]
 
 
 def build_struct_handler(name, fmt):
@@ -16,31 +28,32 @@ def build_struct_handler(name, fmt):
     """
     cls_dict = {}
 
-    struct_obj = Struct(fmt)
+    struct_obj = Struct("!" + fmt)
     fmt_size = struct_obj.size
 
     methods = ("""def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
                return unpacker(bytes_string, offset)[0], {size}""",
                """def size(bytes_string=None):\n\treturn {size}""",
+               """def pack_multiple(value, count, pack=pack, fmt=fmt):\n\treturn pack("!" + '{fmt}' * count, *value)""",
+               """def unpack_multiple(bytes_string, count, offset=0, unpack_from=unpack_from):\n\t"""
+               """data = unpack_from('!' + '{fmt}' * count, bytes_string, offset)\n\treturn data, {size} * count""",
                """pack=struct_obj.pack""")
-
-    register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
-                         .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
 
     for method_string in methods:
         func_string = method_string.format(fmt=fmt, size=fmt_size)
-        wrapped_string = register_string.format(func_string)
-        exec(wrapped_string)
+        func = build_function(func_string, locals())
+
+        cls_dict[func.__name__] = func
 
     return type(name, (), cls_dict)
 
 
-UInt32 = build_struct_handler("UInt32", "!I")
-UInt16 = build_struct_handler("UInt16", "!H")
-UInt64 = build_struct_handler("UInt64", "!Q")
-UInt8 = build_struct_handler("UInt8", "!B")
-Float32 = build_struct_handler("Float32", "!f")
-Float64 = build_struct_handler("Float64", "!d")
+UInt32 = build_struct_handler("UInt32", "I")
+UInt16 = build_struct_handler("UInt16", "H")
+UInt64 = build_struct_handler("UInt64", "Q")
+UInt8 = build_struct_handler("UInt8", "B")
+Float32 = build_struct_handler("Float32", "f")
+Float64 = build_struct_handler("Float64", "d")
 
 
 int_handlers = [UInt8, UInt16, UInt32, UInt64]
@@ -125,17 +138,18 @@ def int_selector(type_flag):
     return handler_from_bit_length(type_flag.data.get('max_bits', 8))
 
 
-class BoolHandler:
+class BoolHandler(UInt8):
     """Handler for boolean type"""
-    unpacker = UInt8.unpack_from
 
     @classmethod
-    def unpack_from(cls, bytes_string, offset=0):
-        value, size = cls.unpacker(bytes_string, offset)
+    def unpack_from(cls, bytes_string, offset=0, unpack_from=UInt8.unpack_from):
+        value, size = unpack_from(bytes_string, offset)
         return bool(value), size
 
-    size = UInt8.size
-    pack = UInt8.pack
+    @classmethod
+    def unpack_multiple(cls, bytes_string, count, offset=0, unpack_multiple=UInt8.unpack_multiple):
+        value, size = cls.unpack_multiple(bytes_string, count, offset)
+        return [bool(x) for x in value], size
 
 
 def bytes_handler_builder(type_flag):
@@ -151,6 +165,13 @@ def bytes_handler_builder(type_flag):
                """end_index = length + length_size\n\t"""
                """value = bytes_string[length_size + offset: end_index + offset]\n\t"""
                """return value, end_index""",
+               """def pack_multiple(value, count, pack_lengths=packer.pack_multiple):\n\t"""
+               """lengths = [len(x) for x in value]\n\tpacked_lengths = pack_lengths(lengths, len(lengths))\n\t"""
+               """return packed_lengths + b''.join(value)""",
+               """def unpack_multiple(bytes_string, count, offset=0, unpack_lengths=packer.unpack_multiple, """
+               """unpack_from=unpack_from):\n\t_offset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, count, offset)\n\t"""
+               """offset += length_offset\n\tdata = []\n\tfor length in lengths:\n\t\t"""
+               """data.append(bytes_string[offset: offset+length])\n\t\toffset += length\n\treturn data, offset - _offset""",
                """def size(bytes_string, unpacker=packer.unpack_from):\n\t"""
                """length, length_size = unpacker(bytes_string)\n\treturn length + length_size""",
                """def pack(bytes_string, packer=packer.pack):\n\treturn packer(len(bytes_string)) + bytes_string""")
@@ -179,7 +200,14 @@ def string_handler_builder(type_flag):
                 end_index = length + length_size\n\t
                 value = bytes_string[length_size + offset: end_index + offset]\n\t
                 return value.decode(), end_index""",
-               """def pack(string_, packer=packer.pack):\n\treturn packer(len(string_)) + string_.encode()""")
+               """def pack(string_, packer=packer.pack):\n\treturn packer(len(string_)) + string_.encode()""",
+               """def pack_multiple(value, count, pack_lengths=packer.pack_multiple):\n\t"""
+               """lengths = [len(x) for x in value]\n\tpacked_lengths = pack_lengths(lengths, len(lengths))\n\t"""
+               """return packed_lengths + ''.join(value).encode()""",
+               """def unpack_multiple(bytes_string, count, offset=0, unpack_lengths=packer.unpack_multiple, """
+               """unpack_from=unpack_from):\n\t_offset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, count, offset)\n\t"""
+               """offset += length_offset\n\tdata = []\n\tfor length in lengths:\n\t\t"""
+               """data.append(bytes_string[offset: offset+length].decode())\n\t\toffset += length\n\treturn data, offset - _offset""",)
 
     register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
                          .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""

@@ -138,7 +138,8 @@ class PhysicsSystem(DelegateByNetmode, SignalListener):
         # Establish parent relationships
         for obj, actor in found_actors.items():
             if obj.parent in found_actors:
-                actor.set_parent(found_actors[obj.parent])
+                actor.parent = found_actors[obj.parent]
+
             obj.endObject()
 
     @PhysicsSingleUpdateSignal.global_listener
@@ -273,8 +274,8 @@ class ClientPhysics(PhysicsSystem):
         self.extrapolate_network_states()
 
 
-@with_tag(Netmodes.client)
-class ClienstPhysics(PhysicsSystem):
+#@with_tag(Netmodes.client)
+#class ClienstPhysics(PhysicsSystem):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

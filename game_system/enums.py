@@ -35,7 +35,6 @@ class Axis(metaclass=Enumeration):
 
 class CollisionGroups(metaclass=Enumeration):
     use_bits = True
-
     values = ("geometry", "pawn", "projectile")
 
 
@@ -49,6 +48,10 @@ class AnimationMode(metaclass=Enumeration):
 
 class AnimationBlend(metaclass=Enumeration):
     values = ("interpolate", "add")
+
+
+class EventType(metaclass=Enumeration):
+    values = ("action_in", "action_out", "state")
 
 
 class InputEvents(metaclass=Enumeration):

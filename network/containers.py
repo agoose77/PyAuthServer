@@ -25,11 +25,13 @@ class AbstractStorageContainer:
 
         if mapping is None:
             self._mapping = self.get_member_instances(instance.__class__)
+
         else:
             self._mapping = mapping
 
         if ordered_mapping is None:
             self._ordered_mapping = self.get_ordered_members(self._mapping)
+
         else:
             self._ordered_mapping = ordered_mapping
 
