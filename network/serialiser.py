@@ -1,47 +1,61 @@
+"""Provides interfaces to serialise native types to bytes"""
+
 from math import ceil
 from struct import Struct, pack, unpack_from
-from inspect import isfunction, getsource
 
 from .handler_interfaces import register_handler
 
 __all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', 'handler_from_bit_length',
-           'handler_from_int', 'handler_from_byte_length', 'string_handler_builder', 'bytes_handler_builder',
+           'handler_from_int', 'handler_from_byte_length', 'string_handler_builder', 'build_bytes_handler',
            'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
 
 
-def build_function(function_string, data):
-    lookup = data.copy()
-    exec(function_string, globals(), lookup)
-    for name, value in lookup.items():
-        if data.get(name) != value:
+def build_function(function_string, locals_dict):
+    """Create function from definition string.
+
+    :param locals_dict: locals dictionary
+    """
+    original_locals = locals_dict.copy()
+    exec(function_string, globals(), original_locals)
+
+    # Find the added function
+    for name, value in original_locals.items():
+        if locals_dict.get(name) != value:
             new_key = name
             break
 
-    return lookup[new_key]
+    else:
+        raise RuntimeError("Couldn't find defined function. This shouldn't happen")
+
+    return original_locals[new_key]
 
 
-def build_struct_handler(name, fmt):
+def build_struct_handler(name, character_format, order_format="!"):
     """Create handler for data with struct formatting
 
     :param name: name of handler class
-    :param fmt: format string of handler
+    :param character_format: format string of handler
+    :param order_format: format string of byte order
     """
     cls_dict = {}
 
-    struct_obj = Struct("!" + fmt)
-    fmt_size = struct_obj.size
+    struct_obj = Struct(order_format + character_format)
+    format_size = struct_obj.size
 
     methods = ("""def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
-               return unpacker(bytes_string, offset)[0], {size}""",
-               """def size(bytes_string=None):\n\treturn {size}""",
-               """def pack_multiple(value, count, pack=pack, fmt=fmt):\n\treturn pack("!" + '{fmt}' * count, *value)""",
+               return unpacker(bytes_string, offset)[0], {format_size}""",
+               """def size(bytes_string=None):\n\treturn {format_size}""",
+               """def pack_multiple(value, count, pack=pack, character_format=character_format):\n\t"""
+               """return pack('{order_format}' + '{character_format}' * count, *value)""",
                """def unpack_multiple(bytes_string, count, offset=0, unpack_from=unpack_from):\n\t"""
-               """data = unpack_from('!' + '{fmt}' * count, bytes_string, offset)\n\treturn data, {size} * count""",
+               """data = unpack_from('{order_format}' + '{character_format}' * count, bytes_string, offset)\n\t"""
+               """return data, {format_size} * count""",
                """pack=struct_obj.pack""")
 
+    locals_ = locals()
     for method_string in methods:
-        func_string = method_string.format(fmt=fmt, size=fmt_size)
-        func = build_function(func_string, locals())
+        formatted_string = method_string.format(**locals_)
+        func = build_function(formatted_string, locals_)
 
         cls_dict[func.__name__] = func
 
@@ -152,7 +166,7 @@ class BoolHandler(UInt8):
         return [bool(x) for x in value], size
 
 
-def bytes_handler_builder(type_flag):
+def build_bytes_handler(type_flag):
     """Builds an optimised handler for a bytes type
 
     :param type_flag: type flag for bytes value
@@ -169,9 +183,10 @@ def bytes_handler_builder(type_flag):
                """lengths = [len(x) for x in value]\n\tpacked_lengths = pack_lengths(lengths, len(lengths))\n\t"""
                """return packed_lengths + b''.join(value)""",
                """def unpack_multiple(bytes_string, count, offset=0, unpack_lengths=packer.unpack_multiple, """
-               """unpack_from=unpack_from):\n\t_offset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, count, offset)\n\t"""
-               """offset += length_offset\n\tdata = []\n\tfor length in lengths:\n\t\t"""
-               """data.append(bytes_string[offset: offset+length])\n\t\toffset += length\n\treturn data, offset - _offset""",
+               """unpack_from=unpack_from):\n\toffset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, """
+               """count, offset)\n\toffset += length_offset\n\tdata = []\n\tfor length in lengths:\n\t\t"""
+               """data.append(bytes_string[offset: offset+length])\n\t\toffset += length\n\t"""
+               """return data, offset - _offset""",
                """def size(bytes_string, unpacker=packer.unpack_from):\n\t"""
                """length, length_size = unpacker(bytes_string)\n\treturn length + length_size""",
                """def pack(bytes_string, packer=packer.pack):\n\treturn packer(len(bytes_string)) + bytes_string""")
@@ -217,13 +232,13 @@ def string_handler_builder(type_flag):
         wrapped_string = register_string.format(method_string)
         exec(wrapped_string)
 
-    bytes_cls = bytes_handler_builder(type_flag)
+    bytes_cls = build_bytes_handler(type_flag)
     return type("StringHandler", (bytes_cls,), cls_dict)
 
 
 # Register handlers for native types
 register_handler(bool, BoolHandler)
 register_handler(str, string_handler_builder, is_callable=True)
-register_handler(bytes, bytes_handler_builder, is_callable=True)
+register_handler(bytes, build_bytes_handler, is_callable=True)
 register_handler(int, int_selector, is_callable=True)
 register_handler(float, float_selector, is_callable=True)
