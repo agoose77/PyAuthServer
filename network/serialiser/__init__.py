@@ -3,7 +3,7 @@
 USE_NUMPY = False
 
 if USE_NUMPY:
-    from .serialiser import *
+    from .numpy_serialiser import *
 
 else:
-    from .numpy_serialiser import *
+    from .serialiser import *
