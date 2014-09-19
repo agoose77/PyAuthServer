@@ -55,14 +55,14 @@ class Struct(metaclass=StructMeta):
         return struct
 
     @classmethod
-    def from_tuple(cls, tuple_):
-        """Create a struct from a tuple
+    def from_list(cls, list_):
+        """Create a struct from a list
 
-        :param tuple_: Tuple representation of struct contents
+        :param list_: List representation of struct contents
         :returns: Struct instance
         """
         struct = cls()
-        struct.read_tuple(tuple_)
+        struct.read_list(list_)
 
         return struct
 
@@ -82,15 +82,15 @@ class Struct(metaclass=StructMeta):
             # Store new value
             replicable_data[attribute] = value
 
-    def read_tuple(self, tuple_):
-        """Update struct contents with a tuple
+    def read_list(self, list_):
+        """Update struct contents with a list
 
-        :param tuple_: Tuple representation of struct contents
+        :param list_: List representation of struct contents
         """
         data = self._attribute_container.data
         members = self._attribute_container._ordered_mapping.values()
 
-        for member, value in zip(members, tuple_):
+        for member, value in zip(members, list_):
             data[member] = value
 
     def to_bytes(self):
