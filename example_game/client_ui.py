@@ -6,7 +6,7 @@ from uuid import uuid4 as random_id
 
 from network.decorators import ignore_arguments
 from network.hosts import exists as host_exists
-from network.maths_utilities import lerp
+from network.utilities import lerp
 from network.signals import ConnectionSuccessSignal, ConnectionErrorSignal
 from network.world_info import WorldInfo
 

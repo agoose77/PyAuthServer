@@ -1,7 +1,7 @@
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
-from network.maths_utilities import mean
+from network.utilities import mean
 from network.replicable import Replicable
 from network.signals import SignalListener
 from network.world_info import WorldInfo

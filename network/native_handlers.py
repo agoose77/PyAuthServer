@@ -5,7 +5,7 @@ from .handlers import *
 from .iterators import partition_iterable
 from .logger import logger
 from .replicable import Replicable
-from .run_length_encoding import RunLengthCodec
+from .encoding import RunLengthCodec
 from .serialiser import *
 from .world_info import WorldInfo
 

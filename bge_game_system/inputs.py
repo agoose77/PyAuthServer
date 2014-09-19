@@ -1,5 +1,5 @@
 from network.decorators import with_tag
-from network.maths_utilities import clamp
+from network.utilities import clamp
 from network.structures import factory_dict
 
 from game_system.enums import InputEvents

@@ -1,4 +1,4 @@
-__all__ = ["clamp", "median", "lerp", "mean"]
+utilities = ["clamp", "median", "lerp", "mean"]
 
 
 def clamp(low, high, value):

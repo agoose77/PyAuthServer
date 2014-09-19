@@ -3,7 +3,7 @@ from math import radians, sin
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
-from network.maths_utilities import lerp
+from network.utilities import lerp
 from network.replicable import Replicable
 
 from game_system.coordinates import Euler, Vector
