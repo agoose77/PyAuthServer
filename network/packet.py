@@ -1,4 +1,4 @@
-from .handler_interfaces import get_handler
+from .handlers import get_handler
 from .type_flag import TypeFlag
 
 from functools import lru_cache

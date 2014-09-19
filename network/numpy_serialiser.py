@@ -1,7 +1,7 @@
 from numpy import uint8, uint16, uint32, uint64, float32, float64, fromstring
 from math import ceil
 
-from .handler_interfaces import register_handler
+from .handlers import register_handler
 
 __all__ = ['NumpyStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes',
            'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',

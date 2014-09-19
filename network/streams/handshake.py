@@ -4,7 +4,7 @@ from .replication import ReplicationStream
 from ..decorators import with_tag
 from ..errors import NetworkError
 from ..enums import ConnectionStatus, ConnectionProtocols, Netmodes
-from ..handler_interfaces import get_handler
+from ..handlers import get_handler
 from ..logger import logger
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal

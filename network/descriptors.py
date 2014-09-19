@@ -1,7 +1,7 @@
 from collections import namedtuple
 from copy import deepcopy
 
-from .handler_interfaces import static_description
+from .handlers import static_description
 from .structures import factory_dict
 from .type_flag import TypeFlag
 

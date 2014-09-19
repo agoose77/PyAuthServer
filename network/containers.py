@@ -1,5 +1,5 @@
 from .descriptors import Attribute
-from .handler_interfaces import static_description
+from .handlers import static_description
 from .rpc import RPCInterfaceFactory
 
 from collections import OrderedDict, deque, namedtuple

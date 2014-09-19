@@ -1,7 +1,7 @@
 from .bitfield import BitField
 from .type_flag import TypeFlag
 from .enums import IterableCompressionType, Roles
-from .handler_interfaces import *
+from .handlers import *
 from .iterators import partition_iterable
 from .logger import logger
 from .replicable import Replicable

@@ -3,7 +3,7 @@ from .type_flag import TypeFlag
 from .decorators import with_tag
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
-from .handler_interfaces import static_description, get_handler
+from .handlers import static_description, get_handler
 from .logger import logger
 from .tagged_delegate import DelegateByNetmode
 from .replicable import Replicable

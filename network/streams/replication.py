@@ -3,7 +3,7 @@ from .streams import response_protocol, ProtocolHandler
 from ..channel import Channel
 from ..decorators import with_tag
 from ..enums import ConnectionProtocols, Netmodes, Roles
-from ..handler_interfaces import get_handler
+from ..handlers import get_handler
 from ..logger import logger
 from ..packet import Packet, PacketCollection
 from ..replicable import Replicable

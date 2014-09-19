@@ -1,5 +1,5 @@
 from .bitfield import BitField
-from .handler_interfaces import get_handler
+from .handlers import get_handler
 from .type_flag import TypeFlag
 
 __all__ = ["FlagSerialiser"]
