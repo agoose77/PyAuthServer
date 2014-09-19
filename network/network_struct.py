@@ -51,9 +51,10 @@ class Struct(metaclass=StructMeta):
         return hash(self._attribute_container.get_description_list())
 
     def __repr__(self):
-        attribute_count = len(self._attribute_container.data)
         class_name = self.__class__.__name__
-        return "<Struct {}: {} member{}>".format(class_name, attribute_count, 's' if attribute_count != 1 else '')
+        attributes = self._attribute_container.data
+        associated_values = "".join(["\n    {} = {}".format(k, v) for k, v in attributes.items()])
+        return "<Struct {}>{}".format(class_name, associated_values)
 
     @classmethod
     def from_bytes(cls, bytes_string, offset=0):
