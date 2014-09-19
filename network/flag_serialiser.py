@@ -7,8 +7,8 @@ __all__ = ["FlagSerialiser"]
 
 class FlagSerialiser:
     """Interface class for parsing/dumping data to bytes
-    Packed structure:
-    [Contents, Data, Booleans, Nones]"""
+    Packed member order: Contents, Data, Booleans, Nones
+    """
 
     # The last two entries of the contents mask 
     NONE_CONTENT_INDEX = -1
@@ -73,7 +73,7 @@ class FlagSerialiser:
 
         print()
 
-    def read_contents(self, bytes_string, offset):
+    def _read_contents(self, bytes_string, offset):
         """Determine the included entries of the packed data
 
         :param bytes_string: packed data
@@ -82,7 +82,7 @@ class FlagSerialiser:
         contents_size = contents_packer.unpack_merge(self.content_bits, bytes_string, offset)
         return contents_size
 
-    def read_nonetype_values(self, bytes_string, offset):
+    def _read_nonetype_values(self, bytes_string, offset):
         """Determine the NoneType entries of the packed data
 
         :param bytes_string: packed data
@@ -98,7 +98,7 @@ class FlagSerialiser:
         :param previous_values: previous packed values (optional)
         """
         # Get the contents header
-        offset += self.read_contents(bytes_string, offset)
+        offset += self._read_contents(bytes_string, offset)
         content_values = list(self.content_bits)
 
         has_none_types = content_values[self.NONE_CONTENT_INDEX]
@@ -106,7 +106,7 @@ class FlagSerialiser:
 
         # If there are NoneType values they will be first
         if has_none_types:
-            offset += self.read_nonetype_values(bytes_string, offset)
+            offset += self._read_nonetype_values(bytes_string, offset)
 
         # Ensure that the NoneType values are cleared
         else:
