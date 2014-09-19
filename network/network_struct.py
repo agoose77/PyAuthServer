@@ -17,12 +17,15 @@ class Struct(metaclass=StructMeta):
         :returns: new struct instance
         """
         new_struct = self.__class__()
-        # Local lookups
-        old_attribute_container_data = self._attribute_container.data
-        new_attribute_container_data = new_struct._attribute_container.data
-        get_new_member = new_struct._attribute_container.get_member_by_name
+        source_container = self._attribute_container
+        target_container = new_struct._attribute_container
 
-        for name, member in self._attribute_container._ordered_mapping.items():
+        # Local lookups
+        old_attribute_container_data = source_container.data
+        new_attribute_container_data = target_container.data
+        get_new_member = target_container.get_member_by_name
+
+        for name, member in source_container._ordered_mapping.items():
             old_value = old_attribute_container_data[member]
             new_member = get_new_member(name)
             new_attribute_container_data[new_member] = deepcopy(old_value)
@@ -102,7 +105,6 @@ class Struct(metaclass=StructMeta):
 
         :returns: contents tuple
         """
-        container = self._attribute_container
-        attribute_data = container.data
-        attributes = container._ordered_mapping.values()
+        attribute_data = self._attribute_container.data
+        attributes = self._attribute_container._ordered_mapping.values()
         return [attribute_data[attribute] for attribute in attributes]
