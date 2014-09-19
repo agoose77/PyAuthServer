@@ -1,7 +1,7 @@
 """Serialiser data for Mathutils types"""
 
 from network.type_flag import TypeFlag
-from network.handler_interfaces import get_handler, register_description, register_handler
+from network.handlers import get_handler, register_description, register_handler
 
 from functools import partial
 from itertools import chain

@@ -1,6 +1,6 @@
 from network.bitfield import BitField
 from network.type_flag import TypeFlag
-from network.handler_interfaces import get_handler, register_handler
+from network.handlers import get_handler, register_handler
 
 from .enums import EventType
 from .tagged_delegate import EnvironmentDefinitionByTag
