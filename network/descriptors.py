@@ -78,9 +78,8 @@ class DescriptorFactory:
     """Factory for class descriptors"""
 
     def __init__(self, callback):
-        self._lookup = factory_dict(self.callback)
-
         self.callback = callback
+        self._lookup = factory_dict(self.callback)
 
     def __get__(self, instance, base):
         if instance is None:
