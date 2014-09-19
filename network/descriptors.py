@@ -2,6 +2,7 @@ from collections import namedtuple
 from copy import deepcopy
 
 from .handler_interfaces import static_description
+from .structures import factory_dict
 from .type_flag import TypeFlag
 
 __all__ = ['TypeFlag', 'Attribute', 'FromClass', 'DescriptorFactory']
@@ -11,6 +12,7 @@ FromClass = namedtuple("FromClass", "name")
 
 
 class Attribute(TypeFlag):
+    """Container for static-type values"""
 
     __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
@@ -65,6 +67,7 @@ class Attribute(TypeFlag):
         self._instances[instance] = storage_interface
 
     def get_new_value(self):
+        """Return copy of initial value"""
         if self.initial_value is None:
             return None
 
@@ -75,7 +78,7 @@ class DescriptorFactory:
     """Factory for class descriptors"""
 
     def __init__(self, callback):
-        self._lookup = {}
+        self._lookup = factory_dict(self.callback)
 
         self.callback = callback
 
@@ -83,10 +86,4 @@ class DescriptorFactory:
         if instance is None:
             return self
 
-        if not instance in self._lookup:
-            result = self._lookup[instance] = self.callback(instance)
-
-        else:
-            result = self._lookup[instance]
-
-        return result
+        return self._lookup[instance]
