@@ -1,4 +1,4 @@
-from .attribute_register import AttributeMeta
+from .attribute_mapping import AttributeMeta
 from .instance_register import InstanceRegister
 
 from ..conditions import is_annotatable
