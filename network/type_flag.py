@@ -2,7 +2,7 @@ __all__ = ["TypeFlag"]
 
 
 class TypeFlag:
-    """Container for static-type values.
+    """Container for static type information.
 
     Holds type for value and additional keyword arguments.
 
