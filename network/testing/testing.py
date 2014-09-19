@@ -5,7 +5,7 @@ from ..descriptors import Attribute
 from ..type_flag import TypeFlag
 from ..handlers import get_handler
 from ..native_handlers import *
-from ..network_struct import Struct
+from ..struct import Struct
 from ..serialiser import *
 
 

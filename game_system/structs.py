@@ -1,4 +1,4 @@
-from network.network_struct import Struct
+from network.struct import Struct
 from network.descriptors import Attribute
 
 from .coordinates import Vector, Euler

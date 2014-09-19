@@ -604,7 +604,7 @@ class BitFieldHandler:
 register_handler(BitField, BitFieldHandler, True)
 
 # Handle circular dependancy
-from .network_struct import Struct
+from .struct import Struct
 register_handler(Struct, StructHandler, True)
 
 register_handler(Roles, RolesHandler)

@@ -7,7 +7,7 @@ from network.descriptors import Attribute, FromClass
 from network.enums import Netmodes, Roles, IterableCompressionType
 from network.iterators import take_single
 from network.logger import logger
-from network.network_struct import Struct
+from network.struct import Struct
 from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
 from network.type_flag import TypeFlag
