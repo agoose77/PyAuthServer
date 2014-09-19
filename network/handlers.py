@@ -27,8 +27,7 @@ def static_description(value):
         # Now search for handled superclass descriptions
         except AttributeError:
             try:
-                handled_superclasses = (cls for cls in value_type.__mro__
-                                        if cls in descriptions)
+                handled_superclasses = (cls for cls in value_type.__mro__ if cls in descriptions)
                 handled_type = next(handled_superclasses)
 
             # Default to Python hashing, remember for next call (optimisation)
@@ -37,8 +36,7 @@ def static_description(value):
 
             # Remember description for next call (optimisation)
             else:
-                description_func = descriptions[value_type] = \
-                            descriptions[handled_type]
+                description_func = descriptions[value_type] = descriptions[handled_type]
 
     return description_func(value)
 

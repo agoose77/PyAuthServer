@@ -1,5 +1,4 @@
-import sys #used to get commandline arguments
-import re #used for regular expressions
+import sys
 
 __all__ = ["exists"]
 
