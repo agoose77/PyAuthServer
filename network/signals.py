@@ -1,7 +1,7 @@
 from collections import defaultdict
 from inspect import getmembers, signature
 
-from .metaclasses.type_register import TypeRegister
+from .metaclasses import TypeRegister
 from .conditions import is_annotatable, is_signal_listener
 from .decorators import signal_listener
 from .structures import factory_dict

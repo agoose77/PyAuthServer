@@ -7,7 +7,7 @@ from .conversions import conversion
 from .type_flag import TypeFlag
 from .handlers import get_handler
 from .maths_utilities import mean, median
-from .metaclasses.instance_register import InstanceRegister
+from .metaclasses import InstanceRegister
 from .packet import PacketCollection
 from .streams import Dispatcher, InjectorStream, HandshakeStream
 
