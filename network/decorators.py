@@ -79,6 +79,7 @@ def with_tag(value):
     def wrapper(func):
         setter(func)
         func.update_cache()
+        return func
 
     return wrapper
 
