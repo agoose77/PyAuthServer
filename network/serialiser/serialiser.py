@@ -181,7 +181,7 @@ def build_bytes_handler(type_flag):
                """lengths = [len(x) for x in value]\n\tpacked_lengths = pack_lengths(lengths, len(lengths))\n\t"""
                """return packed_lengths + b''.join(value)""",
                """def unpack_multiple(bytes_string, count, offset=0, unpack_lengths=packer.unpack_multiple, """
-               """unpack_from=unpack_from):\n\toffset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, """
+               """unpack_from=unpack_from):\n\t_offset=offset\n\tlengths, length_offset=unpack_lengths(bytes_string, """
                """count, offset)\n\toffset += length_offset\n\tdata = []\n\tfor length in lengths:\n\t\t"""
                """data.append(bytes_string[offset: offset+length])\n\t\toffset += length\n\t"""
                """return data, offset - _offset""",
