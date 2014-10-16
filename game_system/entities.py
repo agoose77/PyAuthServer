@@ -24,9 +24,8 @@ class Entity:
     _definitions = {}
 
     def __init__(self, *args, **kwargs):
-        self.load_components()
-
         super().__init__(*args, **kwargs)
+        self.load_components()
 
     def load_components(self):
         """Loads entity-specific components marked using the with_tag system/
