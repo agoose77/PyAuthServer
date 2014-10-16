@@ -46,17 +46,17 @@ class BGEPhysicsInterface(BGEComponent):
         self._dispatched_entities = set()
 
         # Physics type
-        physics_constants = {logic.KX_PHYSICS_STATIC: PhysicsType.static,
-                            logic.KX_PHYSICS_DYNAMIC: PhysicsType.dynamic,
-                            logic.KX_PHYSICS_RIGID_BODY: PhysicsType.rigid_body,
-                            logic.KX_PHYSICS_SOFT_BODY: PhysicsType.soft_body,
-                            logic.KX_PHYSICS_OCCLUDER: PhysicsType.occluder,
-                            logic.KX_PHYSICS_SENSOR: PhysicsType.sensor,
-                            logic.KX_PHYSICS_NAVIGATION_MESH: PhysicsType.navigation_mesh,
-                            logic.KX_PHYSICS_CHARACTER: PhysicsType.character,
-                            logic.KX_PHYSICS_NO_COLLISION: PhysicsType.no_collision}
+        # physics_constants = {logic.KX_PHYSICS_STATIC: PhysicsType.static,
+        #                     logic.KX_PHYSICS_DYNAMIC: PhysicsType.dynamic,
+        #                     logic.KX_PHYSICS_RIGID_BODY: PhysicsType.rigid_body,
+        #                     logic.KX_PHYSICS_SOFT_BODY: PhysicsType.soft_body,
+        #                     logic.KX_PHYSICS_OCCLUDER: PhysicsType.occluder,
+        #                     logic.KX_PHYSICS_SENSOR: PhysicsType.sensor,
+        #                     logic.KX_PHYSICS_NAVIGATION_MESH: PhysicsType.navigation_mesh,
+        #                     logic.KX_PHYSICS_CHARACTER: PhysicsType.character,
+        #                     logic.KX_PHYSICS_NO_COLLISION: PhysicsType.no_collision}
 
-        if getattr(obj, "meshes", None):
+        if getattr(obj, "meshes", None) and 0:
             self._physics_type = physics_constants[obj.physicsType]
 
         else:
@@ -478,10 +478,14 @@ class BGEComponentLoader(ComponentLoader):
         self.component_tags = component_tags
         self.component_classes = {tag: BGEComponent.find_subclass_for(tag) for tag in component_tags}
 
-    def load_components(self, entity, config_parser):
+    @classmethod
+    def create_object(cls, config_parser):
         scene = logic.getCurrentScene()
 
         object_name = config_parser['object_name']
-        obj = scene.addObject(object_name, object_name)
+        return scene.addObject(object_name, object_name)
+
+    def load_components(self, entity, config_parser):
+        obj = self.create_object(config_parser)
 
         return self._load_components(config_parser, entity, obj)
