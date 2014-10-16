@@ -7,6 +7,8 @@ __all__ = ['PacketCollection', 'Packet']
 
 
 class PacketCollection:
+    """Container for a sequence of Packet instances"""
+
     __slots__ = "members"
 
     def __init__(self, members=None):
@@ -104,6 +106,10 @@ class PacketCollection:
 
 
 class Packet:
+    """Interface class for packets sent over the network.
+
+    Supports protocol and length header
+    """
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
     protocol_handler = get_handler(TypeFlag(int))
