@@ -7,7 +7,7 @@ from ..metaclasses import TypeRegister
 
 __all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
            'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
-           'LatencyUpdatedSignal']
+           'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
 
 
 class Signal(metaclass=TypeRegister):
