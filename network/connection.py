@@ -1,6 +1,7 @@
 from collections import deque
 from time import clock
 from math import sqrt
+from socket import gethostbyname
 
 from .bitfield import BitField
 from .conversions import conversion
@@ -67,6 +68,17 @@ class Connection(metaclass=InstanceRegister):
     """
 
     subclasses = {}
+
+    @classmethod
+    def create_connection(cls, address, port):
+        address = gethostbyname(address)
+        ip_info = address, port
+
+        try:
+            return cls.get_from_graph(ip_info)
+
+        except LookupError:
+            return cls(ip_info)
 
     def on_initialised(self):
         # Maximum sequence number value

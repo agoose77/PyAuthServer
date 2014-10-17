@@ -146,15 +146,7 @@ class Network:
 
         :param peer_data: tuple of address, port of remote peer
         """
-        address, port = peer_data
-        address = gethostbyname(address)
-        ip_info = address, port
-
-        try:
-            return Connection.get_from_graph(ip_info)
-
-        except LookupError:
-            return Connection(ip_info)
+        return Connection.create_connection(*peer_data)
 
     def receive(self):
         """Receive all data from socket"""
