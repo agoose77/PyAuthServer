@@ -103,6 +103,7 @@ class Signal(metaclass=TypeRegister):
             popitem = to_subscribe_global.popitem
             subscribers = cls.subscribers
             callback = cls.on_subscribed
+
             while to_subscribe_global:
                 identifier, data = popitem()
                 subscribers[identifier] = data
@@ -155,12 +156,14 @@ class Signal(metaclass=TypeRegister):
         for subclass in cls.subclasses.values():
             subclass.update_state()
 
+        cls.update_state()
+
     @classmethod
-    def invoke_signal(cls, args, target, kwargs, callback, supply_signal, supply_target):
+    def invoke_signal(cls, signal_cls, target, args, kwargs, callback, supply_signal, supply_target):
         signal_args = {}
 
         if supply_signal:
-            signal_args['signal'] = cls
+            signal_args['signal'] = signal_cls
 
         if supply_target:
             signal_args['target'] = target
@@ -169,7 +172,7 @@ class Signal(metaclass=TypeRegister):
         callback(*args, **signal_args)
 
     @classmethod
-    def invoke_targets(cls, target_dict, *args, target=None, addressee=None, **kwargs):
+    def invoke_targets(cls, target_dict, signal_cls, target, args, kwargs, addressee=None):
         """Invoke signals for targeted recipient.
 
         If recipient has children, invoke them as well.
@@ -190,15 +193,15 @@ class Signal(metaclass=TypeRegister):
         if addressee in target_dict:
             callback, supply_signal, supply_target = target_dict[addressee]
             # Invoke with the same target context even if this is a child
-            cls.invoke_signal(args, target, kwargs, callback, supply_signal, supply_target)
+            cls.invoke_signal(signal_cls, target, args, kwargs, callback, supply_signal, supply_target)
 
         # Update children of this listener
         if addressee in cls.children:
             for target_child in cls.children[addressee]:
-                cls.invoke_targets(target_dict, *args, target=target, addressee=target_child, **kwargs)
+                cls.invoke_targets(target_dict, signal_cls, target, args, kwargs, addressee=target_child)
 
     @classmethod
-    def invoke_general(cls, subscriber_dict, *args, target=None, **kwargs):
+    def invoke_general(cls, subscriber_dict, signal_cls, target, args, kwargs):
         """Invoke signals for non targeted listeners
 
         :param subscriber_dict: mapping from listener to listener information
@@ -207,24 +210,26 @@ class Signal(metaclass=TypeRegister):
         :param **kwargs: dict of additional keyword arguments
         """
         for (callback, supply_signal, supply_target) in subscriber_dict.values():
-
-            cls.invoke_signal(args, target, kwargs, callback, supply_signal, supply_target)
+            cls.invoke_signal(signal_cls, target, args, kwargs, callback, supply_signal, supply_target)
 
     @classmethod
-    def invoke(cls, *args, target=None, **kwargs):
+    def invoke(cls, *args, signal_cls=None, target=None, **kwargs):
         """Invoke signals for a Signal type
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
+        if signal_cls is None:
+            signal_cls = cls
+
         if target:
-            cls.invoke_targets(cls.isolated_subscribers, *args, target=target, **kwargs)
-        cls.invoke_general(cls.subscribers, *args, target=target, **kwargs)
-        cls.invoke_parent(*args, target=target, **kwargs)
+            cls.invoke_targets(cls.isolated_subscribers, signal_cls, target, args, kwargs)
+        cls.invoke_general(cls.subscribers, signal_cls, target, args, kwargs)
+        cls.invoke_parent(signal_cls, target, args, kwargs)
 
     @classmethod
-    def invoke_parent(cls, *args, target=None, **kwargs):
+    def invoke_parent(cls, signal_cls, target, args, kwargs):
         """Invoke signals for superclass of Signal type
 
         :param target: target referred to by Signal invocation
@@ -240,7 +245,7 @@ class Signal(metaclass=TypeRegister):
         except IndexError:
             return
 
-        parent.invoke(*args, target=target, **kwargs)
+        parent.invoke(*args, signal_cls=signal_cls, target=target, **kwargs)
 
     @classmethod
     def global_listener(cls, func):
@@ -270,18 +275,21 @@ class CachedSignal(Signal):
         cls.cache = []
 
     @classmethod
-    def invoke(cls, *args, subscriber_data=None, target=None, **kwargs):
+    def invoke(cls, *args, subscriber_data=None, signal_cls=None, target=None, **kwargs):
+        if signal_cls is None:
+            signal_cls = cls
+
         # Don't cache from cache itself!
         if subscriber_data is None:
-            cls.cache.append((args, target, kwargs))
-            cls.invoke_targets(cls.isolated_subscribers, *args, target=target, **kwargs)
-            cls.invoke_general(cls.subscribers, *args, target=target, **kwargs)
+            cls.cache.append((signal_cls, target, args, kwargs))
+            cls.invoke_targets(cls.isolated_subscribers, signal_cls, target, args, kwargs)
+            cls.invoke_general(cls.subscribers, signal_cls, target, args, kwargs)
 
         else:
             # Otherwise run a general invocation on new subscriber
-            cls.invoke_general(subscriber_data, *args, target=target, **kwargs)
+            cls.invoke_general(subscriber_data, signal_cls, target, args, kwargs)
 
-        cls.invoke_parent(*args, target=target, **kwargs)
+        cls.invoke_parent(signal_cls, target, args, kwargs)
 
     @classmethod
     def on_subscribed(cls, is_contextual, subscriber, data):
@@ -291,8 +299,8 @@ class CachedSignal(Signal):
 
         subscriber_info = {subscriber: data}
         invoke_signal = cls.invoke
-        for previous_args, target, previous_kwargs in cls.cache:
-            invoke_signal(*previous_args, target=target, subscriber_data=subscriber_info, **previous_kwargs)
+        for signal_cls, target, args, kwargs in cls.cache:
+            invoke_signal(*args, signal_cls=signal_cls, target=target, subscriber_data=subscriber_info, **kwargs)
 
 
 class SignalValue:
