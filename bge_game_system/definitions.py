@@ -483,6 +483,7 @@ class BGEComponentLoader(ComponentLoader):
         scene = logic.getCurrentScene()
 
         object_name = config_parser['object_name']
+        assert object_name in scene.objectsInactive, (object_name, scene.objectsInactive)
         return scene.addObject(object_name, object_name)
 
     def load_components(self, entity, config_parser):
