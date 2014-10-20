@@ -16,13 +16,13 @@ class Replicable(metaclass=ReplicableRegister):
     and Signal subscription"""
 
     _MAXIMUM_REPLICABLES = 255
+    _by_types = defaultdict(list)
 
     roles = Attribute(Roles(Roles.authority, Roles.none), notify=True)
     owner = Attribute(type_of=None, complain=True, notify=True)
     torn_off = Attribute(False, complain=True, notify=True)
 
     # Dictionary of class-owned instances
-    _by_types = defaultdict(list)
     subclasses = {}
 
     def __init__(self, instance_id=None, register_immediately=False, static=True, **kwargs):
@@ -184,6 +184,9 @@ class Replicable(metaclass=ReplicableRegister):
         if 0:
             print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
+
+    def on_replication(self):
+        pass
 
     def conditions(self, is_owner, is_complaint, is_initial):
         """Condition generator that determines replicated attributes.

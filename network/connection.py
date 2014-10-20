@@ -1,64 +1,17 @@
 from collections import deque
 from time import clock
-from math import sqrt
 from socket import gethostbyname
 
 from .bitfield import BitField
 from .conversions import conversion
 from .type_flag import TypeFlag
 from .handlers import get_handler
-from .utilities import mean, median
 from .metaclasses import InstanceRegister
 from .packet import PacketCollection
 from .streams import Dispatcher, InjectorStream, HandshakeStream
 
 
-__all__ = "Connection", "LatencyCalculator"
-
-
-class LatencyCalculator:
-
-    def __init__(self, sample_count=6):
-        self._pending_samples = {}
-        self._samples = deque(maxlen=sample_count)
-        self._sample_count = sample_count
-
-        self.round_trip_time = 0.0
-
-    def _calculate_latency(self):
-        samples = self._samples
-
-        mean_value = mean(samples)
-        median_value = median(samples)
-
-        sum_of_squares = sum((x - mean_value) ** 2 for x in samples)
-        variance = sum_of_squares / (len(samples) - 1)
-        standard_deviation = sqrt(variance)
-
-        self.round_trip_time = mean((x for x in samples if abs(x - median_value) <= standard_deviation))
-
-    def start_sample(self, sample_id):
-        """Start timing latency for sample
-
-        :param sample_id: ID of sample
-        """
-        start_time = clock()
-        self._pending_samples[sample_id] = start_time
-
-    def stop_sample(self, sample_id):
-        """Stop timing latency for sample.
-        After enough samples are gathered, the latency is computed
-
-        :param sample_id: ID of sample
-        """
-        end_time = clock()
-        start_time = self._pending_samples[sample_id]
-
-        round_trip = end_time - start_time
-        self._samples.append(round_trip)
-
-        if len(self._samples) == self._sample_count:
-            self._calculate_latency()
+__all__ = "Connection",
 
 
 class Connection(metaclass=InstanceRegister):
@@ -121,9 +74,6 @@ class Connection(metaclass=InstanceRegister):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
-        # Estimate RTT
-        self.latency_calculator = LatencyCalculator()
-
         # Internal packet data
         self.dispatcher = Dispatcher()
         self.injector = self.dispatcher.create_stream(InjectorStream)
@@ -161,8 +111,6 @@ class Connection(metaclass=InstanceRegister):
         requested_ack = self.requested_ack
         window_size = self.ack_window
 
-        received_latency_sample = False
-
         # Iterate over ACK bitfield
         for relative_sequence in range(window_size):
             absolute_sequence = ack_base - (relative_sequence + 1)
@@ -172,11 +120,6 @@ class Connection(metaclass=InstanceRegister):
                 sent_packet = requested_ack.pop(absolute_sequence)
                 sent_packet.on_ack()
 
-                # Update heuristic for latency
-                if not received_latency_sample:
-                    self.latency_calculator.stop_sample(absolute_sequence)
-                    received_latency_sample = True
-
                 # If a packet has had time to return since throttling began
                 if absolute_sequence == self.tagged_throttle_sequence:
                     self.stop_throttling()
@@ -185,10 +128,6 @@ class Connection(metaclass=InstanceRegister):
         if ack_base in self.requested_ack:
             sent_packet = requested_ack.pop(ack_base)
             sent_packet.on_ack()
-
-            # Update heuristic for latency
-            if not received_latency_sample:
-                self.latency_calculator.stop_sample(ack_base)
 
             # If a packet has had time to return since throttling began
             if ack_base == self.tagged_throttle_sequence:
@@ -212,8 +151,6 @@ class Connection(metaclass=InstanceRegister):
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
-
-        # Set latency
 
     def receive(self, bytes_string):
         """Handle received bytes from peer
@@ -269,7 +206,6 @@ class Connection(metaclass=InstanceRegister):
         ack_bitfield = self.get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
-        self.latency_calculator.start_sample(sequence)
         self.requested_ack[sequence] = packet_collection
 
         # Construct header information

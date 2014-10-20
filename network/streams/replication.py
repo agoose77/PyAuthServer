@@ -1,4 +1,5 @@
 from .streams import response_protocol, ProtocolHandler
+from .latency_calculator import LatencyCalculator
 
 from ..channel import Channel
 from ..decorators import with_tag
@@ -7,11 +8,13 @@ from ..handlers import get_handler
 from ..logger import logger
 from ..packet import Packet, PacketCollection
 from ..replicable import Replicable
-from ..signals import (Signal, SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
+from ..signals import (Signal, SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
+                       LatencyUpdatedSignal)
 from ..tagged_delegate import DelegateByNetmode
 from ..type_flag import TypeFlag
 from ..world_info import WorldInfo
 
+from functools import partial
 from operator import attrgetter
 
 __all__ = "ReplicationStream", "ServerReplicationStream", "ClientReplicationStream"
@@ -123,7 +126,23 @@ class ServerReplicationStream(ReplicationStream):
         self.creation_queue = []
         self.attribute_queue = []
 
+        self.latency_calculator = LatencyCalculator()
+        self.latency_calculator.on_updated = partial(LatencyUpdatedSignal.invoke, target=self.replicable)
+
         self.queues = self.removal_queue, self.creation_queue, self.attribute_queue, self.method_queue
+
+    def wrap_callback(self, callback):
+        """Wraps callback with latency calculator callback
+
+        :param callback: callback used to stop timing
+        """
+        def _wrapper(packet):
+            if callable(callback):
+                callback(packet)
+
+            self.latency_calculator.stop_sample(packet)
+
+        return _wrapper
 
     def on_disconnected(self):
         WorldInfo.rules.post_disconnect(self, self.replicable)
@@ -197,6 +216,11 @@ class ServerReplicationStream(ReplicationStream):
 
         packets = PacketCollection()
         packets.members = members
+
+        packet = members[0]
+        packet.on_success = self.wrap_callback(packet.on_success)
+
+        self.latency_calculator.start_sample(packet)
 
         return packets
 

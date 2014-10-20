@@ -140,9 +140,9 @@ class Packet:
     def on_ack(self):
         """Called when packet is acknowledged.
 
-        Invokes on_success callback if this packet is reliable
+        Invokes on_success callback
         """
-        if self.reliable and callable(self.on_success):
+        if callable(self.on_success):
             self.on_success(self)
 
     def on_not_ack(self):

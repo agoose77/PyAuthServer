@@ -147,16 +147,6 @@ class Actor(Entity, Replicable):
 
         super().on_unregistered()
 
-    @simulated
-    def on_replicated_physics(self, position, velocity, timestamp):
-        """Callback when physics is replicated
-
-        :param position: current replicated position
-        :param velocity: current replicated velocity
-        :param timestamp: time of data transmission
-        """
-        PhysicsReplicatedSignal.invoke(timestamp, position, velocity, target=self)
-
     def on_notify(self, name):
         if name == "network_collision_group":
             self.physics.collision_group = self.network_collision_group
@@ -173,7 +163,8 @@ class Actor(Entity, Replicable):
             self.transform.world_orientation = current_rotation.slerp(new_rotation, 0.3)
 
         elif name == "network_position":
-            self.on_replicated_physics(self.network_position, self.network_velocity, self.network_replication_time)
+            PhysicsReplicatedSignal.invoke(self.network_replication_time, self.network_position, self.network_velocity,
+                                           target=self)
 
         else:
             super().on_notify(name)
