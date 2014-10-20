@@ -3,28 +3,23 @@ from contextlib import contextmanager
 
 from network.decorators import with_tag
 from network.enums import Netmodes, Roles
-from network.logger import logger
 from network.tagged_delegate import DelegateByNetmode
-from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.world_info import WorldInfo
 
-from game_system.entities import Actor, Camera, Pawn
-from game_system.controllers import Controller, PlayerController
-from game_system.weapons import Weapon
-from game_system.replication_info import ReplicationInfo
+from game_system.entities import Actor
+from game_system.controllers import PlayerController
 from game_system.enums import PhysicsType
 from game_system.physics import PhysicsSystem,EPICExtrapolator
 from game_system.signals import *
-
-from bge import logic
-from mathutils import Vector
 
 
 __all__ = ["BGEPhysicsSystem", "BGEServerPhysics", "BGEClientPhysics"]
 
 
+@with_tag("BGE")
 class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
+    subclasses = {}
 
     def __init__(self):
         self.register_signals()
@@ -103,7 +98,8 @@ class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
         """Listener for PhysicsTickSignal
         Updates Physics simulation for entire world
 
-        :param delta_time: Time to progress simulation"""
+        :param delta_time: Time to progress simulation
+        """
         self._update_func(delta_time)
         self._apply_func()
 
@@ -125,6 +121,7 @@ class BGEServerPhysics(BGEPhysicsSystem):
         Copy physics state to network variable for Actor instances
         """
         self.save_network_states()
+        UpdateCollidersSignal.invoke()
 
 
 @with_tag(Netmodes.client)
@@ -170,3 +167,5 @@ class BGEClientPhysics(BGEPhysicsSystem):
         Copy physics state to network variable for Actor instances
         """
         self.extrapolate_network_states()
+        UpdateCollidersSignal.invoke()
+        print("EX")
