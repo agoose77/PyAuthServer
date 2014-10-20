@@ -27,11 +27,14 @@ class FindByTag(metaclass=TypeRegister):
         cache = {get_tag(c): c for c in subclasses.values() if has_tag(c)}
         cls._cache.update(cache)
 
-        parent = cls.__mro__[1]
         try:
-            parent.update_cache(from_cls=cls)
-        except AttributeError:
+            parent = next(c for c in cls.__mro__[1:] if hasattr(c, "subclasses"))
+
+        except StopIteration:
             pass
+
+        else:
+            parent.update_cache(from_cls=cls)
 
     @classmethod
     def find_subclass_for(cls, tag_value):
@@ -57,8 +60,8 @@ class DelegateByTag(FindByTag):
 
     def __new__(cls, *args, **kwargs):
         tag = cls.get_current_tag()
-        delegated_class = cls.find_subclass_for(tag)
 
+        delegated_class = cls.find_subclass_for(tag)
         if delegated_class._is_delegate:
             return delegated_class.__new__(delegated_class, *args, **kwargs)
 
