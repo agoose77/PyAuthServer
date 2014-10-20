@@ -81,13 +81,13 @@ class Actor(Entity, Replicable):
     component_tags = ("physics", "transform")
 
     # Physics data
-    network_position = Attribute(type_of=Vector, notify=True)
+    network_position = Attribute(type_of=Vector)
+    network_velocity = Attribute(type_of=Vector)
     network_orientation = Attribute(type_of=Euler, notify=True)
     network_angular = Attribute(type_of=Vector, notify=True)
-    network_velocity = Attribute(type_of=Vector, notify=True)
     network_collision_group = Attribute(type_of=int, notify=True)
     network_collision_mask = Attribute(type_of=int, notify=True)
-    network_replication_time = Attribute(type_of=float)
+    network_replication_time = Attribute(type_of=float, notify=True)
 
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
 
@@ -162,7 +162,7 @@ class Actor(Entity, Replicable):
             new_rotation = self.network_orientation.to_quaternion()
             self.transform.world_orientation = current_rotation.slerp(new_rotation, 0.3)
 
-        elif name == "network_position":
+        elif name == "network_replication_time":
             PhysicsReplicatedSignal.invoke(self.network_replication_time, self.network_position, self.network_velocity,
                                            target=self)
 
