@@ -27,10 +27,14 @@ class TypeRegister(type):
 
         # Register as a sub-type of parent
         parent = cls.__mro__[1]
+
         if hasattr(parent, "subclasses"):
-            subclasses[name] = cls
+            parent.subclasses[name] = cls
 
             cls.register_subtype()
+
+            if parent.subclasses is not subclasses:
+                cls.register_type()
 
         # Otherwise we're a parent type
         else:

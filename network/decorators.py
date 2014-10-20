@@ -74,17 +74,16 @@ def get_annotation(name, default=None, modify=False):
 
 
 def with_tag(value):
-    setter = set_annotation("tag")(value)
 
     def wrapper(func):
-        setter(func)
+        func._tag = value
         func.update_cache()
         return func
 
     return wrapper
 
-has_tag = has_annotation("tag")
-get_tag = get_annotation("tag")
+has_tag = lambda func: hasattr(func, '_tag')
+get_tag = lambda func: func._tag
 
 
 def reliable(func):

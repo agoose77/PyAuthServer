@@ -13,14 +13,25 @@ class FindByTag(metaclass=TypeRegister):
         cls._cache = {}
 
     @classmethod
-    def update_cache(cls):
+    def update_cache(cls, from_cls=None):
         try:
-            cache = {get_tag(c): c for c in cls.subclasses.values() if has_tag(c)}
+            subclasses = cls.subclasses
 
         except AttributeError:
-            raise TypeError("Subclass dictionary was not implemented by {}".format(cls.type_name))
+            if from_cls is None:
+                raise TypeError("Subclass dictionary was not implemented by {}".format(cls.type_name))
 
+            else:
+                return
+
+        cache = {get_tag(c): c for c in subclasses.values() if has_tag(c)}
         cls._cache.update(cache)
+
+        parent = cls.__mro__[1]
+        try:
+            parent.update_cache(from_cls=cls)
+        except AttributeError:
+            pass
 
     @classmethod
     def find_subclass_for(cls, tag_value):
@@ -48,7 +59,22 @@ class DelegateByTag(FindByTag):
         tag = cls.get_current_tag()
         delegated_class = cls.find_subclass_for(tag)
 
+        if delegated_class._is_delegate:
+            return delegated_class.__new__(delegated_class, *args, **kwargs)
+
         return super().__new__(delegated_class)
+
+    @classmethod
+    def register_type(cls):
+        super().register_type()
+
+        cls._is_delegate = True
+
+    @classmethod
+    def register_subtype(cls):
+        super().register_subtype()
+
+        cls._is_delegate = False
 
     @staticmethod
     def get_current_tag():
