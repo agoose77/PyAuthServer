@@ -61,7 +61,7 @@ class DelegateByTag(FindByTag):
         tag = cls.get_current_tag()
 
         delegated_class = cls.find_subclass_for(tag)
-        if delegated_class._is_delegate:
+        if delegated_class.is_delegate:
             return delegated_class.__new__(delegated_class, *args, **kwargs)
 
         return super().__new__(delegated_class)
@@ -70,13 +70,13 @@ class DelegateByTag(FindByTag):
     def register_type(cls):
         super().register_type()
 
-        cls._is_delegate = True
+        cls.is_delegate = True
 
     @classmethod
     def register_subtype(cls):
         super().register_subtype()
 
-        cls._is_delegate = False
+        cls.is_delegate = False
 
     @staticmethod
     def get_current_tag():
