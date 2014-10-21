@@ -24,11 +24,10 @@ class FindByTag(metaclass=TypeRegister):
             else:
                 return
 
-        cache = {get_tag(c): c for c in subclasses.values() if has_tag(c)}
-        cls._cache.update(cache)
+        cls._cache.update({get_tag(c): c for c in subclasses.values() if has_tag(c)})
 
         try:
-            parent = next(c for c in cls.__mro__[1:] if hasattr(c, "subclasses"))
+            parent = next(c for c in cls.__mro__[1:] if getattr(c, "subclasses", subclasses) is not subclasses)
 
         except StopIteration:
             pass
