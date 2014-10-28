@@ -25,6 +25,7 @@ class Entity:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.load_components()
 
     def load_components(self):

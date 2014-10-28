@@ -129,12 +129,10 @@ class RPCInterfaceFactory:
         lookup_type = FromClass
 
         for argument in ordered_parameters.values():
-
             if isinstance(argument.type, lookup_type):
                 return True
 
             for arg_value in argument.data.values():
-
                 if isinstance(arg_value, lookup_type):
                     return True
 
@@ -147,7 +145,7 @@ class RPCInterfaceFactory:
         """
         bound_function = self.function.__get__(instance)
 
-        # Create information for the serialiser
+        # Lazy load Create information for the serialiser
         if self._serialiser_parameters is None:
             self._serialiser_parameters = self.get_serialiser_parameters_for(instance.__class__)
 

@@ -10,7 +10,8 @@ from network.world_info import WorldInfo
 from game_system.entities import Actor
 from game_system.controllers import PlayerController
 from game_system.enums import PhysicsType
-from game_system.physics import PhysicsSystem,EPICExtrapolator
+from game_system.physics import PhysicsSystem
+from game_system.latency_compensation import EPICExtrapolator
 from game_system.signals import *
 
 

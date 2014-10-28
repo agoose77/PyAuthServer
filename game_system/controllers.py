@@ -13,7 +13,6 @@ from network.signals import LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
-
 from .ai.behaviour_tree import BehaviourTree
 from .audio import AudioManager
 from .configuration import load_keybindings
@@ -21,7 +20,7 @@ from .constants import MAX_32BIT_INT
 from .coordinates import Vector, Euler
 from .enums import *
 from .inputs import InputManager, MouseManager
-from .jitter_buffer import JitterBuffer
+from .latency_compensation.jitter_buffer import JitterBuffer
 from .network_locks import NetworkLocksMixin
 from .resources import ResourceManager
 from .signals import *
