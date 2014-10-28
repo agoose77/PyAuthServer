@@ -99,7 +99,7 @@ class AStarAlgorithm:
             node = path.get(node)
         return result
 
-    def find_path(self, start, destination, nodes):
+    def find_path(self, start, destination):
         open_set = {start}
         closed_set = set()
 

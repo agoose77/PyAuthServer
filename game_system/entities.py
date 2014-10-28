@@ -11,8 +11,12 @@ from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
 from .enums import Axis, CameraMode, CollisionGroups, CollisionState
+from .pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm
 from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
+
+
+from functools import partial
 
 
 class Entity:
@@ -214,6 +218,20 @@ class Camera(Actor):
             return self.camera.is_point_in_frustum(actor.world_position)
 
         return self.camera.is_sphere_in_frustum(actor.world_position, radius)
+
+
+class Navmesh(Actor):
+
+    component_tags = Actor.component_tags + ("navmesh",)
+
+    roles = Attribute(Roles(Roles.authority, Roles.none))
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.find_node = self.navmesh.find_node
+        self.find_low_resolution_path = AStarAlgorithm().find_path
+        self.find_high_resolution_path = partial(FunnelAlgorithm().find_path, nodes=self.navmesh.nodes)
 
 
 class Pawn(Actor):
