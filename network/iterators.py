@@ -1,3 +1,5 @@
+from itertools import islice, tee
+
 __all__ = ['RenewableGenerator', 'take_single', 'partition_iterable']
 
 
@@ -23,6 +25,37 @@ class RenewableGenerator:
             return next(self._internal)
 
 
+class BidirectionalIterator:
+    """Two directional iterator
+
+    Converts sequence to tuple internally
+    """
+
+    def __init__(self, collection):
+        self.collection = tuple(collection)
+        self.index = -1
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            self.index += 1
+            result = self.collection[self.index]
+
+        except IndexError:
+            raise StopIteration
+
+        return result
+
+    def __prev__(self):
+        self.index -= 1
+        if self.index < 0:
+            raise StopIteration
+
+        return self.collection[self.index]
+
+
 def take_single(iterable, default=None, reverse=False):
     """Returns first element from iterable
 
@@ -32,7 +65,13 @@ def take_single(iterable, default=None, reverse=False):
     """
     if reverse:
         iterable = reversed(list(iterable))
-    return next(iter(iterable), default) 
+    return next(iter(iterable), default)
+
+
+def look_ahead(iterable):
+    """Returns iterator which yields (i, i+1)th terms"""
+    items, successors = tee(iterable, 2)
+    return zip(items, islice(successors, 1, None))
 
 
 def partition_iterable(iterable, length, steps=None):
