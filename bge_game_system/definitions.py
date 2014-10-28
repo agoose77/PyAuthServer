@@ -14,6 +14,9 @@ from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
 from functools import partial
 
+from .geometry.mesh.navmesh import BGENavmesh
+
+
 RayTestResult = namedtuple("RayTestResult", "position normal entity distance")
 CollisionResult = namedtuple("CollisionResult", "entity state contacts")
 CollisionContact = namedtuple("CollisionContact", "position normal impulse force")
@@ -459,16 +462,11 @@ class BGELampInterface(BGEComponent):
 class BGENavmeshInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
+        self._navmesh = BGENavmesh(obj)
         self._obj = obj
 
-    def draw(self):
-        self._obj.draw(logic.RM_TRIS)
-
-    def find_path(self, from_point, to_point):
-        return self._obj.findPath(from_point, to_point)
-
-    def get_wall_intersection(self, from_point, to_point):
-        return self._obj.raycast(from_point, to_point)
+        self.find_node = self._navmesh.find_node
+        self.nodes = self._navmesh.polygons
 
 
 @with_tag("BGE")

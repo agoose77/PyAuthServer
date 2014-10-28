@@ -1,25 +1,21 @@
 from collections import Counter
 from functools import lru_cache
+from mathutils import geometry
 
-from mathutils import Vector, geometry
-
+from game_system.coordinates import Vector
 from game_system.geometry.mesh import IVertex, IPolygon
+from network.utilities import mean
+
+from ..kdtree import KDTree
 
 
-from .kdtree import KDTree
-from ..game_system.utilities.math import mean
-from ..bge_network.geometry.geometry import point_in_polygon
-
-
-__all__ = ['BGEPolygon', 'BGEVertexTree', 'BGEVertexGroup', 'BoundVector',
-           'BGEMesh']
-
+__all__ = ['BGEPolygonEditable', 'BGEVertexTreeEditable', 'BGEVertexGroupEditable', 'BoundVector',
+           'BGEMeshEditable']
 
 BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
 
 
-class BGEVertexGroup(IVertex):
-
+class BGEVertexGroupEditable(IVertex):
     __slots__ = ['_members', '_get_transform', '_colour', '_normal', '_position', '_uv', '_polygons']
 
     def __init__(self, members, get_transform):
@@ -97,8 +93,7 @@ class BGEVertexGroup(IVertex):
         self._uv += difference
 
 
-class BGEPolygon(IPolygon):
-
+class BGEPolygonEditable(IPolygon):
     __slots__ = ['_vertices']
 
     def __init__(self, vertices):
@@ -153,8 +148,7 @@ class BGEPolygon(IPolygon):
             vertex.position += difference
 
 
-class BGEVertexTree(KDTree):
-
+class BGEVertexTreeEditable(KDTree):
     def __init__(self, vertices):
         points = []
 
@@ -181,8 +175,7 @@ class BGEVertexTree(KDTree):
         return [n.position.data for n in nodes]
 
 
-class BGEMesh:
-
+class BGEMeshEditable:
     def __init__(self, bge_obj, mesh_index=0):
         bge_mesh = bge_obj.meshes[mesh_index]
 
@@ -217,7 +210,7 @@ class BGEMesh:
     def _convert_polygons(self, bge_mesh):
         bge_polygon_vertices = self._build_temporary_data(bge_mesh)
 
-        vertex_tree = BGEVertexTree(self._get_all_vertices(bge_mesh))
+        vertex_tree = BGEVertexTreeEditable(self._get_all_vertices(bge_mesh))
         get_similar_vertices = vertex_tree.find_vertices
 
         converted_vertices = {}
@@ -239,12 +232,12 @@ class BGEMesh:
                     bge_vertex = get_vertex(lookup)
 
                 except KeyError:
-                    bge_vertex = BGEVertexGroup(shared_vertices, self._get_transform)
+                    bge_vertex = BGEVertexGroupEditable(shared_vertices, self._get_transform)
                     set_vertex(lookup, bge_vertex)
 
                 add_vertex(bge_vertex)
 
-            polygon = BGEPolygon(polygon_vertices)
+            polygon = BGEPolygonEditable(polygon_vertices)
             add_polygon(polygon)
 
         return polygons
