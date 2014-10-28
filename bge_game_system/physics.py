@@ -11,7 +11,7 @@ from game_system.entities import Actor
 from game_system.controllers import PlayerController
 from game_system.enums import PhysicsType
 from game_system.physics import PhysicsSystem
-from game_system.latency_compensation import EPICExtrapolator
+from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.signals import *
 
 
@@ -131,7 +131,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
     def __init__(self):
         super().__init__()
 
-        self._extrapolators = defaultdict(EPICExtrapolator)
+        self._extrapolators = defaultdict(PhysicsExtrapolator)
 
     def extrapolate_network_states(self):
         """Apply state from extrapolators to replicated actors"""
