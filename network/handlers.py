@@ -87,7 +87,7 @@ def get_handler(type_flag):
             raise TypeError("No handler found for object with type {}".format(value_type)) from err
 
         except AttributeError as err:
-            raise ValueError("Invalid handler type provided: {}".format(value_type)) from err
+            raise TypeError("Invalid handler type provided: {}".format(value_type)) from err
 
         else:
             # Remember this for later call

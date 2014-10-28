@@ -658,7 +658,6 @@ class PlayerController(Controller, NetworkLocksMixin):
     @requires_netmode(Netmodes.server)
     def on_ping_estimate_updated(self, ping_estimate):
         self.info.ping = ping_estimate
-        print(ping_estimate)
 
     def on_unregistered(self):
         super().on_unregistered()

@@ -82,11 +82,11 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def collision_group(self):
-        return self._obj.collisionGroup
+        return 0#self._obj.collisionGroup
 
     @property
     def collision_mask(self):
-        return self._obj.collisionMask
+        return 0#self._obj.collisionMask
 
     @property
     def physics(self):

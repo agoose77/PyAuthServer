@@ -150,10 +150,10 @@ class Actor(Entity, Replicable):
 
     def on_notify(self, name):
         if name == "network_collision_group":
-            self.physics.collision_group = self.network_collision_group
+            pass#self.physics.collision_group = self.network_collision_group
 
         elif name == "network_collision_mask":
-            self.physics.collision_mask = self.network_collision_mask
+            pass#self.physics.collision_mask = self.network_collision_mask
 
         elif name == "network_angular":
             self.physics.world_angular = self.network_angular

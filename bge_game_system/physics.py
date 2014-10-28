@@ -37,8 +37,8 @@ class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
         actor.physics.world_velocity = state.velocity.copy()
         actor.physics.world_angular = state.angular.copy()
         actor.transform.world_orientation = state.rotation.copy()
-        actor.physics.collision_group = state.collision_group
-        actor.physics.collision_mask = state.collision_mask
+        # actor.physics.collision_group = state.collision_group
+        # actor.physics.collision_mask = state.collision_mask
 
     @CopyActorToState.global_listener
     def copy_to_state(self, actor, state):
@@ -51,8 +51,8 @@ class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
         state.velocity = actor.physics.world_velocity.copy()
         state.angular = actor.physics.world_angular.copy()
         state.rotation = actor.transform.world_orientation.copy()
-        state.collision_group = actor.physics.collision_group
-        state.collision_mask = actor.physics.collision_mask
+        # state.collision_group = actor.physics.collision_group
+        # state.collision_mask = actor.physics.collision_mask
 
     @contextmanager
     def protect_exemptions(self, exemptions):
@@ -138,11 +138,14 @@ class BGEClientPhysics(BGEPhysicsSystem):
         simulated_proxy = Roles.simulated_proxy
 
         controller = PlayerController.get_local_controller()
-        network_time = WorldInfo.elapsed + controller.info.ping / 2
 
+        if controller is None or controller.info is None:
+            return
+
+        network_time = WorldInfo.elapsed + controller.info.ping / 2
+        print(network_time)
         for actor, extrapolator in self._extrapolators.items():
             result = extrapolator.sample_at(network_time)
-
             if actor.roles.local != simulated_proxy:
                 continue
 
@@ -169,4 +172,3 @@ class BGEClientPhysics(BGEPhysicsSystem):
         """
         self.extrapolate_network_states()
         UpdateCollidersSignal.invoke()
-        print("EX")

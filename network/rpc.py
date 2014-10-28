@@ -39,7 +39,11 @@ class RPCInterface:
 
         # Interface between data and bytes
         self._binder = self._function_signature.bind
-        self._serialiser = FlagSerialiser(serialiser_info)
+
+        try:
+            self._serialiser = FlagSerialiser(serialiser_info)
+        except TypeError:
+            logger.exception("Unable to create serialiser for RPC call: {}".format(self._function_name))
 
         import_world_info()
 
