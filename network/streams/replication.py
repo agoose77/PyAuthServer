@@ -329,6 +329,7 @@ class ClientReplicationStream(ReplicationStream):
             return None
 
         packets = PacketCollection()
-        packets.members = members
+        packets.members.extend(members)
+        members.clear()
 
         return packets

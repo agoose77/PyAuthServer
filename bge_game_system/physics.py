@@ -143,7 +143,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
             return
 
         network_time = WorldInfo.elapsed + controller.info.ping / 2
-        print(network_time)
+
         for actor, extrapolator in self._extrapolators.items():
             result = extrapolator.sample_at(network_time)
             if actor.roles.local != simulated_proxy:

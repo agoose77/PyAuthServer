@@ -140,7 +140,7 @@ class Actor(Entity, Replicable):
         self.indestructible = False
 
         self.always_relevant = False
-        self.replicate_physics_to_owner = True
+        self.replicate_physics_to_owner = False
         self.replicate_simulated_physics = True
 
     def on_unregistered(self):
