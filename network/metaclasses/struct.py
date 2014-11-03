@@ -1,4 +1,4 @@
-from .attribute_mapping import AttributeMeta
+from .mapping.attribute_mapping import AttributeMeta
 from ..flag_serialiser import FlagSerialiser
 
 __all__ = ['StructMeta']

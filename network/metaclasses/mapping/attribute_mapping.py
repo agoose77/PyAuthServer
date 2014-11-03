@@ -1,5 +1,5 @@
-from ..containers import AttributeStorageContainer
-from ..descriptors import DescriptorFactory
+from ...containers import AttributeStorageContainer
+from ...descriptors import DescriptorFactory
 
 from functools import partial
 

@@ -1,4 +1,4 @@
-from .metaclasses import TypeRegister
+from .metaclasses.register import TypeRegister
 
 __all__ = ['NetworkError', 'ConnectionTimeoutError', 'ReplicableAccessError']
 

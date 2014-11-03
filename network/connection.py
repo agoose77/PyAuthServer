@@ -6,7 +6,7 @@ from .bitfield import BitField
 from .conversions import conversion
 from .type_flag import TypeFlag
 from .handlers import get_handler
-from .metaclasses import InstanceRegister
+from .metaclasses.register import InstanceRegister
 from .packet import PacketCollection
 from .streams import Dispatcher, InjectorStream, HandshakeStream
 
