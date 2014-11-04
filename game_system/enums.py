@@ -14,7 +14,7 @@ class PhysicsType(metaclass=Enumeration):
 
 
 class EvaluationState(metaclass=Enumeration):
-    values = "success", "failed", "running", "ready"
+    values = "success", "failure", "running", "ready"
 
 
 class CameraMode(metaclass=Enumeration):

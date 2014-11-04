@@ -100,6 +100,12 @@ class Actor(Entity, Replicable):
     MAX_POSITION_DIFFERENCE_SQUARED = 4
     POSITION_CONVERGE_FACTOR = 0.6
 
+    # Default settings
+    always_relevant = False
+    replicate_physics_to_owner = False
+    replicate_simulated_physics = True
+
+
     @property
     def resources(self):
         return ResourceManager[self.__class__.__name__]
@@ -138,10 +144,6 @@ class Actor(Entity, Replicable):
 
         self.camera_radius = 1.0
         self.indestructible = False
-
-        self.always_relevant = False
-        self.replicate_physics_to_owner = False
-        self.replicate_simulated_physics = True
 
     def on_unregistered(self):
         for child in self.transform.children:
