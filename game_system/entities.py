@@ -105,7 +105,6 @@ class Actor(Entity, Replicable):
     replicate_physics_to_owner = False
     replicate_simulated_physics = True
 
-
     @property
     def resources(self):
         return ResourceManager[self.__class__.__name__]

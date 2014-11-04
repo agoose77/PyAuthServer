@@ -62,10 +62,6 @@ class Connection(metaclass=InstanceRegister):
         self.local_sequence = 0
         self.remote_sequence = 0
 
-        # Time out for connection before it is deleted
-        self.time_out_delay = 4
-        self.last_received = clock()
-
         # Estimate available bandwidth
         self.bandwidth = conversion(1, "Mb", "B")
         self.packet_growth = conversion(0.5, "KB", "B")
@@ -179,9 +175,6 @@ class Connection(metaclass=InstanceRegister):
         self.received_window.append(sequence)
         if len(self.received_window) > self.ack_window:
             self.received_window.popleft()
-
-        # Store the received time
-        self.last_received = clock()
 
         # Handle received packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])

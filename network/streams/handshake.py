@@ -24,13 +24,13 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
     def __init__(self, dispatcher):
         self.status = ConnectionStatus.pending
 
-        self.time_created = clock()
         self.dispatcher = dispatcher
 
         self.connection_info = None
         self.remove_connection = None
 
-        self.timeout_duration = 5.0
+        self.timeout_duration = 3.0
+        self._last_received_time = clock()
 
         # Additional data
         self.netmode_packer = get_handler(TypeFlag(int))
@@ -38,13 +38,19 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
 
     @property
     def timed_out(self):
-        return (clock() - self.time_created) > self.timeout_duration and self.status < ConnectionStatus.connected
+        return (clock() - self._last_received_time) > self.timeout_duration
 
     def on_timeout(self):
         if callable(self.remove_connection):
             self.remove_connection()
 
         ConnectionTimeoutSignal.invoke(target=self)
+        self.replication_stream.on_disconnected()
+
+    def handle_packets(self, packet_collection):
+        super().handle_packets(packet_collection)
+
+        self._last_received_time = clock()
 
     def pull_packets(self, network_tick, bandwidth):
         if self.timed_out:
