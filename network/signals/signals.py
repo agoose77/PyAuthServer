@@ -2,7 +2,7 @@ from collections import defaultdict
 from inspect import signature
 
 from ..decorators import signal_listener
-from ..metaclasses import TypeRegister
+from ..metaclasses.register import TypeRegister
 
 
 __all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',

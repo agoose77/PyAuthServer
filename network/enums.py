@@ -1,57 +1,32 @@
 from contextlib import contextmanager
 
+from .metaclasses.enumeration import EnumerationMeta
+
 __all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
 
 
-class Enumeration(type):
-    """Metaclass for Enumerations in Python"""
-
-    def __new__(meta, name, parents, attributes):
-        # Get settings
-        get_index = (lambda x: 2 ** x if attributes.get('use_bits', False) else x)
-
-        values = attributes['values']
-
-        forward_mapping = {v: get_index(i) for i, v in enumerate(values)}
-        reverse_mapping = {i: v for v, i in forward_mapping.items()}
-
-        attributes.update(forward_mapping)
-        attributes['keys_to_values'] = forward_mapping
-        attributes['values_to_keys'] = reverse_mapping
-
-        # Return new class
-        return super().__new__(meta, name, parents, attributes)
-
-    def __getitem__(cls, value):
-        # Add ability to lookup name
-        return cls.values_to_keys[value]
-
-    def __contains__(cls, index):
-        return index in cls.values_to_keys
-
-    def __repr__(cls):
-        contents_string = '\n'.join("<{}: {}>".format(*mapping) for mapping in cls.keys_to_values.items())
-        return "<Enumeration {}>\n{}\n".format(cls.__name__, contents_string)
+class Enumeration(metaclass=EnumerationMeta):
+    pass
 
 
-class ConnectionStatus(metaclass=Enumeration):
+class ConnectionStatus(Enumeration):
     values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
 
-class Netmodes(metaclass=Enumeration):
+class Netmodes(Enumeration):
     values = "server", "client"
 
 
-class ConnectionProtocols(metaclass=Enumeration):
+class ConnectionProtocols(Enumeration):
     values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
              "replication_del",  "attribute_update", "method_invoke",
 
 
-class IterableCompressionType(metaclass=Enumeration):
+class IterableCompressionType(Enumeration):
     values = ("no_compress", "compress", "auto")
 
 
-class Roles(metaclass=Enumeration):
+class Roles(Enumeration):
     values = ("none", "dumb_proxy", "simulated_proxy", "autonomous_proxy", "authority")
 
     __slots__ = "local", "remote", "context"

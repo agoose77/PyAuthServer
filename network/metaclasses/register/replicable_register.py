@@ -1,13 +1,12 @@
 from inspect import isfunction
 
-from .attribute_mapping import AttributeMeta
 from .instance_register import InstanceRegister
-from .rpc_mapping import RPCMeta
-
-from ..conditions import is_annotatable
-from ..decorators import get_annotation, requires_permission
-from ..enums import Netmodes
-from ..rpc import RPCInterfaceFactory
+from ..mapping.attribute_mapping import AttributeMeta
+from ..mapping.rpc_mapping import RPCMeta
+from ...conditions import is_annotatable
+from ...decorators import get_annotation, requires_permission
+from ...enums import Netmodes
+from ...rpc import RPCInterfaceFactory
 
 
 __all__ = ['ReplicableRegister']

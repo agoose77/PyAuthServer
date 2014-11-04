@@ -2,7 +2,7 @@ from inspect import getmembers
 
 from ..conditions import is_annotatable
 from ..decorators import get_annotation, set_annotation
-from ..metaclasses import TypeRegister
+from ..metaclasses.register import TypeRegister
 from ..packet import PacketCollection
 
 

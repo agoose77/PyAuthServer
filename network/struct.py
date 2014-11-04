@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from .metaclasses import StructMeta
+from .metaclasses.struct import StructMeta
 
 __all__ = ['Struct']
 

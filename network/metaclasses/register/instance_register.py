@@ -1,9 +1,9 @@
+from itertools import chain
+
 from .type_register import TypeRegister
 
-from ..iterators import RenewableGenerator, take_single
-from ..signals import SignalListener
-
-from itertools import chain
+from ...iterators import RenewableGenerator, take_single
+from ...signals import SignalListener
 
 __all__ = ['InstanceRegister', '_ManagedInstanceBase']
 

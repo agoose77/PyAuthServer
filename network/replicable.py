@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from .descriptors import Attribute
 from .enums import Roles
-from .metaclasses import ReplicableRegister
+from .metaclasses.register import ReplicableRegister
 from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
 
 
