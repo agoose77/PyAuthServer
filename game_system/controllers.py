@@ -96,7 +96,7 @@ class Controller(Replicable):
     def on_unregistered(self):
         # Remove player pawn
         self.forget_pawn()
-        print("BYE PAWN")
+
         # The player is gone, remove info
         if self.info:
             self.info.deregister()

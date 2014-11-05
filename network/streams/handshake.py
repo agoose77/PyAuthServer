@@ -72,10 +72,10 @@ class ServerHandshakeStream(HandshakeStream):
     def on_ack_handshake_failed(self, packet):
         self.status = ConnectionStatus.failed
 
-        ConnectionErrorSignal.invoke(target=self)
-
         if callable(self.remove_connection):
             self.remove_connection()
+
+        ConnectionErrorSignal.invoke(target=self)
 
     def on_ack_handshake_success(self, packet):
         self.status = ConnectionStatus.connected
@@ -151,6 +151,8 @@ class ClientHandshakeStream(HandshakeStream):
         self.status = ConnectionStatus.connected
         self.dispatcher.create_stream(ReplicationStream)
 
+        ConnectionSuccessSignal.invoke(target=self)
+
     @response_protocol(ConnectionProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
         error_type, type_size = self.string_packer.unpack_from(data)
@@ -161,5 +163,6 @@ class ClientHandshakeStream(HandshakeStream):
         raised_error = error_class(error_message)
 
         logger.error(raised_error)
-        ConnectionErrorSignal.invoke(raised_error, target=self)
         self.status = ConnectionStatus.failed
+
+        ConnectionErrorSignal.invoke(raised_error, target=self)

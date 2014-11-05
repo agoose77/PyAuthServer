@@ -34,6 +34,9 @@ class BGESocket:
 class BGEComponent(FindByTag):
     subclasses = {}
 
+    def destroy(self):
+        pass
+
 # TODO use enums here
 
 @with_tag("physics")
@@ -484,7 +487,20 @@ class BGEComponentLoader(ComponentLoader):
         assert object_name in scene.objectsInactive, (object_name, scene.objectsInactive)
         return scene.addObject(object_name, object_name)
 
-    def load_components(self, entity, config_parser):
+    def load(self, entity, config_parser):
         obj = self.create_object(config_parser)
+        components = self._load_components(config_parser, entity, obj)
+        return LoaderResult(components, obj)
 
-        return self._load_components(config_parser, entity, obj)
+
+class LoaderResult:
+
+    def __init__(self, components, obj):
+        self._obj = obj
+        self.components = components
+
+    def unload(self):
+        for component in self.components.values():
+            component.destroy()
+
+        self._obj.endObject()
