@@ -22,11 +22,11 @@ class _ManagedInstanceBase(SignalListener):
         # Initial value
         self.instance_id = instance_id
 
-        # Run clean init function
-        self.on_initialised()
-
         # Add to register queue
         self.register(instance_id, immediately=register_immediately)
+
+        # Run clean init function
+        self.on_initialised()
 
     def on_initialised(self):
         pass
