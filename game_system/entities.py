@@ -27,10 +27,17 @@ class Entity:
 
     _definitions = {}
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def unload_components(self):
+        """Unloads entity components
+        """
 
-        self.load_components()
+        try:
+            result = self._component_result
+
+        except AttributeError as err:
+            raise AttributeError("Components have not been loaded yet") from err
+
+        result.unload()
 
     def load_components(self):
         """Loads entity-specific components marked using the with_tag system/
@@ -73,11 +80,13 @@ class Entity:
             platform_definition = definition_sections[platform]
             definitions[class_name] = platform_definition
 
-        components = component_loader.load_components(self, platform_definition)
+        component_result = component_loader.load(self, platform_definition)
 
         # Load components
-        for component_tag, component in components.items():
+        for component_tag, component in component_result.components.items():
             setattr(self, component_tag, component)
+
+        self._component_result = component_result
 
 
 class Actor(Entity, Replicable):
@@ -99,6 +108,11 @@ class Actor(Entity, Replicable):
     # Replicated physics parameters
     MAX_POSITION_DIFFERENCE_SQUARED = 4
     POSITION_CONVERGE_FACTOR = 0.6
+
+    # Default settings
+    always_relevant = False
+    replicate_physics_to_owner = False
+    replicate_simulated_physics = True
 
     @property
     def resources(self):
@@ -136,19 +150,13 @@ class Actor(Entity, Replicable):
     def on_initialised(self):
         super().on_initialised()
 
+        self.load_components()
+
         self.camera_radius = 1.0
         self.indestructible = False
 
-        self.always_relevant = False
-        self.replicate_physics_to_owner = False
-        self.replicate_simulated_physics = True
-
     def on_unregistered(self):
-        for child in self.transform.children:
-            if child.indestructable:
-                continue
-
-            child.deregister()
+        self.unload_components()
 
         super().on_unregistered()
 

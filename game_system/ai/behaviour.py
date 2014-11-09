@@ -158,10 +158,10 @@ class RepeatUntilFailNode(RepeaterNode):
 
     def iterations(self):
         success = EvaluationState.success
-        failed = EvaluationState.failed
+        failure = EvaluationState.failure
 
         child = self.child
-        while child.state != failed:
+        while child.state != failure:
             yield success
 
 
@@ -192,11 +192,11 @@ class InverterNode(DecoratorNode):
     def evaluate(self, blackboard):
         state = self.child.evaluate(blackboard)
 
-        if state == EvaluationState.failed:
-            return EvaluationState.failed
+        if state == EvaluationState.failure:
+            return EvaluationState.failure
 
         if state == EvaluationState.success:
-            return EvaluationState.failed
+            return EvaluationState.failure
 
         return EvaluationState.running
 

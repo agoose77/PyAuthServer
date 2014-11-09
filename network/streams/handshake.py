@@ -24,13 +24,13 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
     def __init__(self, dispatcher):
         self.status = ConnectionStatus.pending
 
-        self.time_created = clock()
         self.dispatcher = dispatcher
 
         self.connection_info = None
         self.remove_connection = None
 
-        self.timeout_duration = 5.0
+        self.timeout_duration = 3.0
+        self._last_received_time = clock()
 
         # Additional data
         self.netmode_packer = get_handler(TypeFlag(int))
@@ -38,13 +38,19 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
 
     @property
     def timed_out(self):
-        return (clock() - self.time_created) > self.timeout_duration and self.status < ConnectionStatus.connected
+        return (clock() - self._last_received_time) > self.timeout_duration
 
     def on_timeout(self):
         if callable(self.remove_connection):
             self.remove_connection()
 
         ConnectionTimeoutSignal.invoke(target=self)
+        self.replication_stream.on_disconnected()
+
+    def handle_packets(self, packet_collection):
+        super().handle_packets(packet_collection)
+
+        self._last_received_time = clock()
 
     def pull_packets(self, network_tick, bandwidth):
         if self.timed_out:
@@ -66,10 +72,10 @@ class ServerHandshakeStream(HandshakeStream):
     def on_ack_handshake_failed(self, packet):
         self.status = ConnectionStatus.failed
 
-        ConnectionErrorSignal.invoke(target=self)
-
         if callable(self.remove_connection):
             self.remove_connection()
+
+        ConnectionErrorSignal.invoke(target=self)
 
     def on_ack_handshake_success(self, packet):
         self.status = ConnectionStatus.connected
@@ -145,6 +151,8 @@ class ClientHandshakeStream(HandshakeStream):
         self.status = ConnectionStatus.connected
         self.dispatcher.create_stream(ReplicationStream)
 
+        ConnectionSuccessSignal.invoke(target=self)
+
     @response_protocol(ConnectionProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
         error_type, type_size = self.string_packer.unpack_from(data)
@@ -155,5 +163,6 @@ class ClientHandshakeStream(HandshakeStream):
         raised_error = error_class(error_message)
 
         logger.error(raised_error)
-        ConnectionErrorSignal.invoke(raised_error, target=self)
         self.status = ConnectionStatus.failed
+
+        ConnectionErrorSignal.invoke(raised_error, target=self)

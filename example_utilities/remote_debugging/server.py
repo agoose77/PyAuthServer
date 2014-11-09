@@ -7,44 +7,47 @@ from .replicables import RemoteTerminal
 
 class Rules:
 
-    def __init__(self, reference):
-        self.reference = reference
+	def __init__(self, reference):
+		self.reference = reference
 
-    def pre_initialise(self, addr, netmode):
-        pass
+	def pre_initialise(self, addr, netmode):
+		pass
 
-    def post_initialise(self, connection):
-        terminal = RemoteTerminal(register_immediately=True)
-        terminal.data['reference'] = self.reference
-        return terminal
+	def post_initialise(self, connection):
+		terminal = RemoteTerminal(register_immediately=True)
+		terminal.data['reference'] = self.reference
+		return terminal
+		
+	def post_disconnect(self, connection, replicable):
+		print("disconencted")
 
-    def is_relevant(self, conn, replicable):
-        return True
+	def is_relevant(self, conn, replicable):
+		return True
 
 
 def setup(reference):
-    WorldInfo.netmode = Netmodes.server
-    WorldInfo.rules = Rules(reference)
-    network = SimpleNetwork("", 1200)
+	WorldInfo.netmode = Netmodes.server
+	WorldInfo.rules = Rules(reference)
+	network = SimpleNetwork("", 1200)
 
-    return network
+	return network
 
 
 def application():
-    """Example application with network debugging"""
+	"""Example application with network debugging"""
 
-    # Some object to pass to the remote terminal
-    reference_data = {"name": "John Smith"}
+	# Some object to pass to the remote terminal
+	reference_data = {"name": "John Smith"}
 
-    # Network data
-    network = setup(reference_data)
-    update_network = respect_interval(1 / 60, network.step)
+	# Network data
+	network = setup(reference_data)
+	update_network = respect_interval(1 / 60, network.step)
 
-    while True:
-        name = reference_data['name']
-      #  print("Running app as {}".format(name))
-        update_network()
+	while True:
+		name = reference_data['name']
+	#  print("Running app as {}".format(name))
+		update_network()
 
 
 if __name__ == "__main__":
-    application()
+	application()

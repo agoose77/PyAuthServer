@@ -7,54 +7,54 @@ __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
            'InputEvents', 'AudioDistanceModel']
 
 
-class PhysicsType(metaclass=Enumeration):
+class PhysicsType(Enumeration):
     """Enumeration of Physics Types"""
     values = ("static", "dynamic", "rigid_body", "soft_body", "occluder",
               "sensor", "navigation_mesh", "character", "no_collision")
 
 
-class EvaluationState(metaclass=Enumeration):
-    values = "success", "failed", "running", "ready"
+class EvaluationState(Enumeration):
+    values = "success", "failure", "running", "ready"
 
 
-class CameraMode(metaclass=Enumeration):
+class CameraMode(Enumeration):
     values = ("first_person", "third_person")
 
 
-class MovementState(metaclass=Enumeration):
+class MovementState(Enumeration):
     values = ("run", "walk", "static")
 
 
-class AIState(metaclass=Enumeration):
+class AIState(Enumeration):
     values = ("idle", "alert", "engage")
 
 
-class Axis(metaclass=Enumeration):
+class Axis(Enumeration):
     values = ("x", "y", "z")
 
 
-class CollisionGroups(metaclass=Enumeration):
+class CollisionGroups(Enumeration):
     use_bits = True
     values = ("geometry", "pawn", "projectile")
 
 
-class CollisionState(metaclass=Enumeration):
+class CollisionState(Enumeration):
     values = ("started", "ended")
 
 
-class AnimationMode(metaclass=Enumeration):
+class AnimationMode(Enumeration):
     values = ("play", "loop", "ping_pong", "stop")
 
 
-class AnimationBlend(metaclass=Enumeration):
+class AnimationBlend(Enumeration):
     values = ("interpolate", "add")
 
 
-class EventType(metaclass=Enumeration):
+class EventType(Enumeration):
     values = ("action_in", "action_out", "state")
 
 
-class InputEvents(metaclass=Enumeration):
+class InputEvents(Enumeration):
 
     values = ('ACCENTGRAVEKEY', 'AKEY', 'BACKSLASHKEY', 'BACKSPACEKEY',
               'BKEY', 'CAPSLOCKKEY', 'CKEY', 'COMMAKEY', 'DELKEY',
@@ -79,6 +79,6 @@ class InputEvents(metaclass=Enumeration):
               'XKEY', 'YKEY', 'ZEROKEY', 'ZKEY')
 
 
-class AudioDistanceModel(metaclass=Enumeration):
+class AudioDistanceModel(Enumeration):
 
     values = ("linear",)
