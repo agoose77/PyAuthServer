@@ -88,8 +88,11 @@ class AlgorithmNotImplementedException(Exception):
 
 class AStarAlgorithm:
 
-    def __init__(self):
-        self.heuristic = manhattan_distance_heuristic
+    def __init__(self, get_neighbours, get_h_score, get_g_score, check_completed):
+        self.get_h_score = get_h_score
+        self.get_g_score = get_g_score
+        self.get_neighbours = get_neighbours
+        self.is_finished = check_completed
 
     @staticmethod
     def reconstruct_path(node, path):
@@ -97,41 +100,46 @@ class AStarAlgorithm:
         while node:
             result.appendleft(node)
             node = path.get(node)
+
         return result
 
-    def find_path(self, start, destination):
+    def find_path(self, start):
         open_set = {start}
         closed_set = set()
 
         f_scored = [(0, start)]
         g_scored = {start: 0}
 
-        heuristic_function = self.heuristic
+        get_h_score = self.get_h_score
+        get_g_score = self.get_g_score
+        get_neighbours = self.get_neighbours
+        is_complete = self.is_finished
+
         path = {}
 
         while open_set:
             current = heappop(f_scored)[1]
-            if current is destination:
-                return self.reconstruct_path(destination, path)
+            if is_complete(current, path):
+                return self.reconstruct_path(current, path)
 
             open_set.remove(current)
             closed_set.add(current)
 
-            for neighbour in current.get_neighbours():
+            for neighbour in get_neighbours(current):
                 if neighbour in closed_set:
                     continue
 
-                tentative_g_score = g_scored[current] + (neighbour.position - current.position).length_squared
+                tentative_g_score = g_scored[current] + get_g_score(current, neighbour)
 
                 if not neighbour in open_set or tentative_g_score < g_scored[neighbour]:
                     path[neighbour] = current
                     g_scored[neighbour] = tentative_g_score
-                    heappush(f_scored, (tentative_g_score + heuristic_function(neighbour, destination), neighbour))
+                    heappush(f_scored, (tentative_g_score + get_h_score(neighbour), neighbour))
 
                     if not neighbour in open_set:
                         open_set.add(neighbour)
 
-        raise PathNotFoundException("Couldn't find path for given points")
+        raise PathNotFoundException("Couldn't find path for given nodes")
 
 
 class FunnelAlgorithm:

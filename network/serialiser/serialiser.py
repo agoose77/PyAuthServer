@@ -5,7 +5,7 @@ from ..handlers import register_handler
 
 __all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', 'handler_from_bit_length',
            'handler_from_int', 'handler_from_byte_length', 'string_handler_builder', 'build_bytes_handler',
-           'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
+           'int_selector', 'next_or_equal_power_of_two', 'BoolHandler', 'Int8', 'Int16', 'Int32', 'Int64']
 
 
 def build_function(function_string, locals_dict):
@@ -64,6 +64,10 @@ UInt32 = build_struct_handler("UInt32", "I")
 UInt16 = build_struct_handler("UInt16", "H")
 UInt64 = build_struct_handler("UInt64", "Q")
 UInt8 = build_struct_handler("UInt8", "B")
+Int32 = build_struct_handler("UInt32", "i")
+Int16 = build_struct_handler("UInt16", "h")
+Int64 = build_struct_handler("UInt64", "q")
+Int8 = build_struct_handler("UInt8", "b")
 Float32 = build_struct_handler("Float32", "f")
 Float64 = build_struct_handler("Float64", "d")
 
