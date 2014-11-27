@@ -1,18 +1,25 @@
-from ..enums import EvaluationState
 from network.signals import SignalListener
+
+from ...enums import EvaluationState
 
 from functools import wraps
 from random import shuffle
 
 __all__ = "LeafNode", "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", \
-          "RepeaterNode", "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode"
+          "RepeaterNode", "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalNode"
 
 
 class StateManager(type):
     """Meta class to update node state with return of evaluation"""
 
     def __new__(metacls, name, bases, attrs):
-        attrs["evaluate"] = metacls.evaluate_wrapper(attrs["evaluate"])
+        try:
+            evaluate_function = attrs["evaluate"]
+        except KeyError:
+            pass
+
+        else:
+            attrs["evaluate"] = metacls.evaluate_wrapper(evaluate_function)
         return super().__new__(metacls, name, bases, attrs)
 
     @staticmethod
@@ -201,23 +208,19 @@ class InverterNode(DecoratorNode):
         return EvaluationState.running
 
 
-class SignalLeafNode(LeafNode, SignalListener):
+class SignalNode(LeafNode, SignalListener):
 
-    def __init__(self):
+    def __init__(self, signal_cls):
         super().__init__()
 
-        self.register_signals()
-
-
-class OnSignalNode(SignalLeafNode):
-
-    SIGNAL_CLS = None
-
-    def __init__(self):
         self._parent_identifier = None
-        self._state = False
+        self._received_signal = False
 
-        self.SIGNAL_CLS.subscribe(self, self.activate)
+        signal_cls.subscribe(self, self._handle_signal)
+        self.signal_cls = signal_cls
+
+    def _handle_signal(self):
+        self._received_signal = True
 
     def change_signal_handler(self, old_id, id_):
         """Change parent dispatcher for signaller
@@ -225,16 +228,14 @@ class OnSignalNode(SignalLeafNode):
         :param old_id: previous parent identifier
         :param id_: new parent identifier
         """
-        self.SIGNAL_CLS.remove_parent(self, old_id)
-        self.SIGNAL_CLS.set_parent(self, id_)
+        self.signal_cls.remove_parent(self, old_id)
+        self.signal_cls.set_parent(self, id_)
 
-    def reset(self):
-        self._state = False
+    def evaluate(self, blackboard):
+        return EvaluationState.success if self._received_signal else EvaluationState.failure
 
-        super().reset()
-
-    def activate(self):
-        self._state = True
+    def on_exit(self):
+        self._received_signal = False
 
     @property
     def parent_identifier(self):

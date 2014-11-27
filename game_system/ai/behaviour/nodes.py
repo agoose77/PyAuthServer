@@ -3,8 +3,8 @@ from collections import deque
 from network.world_info import WorldInfo
 
 from .behaviour import LeafNode, EvaluationState
-from ..controllers import AIController, PlayerController
-from ..coordinates import Vector
+from ...controllers import AIController, PlayerController
+from ...coordinates import Vector
 
 
 class GetNearestPlayerPawn(LeafNode):

@@ -1,6 +1,6 @@
 from random import random, randrange
 
-from game_system.ai.behaviour_tree import *
+from game_system.ai.behaviour.behaviour_tree import *
 from game_system.enums import *
 from game_system.signals import *
 from game_system.coordinates import Vector

@@ -12,8 +12,6 @@ from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
-
-from .ai.behaviour_tree import BehaviourTree
 from .audio import AudioManager
 from .configuration import load_keybindings
 from .constants import MAX_32BIT_INT
@@ -219,8 +217,8 @@ class AIController(Controller):
         super().on_initialised()
 
         self.camera_mode = CameraMode.first_person
-        self.behaviour = BehaviourTree(self)
-        self.behaviour.blackboard['controller'] = self
+        # self.behaviour = BehaviourTree(self)
+        # self.behaviour.blackboard['controller'] = self
 
     @LogicUpdateSignal.global_listener
     def update(self, delta_time):

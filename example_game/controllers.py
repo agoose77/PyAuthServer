@@ -2,7 +2,7 @@ from network.type_flag import TypeFlag
 from network.enums import Netmodes
 from network.replicable import Replicable
 
-from game_system.ai.behaviour_tree import SequenceNode
+from game_system.ai.behaviour.behaviour_tree import SequenceNode
 from game_system.controllers import AIController, PlayerController
 from game_system.enums import CollisionState
 from game_system.signals import *

@@ -1,3 +1,5 @@
+from functools import partial
+
 from network.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
@@ -5,8 +7,6 @@ from network.utilities import mean
 from network.replicable import Replicable
 from network.signals import SignalListener
 from network.world_info import WorldInfo
-
-from .ai.behaviour_tree import BehaviourTree
 from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
@@ -14,9 +14,6 @@ from .enums import Axis, CameraMode, CollisionGroups, CollisionState
 from .pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm
 from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
-
-
-from functools import partial
 
 
 class Entity:
@@ -294,8 +291,8 @@ class Pawn(Actor):
         self.turn_speed = 1.0
         self.replication_update_period = 1 / 60
 
-        self.behaviours = BehaviourTree(self)
-        self.behaviours.blackboard['pawn'] = self
+        # self.behaviours = BehaviourTree(self)
+        # self.behaviours.blackboard['pawn'] = self
 
         self.playing_animations = {}
 
@@ -308,7 +305,7 @@ class Pawn(Actor):
     def update(self, delta_time):
         # Allow remote players to determine if we are alive without seeing health
         self.update_alive_status()
-        self.behaviours.update()
+        # self.behaviours.update()
 
     def update_alive_status(self):
         """Update health boolean.
