@@ -148,7 +148,7 @@ class MouseManager(EnvironmentDefinitionByTag):
 
     subclasses = {}
 
-
+#Legacy
 class InputPacker:
 
     def __init__(self, static_value):
