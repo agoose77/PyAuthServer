@@ -29,7 +29,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
         self.connection_info = None
         self.remove_connection = None
 
-        self.timeout_duration = 3.0
+        self.timeout_duration = 3000.0
         self._last_received_time = clock()
 
         # Additional data
