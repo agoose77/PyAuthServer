@@ -22,10 +22,12 @@ __all__ = ["BGEPhysicsSystem", "BGEServerPhysics", "BGEClientPhysics"]
 class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
     subclasses = {}
 
-    def __init__(self):
+    def __init__(self, update_bullet, update_scenegraph):
         self.register_signals()
 
         self._active_physics = PhysicsType.dynamic, PhysicsType.rigid_body
+        self._update_bullet = update_bullet
+        self._update_scenegraph = update_scenegraph
 
     @CopyStateToActor.global_listener
     def copy_to_actor(self, state, actor):
@@ -91,8 +93,8 @@ class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
                         if a != target and a]
 
         with self.protect_exemptions(other_actors):
-            self._update_func(delta_time)
-        self._apply_func()
+            self._update_bullet(delta_time)
+        self._update_scenegraph()
 
     @PhysicsTickSignal.global_listener
     def update(self, delta_time):
@@ -101,8 +103,8 @@ class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
 
         :param delta_time: Time to progress simulation
         """
-        self._update_func(delta_time)
-        self._apply_func()
+        self._update_bullet(delta_time)
+        self._update_scenegraph()
 
         UpdateCollidersSignal.invoke()
 

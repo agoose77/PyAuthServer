@@ -12,7 +12,7 @@ from game_system.timer import Timer
 from game_system.entities import Camera
 from game_system.inputs import InputManager, MouseManager
 
-from .inputs import convert_to_bge_event
+from .inputs import convert_from_bge_event
 from .physics import PhysicsSystem
 
 from bge import types, logic
@@ -137,8 +137,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
 
-        events = set([convert_to_bge_event(e) for e in logic.keyboard.active_events])
-        events |= [convert_to_bge_event(e) for e in logic.mouse.active_events]
+        events = set([convert_from_bge_event(e) for e in logic.keyboard.active_events])
+        events.update([convert_from_bge_event(e) for e in logic.mouse.active_events])
 
         # Update inputs
         InputManager.update(events)
@@ -186,7 +186,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.update_graphs()
 
         # Set mouse position
-        logic.mouse.position = MouseManager.position
+        logic.mouse.position = tuple(MouseManager.position)
         logic.mouse.visible = MouseManager.visible
 
     def update_scene(self, scene, delta_time):
@@ -285,12 +285,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 class Server(GameLoop):
 
     render = True
-
-    def __init__(self):
-        super().__init__()
-
-        self._rewind_data = OrderedDict()
-        self._rewind_length = 1 * WorldInfo.tick_rate
 
     @staticmethod
     def create_network():

@@ -5,6 +5,7 @@ __all__ = ['InputManager', 'MouseManager']
 
 
 class _InputManager:
+    """Interface to input handlers"""
 
     def __init__(self):
         self._in_actions = {}
@@ -19,7 +20,7 @@ class _InputManager:
         :param listener_type: type of listener
         :param listener: callback function
         """
-        event_dict = self._get_event_dict(event_type)
+        event_dict = self._get_event_dict(listener_type)
         event_dict.setdefault(event, []).append(listener)
 
     def _get_event_dict(self, listener_type):
@@ -112,6 +113,7 @@ class _InputManager:
 
 
 class _MouseManager:
+    """Interface to mouse information"""
 
     def __init__(self):
         self.position = Vector((0.0, 0.0))

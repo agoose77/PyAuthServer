@@ -2,6 +2,7 @@ from network.structures import factory_dict
 from game_system.enums import InputEvents
 
 from bge import logic, events
+from inspect import getmembers
 
 __all__ = ['bge_status_lookup', 'convert_to_bge_event', 'get_dict_containing_events']
 
@@ -21,6 +22,16 @@ def get_event_code(event_name):
 
 event_manager = factory_dict(get_dict_containing_events)
 event_map = factory_dict(get_event_code)
+bge_events = {v: k for k, v in getmembers(events)}
+
+
+def convert_from_bge_event(event):
+    """Parse a BGE event code and return InputEvent value
+
+    :param event: BGE event
+    """
+    name = bge_events[event]
+    return getattr(InputEvents, name)
 
 
 def convert_to_bge_event(event):
