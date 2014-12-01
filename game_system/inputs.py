@@ -1,5 +1,5 @@
 from .coordinates import Vector
-from .enums import EventType
+from .enums import ListenerType
 
 __all__ = ['InputManager', 'MouseManager']
 
@@ -13,41 +13,63 @@ class _InputManager:
 
         self.active_states = set()
 
-    def add_listener(self, event, event_type, listener):
+    def add_listener(self, event, listener_type, listener):
+        """Add event listener for given event type
+        :param event: event name
+        :param listener_type: type of listener
+        :param listener: callback function
+        """
         event_dict = self._get_event_dict(event_type)
         event_dict.setdefault(event, []).append(listener)
 
-    def _get_event_dict(self, event_type):
-        if event_type == EventType.action_in:
+    def _get_event_dict(self, listener_type):
+        """Return the appropriate event dictionary for listener
+
+        :param listener_type: type of listener
+        """
+        if listener_type == ListenerType.action_in:
             event_dict = self._in_actions
 
-        elif event_type == EventType.action_out:
+        elif listener_type == ListenerType.action_out:
             event_dict = self._out_actions
 
-        elif event_type == EventType.state:
+        elif listener_type == ListenerType.state:
             event_dict = self._states
 
         else:
-            raise TypeError("Invalid event type {} given".format(event_type))
+            raise TypeError("Invalid event type {} given".format(listener_type))
 
         return event_dict
 
-    def get_view_writer(self, *events):
+    def get_bound_view(self, *events):
+        """Return bound view function for given events
+
+        :param events: ordered events (as arguments) to bind to view
+        """
         def write():
             active_events = self.active_states
             return [e in active_events for e in events]
 
         return write
 
-    def get_view_reader(self, *events):
+    def get_bound_writer(self, *events):
+        """Return bound writer function for given events
+
+        :param events: ordered events (as arguments) to write
+        """
         def read(view):
             active_events = [e for e, v in zip(events, view) if v]
             self.update(active_events)
 
         return read
 
-    def remove_listener(self, event, event_type, listener):
-        event_dict = self._get_event_dict(event_type)
+    def remove_listener(self, event, listener_type, listener):
+        """Remove event listener for given event type
+        :param event: event name
+        :param listener_type: type of listener
+        :param listener: callback function
+        """
+        event_dict = self._get_event_dict(listener_type)
 
         try:
             listeners = event_dict[event]
@@ -55,28 +77,33 @@ class _InputManager:
         except KeyError:
             raise LookupError("No listeners for {} are registered".format(event))
 
-        listeners.append(listener)
+        listeners.remove(listener)
 
     def update(self, events):
+        """Process new events and update listeners
+
+        :param events: new events
+        """
         all_events = set(events)
         active_events = self.active_states
 
+        call_listeners = self._call_listeners
         for new_event in all_events.difference(active_events):
             if new_event in self._in_actions:
                 listeners = self._in_actions[new_event]
-                self._call_listeners(listeners)
+                call_listeners(listeners)
 
         for old_event in active_events.difference(all_events):
             if old_event in self._out_actions:
                 listeners = self._out_actions[old_event]
-                self._call_listeners(listeners)
+                call_listeners(listeners)
 
         self.active_states = all_events
 
         for event in all_events:
             if event in self._states:
                 listeners = self._states[event]
-                self._call_listeners(listeners)
+                call_listeners(listeners)
 
     @staticmethod
     def _call_listeners(listeners):
@@ -96,10 +123,15 @@ class _MouseManager:
         return self.position - self._last_position
 
     def update(self, position, visible):
+        """Process new mouse state
+
+        :param position: new mouse position
+        :param visible: new mouse visibility state
+        """
         self._last_position = self.position
         self._position = position
         self.visible = visible
 
 
 MouseManager = _MouseManager()
-InputManager = _InputManager()
+InputManager = _InputManager()))

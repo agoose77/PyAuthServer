@@ -50,7 +50,7 @@ class AnimationBlend(Enumeration):
     values = ("interpolate", "add")
 
 
-class EventType(Enumeration):
+class ListenerType(Enumeration):
     values = ("action_in", "action_out", "state")
 
 
