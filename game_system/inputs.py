@@ -134,4 +134,4 @@ class _MouseManager:
 
 
 MouseManager = _MouseManager()
-InputManager = _InputManager()))
+InputManager = _InputManager()
