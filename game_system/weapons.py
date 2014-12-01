@@ -77,8 +77,8 @@ class TraceWeapon(Weapon):
     @requires_netmode(Netmodes.server)
     def trace_shot(self, camera):
         # Get hit results
-
         camera_physics = camera.physics
+        camera_transform = camera.transform
         camera_position = camera_transform.world_position
         position = camera_position + camera_physics.get_direction_vector(Axis.y)
         hit_result = camera_physics.ray_test(position, self.maximum_range)
