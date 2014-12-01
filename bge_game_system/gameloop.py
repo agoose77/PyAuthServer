@@ -10,8 +10,9 @@ from network.world_info import WorldInfo
 from game_system.signals import *
 from game_system.timer import Timer
 from game_system.entities import Camera
-from game_system.inputs import InputManager
+from game_system.inputs import InputManager, MouseManager
 
+from .inputs import convert_to_bge_event
 from .physics import PhysicsSystem
 
 from bge import types, logic
@@ -136,11 +137,12 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
 
-        events = set(logic.keyboard.active_events)
-        events |= logic.mouse.active_events
+        events = set([convert_to_bge_event(e) for e in logic.keyboard.active_events])
+        events |= [convert_to_bge_event(e) for e in logic.mouse.active_events]
 
         # Update inputs
         InputManager.update(events)
+        MouseManager.update(logic.mouse.position, logic.mouse.visible)
 
         # Update Player Controller inputs for client
         if WorldInfo.netmode != Netmodes.server:
@@ -182,6 +184,10 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         UIUpdateSignal.invoke(delta_time)
 
         self.update_graphs()
+
+        # Set mouse position
+        logic.mouse.position = MouseManager.position
+        logic.mouse.visible = MouseManager.visible
 
     def update_scene(self, scene, delta_time):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC

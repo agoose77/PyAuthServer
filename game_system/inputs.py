@@ -1,6 +1,7 @@
+from .coordinates import Vector
 from .enums import EventType
 
-__all__ = ['MouseManager', 'InputManager', 'InputPacker']
+__all__ = ['InputManager', 'MouseManager']
 
 
 class _InputManager:
@@ -11,7 +12,6 @@ class _InputManager:
         self._states = {}
 
         self.active_states = set()
-        self.translator = None
 
     def add_listener(self, event, event_type, listener):
         event_dict = self._get_event_dict(event_type)
@@ -58,9 +58,6 @@ class _InputManager:
         listeners.append(listener)
 
     def update(self, events):
-        if callable(self.translator):
-            events = self.translator(events)
-
         all_events = set(events)
         active_events = self.active_states
 
@@ -86,4 +83,23 @@ class _InputManager:
         for listener in listeners:
             listener()
 
+
+class _MouseManager:
+
+    def __init__(self):
+        self.position = Vector((0.0, 0.0))
+        self._last_position = Vector()
+        self.visible = False
+
+    @property
+    def delta_position(self):
+        return self.position - self._last_position
+
+    def update(self, position, visible):
+        self._last_position = self.position
+        self._position = position
+        self.visible = visible
+
+
+MouseManager = _MouseManager()
 InputManager = _InputManager()

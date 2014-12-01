@@ -324,7 +324,6 @@ class PlayerController(Controller, NetworkLocksMixin):
         """Create the input manager for the client"""
         keybindings = self.load_keybindings()
 
-        self.inputs = InputManager(keybindings)
         self.mouse = MouseManager(interpolation=0.6)
         self.move_history = self.missing_movement_struct()
 
@@ -470,7 +469,7 @@ class PlayerController(Controller, NetworkLocksMixin):
             values = [getattr(move_history, list_name)[offset] for list_name in list_names]
 
             move = move_cls()
-            move.inputs = InputManager(keybinding_index_map, status_lookup=values.__getitem__)
+            #TODO move.inputs = InputManager(keybinding_index_map, status_lookup=values.__getitem__)
             move.mouse_x = move_history.mouse_x_list[offset]
             move.mouse_y = move_history.mouse_y_list[offset]
             move.id = index
@@ -510,7 +509,7 @@ class PlayerController(Controller, NetworkLocksMixin):
         MAXIMUM_TICK = WorldInfo._MAXIMUM_TICK
 
         attributes['input_fields'] = fields
-        attributes['inputs'] = Attribute(type_of=InputManager, fields=fields)
+       #TODO attributes['inputs'] = Attribute(type_of=InputManager, fields=fields)
         attributes['mouse_x'] = Attribute(0.0, max_precision=True)
         attributes['mouse_y'] = Attribute(0.0, max_precision=True)
         attributes['position'] = Attribute(type_of=Vector)
