@@ -10,6 +10,7 @@ from network.world_info import WorldInfo
 from game_system.signals import *
 from game_system.timer import Timer
 from game_system.entities import Camera
+from game_system.inputs import InputManager
 
 from .physics import PhysicsSystem
 
@@ -134,6 +135,12 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         # Update Timers
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
+
+        events = set(logic.keyboard.active_events)
+        events |= logic.mouse.active_events
+
+        # Update inputs
+        InputManager.update(events)
 
         # Update Player Controller inputs for client
         if WorldInfo.netmode != Netmodes.server:
