@@ -165,6 +165,7 @@ class BGEVertexTreeEditable(KDTree):
 
         return node.position.data
 
+
     def find_vertices(self, point, search_range=0.01):
         try:
             _, nodes = zip(*self.nn_range_search(point, search_range))
