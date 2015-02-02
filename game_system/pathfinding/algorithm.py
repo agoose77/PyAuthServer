@@ -3,8 +3,9 @@ from heapq import heappop, heappush
 
 from ..geometry.utilities import triangle_area_squared
 from ..coordinates import Vector
+from ..iterators import BidirectionalIterator
 
-from network.iterators import BidirectionalIterator, look_ahead
+from network.iterators import look_ahead
 
 __all__ = "Funnel", "PathNotFoundException", "AlgorithmNotImplementedException", "AStarAlgorithm", "FunnelAlgorithm", \
           "PathfinderAlgorithm"
