@@ -36,3 +36,9 @@ class ComponentLoader(EnvironmentDefinitionByTag):
             components[tag] = component
 
         return components
+
+
+class ComponentLoaderResult:
+
+    def unload(self, result):
+        raise NotImplementedError()
