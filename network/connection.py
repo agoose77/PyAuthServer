@@ -15,15 +15,19 @@ __all__ = "Connection",
 
 
 class Connection(metaclass=InstanceRegister):
-    """Interface for remote peer
+    """Interface for remote peer.
 
-    Mediates a connection between local and remote peer
+    Mediates a connection between local and remote peer.
     """
 
     subclasses = {}
 
     @classmethod
     def create_connection(cls, address, port):
+        """Return new connnection to remote peer.
+
+        Creates a Connection object with a tuple of ``(address, port)``, returning existing connection if present.
+        """
         address = gethostbyname(address)
         ip_info = address, port
 
