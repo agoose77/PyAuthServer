@@ -15,8 +15,10 @@ __all__ = ['Channel', 'ClientChannel', 'ServerChannel']
 
 
 class Channel(DelegateByNetmode):
-    """Channel for replication information
-    Belongs to an instance of Replicable and a connection"""
+    """Channel for replication information.
+
+    Belongs to an instance of Replicable and a connection
+    """
 
     subclasses = {}
 
@@ -40,6 +42,7 @@ class Channel(DelegateByNetmode):
 
     @property
     def is_owner(self):
+        """Return True if this channel is in the ownership tree of the connection replicable"""
         parent = self.replicable.uppermost
 
         try:
@@ -49,8 +52,10 @@ class Channel(DelegateByNetmode):
             return False
 
     def take_rpc_calls(self):
-        """Returns the requested RPC calls in a packaged format
-        Format: rpc_id (bytes) + body (bytes), reliable status (bool)"""
+        """Return the requested RPC calls in a packaged format:
+
+        rpc_id (bytes) + body (bytes), reliable status (bool)
+        """
         id_packer = self.rpc_id_packer.pack
         get_reliable = is_reliable
 
@@ -62,9 +67,10 @@ class Channel(DelegateByNetmode):
         storage_data.clear()
 
     def invoke_rpc_call(self, rpc_call):
-        """Invokes an RPC call from packaged format
+        """Invoke an RPC call from packaged format
 
-        :param rpc_call: rpc data (see take_rpc_calls)"""
+        :param rpc_call: rpc data (see take_rpc_calls)
+        """
         rpc_id, rpc_header_size = self.rpc_id_packer.unpack_from(rpc_call)
 
         try:
@@ -78,7 +84,7 @@ class Channel(DelegateByNetmode):
 
     @property
     def has_rpc_calls(self):
-        """Returns True if replicable has outgoing RPC calls"""
+        """Return True if replicable has outgoing RPC calls"""
         return bool(self.rpc_storage.data)
 
 
@@ -92,17 +98,18 @@ class ClientChannel(Channel):
 
     @property
     def replication_priority(self):
-        """Gets the replication priority for a replicable
-        Utilises replication interval to increment priority
-        of neglected replicables
+        """Get the replication priority for a replicable.
+        Utilises replication interval to increment priority of neglected replicables.
 
-        :returns: replication priority"""
+        :returns: replication priority
+        """
         return self.replicable.replication_priority
 
     def set_attributes(self, bytes_string, offset=0):
-        """Unpacks byte stream and updates attributes
+        """Unpack byte stream and updates attributes
 
-        :param bytes\_: byte stream of attribute"""
+        :param bytes\_: byte stream of attribute
+        """
         replicable = self.replicable
 
         # Create local references outside loop
@@ -130,27 +137,30 @@ class ServerChannel(Channel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.hash_dict = self.attribute_storage.get_default_descriptions()
         self.complaint_dict = self.attribute_storage.get_default_complaints()
 
     @property
     def replication_priority(self):
-        """Gets the replication priority for a replicable
-        Utilises replication interval to increment priority
-        of neglected replicables
+        """Get the replication priority for a replicable
+        Utilises replication interval to increment priority of neglected replicables.
 
-        :returns: replication priority"""
+        :returns: replication priority
+        """
         interval = (clock() - self.last_replication_time)
         elapsed_fraction = (interval / self.replicable.replication_update_period)
         return self.replicable.replication_priority + (elapsed_fraction - 1)
 
     @property
     def awaiting_replication(self):
+        """Return True if the channel is due to replicate its state"""
         interval = (clock() - self.last_replication_time)
         return ((interval >= self.replicable.replication_update_period)
                 or self.is_initial)
 
     def get_attributes(self, is_owner):
+        """Return the serialised state of the managed network object"""
         # Get Replicable and its class
         replicable = self.replicable
 

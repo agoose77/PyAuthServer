@@ -395,7 +395,7 @@ class BGECameraInterface(BGEComponent):
     def is_point_in_frustum(self, point):
         """Determine if a point resides in the camera frustum
 
-        :param point: :py:code:`mathutils.Vector`
+        :param point: :py:class:`mathutils.Vector`
         :rtype: bool
         """
         return self._game_object.pointInsideFrustum(point)
@@ -403,7 +403,7 @@ class BGECameraInterface(BGEComponent):
     def is_sphere_in_frustum(self, point, radius):
         """Determine if a sphere resides in the camera frustum
 
-        :param point: :py:code:`mathutils.Vector`
+        :param point: :py:class:`mathutils.Vector`
         :param radius: radius of sphere
         :rtype: bool
         """
