@@ -130,8 +130,7 @@ class _MouseManager:
         :param position: new mouse position
         :param visible: new mouse visibility state
         """
-        self._last_position = self.position
-        self._position = position
+        self._last_position, self.position = self.position, position
         self.visible = visible
 
 
