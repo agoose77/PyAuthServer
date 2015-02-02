@@ -44,6 +44,7 @@ class AbstractStorageContainer:
     def get_default_data(self):
         initial_data = self.get_default_value
         mapping = self._mapping
+
         return {member: initial_data(member) for member in mapping.values()}
 
     def get_default_value(self, member):
@@ -103,18 +104,29 @@ class RPCStorageContainer(AbstractStorageContainer):
 
     @classmethod
     def check_is_supported(cls, member):
+        """Return True if class member is an instance of :py:class:`RPCInterfaceFactory`
+
+        :param member: class member object
+        """
         return isinstance(member, RPCInterfaceFactory)
 
     def _queue_function_call(self, member, value):
+        """Add RPC call data to outgoing queue (internal).
+
+        :param member: class member function
+        :param value: rpc call data
+        """
         self.data.append((member, value))
 
     def get_default_data(self):
         return deque()
 
-    def interface_register(self, instance):
-        return partial(self._queue_function_call, instance)
-
     def new_storage_interface(self, name, member):
+        """Return RPCStorageInterface instance for class member function.
+
+        :param name: name of function
+        :param member: member function
+        """
         rpc_instance = member.create_rpc_interface(self._instance)
         self.functions.append(rpc_instance)
         rpc_id = len(self.functions) - 1
@@ -138,10 +150,15 @@ class AttributeStorageContainer(AbstractStorageContainer):
 
         self.complaints = self.get_default_complaints()
 
-    def get_descriptions(self):
+    def get_description_mapping(self):
+        """Return mapping of attributes to value network descriptions (:py:func:`network.handlers.static_description`)"""
         return {attribute: static_description(value) for attribute, value in self.data.items()}
 
-    def get_description_list(self):
+    def get_ordered_descriptions(self):
+        """Return ordered list of description values for member attributes
+
+        Use cached complaint descriptions when present
+        """
         complaints = self.complaints
         data = self.data
         members = self._ordered_mapping.values()
@@ -157,12 +174,22 @@ class AttributeStorageContainer(AbstractStorageContainer):
 
     @classmethod
     def check_is_supported(cls, member):
+        """Return True if class member is an instance of :py:class:`network.descriptors.Attribute`
+
+        :param member: class member object
+        """
         return isinstance(member, Attribute)
 
     def get_default_value(self, attribute):
+        """Return deepcopy of default value for attribute"""
         return attribute.get_new_value()
 
     def new_storage_interface(self, name, member):
+        """Return new AttributeStorageInterface instance for class member
+
+        :param name: name of attribute
+        :param member: Attribute instance
+        """
         getter, setter = self.get_storage_accessors(member)
 
         complain_setter = partial(self.complaints.__setitem__, member)

@@ -242,7 +242,7 @@ def _is_list(obj):
 
 def _instance_callable(obj):
     """Given an object, return True if the object is callable.
-    For classes, return True if instances would be callable."""
+    For classes, return True if instances would be callable"""
     if not isinstance(obj, ClassTypes):
         # already an instance
         return getattr(obj, '__call__', None) is not None
@@ -347,7 +347,7 @@ class _SentinelObject(object):
 
 
 class _Sentinel(object):
-    """Access attributes to return a named object, usable as a sentinel."""
+    """Access attributes to return a named object, usable as a sentinel"""
     def __init__(self):
         self._sentinels = {}
 
@@ -519,7 +519,7 @@ class NonCallableMock(Base):
         """
         Attach a mock as an attribute of this one, replacing its name and
         parent. Calls to the attached mock will be recorded in the
-        `method_calls` and `mock_calls` attributes of this one."""
+        `method_calls` and `mock_calls` attributes of this one"""
         mock._mock_parent = None
         mock._mock_new_parent = None
         mock._mock_name = ''
@@ -533,7 +533,7 @@ class NonCallableMock(Base):
         list of strings. Only attributes on the `spec` can be fetched as
         attributes from the mock.
 
-        If `spec_set` is True then only attributes on the spec can be set."""
+        If `spec_set` is True then only attributes on the spec can be set"""
         self._mock_add_spec(spec, spec_set)
 
 
@@ -824,7 +824,7 @@ class NonCallableMock(Base):
         """assert that the mock was called with the specified arguments.
 
         Raises an AssertionError if the args and keyword args passed in are
-        different to the last call to the mock."""
+        different to the last call to the mock"""
         self = _mock_self
         if self.call_args is None:
             expected = self._format_mock_call_signature(args, kwargs)
@@ -837,7 +837,7 @@ class NonCallableMock(Base):
 
     def assert_called_once_with(_mock_self, *args, **kwargs):
         """assert that the mock was called exactly once and with the specified
-        arguments."""
+        arguments"""
         self = _mock_self
         if not self.call_count == 1:
             msg = ("Expected to be called once. Called %s times." %
@@ -855,7 +855,7 @@ class NonCallableMock(Base):
         specified calls.
 
         If `any_order` is True then the calls can be in any order, but
-        they must all appear in `mock_calls`."""
+        they must all appear in `mock_calls`"""
         if not any_order:
             if calls not in self.mock_calls:
                 raise AssertionError(
@@ -883,7 +883,7 @@ class NonCallableMock(Base):
 
         The assert passes if the mock has *ever* been called, unlike
         `assert_called_with` and `assert_called_once_with` that only pass if
-        the call is the most recent one."""
+        the call is the most recent one"""
         kall = call(*args, **kwargs)
         if kall not in self.call_args_list:
             expected_string = self._format_mock_call_signature(args, kwargs)
@@ -899,7 +899,7 @@ class NonCallableMock(Base):
         child mocks are made.
 
         For non-callable mocks the callable variant will be used (rather than
-        any custom subclass)."""
+        any custom subclass)"""
         _type = type(self)
         if not issubclass(_type, CallableMixin):
             if issubclass(_type, NonCallableMagicMock):
@@ -1245,7 +1245,7 @@ class _patch(object):
 
 
     def __enter__(self):
-        """Perform the patch."""
+        """Perform the patch"""
         new, spec, spec_set = self.new, self.spec, self.spec_set
         autospec, kwargs = self.autospec, self.kwargs
         new_callable = self.new_callable
@@ -1371,7 +1371,7 @@ class _patch(object):
 
 
     def __exit__(self, *exc_info):
-        """Undo the patch."""
+        """Undo the patch"""
         if not _is_started(self):
             raise RuntimeError('stop called on unstarted patcher')
 
@@ -1392,14 +1392,14 @@ class _patch(object):
 
 
     def start(self):
-        """Activate a patch, returning any created mock."""
+        """Activate a patch, returning any created mock"""
         result = self.__enter__()
         self._active_patches.add(self)
         return result
 
 
     def stop(self):
-        """Stop an active patch."""
+        """Stop an active patch"""
         self._active_patches.discard(self)
         return self.__exit__()
 
@@ -1634,7 +1634,7 @@ class _patch_dict(object):
 
 
     def __enter__(self):
-        """Patch the dict."""
+        """Patch the dict"""
         self._patch_dict()
 
 
@@ -1678,7 +1678,7 @@ class _patch_dict(object):
 
 
     def __exit__(self, *args):
-        """Unpatch the dict."""
+        """Unpatch the dict"""
         self._unpatch_dict()
         return False
 
@@ -1696,7 +1696,7 @@ def _clear_dict(in_dict):
 
 
 def _patch_stopall():
-    """Stop all active patches."""
+    """Stop all active patches"""
     for patch in list(_patch._active_patches):
         patch.stop()
 
@@ -1875,13 +1875,13 @@ class MagicMixin(object):
 
 
 class NonCallableMagicMock(MagicMixin, NonCallableMock):
-    """A version of `MagicMock` that isn't callable."""
+    """A version of `MagicMock` that isn't callable"""
     def mock_add_spec(self, spec, spec_set=False):
         """Add a spec to a mock. `spec` can either be an object or a
         list of strings. Only attributes on the `spec` can be fetched as
         attributes from the mock.
 
-        If `spec_set` is True then only attributes on the spec can be set."""
+        If `spec_set` is True then only attributes on the spec can be set"""
         self._mock_add_spec(spec, spec_set)
         self._mock_set_magics()
 
@@ -1903,7 +1903,7 @@ class MagicMock(MagicMixin, Mock):
         list of strings. Only attributes on the `spec` can be fetched as
         attributes from the mock.
 
-        If `spec_set` is True then only attributes on the spec can be set."""
+        If `spec_set` is True then only attributes on the spec can be set"""
         self._mock_add_spec(spec, spec_set)
         self._mock_set_magics()
 
@@ -2118,7 +2118,7 @@ class _Call(tuple):
     def call_list(self):
         """For a call object that represents multiple calls, `call_list`
         returns a list of all the intermediate calls as well as the
-        final call."""
+        final call"""
         vals = []
         thing = self
         while thing is not None:
@@ -2150,7 +2150,7 @@ def create_autospec(spec, spec_set=False, instance=False, _parent=None,
     will only be callable if instances of the mock are callable.
 
     `create_autospec` also takes arbitrary keyword arguments that are passed to
-    the constructor of the created mock."""
+    the constructor of the created mock"""
     if _is_list(spec):
         # can't pass a list instance to the mock constructor as it will be
         # interpreted as a list of strings

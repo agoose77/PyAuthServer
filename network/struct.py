@@ -34,7 +34,7 @@ class Struct(metaclass=StructMeta):
 
     def __description__(self):
         """Serialiser description of tuple"""
-        return hash(self._attribute_container.get_description_list())
+        return hash(self._attribute_container.get_ordered_descriptions())
 
     def __repr__(self):
         class_name = self.__class__.__name__
