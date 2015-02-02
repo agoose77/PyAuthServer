@@ -278,19 +278,11 @@ class BGETransformInterface(BGEComponent, SignalListener):
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space
 
-        :param axis: :py:code:`bge_game_system.enums.Axis` value
-        :rtype: :py:code:`mathutils.Vector`
+        :param axis: :py:class:`bge_game_system.enums.Axis` value
+        :rtype: :py:class:`mathutils.Vector`
         """
         vector = [0, 0, 0]
-
-        if axis == Axis.x:
-            vector[0] = 1
-
-        elif axis == Axis.y:
-            vector[1] = 1
-
-        elif axis == Axis.z:
-            vector[2] = 1
+        vector[axis] = 1
 
         return Vector(self.object.getAxisVect(vector))
 
