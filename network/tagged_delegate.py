@@ -9,7 +9,7 @@ class FindByTag(metaclass=TypeRegister):
     """Provides an interface to select a subclass by a tag value"""
 
     @classmethod
-    def register_type(cls):
+    def register_base_class(cls):
         cls._cache = {}
 
     @classmethod
