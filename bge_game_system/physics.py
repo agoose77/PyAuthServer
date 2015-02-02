@@ -10,7 +10,6 @@ from network.world_info import WorldInfo
 from game_system.entities import Actor
 from game_system.controllers import PlayerController
 from game_system.enums import PhysicsType
-from game_system.physics import PhysicsSystem
 from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.signals import *
 
@@ -18,8 +17,7 @@ from game_system.signals import *
 __all__ = ["BGEPhysicsSystem", "BGEServerPhysics", "BGEClientPhysics"]
 
 
-@with_tag("BGE")
-class BGEPhysicsSystem(DelegateByNetmode, PhysicsSystem, SignalListener):
+class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
     subclasses = {}
 
     def __init__(self, update_bullet, update_scenegraph):
@@ -123,6 +121,8 @@ class BGEServerPhysics(BGEPhysicsSystem):
 
         Copy physics state to network variable for Actor instances
         """
+        super().update(delta_time)
+
         self.save_network_states()
         UpdateCollidersSignal.invoke()
 
@@ -130,8 +130,8 @@ class BGEServerPhysics(BGEPhysicsSystem):
 @with_tag(Netmodes.client)
 class BGEClientPhysics(BGEPhysicsSystem):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self._extrapolators = defaultdict(PhysicsExtrapolator)
 
@@ -172,5 +172,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
         Copy physics state to network variable for Actor instances
         """
+        super().update(delta_time)
+
         self.extrapolate_network_states()
         UpdateCollidersSignal.invoke()

@@ -13,7 +13,7 @@ from game_system.entities import Camera
 from game_system.inputs import InputManager, MouseManager
 
 from .inputs import convert_from_bge_event
-from .physics import PhysicsSystem
+from .physics import BGEPhysicsSystem
 
 from bge import types, logic
 
@@ -50,7 +50,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         # Create sub systems
         self.network_system = self.create_network()
-        self.physics_system = PhysicsSystem(self.physics_callback, self.scenegraph_callback)
+        self.physics_system = BGEPhysicsSystem(self.physics_callback, self.scenegraph_callback)
 
         # Timing information
         self.current_time = 0.0
@@ -118,7 +118,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         :param delta_time: time to progress simulation"""
         with self.profile_as(logic.KX_ENGINE_DEBUG_PHYSICS):
-            self.update_physics(self.current_time, delta_time)
+            self.update_physics(self.current_time, delta_time, delta_time)
 
     def update_graphs(self):
         """Update isolated resource graphs"""
@@ -137,6 +137,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
 
+        # Convert events to InputEvents
         events = set([convert_from_bge_event(e) for e in logic.keyboard.active_events])
         events.update([convert_from_bge_event(e) for e in logic.mouse.active_events])
 
