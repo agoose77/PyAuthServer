@@ -5,10 +5,11 @@ from contextlib import contextmanager
 from network.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
+from network.logger import logger
 
 from game_system.animation import Animation
 from game_system.coordinates import Vector
-from game_system.definitions import ComponentLoader
+from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
@@ -27,7 +28,7 @@ class BGESocket:
     def __init__(self, name, parent, obj):
         self.name = name
         self._parent = parent
-        self._obj = obj
+        self._game_object = obj
         self.children = set()
 
 
@@ -43,7 +44,7 @@ class BGEComponent(FindByTag):
 class BGEPhysicsInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
-        self._obj = obj
+        self._game_object = obj
         self._entity = entity
 
         self._new_collisions = set()
@@ -52,24 +53,12 @@ class BGEPhysicsInterface(BGEComponent):
         self._dispatched_entities = set()
 
         # Physics type
-        # physics_constants = {logic.KX_PHYSICS_STATIC: PhysicsType.static,
-        #                     logic.KX_PHYSICS_DYNAMIC: PhysicsType.dynamic,
-        #                     logic.KX_PHYSICS_RIGID_BODY: PhysicsType.rigid_body,
-        #                     logic.KX_PHYSICS_SOFT_BODY: PhysicsType.soft_body,
-        #                     logic.KX_PHYSICS_OCCLUDER: PhysicsType.occluder,
-        #                     logic.KX_PHYSICS_SENSOR: PhysicsType.sensor,
-        #                     logic.KX_PHYSICS_NAVIGATION_MESH: PhysicsType.navigation_mesh,
-        #                     logic.KX_PHYSICS_CHARACTER: PhysicsType.character,
-        #                     logic.KX_PHYSICS_NO_COLLISION: PhysicsType.no_collision}
+        logger.warning("BGE PhysicsType is not exposed to the PyAPI, defaulting to dynamic collision")
+        self._physics_type = PhysicsType.dynamic
 
-        if getattr(obj, "meshes", None) and 0:
-            self._physics_type = physics_constants[obj.physicsType]
+        # Collisions
+        self.has_dynamics = self._physics_type not in (PhysicsType.navigation_mesh, PhysicsType.no_collision)
 
-        else:
-            self._physics_type = PhysicsType.no_collision
-
-        # Collisions/
-        self.has_dynamics = not self._physics_type in (PhysicsType.navigation_mesh, PhysicsType.no_collision)
         if self.has_dynamics:
             obj.collisionCallbacks.append(self._on_collision)
 
@@ -88,11 +77,13 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def collision_group(self):
-        return 0#self._obj.collisionGroup
+        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        return 0
 
     @property
     def collision_mask(self):
-        return 0#self._obj.collisionMask
+        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        return 0
 
     @property
     def physics(self):
@@ -107,28 +98,28 @@ class BGEPhysicsInterface(BGEComponent):
         if not self.has_dynamics:
             return Vector()
 
-        return self._obj.worldLinearVelocity
+        return self._game_object.worldLinearVelocity
 
     @world_velocity.setter
     def world_velocity(self, velocity):
         if not self.has_dynamics:
             return
 
-        self._obj.worldLinearVelocity = velocity
+        self._game_object.worldLinearVelocity = velocity
 
     @property
     def world_angular(self):
         if not self.has_dynamics:
             return Vector()
 
-        return self._obj.worldLinearVelocity
+        return self._game_object.worldLinearVelocity
 
     @world_angular.setter
     def world_angular(self, velocity):
         if not self.has_dynamics:
             return
 
-        self._obj.worldAngularVelocity = velocity
+        self._game_object.worldAngularVelocity = velocity
 
     def ray_test(self, target, source=None, distance=0.0):
         """Perform a ray trace to a target
@@ -139,9 +130,9 @@ class BGEPhysicsInterface(BGEComponent):
         :rtype: :py:class:`bge_game_system.object_types.RayTestResult`
         """
         if source is None:
-            source = self._obj.worldPosition
+            source = self._game_object.worldPosition
 
-        result = self._obj.rayCast(target, source, distance)
+        result = self._game_object.rayCast(target, source, distance)
 
         if not any(result):
             return None
@@ -205,13 +196,13 @@ class BGETransformInterface(BGEComponent, SignalListener):
     """Physics implementation for BGE entity"""
 
     def __init__(self, config_section, entity, obj):
-        self._obj = obj
+        self._game_object = obj
         self._entity = entity
 
         self._parent = None
         self.children = set()
+        self.sockets = self.create_sockets(self._game_object)
 
-        self.create_sockets()
         self.register_signals()
 
     @property
@@ -219,73 +210,70 @@ class BGETransformInterface(BGEComponent, SignalListener):
         return self._parent
 
     @parent.setter
-    def parent(self, value):
-        if value is self._parent:
+    def parent(self, parent):
+        if parent is self._parent:
             return
 
         self._parent.children.remove(self._entity)
-        self._obj.removeParent()
+        self._game_object.removeParent()
 
-        if value is None:
+        if parent is None:
             return
 
-        if not hasattr(value, "_obj"):
-            raise TypeError("Invalid parent type {}".format(value.__class__.__name__))
+        if not hasattr(parent, "_obj"):
+            raise TypeError("Invalid parent type {}".format(parent.__class__.__name__))
 
-        self._obj.setParent(value._obj)
-        value.children.add(self._entity)
-        self._parent = value
+        self._game_object.setParent(parent._obj)
+        parent.children.add(self._entity)
+        self._parent = parent
 
     @property
     def world_position(self):
-        return self._obj.worldPosition
+        return self._game_object.worldPosition
 
     @world_position.setter
     def world_position(self, position):
-        self._obj.worldPosition = position
+        self._game_object.worldPosition = position
 
     @property
     def world_orientation(self):
-        return self._obj.worldOrientation.to_euler()
+        return self._game_object.worldOrientation.to_euler()
 
     @world_orientation.setter
     def world_orientation(self, orientation):
-        self._obj.worldOrientation = orientation
+        self._game_object.worldOrientation = orientation
 
     @property
     def is_colliding(self):
         return bool(self._dispatched)
 
     def align_to(self, vector, factor=1, axis=Axis.y):
+        """Align object to vector
+
+        :param vector: direction vector
+        :param factor: slerp factor
+        :param axis: alignment direction
+        """
         if not vector.length_squared:
             return
 
-        if axis == Axis.x:
-            forward_axis = "X"
-
-        elif axis == Axis.y:
-            forward_axis = "Y"
-
-        elif axis == Axis.z:
-            forward_axis = "Z"
-
-        else:
-            raise ValueError("Unknown Axis value: {}".format(axis))
+        forward_axis = Axis[axis].upper()
 
         rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
-        current_rotation = self.world_rotation.to_quaternion()
-        self.world_rotation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
+        current_rotation = self.world_orientation.to_quaternion()
+        self.world_orientation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
 
-    def create_sockets(self):
-        self.sockets = set()
-
-        for obj in self._obj.childrenRecursive:
+    def create_sockets(self, obj):
+        sockets = set()
+        for obj in obj.childrenRecursive:
             socket_name = obj.get("socket")
             if not socket_name:
                 continue
 
             socket = BGESocket(socket_name, self, obj)
-            self.sockets.add(socket)
+            sockets.add(socket)
+
+        return sockets
 
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space
@@ -326,7 +314,7 @@ class BGEAnimationInterface(BGEComponent):
         except StopIteration:
             raise TypeError("Animation component requires Armature object")
 
-        self._obj = skeleton
+        self._game_object = skeleton
 
         # Define conversions from Blender behaviours to Network animation enum
         self._bge_play_constants = {AnimationMode.play: logic.KX_ACTION_MODE_PLAY,
@@ -336,10 +324,10 @@ class BGEAnimationInterface(BGEComponent):
         self._bge_blend_constants = {AnimationBlend.interpolate: logic.KX_ACTION_BLEND_BLEND,
                                      AnimationBlend.add: logic.KX_ACTION_BLEND_ADD}
 
-        self.animations = self.load_animations(skeleton, config_section)
+        self.animations = self.create_animations(skeleton, config_section)
 
     @staticmethod
-    def load_animations(obj, data):
+    def create_animations(obj, data):
         animations = {}
 
         for animation_name, animation_data in data.items():
@@ -373,7 +361,7 @@ class BGEAnimationInterface(BGEComponent):
 
         :param animation: animation object
         """
-        return int(self._obj.getActionFrame(animation.layer))
+        return int(self._game_object.getActionFrame(animation.layer))
 
     def play(self, animation):
         """Play animation on bound object
@@ -382,7 +370,7 @@ class BGEAnimationInterface(BGEComponent):
         """
         play_mode = self._bge_play_constants[animation.mode]
         blend_mode = self._bge_blend_constants[animation.blend_mode]
-        self._obj.playAction(animation.name, animation.start, animation.end, animation.layer, animation.priority,
+        self._game_object.playAction(animation.name, animation.start, animation.end, animation.layer, animation.priority,
                              animation.blend, play_mode, animation.weight, speed=animation.speed, blend_mode=blend_mode)
 
     def stop(self, animation):
@@ -390,18 +378,18 @@ class BGEAnimationInterface(BGEComponent):
 
         :param animation: animation resource
         """
-        self._obj.stopAction(animation.layer)
+        self._game_object.stopAction(animation.layer)
 
 
 @with_tag("camera")
 class BGECameraInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
-        self._obj = obj
+        self._game_object = obj
 
     @contextmanager
     def active_context(self):
-        camera = self._obj
+        camera = self._game_object
         scene = camera.scene
 
         old_camera = scene.active_camera
@@ -418,7 +406,7 @@ class BGECameraInterface(BGEComponent):
         :param point: :py:code:`mathutils.Vector`
         :rtype: bool
         """
-        return self._obj.pointInsideFrustum(point)
+        return self._game_object.pointInsideFrustum(point)
 
     def is_sphere_in_frustum(self, point, radius):
         """Determine if a sphere resides in the camera frustum
@@ -427,7 +415,7 @@ class BGECameraInterface(BGEComponent):
         :param radius: radius of sphere
         :rtype: bool
         """
-        return self._obj.sphereInsideFrustum(point, radius) != self._obj.OUTSIDE
+        return self._game_object.sphereInsideFrustum(point, radius) != self._game_object.OUTSIDE
 
     def get_screen_direction(self, x=0.5, y=0.5):
         """Find direction along screen vector
@@ -435,30 +423,30 @@ class BGECameraInterface(BGEComponent):
         :param x: screen space x coordinate
         :param y: screen space y coordinate
         """
-        return self._obj.getScreenRay(x, y)
+        return self._game_object.getScreenRay(x, y)
 
 
 @with_tag("lamp")
 class BGELampInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
-        self._obj = obj
+        self._game_object = obj
 
     @property
     def colour(self):
-        return self._obj.color
+        return self._game_object.color
 
     @colour.setter
     def colour(self, colour):
-        self._obj.color = colour
+        self._game_object.color = colour
 
     @property
     def intensity(self):
-        return self._obj.energy
+        return self._game_object.energy
 
     @intensity.setter
     def intensity(self, energy):
-        self._obj.energy = energy
+        self._game_object.energy = energy
 
 
 @with_tag("navmesh")
@@ -466,7 +454,7 @@ class BGENavmeshInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
         self._navmesh = BGENavmesh(obj)
-        self._obj = obj
+        self._game_object = obj
 
         self.find_node = self._navmesh.find_node
         self.nodes = self._navmesh.polygons
@@ -490,17 +478,17 @@ class BGEComponentLoader(ComponentLoader):
     def load(self, entity, config_parser):
         obj = self.create_object(config_parser)
         components = self._load_components(config_parser, entity, obj)
-        return LoaderResult(components, obj)
+        return BGEComponentLoaderResult(components, obj)
 
-
-class LoaderResult:
-
-    def __init__(self, components, obj):
-        self._obj = obj
-        self.components = components
-
-    def unload(self):
-        for component in self.components.values():
+    def unload(self, loader_result):
+        for component in loader_result.components.values():
             component.destroy()
 
-        self._obj.endObject()
+        loader_result.game_object.endObject()
+
+
+class BGEComponentLoaderResult(ComponentLoaderResult):
+
+    def __init__(self, components, obj):
+        self.game_object = obj
+        self.components = components
