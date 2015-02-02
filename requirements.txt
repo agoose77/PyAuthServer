@@ -1,3 +1,0 @@
-network
-bge_game_system
-game_system
