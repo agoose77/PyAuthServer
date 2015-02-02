@@ -4,6 +4,11 @@ Extendable for new data types
 """
 # TODO listen server support
 
-from .testing import run_tests
+import os
 
-run_tests()
+if os.getenv("NETWORK_DO_TESTING"):
+    from .testing import run_tests
+
+    run_tests()
+    
+from . import native_handlers as _

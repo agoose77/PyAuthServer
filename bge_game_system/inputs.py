@@ -1,11 +1,10 @@
 from game_system.enums import InputEvents
 
 from bge import events
-from inspect import getmembers
 
 __all__ = ['convert_from_bge_event']
 
-bge_events = {v: k for k, v in getmembers(events)}
+bge_events = {getattr(events, k): k for k in dir(events) if k.isupper()}
 
 
 def convert_from_bge_event(event):

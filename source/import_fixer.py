@@ -320,4 +320,3 @@ for module_name in modules:
         mock.configure_mock(**attributes)
 
         print("Faking needed import {}".format(module_name))
-

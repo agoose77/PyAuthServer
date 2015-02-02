@@ -1,11 +1,10 @@
-"""Serialiser data for Mathutils types"""
-
 from network.type_flag import TypeFlag
 from network.handlers import get_handler, register_description, register_handler
 
 from functools import partial
 from itertools import chain
-from mathutils import Vector, Euler, Quaternion, Matrix
+
+from .coordinates import Vector, Euler, Quaternion, Matrix
 
 __all__ = ["Euler4", "Euler8", "Vector4", "Vector8", "Quaternion4",
            "Quaternion8", "Matrix4", "Matrix8"]

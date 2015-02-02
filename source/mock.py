@@ -1510,7 +1510,7 @@ def patch(
 
     `target` should be a string in the form `'package.module.ClassName'`. The
     `target` is imported and the specified object replaced with the `new`
-    object, so the `target` must be importable from the environment you are
+    object, so the `target` must be importable from the playground you are
     calling `patch` from. The target is imported when the decorated function
     is executed, not at decoration time.
 

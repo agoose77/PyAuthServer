@@ -31,6 +31,9 @@ RewindState = namedtuple("RewindState", "position rotation animations")
 #TODO rename non-actor signals to PawnSignal....
 
 
+class types:
+    KX_PythonLogicLoop = type("CLS", (), {})
+
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
     render = True

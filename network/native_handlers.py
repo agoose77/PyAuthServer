@@ -415,7 +415,7 @@ class ReplicableBaseHandler:
     def pack(self, replicable):
         """Pack replicable using its instance ID
 
-        :param replicable: :py:code:`network.replicble.Replicable` instance
+        :param replicable: :py:class:`network.replicble.Replicable` instance
         """
         return self.pack_id(replicable.instance_id)
 
