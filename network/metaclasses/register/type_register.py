@@ -1,11 +1,11 @@
 class _TypeRegisterBase:
 
     @classmethod
-    def register_subtype(cls):
+    def register_base_class(cls):
         pass
 
     @classmethod
-    def register_type(cls):
+    def register_subclass(cls):
         pass
 
 
@@ -31,15 +31,14 @@ class TypeRegister(type):
         if hasattr(parent, "subclasses"):
             parent.subclasses[name] = cls
 
-
-            cls.register_subtype()
+            cls.on_subclass()
 
             if parent.subclasses is not subclasses:
-                cls.register_type()
+                cls.on_base_class()
 
         # Otherwise we're a parent type
         else:
-            cls.register_type()
+            cls.on_base_class()
 
         return cls
 

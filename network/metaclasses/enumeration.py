@@ -7,6 +7,7 @@ class EnumerationMeta(type):
     def __new__(metacls, name, parents, attributes):
         try:
             values = attributes['values']
+            
         except KeyError:
             pass
 
@@ -33,4 +34,4 @@ class EnumerationMeta(type):
 
     def __repr__(cls):
         contents_string = '\n'.join("<{}: {}>".format(*mapping) for mapping in cls.keys_to_values.items())
-        return "<Enumeration {}>\n{}\n".format(cls.__name__, contents_string)
+        return "<{} Enumeration>\n{}\n".format(cls.__name__, contents_string)
