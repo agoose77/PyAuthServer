@@ -67,14 +67,14 @@ class DelegateByTag(FindByTag):
         return super().__new__(delegated_class)
 
     @classmethod
-    def register_type(cls):
-        super().register_type()
+    def register_base_class(cls):
+        super().register_base_class()
 
         cls.is_delegate = True
 
     @classmethod
-    def register_subtype(cls):
-        super().register_subtype()
+    def register_subclass(cls):
+        super().register_subclass()
 
         cls.is_delegate = False
 

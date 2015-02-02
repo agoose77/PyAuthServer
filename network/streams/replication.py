@@ -120,16 +120,16 @@ class ServerReplicationStream(ReplicationStream):
     def __init__(self, dispatcher):
         super().__init__(dispatcher)
 
-        self.replicable = WorldInfo.rules.post_initialise(self)
-
         self.removal_queue = []
         self.creation_queue = []
         self.attribute_queue = []
 
+        self.queues = self.removal_queue, self.creation_queue, self.attribute_queue, self.method_queue
+
+        self.replicable = WorldInfo.rules.post_initialise(self)
+
         self.latency_calculator = LatencyCalculator()
         self.latency_calculator.on_updated = partial(LatencyUpdatedSignal.invoke, target=self.replicable)
-
-        self.queues = self.removal_queue, self.creation_queue, self.attribute_queue, self.method_queue
 
     def wrap_callback(self, callback):
         """Wraps callback with latency calculator callback

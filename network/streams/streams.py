@@ -68,8 +68,8 @@ class ProtocolHandler(metaclass=TypeRegister):
     """Dispatches packets to appropriate handlers"""
 
     @classmethod
-    def register_subtype(cls):
-        super().register_subtype()
+    def register_subclass(cls):
+        super().register_subclass()
 
         cls.receivers = receivers = {}
 
@@ -104,8 +104,8 @@ class StatusDispatcher(metaclass=TypeRegister):
         self.status = None
 
     @classmethod
-    def register_subtype(cls):
-        super().register_subtype()
+    def register_subclass(cls):
+        super().register_subclass()
 
         cls.senders = senders = {}
 

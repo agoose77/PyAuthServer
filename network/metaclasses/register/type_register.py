@@ -31,14 +31,14 @@ class TypeRegister(type):
         if hasattr(parent, "subclasses"):
             parent.subclasses[name] = cls
 
-            cls.on_subclass()
+            cls.register_subclass()
 
             if parent.subclasses is not subclasses:
-                cls.on_base_class()
+                cls.register_base_class()
 
         # Otherwise we're a parent type
         else:
-            cls.on_base_class()
+            cls.register_base_class()
 
         return cls
 

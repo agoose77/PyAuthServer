@@ -15,7 +15,7 @@ class Signal(metaclass=TypeRegister):
     subclasses = {}
 
     @classmethod
-    def register_subtype(cls):
+    def register_subclass(cls):
         cls.subscribers = {}
         cls.isolated_subscribers = {}
 
@@ -34,8 +34,8 @@ class Signal(metaclass=TypeRegister):
         return decorated.__annotations__['signals']
 
     @classmethod
-    def register_type(cls):
-        cls.register_subtype()
+    def register_base_class(cls):
+        cls.register_subclass()
         cls.highest_signal = cls
 
     @classmethod
@@ -269,9 +269,9 @@ class Signal(metaclass=TypeRegister):
 class CachedSignal(Signal):
 
     @classmethod
-    def register_subtype(cls):
+    def register_subclass(cls):
         # Unfortunate hack to reproduce super() behaviour
-        Signal.register_subtype.__func__(cls)
+        Signal.register_subclass.__func__(cls)
         cls.cache = []
 
     @classmethod
