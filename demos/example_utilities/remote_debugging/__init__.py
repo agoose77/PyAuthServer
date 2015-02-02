@@ -1,2 +1,5 @@
-from . import client
-from demos.example_utilities.remote_debugging import server, client
+"""Example of remote debugging.
+
+Provides interpreter access to remote server.
+Run the application module from an interpreter.
+"""
