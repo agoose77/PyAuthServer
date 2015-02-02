@@ -124,10 +124,19 @@ else:
 
         @staticmethod
         def calculate_footprint(bits):
+            """Return minimum number of bytes required to encode a number of bits
+
+            :param bits: number of bits to be encoded
+            """
             return next_or_equal_power_of_two(bits_to_bytes(bits))
 
         @classmethod
         def from_bytes(cls, length, bytes_string, offset=0):
+            """Factory function to create a BitField object of a known length from a string of bytes
+
+            :param length: number of bits in field
+            :param bytes_string: encoded data from :py:meth:`BitField.to_bytes()`
+            """
             field = cls(length)
             field._value, field_size = field._handler.unpack_from(bytes_string, offset)
             return field, field_size
@@ -139,20 +148,22 @@ else:
             :param iterable: source iterable
             :requires: fixed length iterable object
             :returns: BitField instance of length equal to ``len(iterable)``
-            ``Bitfield.from_iterable()``"""
+            """
             size = len(iterable)
             field = cls(size)
             field[:size] = iterable
             return field
 
         def clear(self):
-            """Clears the BitField to zero"""
+            """Clear the BitField values to zero
+            """
             self._value = 0
 
         def resize(self, size):
-            """Resizes the BitField
+            """Resize the BitField
 
-            :param size: new size of BitField instance"""
+            :param size: new size of BitField instance
+            """
             self._size = size
             self._handler = get_handler(TypeFlag(int, max_bits=size))
 
