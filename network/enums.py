@@ -10,6 +10,7 @@ class Enumeration(metaclass=EnumerationMeta):
 
 
 class ConnectionStatus(Enumeration):
+    """Status of connection to peer"""
     values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
 
