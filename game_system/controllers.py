@@ -240,12 +240,12 @@ class PlayerController(Controller, NetworkLocksMixin):
 
         :param move: move to process
         """
-        blackboard = self.behaviour.blackboard
-
-        blackboard['inputs'] = move.inputs
-        blackboard['mouse'] = move.mouse_x, move.mouse_y
-
-        self.behaviour.update()
+        # blackboard = self.behaviour.blackboard
+        #
+        # blackboard['inputs'] = move.inputs
+        # blackboard['mouse'] = move.mouse_x, move.mouse_y
+        #
+        # self.behaviour.update()
 
     def client_acknowledge_move(self, move_id: TICK_FLAG) -> Netmodes.client:
         """Remove move and previous moves from waiting corrections buffer
@@ -620,12 +620,10 @@ class PlayerController(Controller, NetworkLocksMixin):
         self.current_move = None
         self.previous_move = None
 
-        self.behaviour = BehaviourTree(self, default={"controller": self})
-
         # Permit move recovery by sending a history
         self.move_history_dict = {}
         self.move_history_base = None
-
+        return
         # Number of moves to buffer
         buffer_length = WorldInfo.to_ticks(self.__class__.additional_move_buffering_latency)
 
@@ -648,11 +646,6 @@ class PlayerController(Controller, NetworkLocksMixin):
         else:
             super().on_notify(name)
 
-    def on_pawn_updated(self):
-        super().on_pawn_updated()
-
-        self.behaviour.reset()
-
     @LatencyUpdatedSignal.listener
     @requires_netmode(Netmodes.server)
     def on_ping_estimate_updated(self, ping_estimate):
@@ -669,6 +662,7 @@ class PlayerController(Controller, NetworkLocksMixin):
 
         :param delta_time: elapsed time since last update
         """
+        return
         if not (self.pawn and self.camera):
             return
 
@@ -703,124 +697,125 @@ class PlayerController(Controller, NetworkLocksMixin):
 
         self.client_send_voice()
 
-    @PostPhysicsSignal.global_listener
-    def post_physics(self):
-        """Post-physics callback to send move to server and receive corrections"""
-        self.client_send_move()
-        self.server_check_move()
+    if 0:
+        @PostPhysicsSignal.global_listener
+        def post_physics(self):
+            """Post-physics callback to send move to server and receive corrections"""
+            self.client_send_move()
+            self.server_check_move()
 
-    def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
-        """Message handler for PlayerController, invokes a ReceiveMessage signal
+        def receive_broadcast(self, message_string: TypeFlag(str)) -> Netmodes.client:
+            """Message handler for PlayerController, invokes a ReceiveMessage signal
 
-        :param message_string: message from server
-        """
-        ReceiveMessage.invoke(message_string)
+            :param message_string: message from server
+            """
+            ReceiveMessage.invoke(message_string)
 
-    def recover_missing_moves(self, previous_id, next_id):
-        """Jitter buffer callback to find missing moves using move history
+        def recover_missing_moves(self, previous_id, next_id):
+            """Jitter buffer callback to find missing moves using move history
 
-        :param move: next move
-        :param previous_move: last valid move
-        """
-        required_ids = list(range(previous_id + 1, next_id))
-        recovered_moves = []
+            :param move: next move
+            :param previous_move: last valid move
+            """
+            required_ids = list(range(previous_id + 1, next_id))
+            recovered_moves = []
 
-        # Search every move history to find missing moves!
-        for move in self.move_history_dict.values():
-            for required_id in required_ids:
-                if required_id in move:
-                    recovered_moves.append(move[required_id])
-                    required_ids.remove(required_id)
+            # Search every move history to find missing moves!
+            for move in self.move_history_dict.values():
+                for required_id in required_ids:
+                    if required_id in move:
+                        recovered_moves.append(move[required_id])
+                        required_ids.remove(required_id)
 
-        return recovered_moves
+            return recovered_moves
 
-    def server_receive_voice(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
-        """Send voice information to the server
+        def server_receive_voice(self, data: TypeFlag(bytes, max_length=MAX_32BIT_INT)) -> Netmodes.server:
+            """Send voice information to the server
 
-        :param data: voice data
-        """
-        info = self.info
-        for controller in WorldInfo.subclass_of(Controller):
-            if controller is self:
-                continue
+            :param data: voice data
+            """
+            info = self.info
+            for controller in WorldInfo.subclass_of(Controller):
+                if controller is self:
+                    continue
 
-            controller.hear_voice(info, data)
+                controller.hear_voice(info, data)
 
-    @requires_netmode(Netmodes.server)
-    def server_check_move(self):
-        """Check result of movement operation following Physics update"""
-        # Get move information
-        current_move = self.current_move
+        @requires_netmode(Netmodes.server)
+        def server_check_move(self):
+            """Check result of movement operation following Physics update"""
+            # Get move information
+            current_move = self.current_move
 
-        # We are forced to acknowledge moves whose base we've already corrected
-        if self.is_locked("correction"):
-            return
+            # We are forced to acknowledge moves whose base we've already corrected
+            if self.is_locked("correction"):
+                return
 
-        # Validate move
-        if current_move is None:
-            return
+            # Validate move
+            if current_move is None:
+                return
 
-        correction = self.get_corrected_state(current_move)
+            correction = self.get_corrected_state(current_move)
 
-        if current_move.inputs.debug:
-            correction = RigidBodyState()
-            CopyActorToState.invoke(self.pawn, correction)
+            if current_move.inputs.debug:
+                correction = RigidBodyState()
+                CopyActorToState.invoke(self.pawn, correction)
 
-        # It was a valid move
-        if correction is None:
-            self.client_acknowledge_move(current_move.id)
+            # It was a valid move
+            if correction is None:
+                self.client_acknowledge_move(current_move.id)
 
-        # Send the correction
-        else:
-            self.server_add_lock("correction")
-            self.client_apply_correction(current_move.id, correction)
+            # Send the correction
+            else:
+                self.server_add_lock("correction")
+                self.client_apply_correction(current_move.id, correction)
 
-    def server_cull_excess_history(self, oldest_id):
-        """Remove movement history that is older than our buffer
+        def server_cull_excess_history(self, oldest_id):
+            """Remove movement history that is older than our buffer
 
-        :param oldest_id: oldest stored move ID
-        """
-        # Search from current oldest history to oldest move
-        for search_id in range(self.move_history_base, oldest_id):
-            if not search_id in self.move_history_dict:
-                continue
+            :param oldest_id: oldest stored move ID
+            """
+            # Search from current oldest history to oldest move
+            for search_id in range(self.move_history_base, oldest_id):
+                if not search_id in self.move_history_dict:
+                    continue
 
-            history = self.move_history_dict.pop(search_id)
-            self.move_history_base = history.id_end
+                history = self.move_history_dict.pop(search_id)
+                self.move_history_base = history.id_end
 
-    @requires_netmode(Netmodes.server)
-    def server_fire(self):
-        logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
+        @requires_netmode(Netmodes.server)
+        def server_fire(self):
+            logger.info("Rolling back by {:.3f} seconds".format(self.info.ping))
 
-        if True:
-            latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
-            physics_callback = super().server_fire
-            PhysicsRewindSignal.invoke(physics_callback, WorldInfo.tick - latency_ticks)
+            if True:
+                latency_ticks = WorldInfo.to_ticks(self.info.ping) + 1
+                physics_callback = super().server_fire
+                PhysicsRewindSignal.invoke(physics_callback, WorldInfo.tick - latency_ticks)
 
-        else:
-            super().server_fire()
+            else:
+                super().server_fire()
 
-    def server_store_move(self, move: TypeFlag(FromClass("movement_struct")),
-                          previous_moves: TypeFlag(FromClass("missing_movement_struct"))) -> Netmodes.server:
-        """Store a client move for later processing and clock validation"""
-        print("SDM")
-        # Store move
-        self.buffered_moves.insert(move.id, move)
+        def server_store_move(self, move: TypeFlag(FromClass("movement_struct")),
+                              previous_moves: TypeFlag(FromClass("missing_movement_struct"))) -> Netmodes.server:
+            """Store a client move for later processing and clock validation"""
+            print("SDM")
+            # Store move
+            self.buffered_moves.insert(move.id, move)
 
-        # Could optimise using an increment and try-pop
-        if previous_moves is None:
-            return
+            # Could optimise using an increment and try-pop
+            if previous_moves is None:
+                return
 
-        self.move_history_dict[move.id] = previous_moves
+            self.move_history_dict[move.id] = previous_moves
 
-        if self.move_history_base is None:
-            self.move_history_base = move.id
+            if self.move_history_base is None:
+                self.move_history_base = move.id
 
-        else:
-            oldest_id, _ = self.buffered_moves[0]
+            else:
+                oldest_id, _ = self.buffered_moves[0]
 
-            if self.move_history_base < oldest_id:
-                self.server_cull_excess_history(oldest_id)
+                if self.move_history_base < oldest_id:
+                    self.server_cull_excess_history(oldest_id)
 
     def server_set_name(self, name: TypeFlag(str)) -> Netmodes.server:
         """Renames the Player on the server
@@ -846,7 +841,7 @@ class PlayerController(Controller, NetworkLocksMixin):
 
         :param delta_time: elapsed time since last update
         """
-        print("UD")
+        return
         try:
             move_id, buffered_move = self.buffered_moves.popitem()
 
