@@ -27,7 +27,7 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
         self._update_bullet = update_bullet
         self._update_scenegraph = update_scenegraph
 
-    @CopyStateToActor.global_listener
+    @CopyStateToActor.on_global
     def copy_to_actor(self, state, actor):
         """Copy state information from source to target
 
@@ -40,7 +40,7 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
         # actor.physics.collision_group = state.collision_group
         # actor.physics.collision_mask = state.collision_mask
 
-    @CopyActorToState.global_listener
+    @CopyActorToState.on_global
     def copy_to_state(self, actor, state):
         """Copy state information from source to target
 
@@ -76,7 +76,7 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
 
             actor.suspended = False
 
-    @PhysicsSingleUpdateSignal.global_listener
+    @PhysicsSingleUpdateSignal.on_global
     def update_for(self, delta_time, target):
         """Listener for PhysicsSingleUpdateSignal
         Attempts to update physics simulation for single actor
@@ -94,7 +94,7 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
             self._update_bullet(delta_time)
         self._update_scenegraph()
 
-    @PhysicsTickSignal.global_listener
+    @PhysicsTickSignal.on_global
     def update(self, delta_time):
         """Listener for PhysicsTickSignal
         Updates Physics simulation for entire world
@@ -115,7 +115,7 @@ class BGEServerPhysics(BGEPhysicsSystem):
         for replicable in WorldInfo.subclass_of(Actor):
             replicable.copy_state_to_network()
 
-    @PhysicsTickSignal.global_listener
+    @PhysicsTickSignal.on_global
     def update(self, delta_time):
         """Listener for PhysicsTickSignal.
 
@@ -156,17 +156,17 @@ class BGEClientPhysics(BGEPhysicsSystem):
             actor.transform.world_position = position
             actor.physics.world_velocity = velocity
 
-    @PhysicsReplicatedSignal.global_listener
+    @PhysicsReplicatedSignal.on_global
     def on_physics_replicated(self, timestamp, position, velocity, target):
         extrapolator = self._extrapolators[target]
         extrapolator.add_sample(timestamp, WorldInfo.elapsed, target.transform.world_position, position, velocity)
 
-    @ReplicableUnregisteredSignal.global_listener
+    @ReplicableUnregisteredSignal.on_global
     def on_replicable_unregistered(self, target):
         if target in self._extrapolators:
             self._extrapolators.pop(target)
 
-    @PhysicsTickSignal.global_listener
+    @PhysicsTickSignal.on_global
     def update(self, delta_time):
         """Listener for PhysicsTickSignal.
 

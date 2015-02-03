@@ -10,6 +10,10 @@ class FindByTag(metaclass=TypeRegister):
 
     @classmethod
     def register_base_class(cls):
+        """Callback from :py:class:`TypeRegister` metaclass
+
+        Creates mapping to associate subclasses with tags
+        """
         cls._cache = {}
 
     @classmethod

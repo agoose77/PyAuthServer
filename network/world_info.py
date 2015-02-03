@@ -27,7 +27,7 @@ class _WorldInfo(Replicable):
 
         self.always_relevant = True
 
-    @ReplicableRegisteredSignal.global_listener
+    @ReplicableRegisteredSignal.on_global
     @simulated
     def cache_replicable(self, target):
         """Stores replicable instance for fast lookup by type
@@ -41,7 +41,7 @@ class _WorldInfo(Replicable):
             if isinstance(target, cls_type):
                 values.append(target)
 
-    @ReplicableUnregisteredSignal.global_listener
+    @ReplicableUnregisteredSignal.on_global
     @simulated
     def uncache_replicable(self, target):
         """Removes stored replicable instance for fast lookup by type

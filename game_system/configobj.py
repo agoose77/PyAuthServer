@@ -252,11 +252,11 @@ class ConfigspecError(ConfigObjError):
 
 
 class InterpolationError(ConfigObjError):
-    """Base class for the two interpolation errors."""
+    """Base class for the two interpolation errors"""
 
 
 class InterpolationLoopError(InterpolationError):
-    """Maximum interpolation depth exceeded in string interpolation."""
+    """Maximum interpolation depth exceeded in string interpolation"""
 
     def __init__(self, option):
         InterpolationError.__init__(
@@ -272,14 +272,14 @@ class RepeatSectionError(ConfigObjError):
 
 
 class MissingInterpolationOption(InterpolationError):
-    """A value specified for interpolation was missing."""
+    """A value specified for interpolation was missing"""
     def __init__(self, option):
         msg = 'missing option "%s" in interpolation.' % option
         InterpolationError.__init__(self, msg)
 
 
 class UnreprError(ConfigObjError):
-    """An error parsing in unrepr mode."""
+    """An error parsing in unrepr mode"""
 
 
 
@@ -408,7 +408,7 @@ class InterpolationEngine(object):
 
 
 class ConfigParserInterpolation(InterpolationEngine):
-    """Behaves like ConfigParser."""
+    """Behaves like ConfigParser"""
     _cookie = '%'
     _KEYCRE = re.compile(r"({([A-z][A-z0-9]+)\})|(%\(([^)]*)\)s)")
 
@@ -420,7 +420,7 @@ class ConfigParserInterpolation(InterpolationEngine):
 
 
 class TemplateInterpolation(InterpolationEngine):
-    """Behaves like string.Template."""
+    """Behaves like string.Template"""
     _cookie = '$'
     _delimiter = '$'
     _KEYCRE = re.compile(r"""
@@ -550,7 +550,7 @@ class Section(dict):
 
 
     def __getitem__(self, key):
-        """Fetch the item and do string interpolation."""
+        """Fetch the item and do string interpolation"""
         val = dict.__getitem__(self, key)
         if self.main.interpolation: 
             if isinstance(val, six.string_types):
@@ -626,7 +626,7 @@ class Section(dict):
 
 
     def __delitem__(self, key):
-        """Remove items from the sequence when deleting."""
+        """Remove items from the sequence when deleting"""
         dict. __delitem__(self, key)
         if key in self.scalars:
             self.scalars.remove(key)
@@ -637,7 +637,7 @@ class Section(dict):
 
 
     def get(self, key, default=None):
-        """A version of ``get`` that doesn't bypass string interpolation."""
+        """A version of ``get`` that doesn't bypass string interpolation"""
         try:
             return self[key]
         except KeyError:
@@ -698,7 +698,7 @@ class Section(dict):
 
 
     def setdefault(self, key, default=None):
-        """A version of setdefault that sets sequence if appropriate."""
+        """A version of setdefault that sets sequence if appropriate"""
         try:
             return self[key]
         except KeyError:
@@ -1069,7 +1069,7 @@ class Section(dict):
 
 
 class ConfigObj(Section):
-    """An object to read, create, and write config files."""
+    """An object to read, create, and write config files"""
 
     _keyword = re.compile(r'''^ # line start
         (\s*)                   # indentation
@@ -1486,7 +1486,7 @@ class ConfigObj(Section):
 
 
     def _a_to_u(self, aString):
-        """Decode ASCII strings to unicode if a self.encoding is specified."""
+        """Decode ASCII strings to unicode if a self.encoding is specified"""
         if isinstance(aString, six.binary_type) and self.encoding:
             return aString.decode(self.encoding)
         else:
@@ -1519,7 +1519,7 @@ class ConfigObj(Section):
 
 
     def _decode_element(self, line):
-        """Decode element to unicode if necessary."""
+        """Decode element to unicode if necessary"""
         if isinstance(line, six.binary_type) and self.default_encoding:
             return line.decode(self.default_encoding)
         else:
@@ -1541,7 +1541,7 @@ class ConfigObj(Section):
 
 
     def _parse(self, infile):
-        """Actually parse the config file."""
+        """Actually parse the config file"""
         temp_list_values = self.list_values
         if self.unrepr:
             self.list_values = False
@@ -1895,7 +1895,7 @@ class ConfigObj(Section):
 
 
     def _multiline(self, value, infile, cur_index, maxline):
-        """Extract the value, where we are in a multiline situation."""
+        """Extract the value, where we are in a multiline situation"""
         quot = value[:3]
         newvalue = value[3:]
         single_line = self._triple_quote[quot][0]
@@ -1930,7 +1930,7 @@ class ConfigObj(Section):
 
 
     def _handle_configspec(self, configspec):
-        """Parse the configspec."""
+        """Parse the configspec"""
         # FIXME: Should we check that the configspec was created with the 
         #        correct settings ? (i.e. ``list_values=False``)
         if not isinstance(configspec, ConfigObj):
@@ -2002,7 +2002,7 @@ class ConfigObj(Section):
 
 
     def _handle_comment(self, comment):
-        """Deal with a comment."""
+        """Deal with a comment"""
         if not comment:
             return ''
         start = self.indent_type
@@ -2335,7 +2335,7 @@ class ConfigObj(Section):
 
 
     def reset(self):
-        """Clear ConfigObj instance and restore to 'freshly created' state."""
+        """Clear ConfigObj instance and restore to 'freshly created' state"""
         self.clear()
         self._initialise()
         # FIXME: Should be done by '_initialise', but ConfigObj constructor (and reload)
@@ -2387,7 +2387,7 @@ class SimpleVal(object):
         self.baseErrorClass = ConfigObjError
     
     def check(self, check, member, missing=False):
-        """A dummy check method, always returns the value unchanged."""
+        """A dummy check method, always returns the value unchanged"""
         if missing:
             raise self.baseErrorClass()
         return member

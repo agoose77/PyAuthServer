@@ -128,6 +128,6 @@ class FiniteStateMachine:
 
 class FSM(FiniteStateMachine):
 
-    @LogicUpdateSignal.global_listener
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
         self.update_state()(delta_time)

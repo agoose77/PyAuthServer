@@ -113,7 +113,7 @@ class Controller(Replicable):
         self.register_listener_to_pawn(replicable)
 
     def register_listener_to_pawn(self, pawn):
-        """Registers as listener for pawn events
+        """Registers as on_context for pawn events
 
         :param pawn: pawn instance
         """
@@ -183,7 +183,7 @@ class Controller(Replicable):
         self.pawn = None
 
     def unregister_listener_to_pawn(self):
-        """Unregister as listener for pawn events"""
+        """Unregister as on_context for pawn events"""
         self._pawn.unregister_child(self, greedy=True)
         self._pawn = None
 
@@ -220,7 +220,7 @@ class AIController(Controller):
         # self.behaviour = BehaviourTree(self)
         # self.behaviour.blackboard['controller'] = self
 
-    @LogicUpdateSignal.global_listener
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
         self.behaviour.update()
 
@@ -646,7 +646,7 @@ class PlayerController(Controller, NetworkLocksMixin):
         else:
             super().on_notify(name)
 
-    @LatencyUpdatedSignal.listener
+    @LatencyUpdatedSignal.on_context
     @requires_netmode(Netmodes.server)
     def on_ping_estimate_updated(self, ping_estimate):
         self.info.ping = ping_estimate
@@ -656,7 +656,7 @@ class PlayerController(Controller, NetworkLocksMixin):
 
         self.destroy_microphone()
 
-    @PlayerInputSignal.global_listener
+    @PlayerInputSignal.on_global
     def player_update(self, delta_time):
         """Update function for client-side controller instance
 
@@ -698,7 +698,7 @@ class PlayerController(Controller, NetworkLocksMixin):
         self.client_send_voice()
 
     if 0:
-        @PostPhysicsSignal.global_listener
+        @PostPhysicsSignal.on_global
         def post_physics(self):
             """Post-physics callback to send move to server and receive corrections"""
             self.client_send_move()
@@ -835,7 +835,7 @@ class PlayerController(Controller, NetworkLocksMixin):
         self.client_fire()
 
     @requires_netmode(Netmodes.server)
-    @LogicUpdateSignal.global_listener
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
         """Validate client clock and apply moves
 
