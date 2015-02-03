@@ -32,6 +32,9 @@ class EnumerationMeta(type):
     def __contains__(cls, index):
         return index in cls.values_to_keys
 
+    def __len__(cls):
+        return len(cls.values)
+
     def __repr__(cls):
         contents_string = '\n'.join("<{}: {}>".format(*mapping) for mapping in cls.keys_to_values.items())
         return "<{} Enumeration>\n{}\n".format(cls.__name__, contents_string)
