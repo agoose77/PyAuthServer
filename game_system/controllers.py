@@ -73,8 +73,6 @@ class PlayerPawnController():
     input_context = LocalInputContext(buttons=['shoot', 'flinch'])
     remote_input_context = RemoteInputContext(input_context)
 
-    input_cls = remote_input_context.state_struct_cls
-
     def initialise_client(self):
         """Initialise client-specific player controller state"""
         resources = ResourceManager[self.__class__.__name__]
@@ -89,7 +87,7 @@ class PlayerPawnController():
         if WorldInfo.netmode == Netmodes.client:
             self.initialise_client()
 
-    def server_handle_inputs(self, input_state: TypeFlag(FromClass("input_cls"))):
+    def server_handle_inputs(self, input_state: TypeFlag(FromClass("remote_input_context.state_struct_cls"))):
         """Handle remote client inputs
 
         :param input_state: state of inputs
