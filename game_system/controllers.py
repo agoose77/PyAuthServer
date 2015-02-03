@@ -85,6 +85,10 @@ class RemoteInputContext:
             _ranges = Attribute([], element_flag=TypeFlag(float))
 
             def write(self, remapped_state):
+                """Write mapped input state to struct
+
+                :param remapped_state: event-remapped state
+                """
                 button_state = self._buttons
                 range_state = self._ranges
 
@@ -101,6 +105,10 @@ class RemoteInputContext:
                 range_state[:] = [remapped_range_state[key] for key in local_context.ranges]
 
             def read(self):
+                """Read mapped input state from struct
+
+                :returns: event-remapped state
+                """
                 buttons = self._buttons[:]
                 ranges = self._ranges
 
@@ -153,7 +161,7 @@ class PlayerPawnController():
         mapped_state = input_state.read()
 
     @PlayerInputSignal.on_global
-    def handle_inputs(self, input_manager):
+    def handle_inputs(self, delta_time, input_manager):
         """Handle local inputs from client
 
         :param input_manager: input system
