@@ -1,4 +1,4 @@
-from game_system.enums import InputEvents
+from game_system.enums import InputButtons
 
 from bge import events
 
@@ -13,4 +13,4 @@ def convert_from_bge_event(event):
     :param event: BGE event
     """
     name = bge_events[event]
-    return getattr(InputEvents, name)
+    return getattr(InputButtons, name)

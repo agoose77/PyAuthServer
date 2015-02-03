@@ -8,7 +8,7 @@ from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.world_info import WorldInfo
 
 from game_system.entities import Actor
-from game_system.controllers import PlayerController
+from game_system.controllers import PlayerPawnController
 from game_system.enums import PhysicsType
 from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.signals import *
@@ -139,7 +139,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
         """Apply state from extrapolators to replicated actors"""
         simulated_proxy = Roles.simulated_proxy
 
-        controller = PlayerController.get_local_controller()
+        controller = PlayerPawnController.get_local_controller()
 
         if controller is None or controller.info is None:
             return
