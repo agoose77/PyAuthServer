@@ -77,13 +77,21 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def collision_group(self):
-        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        logger.warning("BGE collision groups are not exposed to the PyAPI")
         return 0
+
+    @collision_group.setter
+    def collision_group(self, group):
+        logger.warning("BGE collision groups are not exposed to the PyAPI")
 
     @property
     def collision_mask(self):
-        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        logger.warning("BGE collision masks are not exposed to the PyAPI")
         return 0
+
+    @collision_mask.setter
+    def collision_mask(self, mask):
+        logger.warning("BGE colliison masks are not exposed to the PyAPI")
 
     @property
     def type(self):
