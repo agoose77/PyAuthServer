@@ -122,6 +122,10 @@ else:
         def __len__(self):
             return self._size
 
+        @property
+        def size(self):
+            return self._size
+
         @staticmethod
         def calculate_footprint(bits):
             """Return minimum number of bytes required to encode a number of bits
