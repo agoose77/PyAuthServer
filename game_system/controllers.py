@@ -38,7 +38,6 @@ class AIPawnController(PawnController):
     """Base class for AI pawn controllers"""
 
 
-
 class LocalInputContext:
     """Input context for local inputs"""
 
@@ -56,13 +55,13 @@ class LocalInputContext:
         # Update buttons
         native_button_state = input_manager.buttons
         for mapped_key in self.buttons:
-            native_key = keymap[mapped_key]
+            native_key = keymap.get(mapped_key, mapped_key)
             button_state[mapped_key] = native_button_state[native_key]
 
         # Update ranges
         native_range_state = input_manager.ranges
         for mapped_key in self.ranges:
-            native_key = keymap[mapped_key]
+            native_key = keymap.get(mapped_key, mapped_key)
             range_state[mapped_key] = native_range_state[native_key]
 
         return button_state, range_state
@@ -85,10 +84,6 @@ class RemoteInputContext:
             _ranges = Attribute([], element_flag=TypeFlag(float))
 
             def write(self, remapped_state):
-                """Write mapped input state to struct
-
-                :param remapped_state: event-remapped state
-                """
                 button_state = self._buttons
                 range_state = self._ranges
 
@@ -98,34 +93,30 @@ class RemoteInputContext:
                 button_names = local_context.buttons
                 for button_index, mapped_key in enumerate(button_names):
                     mapped_state = remapped_button_state[mapped_key]
-                    state_index = (mapped_state * state_count) + button_index
+                    state_index = (button_count * mapped_state) + button_index
                     button_state[state_index] = True
 
                 # Update ranges
                 range_state[:] = [remapped_range_state[key] for key in local_context.ranges]
 
             def read(self):
-                """Read mapped input state from struct
-
-                :returns: event-remapped state
-                """
-                buttons = self._buttons[:]
-                ranges = self._ranges
+                button_state = self._buttons[:]
+                range_state = self._ranges
 
                 # Update buttons
                 button_states = {}
                 button_names = local_context.buttons
 
-                for state_index, state in enumerate(buttons):
+                for state_index, state in enumerate(button_state):
                     if not state:
                         continue
 
-                    button_index = state_index % state_count
+                    button_index = state_index % button_count
                     mapped_key = button_names[button_index]
-                    button_states[mapped_key] = (state_index - button_index) // state_count
+                    button_states[mapped_key] = (state_index - button_index) // button_count
 
                 # Update ranges
-                range_states = {key: ranges[index] for index, key in enumerate(local_context.ranges)}
+                range_states = {key: range_state[index] for index, key in enumerate(local_context.ranges)}
                 return button_states, range_states
 
         self.state_struct_cls = InputStateStruct
