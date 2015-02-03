@@ -102,7 +102,11 @@ class _ResourceManager(Resource):
         self._data_path = path_
         self.refresh()
 
-    def from_relative_path(self, relative_path):
+    def get_absolute_path(self, relative_path):
+        """Return absolute path for relative path, from root (data path)
+
+        :param relative_path: relative path string
+        """
         return path.join(self.data_path, relative_path)
 
 

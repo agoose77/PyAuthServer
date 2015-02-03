@@ -1,22 +1,17 @@
-from collections import OrderedDict
-
 from .configobj import ConfigObj
 
 __all__ = ["load_keybindings"]
 
 
-def load_keybindings(filepath, section_name, input_codes):
+def load_keybindings(file_path, names_to_codes):
     """Load keybindings from config file
 
-    :param filepath: path to config file
-    :param section_name: name of keybindings section
-    :param input_fields: permitted keybinding field names
-    :param input_codes: mapping of names to code values
+    :param file_path: path to config file
+    :param names_to_codes: mapping of names to code values
     :returns: dictionary of name to input codes
     """
     # Load into parser
-    parser = ConfigObj(filepath)
-    parser['DEFAULT'] = input_codes
-    parser_result = parser[section_name]
+    parser = ConfigObj(file_path)
+    parser['DEFAULT'] = names_to_codes
 
-    return {name: int(binding) for name, binding in parser_result.items()}
+    return {name: int(binding) for name, binding in parser.items()}
