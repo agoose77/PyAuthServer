@@ -6,6 +6,7 @@ __all__ = ["BitField"]
 
 USE_BITARRAY = False
 
+
 if USE_BITARRAY:
     from bitarray import bitarray as array_field
 
@@ -120,10 +121,6 @@ else:
                     self._value &= ~(1 << index)
 
         def __len__(self):
-            return self._size
-
-        @property
-        def size(self):
             return self._size
 
         @staticmethod
