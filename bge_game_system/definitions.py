@@ -86,10 +86,10 @@ class BGEPhysicsInterface(BGEComponent):
         return 0
 
     @property
-    def physics(self):
+    def type(self):
         """The physics type of this object
 
-        :returns: physics type of object, see :py:class:`bge_game_system.enums.PhysicsType`
+        :returns: physics type of object, see :py:class:`game_system.enums.PhysicsType`
         """
         return self._physics_type
 
