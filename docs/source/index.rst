@@ -19,11 +19,19 @@ Networking Documentation
 
     network
 
+Game System Documentation
+----------------------
+
+.. toctree::
+    :maxdepth: 2
+
+    game_system
+    bge_game_system
+
 
 Indices and tables
 ==================
 
-* :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
+* :ref:`genindex`
 
