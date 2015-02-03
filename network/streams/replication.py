@@ -69,7 +69,7 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
             channel_data = data[id_size:]
             channel.invoke_rpc_call(channel_data)
 
-    @ReplicableUnregisteredSignal.global_listener
+    @ReplicableUnregisteredSignal.on_global
     def notify_unregistered(self, target):
         """Handles un-registered of a replicable instance
         Deletes channel for replicable instance
@@ -78,7 +78,7 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
         """
         self.channels.pop(target.instance_id)
 
-    @ReplicableRegisteredSignal.global_listener
+    @ReplicableRegisteredSignal.on_global
     def notify_registered(self, target):
         """Handles registered of a replicable instance
         Create channel for replicable instance
@@ -147,7 +147,7 @@ class ServerReplicationStream(ReplicationStream):
     def on_disconnected(self):
         WorldInfo.rules.post_disconnect(self, self.replicable)
 
-    @ReplicableUnregisteredSignal.global_listener
+    @ReplicableUnregisteredSignal.on_global
     def notify_unregistered(self, target):
         """Called when replicable dies
 

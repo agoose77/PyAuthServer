@@ -296,12 +296,12 @@ class Pawn(Actor):
 
         self.playing_animations = {}
 
-    @ActorDamagedSignal.listener
+    @ActorDamagedSignal.on_context
     def take_damage(self, damage, instigator, hit_position, momentum):
         self.health = int(max(self.health - damage, 0))
 
     @simulated
-    @LogicUpdateSignal.global_listener
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
         # Allow remote players to determine if we are alive without seeing health
         self.update_alive_status()
@@ -338,7 +338,7 @@ class Projectile(Actor):
         self.collision_group = CollisionGroups.projectile
         self.collision_mask = CollisionGroups.pawn | CollisionGroups.geometry
 
-    @CollisionSignal.listener
+    @CollisionSignal.on_context
     @simulated
     def on_collision(self, collision_result):
         if not (collision_result.state == CollisionState.started and self.in_flight):

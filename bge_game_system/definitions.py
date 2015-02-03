@@ -165,7 +165,7 @@ class BGEPhysicsInterface(BGEComponent):
 
         CollisionSignal.invoke(result, target=self._entity)
 
-    @UpdateCollidersSignal.global_listener
+    @UpdateCollidersSignal.on_global
     def _update_collisions(self):
         # If we have a stored collision
         ended_collisions = self._old_collisions.difference(self._new_collisions)

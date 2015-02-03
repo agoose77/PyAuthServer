@@ -105,7 +105,7 @@ def simulated(func):
 
 
 def signal_listener(signal_type, global_listener):
-    """Create a closure decorator that marks the function as a signal listener
+    """Create a closure decorator that marks the function as a signal on_context
 
     :param signal_type: signal class
     :param global_listener: flag that allows global invocation

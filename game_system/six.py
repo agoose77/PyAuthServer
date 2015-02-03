@@ -68,12 +68,12 @@ else:
 
 
 def _add_doc(func, doc):
-    """Add documentation to a function."""
+    """Add documentation to a function"""
     func.__doc__ = doc
 
 
 def _import_module(name):
-    """Import module, returning the module after the last dot."""
+    """Import module, returning the module after the last dot"""
     __import__(name)
     return sys.modules[name]
 
@@ -450,12 +450,12 @@ _importer._add_module(Module_six_moves_urllib(__name__ + ".moves.urllib"),
 
 
 def add_move(move):
-    """Add an item to six.moves."""
+    """Add an item to six.moves"""
     setattr(_MovedItems, move.name, move)
 
 
 def remove_move(name):
-    """Remove item from six.moves."""
+    """Remove item from six.moves"""
     try:
         delattr(_MovedItems, name)
     except AttributeError:
@@ -612,7 +612,7 @@ if PY3:
 
 else:
     def exec_(_code_, _globs_=None, _locs_=None):
-        """Execute code in a namespace."""
+        """Execute code in a namespace"""
         if _globs_ is None:
             frame = sys._getframe(1)
             _globs_ = frame.f_globals
@@ -632,7 +632,7 @@ else:
 print_ = getattr(moves.builtins, "print", None)
 if print_ is None:
     def print_(*args, **kwargs):
-        """The new-style print function for Python 2.4 and 2.5."""
+        """The new-style print function for Python 2.4 and 2.5"""
         fp = kwargs.pop("file", sys.stdout)
         if fp is None:
             return
@@ -684,7 +684,7 @@ if print_ is None:
             write(arg)
         write(end)
 
-_add_doc(reraise, """Reraise an exception.""")
+_add_doc(reraise, """Reraise an exception""")
 
 if sys.version_info[0:2] < (3, 4):
     def wraps(wrapped):
@@ -697,7 +697,7 @@ else:
     wraps = functools.wraps
 
 def with_metaclass(meta, *bases):
-    """Create a base class with a metaclass."""
+    """Create a base class with a metaclass"""
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with
     # the actual metaclass.
@@ -708,7 +708,7 @@ def with_metaclass(meta, *bases):
 
 
 def add_metaclass(metaclass):
-    """Class decorator for creating a class with a metaclass."""
+    """Class decorator for creating a class with a metaclass"""
     def wrapper(cls):
         orig_vars = cls.__dict__.copy()
         orig_vars.pop('__dict__', None)

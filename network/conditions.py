@@ -52,7 +52,7 @@ def is_simulated(func):
 
 
 def is_signal_listener(func):
-    """Determine if a function is a signal listener
+    """Determine if a function is a signal on_context
 
     :param func: function to evaluate
     :returns: result of condition

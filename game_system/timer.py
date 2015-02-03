@@ -103,6 +103,6 @@ class Timer(ManualTimer, SignalListener):
         """Unregister timer signals"""
         self.unregister_signals()
 
-    @TimerUpdateSignal.global_listener
+    @TimerUpdateSignal.on_global
     def update(self, delta_time):
         super().update(delta_time)

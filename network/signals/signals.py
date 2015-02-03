@@ -179,7 +179,7 @@ class Signal(metaclass=TypeRegister):
 
         Children do not require parents to listen for the signal.
 
-        :param target_dict: mapping from listener to listener information
+        :param target_dict: mapping from on_context to on_context information
         :param target: target referred to by Signal invocation
         :param addressee: Recipient of Signal invocation (parent of child
         tree by default)
@@ -189,13 +189,13 @@ class Signal(metaclass=TypeRegister):
         if addressee is None:
             addressee = target
 
-        # If the child is a context listener
+        # If the child is a context on_context
         if addressee in target_dict:
             callback, supply_signal, supply_target = target_dict[addressee]
             # Invoke with the same target context even if this is a child
             cls.invoke_signal(signal_cls, target, args, kwargs, callback, supply_signal, supply_target)
 
-        # Update children of this listener
+        # Update children of this on_context
         if addressee in cls.children:
             for target_child in cls.children[addressee]:
                 cls.invoke_targets(target_dict, signal_cls, target, args, kwargs, addressee=target_child)
@@ -204,7 +204,7 @@ class Signal(metaclass=TypeRegister):
     def invoke_general(cls, subscriber_dict, signal_cls, target, args, kwargs):
         """Invoke signals for non targeted listeners
 
-        :param subscriber_dict: mapping from listener to listener information
+        :param subscriber_dict: mapping from on_context to on_context information
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
@@ -248,7 +248,7 @@ class Signal(metaclass=TypeRegister):
         parent.invoke(*args, signal_cls=signal_cls, target=target, **kwargs)
 
     @classmethod
-    def global_listener(cls, func):
+    def on_global(cls, func):
         """Decorator for global signal listeners
 
         :param func: function to decorate
@@ -257,7 +257,7 @@ class Signal(metaclass=TypeRegister):
         return signal_listener(cls, True)(func)
 
     @classmethod
-    def listener(cls, func):
+    def on_context(cls, func):
         """Decorator for targeted signal listeners
 
         :param func: function to decorate
@@ -272,6 +272,7 @@ class CachedSignal(Signal):
     def register_subclass(cls):
         # Unfortunate hack to reproduce super() behaviour
         Signal.register_subclass.__func__(cls)
+
         cls.cache = []
 
     @classmethod

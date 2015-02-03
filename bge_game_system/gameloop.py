@@ -95,9 +95,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         self._profile = value
 
-    @ReplicableRegisteredSignal.global_listener
+    @ReplicableRegisteredSignal.on_global
     def notify_registered(self, target):
-        """Signal listener for replicable instantiation
+        """Signal on_context for replicable instantiation
         Listens for Camera creation to correct camera matrices
 
         :param target: replicable instance"""
@@ -310,6 +310,6 @@ class Client(GameLoop):
     def create_network():
         return Network("", 0)
 
-    @ConnectToSignal.global_listener
+    @ConnectToSignal.on_global
     def new_connection(self, address, port):
         self.network_system.connect_to((address, port))

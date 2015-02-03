@@ -15,18 +15,18 @@ class _InputManager:
         self.active_states = set()
 
     def add_listener(self, event, listener_type, listener):
-        """Add event listener for given event type
+        """Add event on_context for given event type
         :param event: event name
-        :param listener_type: type of listener
+        :param listener_type: type of on_context
         :param listener: callback function
         """
         event_dict = self._get_event_dict(listener_type)
         event_dict.setdefault(event, []).append(listener)
 
     def _get_event_dict(self, listener_type):
-        """Return the appropriate event dictionary for listener
+        """Return the appropriate event dictionary for on_context
 
-        :param listener_type: type of listener
+        :param listener_type: type of on_context
         """
         if listener_type == ListenerType.action_in:
             event_dict = self._in_actions
@@ -65,9 +65,9 @@ class _InputManager:
         return read
 
     def remove_listener(self, event, listener_type, listener):
-        """Remove event listener for given event type
+        """Remove event on_context for given event type
         :param event: event name
-        :param listener_type: type of listener
+        :param listener_type: type of on_context
         :param listener: callback function
         """
         event_dict = self._get_event_dict(listener_type)
