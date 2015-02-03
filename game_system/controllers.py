@@ -8,6 +8,8 @@ from network.replicable import Replicable
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
+
+from .ai.behaviour import Node
 from .configobj import ConfigObj
 from .enums import InputButtons, ButtonState
 from .resources import ResourceManager
@@ -33,9 +35,39 @@ class PawnController(Replicable):
             yield "pawn"
             yield "info"
 
+    def on_notify(self, name):
+        if name == "pawn":
+            self.possess(self.pawn)
+
+    def possess(self, pawn):
+        """Take control of pawn
+
+        :param pawn: Pawn instance
+        """
+        self.pawn = pawn
+        pawn.possessed_by(self)
+
+    def unpossess(self):
+        """Release control of possessed pawn"""
+        self.pawn.unpossessed()
+        self.pawn = None
+
 
 class AIPawnController(PawnController):
     """Base class for AI pawn controllers"""
+
+    def on_initialised(self):
+        self.blackboard = {}
+        self.intelligence = Node()
+
+    def update(self, delta_time):
+        blackboard = self.blackboard
+
+        blackboard['delta_time'] = delta_time
+        blackboard['pawn'] = self.pawn
+        blackboard['controller'] = self
+
+        self.intelligence.evaluate(blackboard)
 
 
 class LocalInputContext:
@@ -79,7 +111,8 @@ class RemoteInputContext:
         state_bits = button_count * state_count
 
         class InputStateStruct(Struct):
-            """Struct for packing inputs"""
+            """Struct for packing client inputs"""
+
             _buttons = Attribute(BitField(state_bits), fields=state_bits)
             _ranges = Attribute([], element_flag=TypeFlag(float))
 
@@ -123,7 +156,7 @@ class RemoteInputContext:
 
 
 class PlayerPawnController():
-    """base class for player pawn controllers"""
+    """Base class for player pawn controllers"""
 
     input_context = LocalInputContext(buttons=['shoot', 'flinch'])
     remote_input_context = RemoteInputContext(input_context)
