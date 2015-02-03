@@ -11,7 +11,7 @@ The `example_game` module should only make use of generic interfaces from `game_
 
 Based upon the Unreal Architecture, this library is statically typed and offers reliable and unreliable (all unordered) transmission of UDP packets. The Serialiser is based upon struct; everything is fixed type that is sent across the network. (In the event that this is undesirable, you could use JSON with a string variable, but this would be inefficient).
 
-User Documentation is currently in development, (see the RTD page for code-specific documentation, or the WIKI for higher level concepts and user guides).
+User Documentation is currently in development, (see the [ReadTheDocs page](http://pyauthserver.readthedocs.org/en/latest/) for code-specific documentation, or the WIKI for higher level concepts and user guides).
 
 Existing features
 --------------
