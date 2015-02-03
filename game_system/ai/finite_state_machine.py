@@ -125,8 +125,5 @@ class FiniteStateMachine:
         self._state = state
         self._reset_state = False
 
-
-class FSM(FiniteStateMachine):
-
     def update(self, delta_time):
         self.update_state()(delta_time)
