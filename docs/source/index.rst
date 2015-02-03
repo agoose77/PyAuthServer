@@ -11,6 +11,13 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+Networking Documentation
+----------------------
+
+.. toctree::
+    :maxdepth: 2
+
+    network
 
 
 Indices and tables
