@@ -182,9 +182,6 @@ class Replicable(metaclass=ReplicableRegister):
             print("{} attribute of {} was changed by the network".format(name,
                                                  self.__class__.__name__))
 
-    def on_replication(self):
-        pass
-
     def conditions(self, is_owner, is_complaint, is_initial):
         """Condition generator that determines replicated attributes.
 
