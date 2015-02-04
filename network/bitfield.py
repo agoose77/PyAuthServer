@@ -67,7 +67,7 @@ else:
 
         """BitField data type which supports slicing operations"""
 
-        def __init__(self, size):
+        def __init__(self, size=8):
             self._value = 0
 
             self.resize(size)
@@ -137,7 +137,9 @@ else:
             :param length: number of bits in field
             :param bytes_string: encoded data from :py:meth:`BitField.to_bytes()`
             """
-            field = cls(length)
+            field = cls()
+            field.resize(length)
+
             field._value, field_size = field._handler.unpack_from(bytes_string, offset)
             return field, field_size
 
@@ -150,7 +152,10 @@ else:
             :returns: BitField instance of length equal to ``len(iterable)``
             """
             size = len(iterable)
-            field = cls(size)
+
+            field = cls()
+            field.resize(size)
+
             field[:size] = iterable
             return field
 
@@ -164,31 +169,13 @@ else:
 
             :param size: new size of BitField instance
             """
+            #TODO cache the handler
             self._size = size
             self._handler = get_handler(TypeFlag(int, max_bits=size))
 
         def to_bytes(self):
             """Represent bitfield as bytes"""
             return self._handler.pack(self._value)
-
-
-
-
-
-class NamedBitfieldMeta(type):
-
-    def __call__(cls, names):
-        for i, name in enumerate(names):
-            def get(self, i=i):
-                return self[b]
-
-            def set(self, value, i=i):
-                self[i] = value
-
-            prop = property(get, set)
-            setattr(cls, name, prop)
-
-        return super().__call__(len(names))
 
 
 class NamedBitField:
