@@ -3,7 +3,7 @@ from collections import deque
 from network.world_info import WorldInfo
 
 from .behaviour import LeafNode, EvaluationState
-from ...controllers import AIController, PlayerController
+from ...controllers import AIPawnController, PlayerPawnController
 from ...coordinates import Vector
 
 
@@ -20,7 +20,7 @@ class GetNearestPlayerPawn(LeafNode):
         origin = pawn.transform.world_position
         distance_to = lambda p: (p.pawn.transform.world_position - origin).length_squared
 
-        controller = min([p for p in WorldInfo.subclass_of(PlayerController) if p.pawn], key=distance_to)
+        controller = min([p for p in WorldInfo.subclass_of(PlayerPawnController) if p.pawn], key=distance_to)
         blackboard['nearest_pawn'] = controller
 
         return EvaluationState.success
@@ -39,7 +39,7 @@ class GetNearestAIPawn(LeafNode):
         origin = pawn.transform.world_position
         distance_to = lambda p: (p.pawn.transform.world_position - origin).length_squared
 
-        controller = min([p for p in WorldInfo.subclass_of(AIController) if p.pawn], key=distance_to)
+        controller = min([p for p in WorldInfo.subclass_of(AIPawnController) if p.pawn], key=distance_to)
         blackboard['nearest_pawn'] = controller
 
         return EvaluationState.success

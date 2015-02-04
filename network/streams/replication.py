@@ -57,7 +57,7 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
             yield channel, replicable.relevant_to_owner and channel.is_owner
 
-    @response_protocol(ConnectionProtocols.method_invoke)
+    @response_protocol(ConnectionProtocols.invoke_method)
     def handle_method_call(self, data):
 
         # Unpack data
@@ -107,7 +107,7 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
     def write_method_calls(self, channel):
         packed_id = channel.packed_id
-        method_invoke_protocol = ConnectionProtocols.method_invoke
+        method_invoke_protocol = ConnectionProtocols.invoke_method
         packets = [Packet(protocol=method_invoke_protocol, payload=packed_id + rpc_call, reliable=reliable)
                    for rpc_call, reliable in channel.take_rpc_calls()]
 

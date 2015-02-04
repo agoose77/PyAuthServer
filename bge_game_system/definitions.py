@@ -77,19 +77,27 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def collision_group(self):
-        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        logger.warning("BGE collision groups are not exposed to the PyAPI")
         return 0
+
+    @collision_group.setter
+    def collision_group(self, group):
+        logger.warning("BGE collision groups are not exposed to the PyAPI")
 
     @property
     def collision_mask(self):
-        logger.warning("BGE CollisionGroups are not exposed to the PyAPI")
+        logger.warning("BGE collision masks are not exposed to the PyAPI")
         return 0
 
+    @collision_mask.setter
+    def collision_mask(self, mask):
+        logger.warning("BGE colliison masks are not exposed to the PyAPI")
+
     @property
-    def physics(self):
+    def type(self):
         """The physics type of this object
 
-        :returns: physics type of object, see :py:class:`bge_game_system.enums.PhysicsType`
+        :returns: physics type of object, see :py:class:`game_system.enums.PhysicsType`
         """
         return self._physics_type
 

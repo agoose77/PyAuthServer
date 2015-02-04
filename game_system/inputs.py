@@ -1,138 +1,102 @@
-from .coordinates import Vector
-from .enums import ListenerType
+from network.bitfield import BitField
+from network.descriptors import Attribute
+from network.type_flag import TypeFlag
+from network.struct import Struct
 
-__all__ = ['InputManager', 'MouseManager']
+from .enums import ButtonState, InputButtons
 
 
-class _InputManager:
+__all__ = ['InputState', 'LocalInputContext', 'RemoteInputContext']
+
+
+class InputState:
     """Interface to input handlers"""
 
     def __init__(self):
-        self._in_actions = {}
-        self._out_actions = {}
-        self._states = {}
-
-        self.active_states = set()
-
-    def add_listener(self, event, listener_type, listener):
-        """Add event on_context for given event type
-        :param event: event name
-        :param listener_type: type of on_context
-        :param listener: callback function
-        """
-        event_dict = self._get_event_dict(listener_type)
-        event_dict.setdefault(event, []).append(listener)
-
-    def _get_event_dict(self, listener_type):
-        """Return the appropriate event dictionary for on_context
-
-        :param listener_type: type of on_context
-        """
-        if listener_type == ListenerType.action_in:
-            event_dict = self._in_actions
-
-        elif listener_type == ListenerType.action_out:
-            event_dict = self._out_actions
-
-        elif listener_type == ListenerType.state:
-            event_dict = self._states
-
-        else:
-            raise TypeError("Invalid event type {} given".format(listener_type))
-
-        return event_dict
-
-    def get_bound_view(self, *events):
-        """Return bound view function for given events
-
-        :param events: ordered events (as arguments) to bind to view
-        """
-        def write():
-            active_events = self.active_states
-            return [e in active_events for e in events]
-
-        return write
-
-    def get_bound_writer(self, *events):
-        """Return bound writer function for given events
-
-        :param events: ordered events (as arguments) to write
-        """
-        def read(view):
-            active_events = [e for e, v in zip(events, view) if v]
-            self.update(active_events)
-
-        return read
-
-    def remove_listener(self, event, listener_type, listener):
-        """Remove event on_context for given event type
-        :param event: event name
-        :param listener_type: type of on_context
-        :param listener: callback function
-        """
-        event_dict = self._get_event_dict(listener_type)
-
-        try:
-            listeners = event_dict[event]
-
-        except KeyError:
-            raise LookupError("No listeners for {} are registered".format(event))
-
-        listeners.remove(listener)
-
-    def update(self, events):
-        """Process new events and update listeners
-
-        :param events: new events
-        """
-        all_events = set(events)
-        active_events = self.active_states
-
-        call_listeners = self._call_listeners
-        for new_event in all_events.difference(active_events):
-            if new_event in self._in_actions:
-                listeners = self._in_actions[new_event]
-                call_listeners(listeners)
-
-        for old_event in active_events.difference(all_events):
-            if old_event in self._out_actions:
-                listeners = self._out_actions[old_event]
-                call_listeners(listeners)
-
-        self.active_states = all_events
-
-        for event in all_events:
-            if event in self._states:
-                listeners = self._states[event]
-                call_listeners(listeners)
-
-    @staticmethod
-    def _call_listeners(listeners):
-        for listener in listeners:
-            listener()
+        self.buttons = {}
+        self.ranges = {}
 
 
-class _MouseManager:
-    """Interface to mouse information"""
+class LocalInputContext:
+    """Input context for local inputs"""
 
-    def __init__(self):
-        self.position = Vector((0.0, 0.0))
-        self._last_position = Vector()
-        self.visible = False
+    def __init__(self, buttons=None, ranges=None):
+        self.buttons = buttons if buttons is not None else []
+        self.ranges = ranges if ranges is not None else []
 
-    @property
-    def delta_position(self):
-        return self.position - self._last_position
+    def remap_state(self, input_manager, keymap):
+        """Remap native state to mapped state
 
-    def update(self, position, visible):
-        """Process new mouse state
+        :param input_manager: native state """
+        button_state = {}
+        range_state = {}
 
-        :param position: new mouse position
-        :param visible: new mouse visibility state
-        """
-        self._last_position, self.position = self.position, position
-        self.visible = visible
+        # Update buttons
+        native_button_state = input_manager.buttons
+        for mapped_key in self.buttons:
+            native_key = keymap.get(mapped_key, mapped_key)
+            button_state[mapped_key] = native_button_state[native_key]
+
+        # Update ranges
+        native_range_state = input_manager.ranges
+        for mapped_key in self.ranges:
+            native_key = keymap.get(mapped_key, mapped_key)
+            range_state[mapped_key] = native_range_state[native_key]
+
+        return button_state, range_state
 
 
-MouseManager = _MouseManager()
-InputManager = _InputManager()
+class RemoteInputContext:
+    """Input context for network inputs"""
+
+    def __init__(self, local_context):
+        self.local_context = local_context
+
+        button_count = len(local_context.buttons)
+        state_count = len(ButtonState)
+
+        state_bits = button_count * state_count
+
+        class InputStateStruct(Struct):
+            """Struct for packing client inputs"""
+
+            _buttons = Attribute(BitField(state_bits), fields=state_bits)
+            _ranges = Attribute([], element_flag=TypeFlag(float))
+
+            def write(self, remapped_state):
+                button_state = self._buttons
+                range_state = self._ranges
+
+                remapped_button_state, remapped_range_state = remapped_state
+
+                # Update buttons
+                button_names = local_context.buttons
+                for button_index, mapped_key in enumerate(button_names):
+                    mapped_state = remapped_button_state[mapped_key]
+                    state_index = (button_count * mapped_state) + button_index
+                    button_state[state_index] = True
+
+                # Update ranges
+                range_state[:] = [remapped_range_state[key] for key in local_context.ranges]
+
+            def read(self):
+                button_state = self._buttons[:]
+                range_state = self._ranges
+
+                # Update buttons
+                button_states = {}
+                button_names = local_context.buttons
+
+                for state_index, state in enumerate(button_state):
+                    if not state:
+                        continue
+
+                    button_index = state_index % button_count
+                    mapped_key = button_names[button_index]
+                    button_states[mapped_key] = (state_index - button_index) // button_count
+
+                # Update ranges
+                range_states = {key: range_state[index] for index, key in enumerate(local_context.ranges)}
+                return button_states, range_states
+
+        self.state_struct_cls = InputStateStruct
