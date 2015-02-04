@@ -521,6 +521,7 @@ class BitFieldHandler:
 
     def __init__(self, type_flag):
         fields = type_flag.data.get("fields")
+        self.field_cls = type_flag.type
 
         if fields is None:
             self.pack = self.variable_pack
@@ -576,7 +577,7 @@ class BitFieldHandler:
         field_bits, packer_size = self._packer.unpack_from(bytes_string, offset)
         offset += packer_size
 
-        field, field_size_bytes = BitField.from_bytes(field_bits, bytes_string, offset)
+        field, field_size_bytes = self.field_cls.from_bytes(field_bits, bytes_string, offset)
         return field, field_size_bytes + packer_size
 
     def variable_unpack_multiple(self, bytes_string, count, offset=0):
@@ -585,7 +586,7 @@ class BitFieldHandler:
         offset += length_size
         fields = []
         for length in lengths:
-            field, field_size = BitField.from_bytes(length, bytes_string, offset)
+            field, field_size = self.field_cls.from_bytes(length, bytes_string, offset)
             offset += field_size
             fields.append(field)
 
@@ -597,7 +598,7 @@ class BitFieldHandler:
 
     def variable_size(self, bytes_string):
         field_size, packed_size = self._packer.unpack_from(bytes_string)
-        return BitField.calculate_footprint(field_size) + packed_size
+        return self.field_cls.calculate_footprint(field_size) + packed_size
 
 
 # Define this before Struct

@@ -2,7 +2,7 @@ from .handlers import get_handler
 from .type_flag import TypeFlag
 from .serialiser import bits_to_bytes, next_or_equal_power_of_two
 
-__all__ = ["BitField"]
+__all__ = ["BitField", "NamedBitField"]
 
 USE_BITARRAY = False
 
@@ -67,8 +67,8 @@ else:
 
         """BitField data type which supports slicing operations"""
 
-        def __init__(self, size, value=0):
-            self._value = value
+        def __init__(self, size):
+            self._value = 0
 
             self.resize(size)
 
@@ -170,3 +170,44 @@ else:
         def to_bytes(self):
             """Represent bitfield as bytes"""
             return self._handler.pack(self._value)
+
+
+
+
+
+class NamedBitfieldMeta(type):
+
+    def __call__(cls, names):
+        for i, name in enumerate(names):
+            def get(self, i=i):
+                return self[b]
+
+            def set(self, value, i=i):
+                self[i] = value
+
+            prop = property(get, set)
+            setattr(cls, name, prop)
+
+        return super().__call__(len(names))
+
+
+class NamedBitField:
+
+    def __new__(cls, *names):
+
+        class BitField_(BitField):
+
+            def __init__(self):
+                super().__init__(len(names))
+
+        for i, name in enumerate(names):
+            def get(self, i=i):
+                return self[i]
+
+            def set(self, value, i=i):
+                self[i] = value
+
+            prop = property(get, set)
+            exec("BitField_.{} = prop".format(name), locals(), globals())
+
+        return BitField_
