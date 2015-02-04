@@ -174,11 +174,11 @@ class RPCInterfaceFactory:
                 if not isinstance(arg_value, lookup_type):
                     continue
 
-                data[arg_name] = getattr(cls, arg_value.name)
+                data[arg_name] = arg_value.evaluate(cls)
 
             # Allow types to be marked
             if isinstance(argument.type, lookup_type):
-                argument.type = getattr(cls, argument.type.name)
+                argument.type = argument.type.evaluate(cls)
 
         return serialiser_info
 

@@ -1,10 +1,8 @@
 from network.enums import Enumeration
 
 
-__all__ = ['PhysicsType', 'EvaluationState', 'CameraMode',
-           'MovementState', 'AIState', 'Axis', 'CollisionGroups',
-           'AnimationMode', 'AnimationBlend', 'CollisionState',
-           'InputEvents', 'AudioDistanceModel']
+__all__ = ['PhysicsType', 'EvaluationState', 'CameraMode', 'MovementState', 'AIState', 'Axis', 'CollisionGroups',
+           'AnimationMode', 'AnimationBlend', 'CollisionState', 'InputButtons', 'AudioDistanceModel', 'ButtonState']
 
 
 class PhysicsType(Enumeration):
@@ -54,8 +52,7 @@ class ListenerType(Enumeration):
     values = ("action_in", "action_out", "state")
 
 
-class InputEvents(Enumeration):
-
+class InputButtons(Enumeration):
     values = ('ACCENTGRAVEKEY', 'AKEY', 'BACKSLASHKEY', 'BACKSPACEKEY',
               'BKEY', 'CAPSLOCKKEY', 'CKEY', 'COMMAKEY', 'DELKEY',
               'DKEY', 'DOWNARROWKEY', 'EIGHTKEY', 'EKEY', 'ENDKEY',
@@ -79,6 +76,9 @@ class InputEvents(Enumeration):
               'XKEY', 'YKEY', 'ZEROKEY', 'ZKEY')
 
 
-class AudioDistanceModel(Enumeration):
+class ButtonState(Enumeration):
+    values = ('pressed', 'released', 'held')
 
+
+class AudioDistanceModel(Enumeration):
     values = ("linear",)

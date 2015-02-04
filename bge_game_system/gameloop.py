@@ -12,7 +12,7 @@ from game_system.timer import Timer
 from game_system.entities import Camera
 from game_system.inputs import InputManager, MouseManager
 
-from .inputs import convert_from_bge_event
+from .inputs import BGEInputManager
 from .physics import BGEPhysicsSystem
 
 from bge import types, logic
@@ -54,6 +54,8 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         # Create sub systems
         self.network_system = self.create_network()
         self.physics_system = BGEPhysicsSystem(self.physics_callback, self.scenegraph_callback)
+
+        self.input_manager = BGEInputManager()
 
         # Timing information
         self.current_time = 0.0
@@ -140,17 +142,12 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
 
-        # Convert events to InputEvents
-        events = set([convert_from_bge_event(e) for e in logic.keyboard.active_events])
-        events.update([convert_from_bge_event(e) for e in logic.mouse.active_events])
-
         # Update inputs
-        InputManager.update(events)
-        MouseManager.update(logic.mouse.position, logic.mouse.visible)
+        self.input_manager.update()
 
         # Update Player Controller inputs for client
         if WorldInfo.netmode != Netmodes.server:
-            PlayerInputSignal.invoke(delta_time)
+            PlayerInputSignal.invoke(delta_time, self.input_manager.state)
             self.update_graphs()
 
         # Update main logic (Replicable update)

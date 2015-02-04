@@ -112,8 +112,8 @@ class Packet:
     """
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
-    protocol_handler = get_handler(TypeFlag(int))
-    size_handler = get_handler(TypeFlag(int, max_value=1000))
+    _protocol_handler = get_handler(TypeFlag(int))
+    _size_handler = get_handler(TypeFlag(int, max_value=1000))
 
     def __init__(self, protocol=None, payload=b'', *, reliable=False,
                  on_success=None, on_failure=None):
@@ -159,8 +159,8 @@ class Packet:
 
         :rtype: bytes
         """
-        data = self.protocol_handler.pack(self.protocol) + self.payload
-        return self.size_handler.pack(len(data)) + data
+        data = self._protocol_handler.pack(self.protocol) + self.payload
+        return self._size_handler.pack(len(data)) + data
 
     @classmethod
     def from_bytes(cls, bytes_string):
@@ -181,8 +181,8 @@ class Packet:
         :param bytes_string: bytes stream
         :rtype: bytes
         """
-        length_handler = self.size_handler
-        protocol_handler = self.protocol_handler
+        length_handler = self._size_handler
+        protocol_handler = self._protocol_handler
 
         # Read packet length (excluding length character size)
         length, length_size = length_handler.unpack_from(bytes_string)

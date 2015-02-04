@@ -16,7 +16,7 @@ from .resources import ResourceManager
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
 
 
-class Entity:
+class ComponentEntity:
     """Base class for handling game engine specific system components"""
 
     component_tags = []
@@ -71,7 +71,7 @@ class Entity:
             except TypeError:
                 raise FileNotFoundError("Could not find definition file for {}".format(class_name))
 
-            full_path = ResourceManager.from_relative_path(definition)
+            full_path = ResourceManager.get_absolute_path(definition)
 
             definition_sections = ConfigObj(full_path)
             platform_definition = definition_sections[platform]
@@ -86,7 +86,7 @@ class Entity:
         self._component_result = component_result
 
 
-class Actor(Entity, Replicable):
+class Actor(ComponentEntity, Replicable):
     """Physics enabled network object"""
 
     component_tags = ("physics", "transform")
@@ -110,10 +110,6 @@ class Actor(Entity, Replicable):
     always_relevant = False
     replicate_physics_to_owner = False
     replicate_simulated_physics = True
-
-    @property
-    def resources(self):
-        return ResourceManager[self.__class__.__name__]
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -315,7 +311,7 @@ class Pawn(Actor):
         self.alive = self.health > 0
 
 
-class Particle(Entity, SignalListener):
+class Particle(ComponentEntity, SignalListener):
 
     component_tags = ("physics", "transform")
 

@@ -6,6 +6,7 @@ __all__ = ["BitField", "NamedBitField"]
 
 USE_BITARRAY = False
 
+
 if USE_BITARRAY:
     from bitarray import bitarray as array_field
 

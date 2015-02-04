@@ -1,10 +1,10 @@
 from .connection import Connection
 from .decorators import ignore_arguments
-from .enums import ConnectionStatus
 from .signals import SignalListener
 
 from collections import deque
-from socket import socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostbyname
+from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
+                    IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
 
 __all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMetrics']
@@ -107,28 +107,100 @@ class NetworkMetrics:
         self._delta_sent = self._delta_received = 0
 
 
+class MulticastDiscovery:
+    """Interface for multi-cast discovery"""
+
+    DEFAULT_HOST = ('224.0.0.0', 1201)
+
+    def __init__(self):
+        self._socket = None
+        self._host = None
+
+        self.on_reply = None
+
+        self.receive_buffer_size = 63553
+
+    @property
+    def is_listener(self):
+        return self._socket is not None
+
+    def enable_listener(self, multicast_host=None, time_to_live=1):
+        """Allow this network peer to receive multicast data
+
+        :param multicast_host: address, port of multicast group
+        """
+        if multicast_host is None:
+            multicast_host = self.DEFAULT_HOST
+
+        address, port = multicast_host
+        intf = gethostbyname(gethostname())
+
+        multicast_socket = NonBlockingSocketUDP("", port)
+
+        multicast_socket.setsockopt(SOL_IP, IP_MULTICAST_IF, inet_aton(intf))
+        multicast_socket.setsockopt(SOL_IP, IP_ADD_MEMBERSHIP,
+                                    inet_aton(address) + inet_aton(intf))
+        multicast_socket.setsockopt(SOL_IP, IP_MULTICAST_TTL, time_to_live)
+
+        self._host = multicast_host
+        self._socket = multicast_socket
+
+    def disable_listener(self):
+        """Stop this network peer from receiving multicast data"""
+        address, port = self._host
+        self._socket.setsockopt(SOL_IP, IP_DROP_MEMBERSHIP,
+                                inet_aton(address) + inet_aton('0.0.0.0'))
+
+        self._host = None
+        self._socket = None
+
+    def _on_reply(self, host):
+        if callable(self.on_reply):
+            self.on_reply(host)
+
+    def receive(self):
+        if not self.is_listener:
+            return
+
+        buff_size = self.receive_buffer_size
+
+        while True:
+
+            try:
+                data = self._socket.recvfrom(buff_size)
+
+            except SOCK_ERROR:
+                return
+
+            _, host = data
+            self._on_reply(host)
+
+
 class Network:
     """Network management class"""
 
     def __init__(self, address, port):
         self.metrics = NetworkMetrics()
         self.receive_buffer_size = 63553
-        self.socket = NonBlockingSocketUDP(address, port)
+        self._socket = NonBlockingSocketUDP(address, port)
 
         self.address = address
         self.port = port
+
+        self.multicast = MulticastDiscovery()
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
 
     @property
     def received_data(self):
+        """Return iterator over received data"""
         buff_size = self.receive_buffer_size
         on_received_bytes = self.metrics.on_received_bytes
 
         while True:
             try:
-                data = self.socket.recvfrom(buff_size)
+                data = self._socket.recvfrom(buff_size)
 
             except SOCK_ERROR:
                 return
@@ -167,6 +239,9 @@ class Network:
             # Dispatch data to connection
             connection.receive(data)
 
+        # Update multi-cast listeners
+        self.multicast.receive()
+
         # Apply any changes to the Connection interface
         Connection.update_graph()  # @UndefinedVariable
 
@@ -195,11 +270,24 @@ class Network:
         :param data: data to send
         :param address: address of remote peer
         """
-        data_length = self.socket.sendto(data, address)
+        data_length = self._socket.sendto(data, address)
 
         self.metrics.on_sent_bytes(data_length)
         return data_length
 
+    def ping_multicast(self, multicast_host=None):
+        """Send a ping to a multicast group
+
+        :param multicast_host: (address, port) of multicast group
+        """
+        if self.multicast.is_listener:
+            raise TypeError("Multicast listeners cannot send pings")
+
+        if multicast_host is None:
+            multicast_host = self.multicast.DEFAULT_HOST
+
+        self.send_to(b'', multicast_host)
+
     def stop(self):
         """Close network socket"""
-        self.socket.close()
+        self._socket.close()
