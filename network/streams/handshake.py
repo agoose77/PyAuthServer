@@ -132,8 +132,7 @@ class ServerHandshakeStream(HandshakeStream):
             ConnectionSuccessSignal.invoke(target=self)
 
             # Send result
-            return Packet(protocol=ConnectionProtocols.handshake_success,
-                          on_success=self.on_ack_handshake_success)
+            return Packet(protocol=ConnectionProtocols.handshake_success)
 
     @send_state(ConnectionState.pending)
     def invoke_handshake(self, network_tick, bandwidth):
