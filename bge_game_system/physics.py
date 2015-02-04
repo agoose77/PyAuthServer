@@ -28,53 +28,58 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
         self._update_scenegraph = update_scenegraph
 
     @CopyStateToActor.on_global
-    def copy_to_actor(self, state, actor):
+    def apply_state(self, state, actor):
         """Copy state information from source to target
 
-        :param source_state: State to copy from
-        :param target_state: State to copy to"""
+        :param state: Source state
+        :param actor: Actor to receive state
+        """
         actor.transform.world_position = state.position.copy()
         actor.physics.world_velocity = state.velocity.copy()
         actor.physics.world_angular = state.angular.copy()
         actor.transform.world_orientation = state.rotation.copy()
-        # actor.physics.collision_group = state.collision_group
-        # actor.physics.collision_mask = state.collision_mask
+        actor.physics.collision_group = state.collision_group
+        actor.physics.collision_mask = state.collision_mask
 
     @CopyActorToState.on_global
-    def copy_to_state(self, actor, state):
+    def dump_state(self, actor, state):
         """Copy state information from source to target
 
-        :param source_state: State to copy from
-        :param target_state: State to copy to
+        :param actor: Actor to provide state
+        :param state: Dumped state
         """
         state.position = actor.transform.world_position.copy()
         state.velocity = actor.physics.world_velocity.copy()
         state.angular = actor.physics.world_angular.copy()
         state.rotation = actor.transform.world_orientation.copy()
-        # state.collision_group = actor.physics.collision_group
-        # state.collision_mask = actor.physics.collision_mask
+        state.collision_group = actor.physics.collision_group
+        state.collision_mask = actor.physics.collision_mask
 
     @contextmanager
     def protect_exemptions(self, exemptions):
         """Suspend and restore state of exempted actors around an operation
 
-        :param exemptions: Iterable of exempt Actor instances"""
+        :param exemptions: Iterable of exempt Actor instances
+        """
         # Suspend exempted objects
         skip_updates = set()
         for actor in exemptions:
-            if actor.suspended:
-                skip_updates.add(actor)
+            physics = actor.physics
+            if physics.suspended:
+                skip_updates.add(physics)
                 continue
-            actor.suspended = True
+
+            physics.suspended = True
 
         yield
 
         # Restore scheduled objects
         for actor in exemptions:
-            if actor in skip_updates:
+            physics = actor.physics
+            if physics in skip_updates:
                 continue
 
-            actor.suspended = False
+            physics.suspended = False
 
     @PhysicsSingleUpdateSignal.on_global
     def update_for(self, delta_time, target):
@@ -83,15 +88,15 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
 
         :param delta_time: Time to progress simulation
         :param target: Actor instance to update state"""
-        if not target.physics in self._active_physics:
+        if target.physics.type not in self._active_physics:
             return
 
         # Make a list of actors which aren't us
-        other_actors = [a for a in WorldInfo.subclass_of(Actor)
-                        if a != target and a]
+        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a is not target] # warning: removed "and a" check here
 
         with self.protect_exemptions(other_actors):
             self._update_bullet(delta_time)
+
         self._update_scenegraph()
 
     @PhysicsTickSignal.on_global
@@ -109,11 +114,12 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
 
 @with_tag(Netmodes.server)
 class BGEServerPhysics(BGEPhysicsSystem):
+    """Handles server-side physics"""
 
     def save_network_states(self):
         """Saves Physics transformations to network variables"""
-        for replicable in WorldInfo.subclass_of(Actor):
-            replicable.copy_state_to_network()
+        for actor in WorldInfo.subclass_of(Actor):
+            actor.copy_state_to_network()
 
     @PhysicsTickSignal.on_global
     def update(self, delta_time):
@@ -129,6 +135,7 @@ class BGEServerPhysics(BGEPhysicsSystem):
 
 @with_tag(Netmodes.client)
 class BGEClientPhysics(BGEPhysicsSystem):
+    """Handles client side physics"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -175,4 +182,5 @@ class BGEClientPhysics(BGEPhysicsSystem):
         super().update(delta_time)
 
         self.extrapolate_network_states()
+
         UpdateCollidersSignal.invoke()
