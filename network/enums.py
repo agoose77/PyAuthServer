@@ -2,14 +2,14 @@ from contextlib import contextmanager
 
 from .metaclasses.enumeration import EnumerationMeta
 
-__all__ = ['Enumeration', 'ConnectionStatus', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
+__all__ = ['Enumeration', 'ConnectionState', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
 
 
 class Enumeration(metaclass=EnumerationMeta):
     pass
 
 
-class ConnectionStatus(Enumeration):
+class ConnectionState(Enumeration):
     """Status of connection to peer"""
     values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
 
@@ -20,7 +20,7 @@ class Netmodes(Enumeration):
 
 class ConnectionProtocols(Enumeration):
     values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
-             "replication_del",  "attribute_update", "method_invoke",
+             "replication_del",  "attribute_update", "invoke_method", "invoke_handshake"
 
 
 class IterableCompressionType(Enumeration):

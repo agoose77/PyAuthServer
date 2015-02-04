@@ -101,7 +101,7 @@ class StatusDispatcher(metaclass=TypeRegister):
     """Dispatches packets according to current state"""
 
     def __init__(self):
-        self.status = None
+        self.state = None
 
     @classmethod
     def register_subclass(cls):
@@ -118,7 +118,7 @@ class StatusDispatcher(metaclass=TypeRegister):
 
     def pull_packets(self, network_tick, bandwidth):
         try:
-            sender = self.__class__.senders[self.status]
+            sender = self.__class__.senders[self.state]
 
         except KeyError:
             return None

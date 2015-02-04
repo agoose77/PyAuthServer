@@ -3,7 +3,7 @@ from .replication import ReplicationStream
 
 from ..decorators import with_tag
 from ..errors import NetworkError
-from ..enums import ConnectionStatus, ConnectionProtocols, Netmodes
+from ..enums import ConnectionState, ConnectionProtocols, Netmodes
 from ..handlers import get_handler
 from ..logger import logger
 from ..packet import Packet
@@ -22,7 +22,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
     subclasses = {}
 
     def __init__(self, dispatcher):
-        self.status = ConnectionStatus.pending
+        self.state = ConnectionState.pending
 
         self.dispatcher = dispatcher
 
@@ -70,21 +70,14 @@ class ServerHandshakeStream(HandshakeStream):
         self.replication_stream = None
 
     def on_ack_handshake_failed(self, packet):
-        self.status = ConnectionStatus.failed
-
         if callable(self.remove_connection):
             self.remove_connection()
 
         ConnectionErrorSignal.invoke(target=self)
 
-    def on_ack_handshake_success(self, packet):
-        self.status = ConnectionStatus.connected
-
-        ConnectionSuccessSignal.invoke(target=self)
-
     @response_protocol(ConnectionProtocols.request_disconnect)
     def receive_disconnect_request(self, data):
-        self.status = ConnectionStatus.disconnected
+        self.state = ConnectionState.disconnected
 
         if self.replication_stream is None:
             return
@@ -98,7 +91,7 @@ class ServerHandshakeStream(HandshakeStream):
     @response_protocol(ConnectionProtocols.request_handshake)
     def receive_handshake_request(self, data):
         # Only if we're not already connected
-        if self.status != ConnectionStatus.pending:
+        if self.state != ConnectionState.pending:
             return
 
         netmode, netmode_size = self.netmode_packer.unpack_from(data)
@@ -113,11 +106,11 @@ class ServerHandshakeStream(HandshakeStream):
 
         else:
             self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
+            self.state = ConnectionState.handshake
 
-    @send_state(ConnectionStatus.pending)
+    @send_state(ConnectionState.handshake)
     def send_handshake_result(self, network_tick, bandwidth):
         connection_failed = self.handshake_error is not None
-        self.status = ConnectionStatus.handshake
 
         if connection_failed:
             pack_string = self.string_packer.pack
@@ -125,33 +118,60 @@ class ServerHandshakeStream(HandshakeStream):
             error_body = self._auth_error.args[0]
             error_data = pack_string(error_type + error_body)
 
+            # Set failed state
+            self.state = ConnectionState.failed
+            ConnectionErrorSignal.invoke(target=self)
+
+            # Send result
             return Packet(protocol=ConnectionProtocols.handshake_failed, payload=error_data,
                           on_success=self.on_ack_handshake_failed)
 
         else:
+            # Set success state
+            self.state = ConnectionState.connected
+            ConnectionSuccessSignal.invoke(target=self)
+
+            # Send result
             return Packet(protocol=ConnectionProtocols.handshake_success,
                           on_success=self.on_ack_handshake_success)
+
+    @send_state(ConnectionState.pending)
+    def invoke_handshake(self, network_tick, bandwidth):
+        """Invoke handshake attempt on client, used for multicasting
+
+        :param network_tick: is a full network tick
+        :param bandwidth: available bandwidth
+        """
+        return Packet(protocol=ConnectionProtocols.invoke_handshake)
 
 
 @with_tag(Netmodes.client)
 class ClientHandshakeStream(HandshakeStream):
 
-    @send_state(ConnectionStatus.pending)
+    @send_state(ConnectionState.pending)
     def send_handshake_request(self, network_tick, bandwidth):
-        self.status = ConnectionStatus.handshake
+        self.state = ConnectionState.handshake
 
         netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
         return Packet(protocol=ConnectionProtocols.request_handshake, payload=netmode_data)
 
     @response_protocol(ConnectionProtocols.handshake_success)
     def receive_handshake_success(self, data):
-        if self.status != ConnectionStatus.handshake:
+        if self.state != ConnectionState.handshake:
             return
 
-        self.status = ConnectionStatus.connected
+        self.state = ConnectionState.connected
         self.dispatcher.create_stream(ReplicationStream)
 
         ConnectionSuccessSignal.invoke(target=self)
+
+    @response_protocol(ConnectionProtocols.invoke_handshake)
+    def receive_multicast_ping(self, data):
+        # Can't connect to new servers when involved with another
+        if self.state != ConnectionState.pending:
+            return
+
+        self.state = ConnectionState.pending
 
     @response_protocol(ConnectionProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
@@ -163,6 +183,6 @@ class ClientHandshakeStream(HandshakeStream):
         raised_error = error_class(error_message)
 
         logger.error(raised_error)
-        self.status = ConnectionStatus.failed
+        self.state = ConnectionState.failed
 
         ConnectionErrorSignal.invoke(raised_error, target=self)
