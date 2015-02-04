@@ -29,7 +29,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
         self.connection_info = None
         self.remove_connection = None
 
-        self.timeout_duration = 3000.0
+        self.timeout_duration = 5
         self._last_received_time = clock()
 
         # Additional data
@@ -160,7 +160,7 @@ class ClientHandshakeStream(HandshakeStream):
             return
 
         self.state = ConnectionState.connected
-        self.dispatcher.create_stream(ReplicationStream)
+        self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
 
         ConnectionSuccessSignal.invoke(target=self)
 

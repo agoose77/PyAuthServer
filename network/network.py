@@ -129,6 +129,9 @@ class MulticastDiscovery:
 
         :param multicast_host: address, port of multicast group
         """
+        if self.is_listener:
+            return
+
         if multicast_host is None:
             multicast_host = self.DEFAULT_HOST
 
@@ -146,6 +149,9 @@ class MulticastDiscovery:
         self._socket = multicast_socket
 
     def disable_listener(self):
+        if not self.is_listener:
+            return
+
         """Stop this network peer from receiving multicast data"""
         address, port = self._host
         self._socket.setsockopt(SOL_IP, IP_DROP_MEMBERSHIP,
@@ -174,6 +180,9 @@ class MulticastDiscovery:
 
             _, host = data
             self._on_reply(host)
+
+    def stop(self):
+        self.disable_listener()
 
 
 class Network:
@@ -291,3 +300,5 @@ class Network:
     def stop(self):
         """Close network socket"""
         self._socket.close()
+
+        self.multicast.stop()

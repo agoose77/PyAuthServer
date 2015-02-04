@@ -319,6 +319,13 @@ class ClientReplicationStream(ReplicationStream):
 
         self.pending_notifications.clear()
 
+    def on_disconnected(self):
+        for replicable in WorldInfo.replicables:
+            if replicable.is_static:
+                continue
+
+            replicable.deregister()
+
     def pull_packets(self, network_tick, bandwidth):
         replicables = self.prioritised_channels
         self.send_method_calls(replicables, bandwidth)

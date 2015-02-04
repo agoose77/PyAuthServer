@@ -51,6 +51,10 @@ class Replicable(metaclass=ReplicableRegister):
                          allow_random_key=True, **kwargs)
 
     @property
+    def is_static(self):
+        return self._static
+
+    @property
     def uppermost(self):
         """Walks the successive owner of each Replicable to find highest parent
 
