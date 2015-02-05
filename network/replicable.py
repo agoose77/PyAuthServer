@@ -92,7 +92,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         # If we don't find one, make one
         except LookupError:
-            return cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
+            existing = None
 
         else:
             # If we find a locally defined replicable
@@ -100,9 +100,15 @@ class Replicable(metaclass=ReplicableRegister):
             # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
             if existing._local_authority:
                 # Make the class and overwrite the id
-                return cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
+                existing = None
 
-            return existing
+        if existing is None:
+            existing = cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
+            # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
+            roles = existing.roles
+            roles.local, roles.remote = roles.remote, roles.local
+
+        return existing
 
     @classmethod
     def get_id_iterable(cls):

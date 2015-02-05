@@ -273,8 +273,6 @@ class ClientReplicationStream(ReplicationStream):
         replicable_cls = Replicable.from_type_name(type_name)
         # Create replicable of same type
         replicable = replicable_cls.create_or_return(instance_id, register_immediately=True)
-        # Perform incomplete role switch when spawning (later set by server)
-        replicable.roles.local, replicable.roles.remote = replicable.roles.remote, replicable.roles.local
         # If replicable is parent (top owner)
         if is_connection_host:
             # Register as own replicable
