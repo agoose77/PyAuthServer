@@ -180,6 +180,7 @@ else:
 
 
 class NamedBitField:
+    """BitField class with support for named fields"""
 
     def __new__(cls, *names):
 
