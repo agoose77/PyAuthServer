@@ -5,7 +5,7 @@ from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
 
-from .ai.behaviour import Node
+from .ai.behaviour.behaviour import Node
 from .configobj import ConfigObj
 from .enums import InputButtons
 from .inputs import LocalInputContext, RemoteInputContext
@@ -14,8 +14,6 @@ from .signals import PlayerInputSignal
 
 
 __all__ = ['PawnController', 'PlayerPawnController', 'AIPawnController']
-
-TICK_FLAG = TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)
 
 
 class PawnController(Replicable):
@@ -67,25 +65,33 @@ class AIPawnController(PawnController):
         self.intelligence.evaluate(blackboard)
 
 
-class PlayerPawnController():
+class PlayerPawnController(PawnController):
     """Base class for player pawn controllers"""
 
     input_context = LocalInputContext(buttons=['shoot', 'flinch'])
     remote_input_context = RemoteInputContext(input_context)
+
+    def on_initialised(self):
+        if WorldInfo.netmode == Netmodes.client:
+            self.initialise_client()
+
+    @classmethod
+    def get_local_controller(cls):
+        """Return the local player controller instance, or None if not found"""
+        try:
+            return WorldInfo.subclass_of(PlayerPawnController)[0]
+        except IndexError:
+            return None
 
     def initialise_client(self):
         """Initialise client-specific player controller state"""
         resources = ResourceManager[self.__class__.__name__]
         file_path = ResourceManager.get_absolute_path(resources['input_map.conf'])
 
-        parser = ConfigObj(file_path)
+        parser = ConfigObj(file_path, interpolation="template")
         parser['DEFAULT'] = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
 
-        self.input_map = {name: int(binding) for name, binding in parser.items()}
-
-    def on_initialised(self):
-        if WorldInfo.netmode == Netmodes.client:
-            self.initialise_client()
+        self.input_map = {name: int(binding) for name, binding in parser.items()if isinstance(binding, str)}
 
     def server_handle_inputs(self, input_state: TypeFlag(FromClass("remote_input_context.state_struct_cls"))):
         """Handle remote client inputs
