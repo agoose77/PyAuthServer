@@ -5,8 +5,8 @@ from ...enums import EvaluationState
 from functools import wraps
 from random import shuffle
 
-__all__ = "LeafNode", "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", \
-          "RepeaterNode", "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalNode"
+__all__ = "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", \
+          "RepeaterNode", "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalNode", "Node"
 
 
 class StateManager(type):
@@ -62,11 +62,7 @@ class Node(metaclass=StateManager):
         pass
 
 
-class LeafNode(Node):
-    """Final (leaf) node in behaviour tree"""
-
-
-class CompositeNode(LeafNode):
+class CompositeNode(Node):
     """Base class for Behaviour tree nodes with children"""
 
     def __init__(self, *children):
@@ -101,6 +97,10 @@ class DecoratorNode(CompositeNode):
 
 
 class SequenceNode(CompositeNode):
+    """Evaluates children in sequential order.
+
+    If child fails to succeed, evaluation is considered a failure, otherwise a success
+    """
 
     def evaluate(self, blackboard):
         """Evaluates the node's (and its children's) state.
@@ -120,25 +120,29 @@ class SequenceNode(CompositeNode):
 
 
 class SelectorNode(CompositeNode):
+    """Evaluates children in sequential order.
+
+    If any child succeeds, evaluation is considered a success, else a failure.
+    """
 
     def evaluate(self, blackboard):
         """Evaluates the node's (and its children's) state.
 
-        :returns: the state of the first node to succeed or
+        Returns success if any node succeeds, else failure.
         """
         success = EvaluationState.success
 
-        state = success
         for child in self.children:
             state = child.evaluate(blackboard)
 
             if state == success:
-                break
+                return success
 
-        return state
+        return EvaluationState.failure
 
 
 class SucceederNode(DecoratorNode):
+    """Evaluates child node and returns a success"""
 
     def evaluate(self, blackboard):
         super().evaluate(blackboard)
@@ -146,7 +150,11 @@ class SucceederNode(DecoratorNode):
         return EvaluationState.success
 
 
-class RepeaterNode(DecoratorNode):
+class RepeaterNodeBase(DecoratorNode):
+    """Base class for repeating decorator nodes
+
+    Repeatedly evaluates child node according to implementation.
+    """
 
     def iterations(self):
         raise NotImplementedError("RepeaterNode is base class for repeaters")
@@ -161,7 +169,11 @@ class RepeaterNode(DecoratorNode):
         return state
 
 
-class RepeatUntilFailNode(RepeaterNode):
+class RepeatUntilFailNode(RepeaterNodeBase):
+    """Repeats evaluation of decorated node until failure.
+
+    Returns success state on completion.
+    """
 
     def iterations(self):
         success = EvaluationState.success
@@ -172,7 +184,11 @@ class RepeatUntilFailNode(RepeaterNode):
             yield success
 
 
-class RepeatForNode(RepeaterNode):
+class RepeatForNode(RepeaterNodeBase):
+    """Repeats evaluation of decorated node for N iterations
+
+    Returns state of child on completion.
+    """
 
     def __init__(self, count, child):
         super().__init__(child)
@@ -187,6 +203,10 @@ class RepeatForNode(RepeaterNode):
 
 
 class RandomiserNode(DecoratorNode):
+    """Decorates CompositeNode instance
+
+     Shuffles node's children before evaluation, returns state of node.
+     """
 
     def evaluate(self, blackboard):
         child = self.child
@@ -195,6 +215,10 @@ class RandomiserNode(DecoratorNode):
 
 
 class InverterNode(DecoratorNode):
+    """Inverts the state of evaluated node.
+
+    Does not invert running (as it has no counterpart).
+    """
 
     def evaluate(self, blackboard):
         state = self.child.evaluate(blackboard)
@@ -208,7 +232,8 @@ class InverterNode(DecoratorNode):
         return EvaluationState.running
 
 
-class SignalNode(LeafNode, SignalListener):
+class SignalListenerNode(Node, SignalListener):
+    """Returns success state if appropriate signal is received."""
 
     def __init__(self, signal_cls):
         super().__init__()
@@ -218,6 +243,16 @@ class SignalNode(LeafNode, SignalListener):
 
         signal_cls.subscribe(self, self._handle_signal)
         self.signal_cls = signal_cls
+
+    @property
+    def parent_identifier(self):
+        return self._parent_identifier
+
+    @parent_identifier.setter
+    def parent_identifier(self, identifier):
+        old_id, self._parent_identifier = self._parent_identifier, identifier
+
+        self.change_signal_handler(old_id, identifier)
 
     def _handle_signal(self):
         self._received_signal = True
@@ -234,15 +269,5 @@ class SignalNode(LeafNode, SignalListener):
     def evaluate(self, blackboard):
         return EvaluationState.success if self._received_signal else EvaluationState.failure
 
-    def on_exit(self):
+    def on_exit(self, blackboard):
         self._received_signal = False
-
-    @property
-    def parent_identifier(self):
-        return self._parent_identifier
-
-    @parent_identifier.setter
-    def parent_identifier(self, id_):
-        old_id, self._parent_identifier = self._parent_identifier, id_
-
-        self.change_signal_handler(old_id, id_)
