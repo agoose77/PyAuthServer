@@ -29,7 +29,8 @@ class LocalInputContext:
     def remap_state(self, input_manager, keymap):
         """Remap native state to mapped state
 
-        :param input_manager: native state """
+        :param input_manager: native state
+        """
         button_state = {}
         range_state = {}
 
