@@ -1,6 +1,5 @@
-from .descriptors import FromClass
 from .flag_serialiser import FlagSerialiser
-from .type_flag import TypeFlag
+from .type_flag import FromClass, TypeFlag
 from .logger import logger
 
 from collections import OrderedDict

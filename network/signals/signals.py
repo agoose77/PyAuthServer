@@ -1,6 +1,7 @@
 from collections import defaultdict
 from inspect import signature
 
+from ..logger import logger
 from ..decorators import signal_listener
 from ..metaclasses.register import TypeRegister
 
@@ -169,7 +170,13 @@ class Signal(metaclass=TypeRegister):
             signal_args['target'] = target
 
         signal_args.update(kwargs)
-        callback(*args, **signal_args)
+
+        try:
+            callback(*args, **signal_args)
+
+        except Exception:
+            logger.exception("Failed to invoke signal")
+
 
     @classmethod
     def invoke_targets(cls, target_dict, signal_cls, target, args, kwargs, addressee=None):
