@@ -77,7 +77,7 @@ class InputButtons(Enumeration):
 
 
 class ButtonState(Enumeration):
-    values = ('pressed', 'released', 'held')
+    values = ('pressed', 'released', 'held', 'none')
 
 
 class AudioDistanceModel(Enumeration):

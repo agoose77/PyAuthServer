@@ -56,6 +56,7 @@ class RemoteInputContext:
         state_count = len(ButtonState)
 
         state_bits = button_count * state_count
+        state_indices = {ButtonState.pressed: 0, ButtonState.held: 1, ButtonState.released: 2}
 
         class InputStateStruct(Struct):
             """Struct for packing client inputs"""
@@ -73,8 +74,11 @@ class RemoteInputContext:
                 button_names = local_context.buttons
                 for button_index, mapped_key in enumerate(button_names):
                     mapped_state = remapped_button_state[mapped_key]
-                    state_index = (button_count * mapped_state) + button_index
-                    button_state[state_index] = True
+
+                    if mapped_state in state_indices:
+                        state_index = state_indices[mapped_state]
+                        bitfield_index = (button_count * state_index) + button_index
+                        button_state[bitfield_index] = True
 
                 # Update ranges
                 range_state[:] = [remapped_range_state[key] for key in local_context.ranges]
@@ -84,8 +88,9 @@ class RemoteInputContext:
                 range_state = self._ranges
 
                 # Update buttons
-                button_states = {}
                 button_names = local_context.buttons
+                # If the button is omitted, assume not pressed
+                button_states = defaultdict(lambda: ButtonState.none)
 
                 for state_index, state in enumerate(button_state):
                     if not state:

@@ -90,8 +90,7 @@ class PlayerPawnController(PawnController):
 
         parser = ConfigObj(file_path, interpolation="template")
         parser['DEFAULT'] = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
-
-        self.input_map = {name: int(binding) for name, binding in parser.items()if isinstance(binding, str)}
+        self.input_map = {name: int(binding) for name, binding in parser.items() if isinstance(binding, str)}
 
     def server_handle_inputs(self, input_state: TypeFlag(FromClass("remote_input_context.state_struct_cls"))):
         """Handle remote client inputs

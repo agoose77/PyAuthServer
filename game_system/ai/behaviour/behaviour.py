@@ -5,8 +5,8 @@ from ...enums import EvaluationState
 from functools import wraps
 from random import shuffle
 
-__all__ = "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", \
-          "RepeaterNode", "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalNode", "Node"
+__all__ = "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", "RepeaterNodeBase",\
+          "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalListenerNode", "Node"
 
 
 class StateManager(type):
@@ -15,12 +15,10 @@ class StateManager(type):
     def __new__(metacls, name, bases, attrs):
         try:
             evaluate_function = attrs["evaluate"]
-        except KeyError:
-            pass
-
-        else:
             attrs["evaluate"] = metacls.evaluate_wrapper(evaluate_function)
-        return super().__new__(metacls, name, bases, attrs)
+
+        finally:
+            return super().__new__(metacls, name, bases, attrs)
 
     @staticmethod
     def evaluate_wrapper(func):

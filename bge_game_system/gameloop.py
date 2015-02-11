@@ -10,7 +10,6 @@ from network.world_info import WorldInfo
 from game_system.signals import *
 from game_system.timer import Timer
 from game_system.entities import Camera
-from game_system.inputs import InputManager, MouseManager
 
 from .inputs import BGEInputManager
 from .physics import BGEPhysicsSystem
@@ -30,9 +29,6 @@ RewindState = namedtuple("RewindState", "position rotation animations")
 #TODO implement raycast weapons
 #TODO rename non-actor signals to PawnSignal....
 
-
-class types:
-    KX_PythonLogicLoop = type("CLS", (), {})
 
 class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
@@ -123,7 +119,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         :param delta_time: time to progress simulation"""
         with self.profile_as(logic.KX_ENGINE_DEBUG_PHYSICS):
-            self.update_physics(self.current_time, delta_time, delta_time)
+            self.update_physics(self.current_time, delta_time)
 
     def update_graphs(self):
         """Update isolated resource graphs"""
@@ -186,9 +182,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         self.update_graphs()
 
-        # Set mouse position
-        logic.mouse.position = tuple(MouseManager.position)
-        logic.mouse.visible = MouseManager.visible
+        # # Set mouse position
+        # logic.mouse.position = tuple(MouseManager.position)
+        # logic.mouse.visible = MouseManager.visible
 
     def update_scene(self, scene, delta_time):
         self.profile = logic.KX_ENGINE_DEBUG_LOGIC
