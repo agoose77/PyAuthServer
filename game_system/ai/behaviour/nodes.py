@@ -2,12 +2,12 @@ from collections import deque
 
 from network.world_info import WorldInfo
 
-from .behaviour import LeafNode, EvaluationState
+from .behaviour import Node, EvaluationState
 from ...controllers import AIPawnController, PlayerPawnController
 from ...coordinates import Vector
 
 
-class GetNearestPlayerPawn(LeafNode):
+class GetNearestPlayerPawn(Node):
     """Find the nearest Player pawn to the current pawn"""
 
     def evaluate(self, blackboard):
@@ -26,7 +26,7 @@ class GetNearestPlayerPawn(LeafNode):
         return EvaluationState.success
 
 
-class GetNearestAIPawn(LeafNode):
+class GetNearestAIPawn(Node):
     """Find the nearest AI pawn to the current pawn"""
 
     def evaluate(self, blackboard):
@@ -45,7 +45,7 @@ class GetNearestAIPawn(LeafNode):
         return EvaluationState.success
 
 
-class TargetNearestPawn(LeafNode):
+class TargetNearestPawn(Node):
     """Establish nearest pawn as a target"""
 
     def evaluate(self, blackboard):
@@ -58,7 +58,7 @@ class TargetNearestPawn(LeafNode):
         return EvaluationState.success
 
 
-class MoveToTarget(LeafNode):
+class MoveToTarget(Node):
     """Move the current pawn to a target, following navigation mesh path"""
 
     def __init__(self, movement_speed):

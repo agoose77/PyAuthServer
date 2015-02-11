@@ -1,6 +1,20 @@
 __all__ = ["TypeFlag"]
 
 
+class FromClass:
+
+    def __init__(self, qual_name):
+        self._qual_name = qual_name
+
+    def evaluate(self, base):
+        parts = self._qual_name.split(".")
+
+        for part in parts:
+            base = getattr(base, part)
+
+        return base
+
+
 class TypeFlag:
     """Container for static type information.
 

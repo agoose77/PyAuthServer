@@ -1,7 +1,7 @@
-from network.descriptors import Attribute, FromClass
+from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from network.type_flag import TypeFlag
+from network.type_flag import FromClass, TypeFlag
 from network.world_info import WorldInfo
 
 
@@ -110,4 +110,4 @@ class PlayerPawnController(PawnController):
         packed_state = self.remote_input_context.state_struct_cls()
         packed_state.write(remapped_state)
 
-        return packed_state
+        self.server_handle_inputs(packed_state)

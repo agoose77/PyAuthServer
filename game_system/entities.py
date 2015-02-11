@@ -20,7 +20,7 @@ class ComponentEntity:
     """Base class for handling game engine specific system components"""
 
     component_tags = []
-    definition_name = "definition.cfg"
+    definition_name = "definition.conf"
 
     _definitions = {}
 
