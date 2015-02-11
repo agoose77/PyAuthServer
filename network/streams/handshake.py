@@ -26,6 +26,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
 
         self.dispatcher = dispatcher
 
+        self.replication_stream = None
         self.connection_info = None
         self.remove_connection = None
 
@@ -40,12 +41,17 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
     def timed_out(self):
         return (clock() - self._last_received_time) > self.timeout_duration
 
-    def on_timeout(self):
+    def _cleanup(self):
         if callable(self.remove_connection):
             self.remove_connection()
 
+        if self.replication_stream is not None:
+            self.replication_stream.on_disconnected()
+
+    def on_timeout(self):
+        self._cleanup()
+
         ConnectionTimeoutSignal.invoke(target=self)
-        self.replication_stream.on_disconnected()
 
     def handle_packets(self, packet_collection):
         super().handle_packets(packet_collection)
@@ -70,23 +76,15 @@ class ServerHandshakeStream(HandshakeStream):
         self.replication_stream = None
 
     def on_ack_handshake_failed(self, packet):
-        if callable(self.remove_connection):
-            self.remove_connection()
+        self._cleanup()
 
         ConnectionErrorSignal.invoke(target=self)
 
     @response_protocol(ConnectionProtocols.request_disconnect)
     def receive_disconnect_request(self, data):
+        self._cleanup()
+
         self.state = ConnectionState.disconnected
-
-        if self.replication_stream is None:
-            return
-
-        ConnectionDeletedSignal.invoke(target=self)
-        self.replication_stream.on_disconnected()
-
-        if callable(self.remove_connection):
-            self.remove_connection()
 
     @response_protocol(ConnectionProtocols.request_handshake)
     def receive_handshake_request(self, data):
