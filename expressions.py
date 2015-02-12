@@ -94,7 +94,7 @@ class AssignmentOperator(Operator):
 	returns_value = False
 	
 	def evaluate(self, variables, a, b):
-		b_value = b.evaluate(variables)
+		b_value = b.__call__(variables)
 		variables[a.value] = b_value  
 		return None
 
@@ -114,7 +114,7 @@ class UnaryModifier(Operator):
 	associativity = "right"
 	
 	def evaluate(self, variables, term):
-		return Constant(-term.evaluate(variables))
+		return Constant(-term.__call__(variables))
 
 
 ass_op = AssignmentOperator()
@@ -461,7 +461,7 @@ class RPNSolver:
 			elif isinstance(token, Term):
 				stack.append(token)
 
-		result = stack.pop().evaluate(variables)
+		result = stack.pop().__call__(variables)
 		assert not stack, "Invalid Stack operation occured"
 		return result
 

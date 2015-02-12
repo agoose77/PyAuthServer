@@ -91,15 +91,14 @@ class Actor(ComponentEntity, Replicable):
 
     component_tags = ("physics", "transform")
 
-    # Physics data
-    network_position = Attribute(type_of=Vector)
-    network_velocity = Attribute(type_of=Vector)
-    network_orientation = Attribute(type_of=Euler, notify=True)
-    network_angular = Attribute(type_of=Vector, notify=True)
-    network_collision_group = Attribute(type_of=int, notify=True)
-    network_collision_mask = Attribute(type_of=int, notify=True)
-    network_replication_time = Attribute(type_of=float, notify=True)
-
+    # Network data
+    network_position = Attribute(data_type=Vector)
+    network_velocity = Attribute(data_type=Vector)
+    network_orientation = Attribute(data_type=Euler, notify=True)
+    network_angular = Attribute(data_type=Vector, notify=True)
+    network_collision_group = Attribute(data_type=int, notify=True)
+    network_collision_mask = Attribute(data_type=int, notify=True)
+    network_replication_time = Attribute(data_type=float, notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
 
     # Replicated physics parameters
@@ -243,7 +242,7 @@ class Pawn(Actor):
     alive = Attribute(True, notify=True, complain=True)
     flash_count = Attribute(0)
     health = Attribute(100, notify=True, complain=True)
-    info = Attribute(type_of=Replicable, complain=True)
+    info = Attribute(data_type=Replicable, complain=True)
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy), notify=True)
     view_pitch = Attribute(0.0)
 

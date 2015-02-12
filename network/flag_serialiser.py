@@ -16,8 +16,8 @@ class FlagSerialiser:
 
     def __init__(self, arguments):
         """Accepts ordered dict as argument"""
-        self.bool_args = [(key, value) for key, value in arguments.items() if value.type is bool]
-        self.non_bool_args = [(key, value) for key, value in arguments.items() if value.type is not bool]
+        self.bool_args = [(key, value) for key, value in arguments.items() if value.data_type is bool]
+        self.non_bool_args = [(key, value) for key, value in arguments.items() if value.data_type is not bool]
         self.non_bool_handlers = [(key, get_handler(value)) for key, value in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
@@ -69,7 +69,7 @@ class FlagSerialiser:
             if not included:
                 continue
 
-            print("{} : {}".format(name, "None" if is_none else handler.type.__name__))
+            print("{} : {}".format(name, "None" if is_none else handler.data_type.__name__))
 
         print()
 

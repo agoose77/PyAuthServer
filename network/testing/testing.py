@@ -40,16 +40,18 @@ class SerialiserTest(unittest.TestCase):
     bool_bytes = b'\x01'
 
     def create_struct(self):
+
         class StructSample(Struct):
             x = Attribute(0.0)
             y = Attribute(0.0)
-            name = Attribute(type_of=str)
+            name = Attribute(data_type=str)
 
-        s = StructSample()
-        s.x = 3.0
-        s.y = 2.0
-        s.name = "TestStruct"
-        return s
+        test_struct = StructSample()
+        test_struct.x = 3.0
+        test_struct.y = 2.0
+        test_struct.name = "TestStruct"
+
+        return test_struct
 
     def test_get_struct(self):
         class StructSample(Struct):

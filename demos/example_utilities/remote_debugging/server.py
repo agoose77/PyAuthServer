@@ -1,4 +1,3 @@
-##NETWORK STUFF
 from network.enums import Netmodes
 from network.simple_network import respect_interval, SimpleNetwork
 from network.world_info import WorldInfo
@@ -23,13 +22,13 @@ class Rules:
 
 
 def application():
-	WorldInfo.netmode = Netmodes.server
-	WorldInfo.rules = Rules()
+    WorldInfo.netmode = Netmodes.server
+    WorldInfo.rules = Rules()
 
-	network = SimpleNetwork("", 1200)
-	update_network = respect_interval(1 / 60, network.step)
-	
-	RemoteTerminal.counter = 0
-	
-	while True:
-		update_network()
+    network = SimpleNetwork(port=1200)
+    update_network = respect_interval(1 / 60, network.step)
+
+    RemoteTerminal.counter = 0
+
+    while True:
+        update_network()

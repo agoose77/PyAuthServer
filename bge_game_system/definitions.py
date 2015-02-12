@@ -297,7 +297,7 @@ class BGETransformInterface(BGEComponent, SignalListener):
     def is_colliding_with(self, entity):
         """Determines if the entity is colliding with another entity
 
-        :param entity: entity to evaluate
+        :param entity: entity to __call__
         :returns: result of condition
         """
         return entity in self._dispatched_entities

@@ -70,6 +70,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         MapLoadedSignal.invoke()
 
         print("Network initialised")
+        self.__class__.quitA = self.quit
 
     @contextmanager
     def profile_as(self, context_profile):

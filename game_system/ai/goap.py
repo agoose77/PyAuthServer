@@ -205,7 +205,7 @@ class GOAPAIManager:
             self.plan = plan
 
         action = plan[0]
-        state = action.evaluate(blackboard)
+        state = action.__call__(blackboard)
 
         if state == EvaluationState.success:
             plan[:] = plan[1:]

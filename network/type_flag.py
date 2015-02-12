@@ -1,18 +1,23 @@
-__all__ = ["TypeFlag"]
+__all__ = ["Pointer", "TypeFlag"]
 
 
-class FromClass:
+class Pointer:
+    """Pointer to member of object"""
 
-    def __init__(self, qual_name):
-        self._qual_name = qual_name
+    def __init__(self, qualname):
+        self._qualname = qualname
 
-    def evaluate(self, base):
-        parts = self._qual_name.split(".")
+    def __call__(self, obj):
+        """Retrieve member from object
+
+        :param obj: object to traverse
+        """
+        parts = self._qualname.split(".")
 
         for part in parts:
-            base = getattr(base, part)
+            obj = getattr(obj, part)
 
-        return base
+        return obj
 
 
 class TypeFlag:
@@ -22,11 +27,11 @@ class TypeFlag:
 
     Pretty printable.
     """
-    __slots__ = ['type', 'data']
+    __slots__ = ['data_type', 'data']
 
-    def __init__(self, type, **kwargs):
-        self.type = type
+    def __init__(self, data_type, **kwargs):
+        self.data_type = data_type
         self.data = kwargs
 
     def __repr__(self):
-        return "<TypeFlag: type={}>".format(self.type)
+        return "<TypeFlag: type={}>".format(self.data_type)

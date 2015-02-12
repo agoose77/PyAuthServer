@@ -11,8 +11,8 @@ class RigidBodyState(Struct):
     angular = Attribute(Vector())
     rotation = Attribute(Euler())
 
-    collision_group = Attribute(type_of=int)
-    collision_mask = Attribute(type_of=int)
+    collision_group = Attribute(data_type=int)
+    collision_mask = Attribute(data_type=int)
 
     def lerp(self, other, factor):
         self.position += (other.position - self.position) * factor

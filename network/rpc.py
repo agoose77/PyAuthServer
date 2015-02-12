@@ -1,5 +1,5 @@
 from .flag_serialiser import FlagSerialiser
-from .type_flag import FromClass, TypeFlag
+from .type_flag import Pointer, TypeFlag
 from .logger import logger
 
 from collections import OrderedDict
@@ -99,7 +99,7 @@ class RPCInterfaceFactory:
         self.validate_function_definition(self._ordered_parameters, function)
 
         self.function = function
-        self.has_marked_parameters = self.check_for_marked_parameters(self._ordered_parameters)
+        self.has_marked_parameters = self.has_pointers(self._ordered_parameters)
 
     def __get__(self, instance, base):
         """Return the registered RPCInterface for the current class instance.
@@ -124,15 +124,15 @@ class RPCInterfaceFactory:
         return "<RPC Factory {}>".format(self.function.__qualname__)
 
     @staticmethod
-    def check_for_marked_parameters(ordered_parameters):
-        """Check for any FromClass instances in parameter data
+    def has_pointers(ordered_parameters):
+        """Check for any Pointer instances in parameter data
 
         :param ordered_parameters: OrderedDict of function call parameters
         """
-        lookup_type = FromClass
+        lookup_type = Pointer
 
         for argument in ordered_parameters.values():
-            if isinstance(argument.type, lookup_type):
+            if isinstance(argument.data_type, lookup_type):
                 return True
 
             for arg_value in argument.data.values():
@@ -163,7 +163,7 @@ class RPCInterfaceFactory:
         :param cls: class reference
         """
         serialiser_info = deepcopy(self._ordered_parameters)
-        lookup_type = FromClass
+        lookup_type = Pointer
 
         # Update with new values
         for argument in serialiser_info.values():
@@ -173,11 +173,11 @@ class RPCInterfaceFactory:
                 if not isinstance(arg_value, lookup_type):
                     continue
 
-                data[arg_name] = arg_value.evaluate(cls)
+                data[arg_name] = arg_value(cls)
 
             # Allow types to be marked
-            if isinstance(argument.type, lookup_type):
-                argument.type = argument.type.evaluate(cls)
+            if isinstance(argument.data_type, lookup_type):
+                argument.data_type = argument.data_type(cls)
 
         return serialiser_info
 

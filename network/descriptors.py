@@ -13,8 +13,8 @@ class Attribute(TypeFlag):
 
     __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
-    def __init__(self, value=None, type_of=None, notify=False, complain=False, **kwargs):
-        super().__init__(type_of or type(value), **kwargs)
+    def __init__(self, value=None, data_type=None, notify=False, complain=False, **kwargs):
+        super().__init__(data_type or type(value), **kwargs)
 
         self.notify = notify
         self.complain = complain
@@ -50,14 +50,14 @@ class Attribute(TypeFlag):
             storage_interface.complain(static_description(value))
 
         # Force type check
-        if value is not None and not isinstance(value, self.type):
+        if value is not None and not isinstance(value, self.data_type):
             raise TypeError("{}: Cannot set value to {} value" .format(self, value.__class__.__name__))
 
         # Store value
         storage_interface.set(value)
 
     def __repr__(self):
-        return "<Attribute {}: type={.__name__}>".format(self.name, self.type)
+        return "<Attribute {}: type={.__name__}>".format(self.name, self.data_type)
 
     def register(self, instance, storage_interface):
         """Registers attribute for instance"""

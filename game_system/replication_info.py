@@ -17,7 +17,7 @@ class ReplicationInfo(Replicable):
 
 class AIReplicationInfo(ReplicationInfo):
 
-    pawn = Attribute(type_of=Replicable, complain=True)
+    pawn = Attribute(data_type=Replicable, complain=True)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)

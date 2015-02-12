@@ -1,7 +1,7 @@
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from network.type_flag import FromClass, TypeFlag
+from network.type_flag import Pointer, TypeFlag
 from network.world_info import WorldInfo
 
 
@@ -20,8 +20,8 @@ class PawnController(Replicable):
     """Base class for Pawn controllers"""
 
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
-    pawn = Attribute(type_of=Replicable, complain=True, notify=True)
-    info = Attribute(type_of=Replicable, complain=True)
+    pawn = Attribute(data_type=Replicable, complain=True, notify=True)
+    info = Attribute(data_type=Replicable, complain=True)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
@@ -92,7 +92,7 @@ class PlayerPawnController(PawnController):
         parser['DEFAULT'] = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
         self.input_map = {name: int(binding) for name, binding in parser.items() if isinstance(binding, str)}
 
-    def server_handle_inputs(self, input_state: TypeFlag(FromClass("remote_input_context.state_struct_cls"))):
+    def server_handle_inputs(self, input_state: TypeFlag(Pointer("remote_input_context.state_struct_cls"))):
         """Handle remote client inputs
 
         :param input_state: state of inputs

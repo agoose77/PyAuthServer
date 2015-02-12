@@ -30,14 +30,14 @@ def run_interface(namespace):
 
 def application(peer_data=("localhost", 1200)):
     WorldInfo.netmode = Netmodes.client
-    network = SimpleNetwork("", 0)
+    network = SimpleNetwork()
 
     namespace = {}
 
-    network.on_initialised = lambda: print("CONN") or network.connect_to(peer_data)
     network.on_update = partial(run_interface, namespace)
+    network.connect_to(peer_data)
 
-    network.start()
+    network.run()
 
 if __name__ == "__main__":
     application()

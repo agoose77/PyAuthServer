@@ -36,7 +36,7 @@ def is_instance_method(cls, name):
 def is_reliable(func):
     """Determines if a function is replicated reliably
 
-    :param func: function to evaluate
+    :param func: function to __call__
     :returns: result of condition
     """
     return func.__annotations__.get("reliable", False)
@@ -45,7 +45,7 @@ def is_reliable(func):
 def is_simulated(func):
     """Determine if a function is marked as simulated
 
-    :param func: function to evaluate
+    :param func: function to __call__
     :returns: result of condition
     """
     return func.__annotations__.get("simulated", False)
@@ -54,7 +54,7 @@ def is_simulated(func):
 def is_signal_listener(func):
     """Determine if a function is a signal on_context
 
-    :param func: function to evaluate
+    :param func: function to __call__
     :returns: result of condition
     """
     return "signals" in func.__annotations__

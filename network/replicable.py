@@ -19,7 +19,7 @@ class Replicable(metaclass=ReplicableRegister):
     _by_types = defaultdict(list)
 
     roles = Attribute(Roles(Roles.authority, Roles.none), notify=True)
-    owner = Attribute(type_of=None, complain=True, notify=True)
+    owner = Attribute(complain=True, notify=True)
     torn_off = Attribute(False, complain=True, notify=True)
 
     # Dictionary of class-owned instances
@@ -224,4 +224,4 @@ class Replicable(metaclass=ReplicableRegister):
 
 
 # Circular Reference on attribute
-Replicable.owner.type = Replicable
+Replicable.owner.data_type = Replicable

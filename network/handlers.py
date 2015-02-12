@@ -73,7 +73,7 @@ def get_handler(type_flag):
     :returns: handler object
     """
 
-    value_type = type_flag.type
+    value_type = type_flag.data_type
 
     try:
         handler, is_callable = handlers[value_type]

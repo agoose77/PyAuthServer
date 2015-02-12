@@ -14,8 +14,8 @@ class StateManager(type):
 
     def __new__(metacls, name, bases, attrs):
         try:
-            evaluate_function = attrs["evaluate"]
-            attrs["evaluate"] = metacls.evaluate_wrapper(evaluate_function)
+            evaluate_function = attrs["__call__"]
+            attrs["__call__"] = metacls.evaluate_wrapper(evaluate_function)
 
         finally:
             return super().__new__(metacls, name, bases, attrs)
@@ -24,7 +24,7 @@ class StateManager(type):
     def evaluate_wrapper(func):
         """Wrap function in setter
 
-        :param func: function to evaluate node state
+        :param func: function to __call__ node state
         """
         @wraps(func)
         def wrapper(self, blackboard):
@@ -91,7 +91,7 @@ class DecoratorNode(CompositeNode):
 
     def evaluate(self, blackboard):
         child = self.child
-        return child.evaluate(blackboard)
+        return child.__call__(blackboard)
 
 
 class SequenceNode(CompositeNode):
@@ -109,7 +109,7 @@ class SequenceNode(CompositeNode):
 
         state = success
         for child in self.children:
-            state = child.evaluate(blackboard)
+            state = child.__call__(blackboard)
 
             if state != success:
                 break
@@ -131,7 +131,7 @@ class SelectorNode(CompositeNode):
         success = EvaluationState.success
 
         for child in self.children:
-            state = child.evaluate(blackboard)
+            state = child.__call__(blackboard)
 
             if state == success:
                 return success
@@ -160,7 +160,7 @@ class RepeaterNodeBase(DecoratorNode):
     def evaluate(self, blackboard):
         state = EvaluationState.success
 
-        evaluate = self.child.evaluate
+        evaluate = self.child.__call__
         for state in self.iterations():
             evaluate(blackboard)
 
@@ -209,7 +209,7 @@ class RandomiserNode(DecoratorNode):
     def evaluate(self, blackboard):
         child = self.child
         shuffle(child.children)
-        return child.evaluate(blackboard)
+        return child.__call__(blackboard)
 
 
 class InverterNode(DecoratorNode):
@@ -219,7 +219,7 @@ class InverterNode(DecoratorNode):
     """
 
     def evaluate(self, blackboard):
-        state = self.child.evaluate(blackboard)
+        state = self.child.__call__(blackboard)
 
         if state == EvaluationState.failure:
             return EvaluationState.failure

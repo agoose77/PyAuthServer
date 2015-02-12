@@ -115,7 +115,7 @@ class IterableHandler:
         int_flag = TypeFlag(int)
         variable_bitfield_flag = TypeFlag(BitField)
 
-        self.element_type = element_flag.type
+        self.element_type = element_flag.data_type
         self.element_packer = get_handler(element_flag)
         self.count_packer = get_handler(int_flag)
         self.bitfield_packer = get_handler(variable_bitfield_flag)
@@ -476,7 +476,7 @@ class ReplicableBaseHandler:
 class StructHandler:
 
     def __init__(self, static_value):
-        self.struct_cls = static_value.type
+        self.struct_cls = static_value.data_type
 
         if self.struct_cls is Struct:
             print("Warning: A Handler has been requested for a Struct type, cannot populate deserialised members")
@@ -521,7 +521,7 @@ class BitFieldHandler:
 
     def __init__(self, type_flag):
         fields = type_flag.data.get("fields")
-        self.field_cls = type_flag.type
+        self.field_cls = type_flag.data_type
 
         if fields is None:
             self.pack = self.variable_pack
