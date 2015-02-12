@@ -15,6 +15,6 @@ class AttributeMeta(type):
         attributes = AttributeStorageContainer.get_member_instances(cls)
         ordered_attributes = AttributeStorageContainer.get_ordered_members(attributes)
         factory_callback = partial(AttributeStorageContainer, mapping=attributes, ordered_mapping=ordered_attributes)
-        cls._attribute_container = DescriptorFactory(factory_callback)
 
+        cls._attribute_container = DescriptorFactory(factory_callback)
         return cls
