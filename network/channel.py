@@ -110,8 +110,6 @@ class ClientChannel(Channel):
 
         :param bytes\_: byte stream of attribute
         """
-        replicable = self.replicable
-
         # Create local references outside loop
         replicable_data = self.attribute_storage.data
         get_attribute = self.attribute_storage.get_member_by_name
@@ -120,6 +118,7 @@ class ClientChannel(Channel):
 
         for attribute_name, value in self.serialiser.unpack(bytes_string, replicable_data, offset=offset):
             attribute = get_attribute(attribute_name)
+
             # Store new value
             replicable_data[attribute] = value
 
@@ -156,8 +155,7 @@ class ServerChannel(Channel):
     def awaiting_replication(self):
         """Return True if the channel is due to replicate its state"""
         interval = (clock() - self.last_replication_time)
-        return ((interval >= self.replicable.replication_update_period)
-                or self.is_initial)
+        return (interval >= self.replicable.replication_update_period) or self.is_initial
 
     def get_attributes(self, is_owner):
         """Return the serialised state of the managed network object"""
@@ -175,9 +173,7 @@ class ServerChannel(Channel):
             is_complaining = previous_complaints != complaint_hashes
 
             # Get names of Replicable attributes
-            can_replicate = replicable.conditions(is_owner,
-                                                  is_complaining,
-                                                  self.is_initial)
+            can_replicate = replicable.conditions(is_owner, is_complaining, self.is_initial)
 
             get_description = static_description
             get_attribute = self.attribute_storage.get_member_by_name
@@ -217,7 +213,7 @@ class ServerChannel(Channel):
             self.last_replication_time = clock()
             self.is_initial = False
 
-            # Outputting bytes asserts we have data
+            # An output of bytes asserts we have data
             if to_serialise:
                 # Returns packed data
                 data = self.serialiser.pack(to_serialise)
