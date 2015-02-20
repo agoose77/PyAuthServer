@@ -31,6 +31,8 @@ class Resource:
         elif name in self.files:
             return path.join(self.relative_path, name)
 
+        raise FileNotFoundError("No resource called '{}' exists in the directory '{}'".format(name, self.relative_path))
+
     def __repr__(self):
         return "Resource: {}".format(self.relative_path)
 
