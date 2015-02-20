@@ -20,7 +20,7 @@ class ComponentEntity:
     """Base class for handling game engine specific system components"""
 
     component_tags = []
-    definition_name = "definition.conf"
+    definition_name = "definition.cfg"
 
     _definitions = {}
 
@@ -162,14 +162,8 @@ class Actor(ComponentEntity, Replicable):
         elif name == "network_angular":
             self.physics.world_angular = self.network_angular
 
-        elif name == "network_orientation":
-            current_rotation = self.transform.world_orientation.to_quaternion()
-            new_rotation = self.network_orientation.to_quaternion()
-            self.transform.world_orientation = current_rotation.slerp(new_rotation, 0.3)
-
         elif name == "network_replication_time":
-            PhysicsReplicatedSignal.invoke(self.network_replication_time, self.network_position, self.network_velocity,
-                                           target=self)
+            PhysicsReplicatedSignal.invoke(self.network_replication_time, target=self)
 
         else:
             super().on_notify(name)
