@@ -4,12 +4,12 @@ from network.replicable import Replicable
 from network.type_flag import Pointer, TypeFlag
 from network.world_info import WorldInfo
 
-
 from .ai.behaviour.behaviour import Node
 from .configobj import ConfigObj
 from .enums import InputButtons
 from .inputs import LocalInputContext, RemoteInputContext
 from .resources import ResourceManager
+from .replication_info import PlayerReplicationInfo
 from .signals import PlayerInputSignal
 
 
@@ -68,29 +68,43 @@ class AIPawnController(PawnController):
 class PlayerPawnController(PawnController):
     """Base class for player pawn controllers"""
 
-    input_context = LocalInputContext(buttons=['shoot', 'flinch'])
+    input_context = LocalInputContext()
     remote_input_context = RemoteInputContext(input_context)
 
-    def on_initialised(self):
-        if WorldInfo.netmode == Netmodes.client:
-            self.initialise_client()
+    info = Attribute(data_type=Replicable)
+
+    info_cls = PlayerReplicationInfo
 
     @classmethod
     def get_local_controller(cls):
         """Return the local player controller instance, or None if not found"""
         try:
             return WorldInfo.subclass_of(PlayerPawnController)[0]
+
         except IndexError:
             return None
+
+    def on_initialised(self):
+        """Initialisation method"""
+        if WorldInfo.netmode == Netmodes.client:
+            self.initialise_client()
+
+        else:
+            self.initialise_server()
 
     def initialise_client(self):
         """Initialise client-specific player controller state"""
         resources = ResourceManager[self.__class__.__name__]
-        file_path = ResourceManager.get_absolute_path(resources['input_map.conf'])
+
+        file_path = ResourceManager.get_absolute_path(resources['input_map.cfg'])
 
         parser = ConfigObj(file_path, interpolation="template")
         parser['DEFAULT'] = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
         self.input_map = {name: int(binding) for name, binding in parser.items() if isinstance(binding, str)}
+
+    def initialise_server(self):
+        """Initialise server-specific player controller state"""
+        self.info = self.__class__.info_cls()
 
     def server_handle_inputs(self, input_state: TypeFlag(Pointer("remote_input_context.state_struct_cls"))):
         """Handle remote client inputs

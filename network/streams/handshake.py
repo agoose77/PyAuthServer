@@ -39,6 +39,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
 
     @property
     def timed_out(self):
+        """If this stream has not received anything for an interval greater or equal to the timeout duration"""
         return (clock() - self._last_received_time) > self.timeout_duration
 
     def _cleanup(self):
@@ -50,6 +51,7 @@ class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
 
     def on_timeout(self):
         self._cleanup()
+        print("TIMED OUT")
 
         ConnectionTimeoutSignal.invoke(target=self)
 
