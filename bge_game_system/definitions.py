@@ -24,6 +24,7 @@ CollisionContact = namedtuple("CollisionContact", "position normal impulse force
 
 
 class BGESocket:
+    """Attachment socket interface"""
 
     def __init__(self, name, parent, obj):
         self.name = name
@@ -33,15 +34,23 @@ class BGESocket:
 
 
 class BGEComponent(FindByTag):
+    """Base class for BGE component"""
+
     subclasses = {}
 
     def destroy(self):
+        """Destroy component"""
         pass
 
 # TODO use enums here
 
 @with_tag("physics")
 class BGEPhysicsInterface(BGEComponent):
+
+    # Deprecation warnings
+    logger.warning("BGE PhysicsType is not exposed to the PyAPI, defaulting to dynamic collision")
+    logger.warning("BGE collision groups are not exposed to the PyAPI")
+    logger.warning("BGE collision masks are not exposed to the PyAPI")
 
     def __init__(self, config_section, entity, obj):
         self._game_object = obj
@@ -53,13 +62,11 @@ class BGEPhysicsInterface(BGEComponent):
         self._dispatched_entities = set()
 
         # Physics type
-        logger.warning("BGE PhysicsType is not exposed to the PyAPI, defaulting to dynamic collision")
         self._physics_type = PhysicsType.dynamic
 
-        # Collisions
-        self.has_dynamics = self._physics_type not in (PhysicsType.navigation_mesh, PhysicsType.no_collision)
+        self._has_physics_controller = obj.getPhysicsId() != 0
 
-        if self.has_dynamics:
+        if self._has_physics_controller:
             obj.collisionCallbacks.append(self._on_collision)
 
         # Used for raycast lookups
@@ -67,6 +74,10 @@ class BGEPhysicsInterface(BGEComponent):
 
     @staticmethod
     def entity_from_object(obj):
+        """Returns entity from BGE object
+
+        :param obj: KX_GameObject instance
+        """
         try:
             component = obj["physics_component"]
 
@@ -77,21 +88,19 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def collision_group(self):
-        logger.warning("BGE collision groups are not exposed to the PyAPI")
         return 0
 
     @collision_group.setter
     def collision_group(self, group):
-        logger.warning("BGE collision groups are not exposed to the PyAPI")
+        pass
 
     @property
     def collision_mask(self):
-        logger.warning("BGE collision masks are not exposed to the PyAPI")
         return 0
 
     @collision_mask.setter
     def collision_mask(self, mask):
-        logger.warning("BGE colliison masks are not exposed to the PyAPI")
+        pass
 
     @property
     def type(self):
@@ -103,28 +112,28 @@ class BGEPhysicsInterface(BGEComponent):
 
     @property
     def world_velocity(self):
-        if not self.has_dynamics:
+        if not self._has_physics_controller:
             return Vector()
 
         return self._game_object.worldLinearVelocity
 
     @world_velocity.setter
     def world_velocity(self, velocity):
-        if not self.has_dynamics:
+        if not self._has_physics_controller:
             return
 
         self._game_object.worldLinearVelocity = velocity
 
     @property
     def world_angular(self):
-        if not self.has_dynamics:
+        if not self._has_physics_controller:
             return Vector()
 
         return self._game_object.worldLinearVelocity
 
     @world_angular.setter
     def world_angular(self, velocity):
-        if not self.has_dynamics:
+        if not self._has_physics_controller:
             return
 
         self._game_object.worldAngularVelocity = velocity
@@ -141,11 +150,11 @@ class BGEPhysicsInterface(BGEComponent):
             source = self._game_object.worldPosition
 
         result = self._game_object.rayCast(target, source, distance)
-
-        if not any(result):
-            return None
-
         hit_bge_object, hit_position, hit_normal = result
+
+        if not hit_bge_object:
+            return
+
         hit_entity = self.entity_from_object(hit_bge_object)
         hit_distance = (hit_position - source).length
 
@@ -155,7 +164,7 @@ class BGEPhysicsInterface(BGEComponent):
     def _convert_contacts(contacts):
         return [CollisionContact(c.hitPosition, c.hitNormal, c.hitImpulse, c.hitForce) for c in contacts]
 
-    def _on_collision(self, other, data):
+    def _on_collision(self, other, data=None):
         self._new_collisions.add(other)
 
         if other in self._dispatched:
@@ -168,7 +177,13 @@ class BGEPhysicsInterface(BGEComponent):
         if hit_entity:
             self._dispatched_entities.add(hit_entity)
 
-        hit_contacts = self._convert_contacts(data)
+        # Support trunk blender
+        if data is None:
+            hit_contacts = []
+
+        else:
+            hit_contacts = self._convert_contacts(data)
+
         result = CollisionResult(hit_entity, CollisionState.started, hit_contacts)
 
         CollisionSignal.invoke(result, target=self._entity)
