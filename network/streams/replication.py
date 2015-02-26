@@ -35,6 +35,8 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
         self.method_queue = []
 
+        self.load_existing_replicables()
+
         # Call this last to ensure we intercept registration callbacks at the correct time
         self.register_signals()
         Signal.update_graph()
@@ -85,10 +87,12 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
         :param target: replicable that was registered
         """
-        if not target.registered:
-            return
-
         self.channels[target.instance_id] = Channel(self, target)
+
+    def load_existing_replicables(self):
+        """Load existing registered replicables"""
+        for replicable in Replicable:
+            self.notify_registered(replicable)
 
     def send_method_calls(self, replicables, available_bandwidth):
         """Creates a packet collection of replicated function calls

@@ -355,7 +355,7 @@ class SignalValue:
         return wrapper
 
 
-class ReplicableRegisteredSignal(CachedSignal):
+class ReplicableRegisteredSignal(Signal):
     pass
 
 

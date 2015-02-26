@@ -168,6 +168,7 @@ class Replicable(metaclass=ReplicableRegister):
         Registers instance to type list
         """
         super().on_registered()
+
         self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 
@@ -176,9 +177,9 @@ class Replicable(metaclass=ReplicableRegister):
 
         Removes instance from type list
         """
-        self.unpossessed()
-
         super().on_unregistered()
+
+        self.unpossessed()
 
         self.__class__._by_types[type(self)].remove(self)
         ReplicableUnregisteredSignal.invoke(target=self)
