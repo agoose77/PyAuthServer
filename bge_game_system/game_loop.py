@@ -10,6 +10,7 @@ from network.world_info import WorldInfo
 from game_system.signals import *
 from game_system.timer import Timer
 from game_system.entities import Camera
+from game_system.game_loop import FixedTimeStepManager, OnExitUpdate
 
 from .inputs import BGEInputManager
 from .physics import BGEPhysicsSystem
@@ -22,7 +23,7 @@ __all__ = ['GameLoop', 'Server', 'Client', 'RewindState']
 
 RewindState = namedtuple("RewindState", "position rotation animations")
 
-#TODO profile server to determine why slow
+#TODO profile_category server to determine why slow
 #TODO consider other means of sending past moves
 #TODO Move away from un handled exceptions in protected (no-return) code
 #TODO implement client-side extrapolation
@@ -30,11 +31,13 @@ RewindState = namedtuple("RewindState", "position rotation animations")
 #TODO rename non-actor signals to PawnSignal....
 
 
-class GameLoop(types.KX_PythonLogicLoop, SignalListener):
+class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
 
-    render = True
+    allow_update_display = True
 
     def __init__(self):
+        super().__init__()
+
         self.register_signals()
 
         WorldInfo.tick_rate = int(logic.getLogicTicRate())
@@ -54,23 +57,23 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.input_manager = BGEInputManager()
 
         # Timing information
-        self.current_time = 0.0
         self.last_sent_time = 0
+        self.current_time = 0
+
         self.network_tick_rate = 25
         self.metric_interval = 0.10
 
         # Profile information
         self._state = None
 
-        self.profile = logic.KX_ENGINE_DEBUG_SERVICES
-        self.can_quit = SignalValue(self.check_quit())
+        self.profile_category = logic.KX_ENGINE_DEBUG_SERVICES
+        self.pending_exit = False
 
         # Load world
         Signal.update_graph()
         MapLoadedSignal.invoke()
 
         print("Network initialised")
-        self.__class__.quitA = self.quit
 
     @contextmanager
     def profile_as(self, context_profile):
@@ -78,18 +81,23 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
 
         :param context_profile: profile for this context
         """
-        self._state, self.profile = self.profile, context_profile
+        self._state, self.profile_category = self.profile_category, context_profile
 
         yield self._state
 
-        self.profile = self._state
+        self.profile_category = self._state
 
     @property
-    def profile(self):
+    def profile_category(self):
+        """Return current profile category"""
         return self._profile
 
-    @profile.setter
-    def profile(self, value):
+    @profile_category.setter
+    def profile_category(self, value):
+        """Set current profile category
+
+        :param value: new profile category
+        """
         self.start_profile(value)
 
         self._profile = value
@@ -128,15 +136,14 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             Replicable.update_graph()
             Signal.update_graph()
 
-    def update(self, delta_time):
-        self.update_graphs()
-
-        self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
+    def update_network_scene(self, delta_time):
+        self.profile_category = logic.KX_ENGINE_DEBUG_MESSAGES
         self.network_system.receive()
+
         self.update_graphs()
 
         # Update Timers
-        self.profile = logic.KX_ENGINE_DEBUG_LOGIC
+        self.profile_category = logic.KX_ENGINE_DEBUG_LOGIC
         TimerUpdateSignal.invoke(delta_time)
 
         # Update inputs
@@ -152,8 +159,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.update_graphs()
 
         # Update Physics, which also handles Scene-graph
-        self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
+        self.profile_category = logic.KX_ENGINE_DEBUG_PHYSICS
         PhysicsTickSignal.invoke(delta_time)
+
         self.update_graphs()
 
         # Clean up following Physics update
@@ -161,11 +169,11 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.update_graphs()
 
         # Update Animation system
-        self.profile = logic.KX_ENGINE_DEBUG_ANIMATIONS
+        self.profile_category = logic.KX_ENGINE_DEBUG_ANIMATIONS
         self.update_animations(self.current_time)
 
         # Transmit new state to remote peer
-        self.profile = logic.KX_ENGINE_DEBUG_MESSAGES
+        self.profile_category = logic.KX_ENGINE_DEBUG_MESSAGES
         is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
 
         if is_full_update:
@@ -178,7 +186,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
             network_metrics.reset_sample_window()
 
         # Update UI
-        self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
+        self.profile_category = logic.KX_ENGINE_DEBUG_RASTERIZER
         UIUpdateSignal.invoke(delta_time)
 
         self.update_graphs()
@@ -188,79 +196,61 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         # logic.mouse.visible = MouseManager.visible
 
     def update_scene(self, scene, delta_time):
-        self.profile = logic.KX_ENGINE_DEBUG_LOGIC
+        self.profile_category = logic.KX_ENGINE_DEBUG_LOGIC
         self.update_logic_bricks(self.current_time)
 
-        if scene == self.network_scene:
-            self.update(delta_time)
+        if scene is self.network_scene:
+            self.update_network_scene(delta_time)
 
         else:
-            self.profile = logic.KX_ENGINE_DEBUG_PHYSICS
+            self.profile_category = logic.KX_ENGINE_DEBUG_PHYSICS
             self.update_physics(self.current_time, delta_time)
 
-            self.profile = logic.KX_ENGINE_DEBUG_SCENEGRAPH
+            self.profile_category = logic.KX_ENGINE_DEBUG_SCENEGRAPH
             self.update_scenegraph(self.current_time)
 
-    def quit(self):
-        self.can_quit.value = True
+    def invoke_exit(self):
+        self.pending_exit = True
 
-    def dispatch(self):
-        accumulator = 0.0
-        last_time = self.get_time()
-        # TODO determine where logic spikes originate from
+    def on_step(self, delta_time):
+        self.profile_category = logic.KX_ENGINE_DEBUG_SERVICES
+        self.update_blender()
 
-        # Fixed time-step
-        while not self.can_quit.value:
-            current_time = self.get_time()
+        # If an exit is requested
+        if self.check_quit():
+            self.invoke_exit()
 
-            # Determine delta time
-            step_time = 1 / WorldInfo.tick_rate
-            delta_time = current_time - last_time
-            last_time = current_time
+        # If we are pending an exit
+        if self.pending_exit:
+            raise OnExitUpdate()
 
-            # Set upper bound
-            if delta_time > 0.25:
-                delta_time = 0.25
+        # Handle this outside of usual update
+        WorldInfo.update_clock(delta_time)
 
-            accumulator += delta_time
+        # Update all scenes
+        for scene in logic.getSceneList():
+            self.set_current_scene(scene)
 
-            # Whilst we have enough time in the buffer
-            while accumulator >= step_time:
+            self.update_scene(scene, delta_time)
 
-                # Update IO events from Blender
-                self.profile = logic.KX_ENGINE_DEBUG_SERVICES
-                self.update_blender()
+        # End of frame updates
+        self.profile_category = logic.KX_ENGINE_DEBUG_SERVICES
 
-                if self.check_quit():
-                    self.quit()
+        self.update_keyboard()
+        self.update_mouse()
+        self.update_scenes()
 
-                # Handle this outside of usual update
-                WorldInfo.update_clock(step_time)
+        if self.allow_update_display and self.use_tick_rate:
+            self.profile_category = logic.KX_ENGINE_DEBUG_RASTERIZER
+            self.update_render()
 
-                # Update all scenes
-                for scene in logic.getSceneList():
-                    self.set_current_scene(scene)
+        self.current_time += delta_time
 
-                    self.update_scene(scene, step_time)
-
-                # End of frame updates
-                self.profile = logic.KX_ENGINE_DEBUG_SERVICES
-
-                self.update_keyboard()
-                self.update_mouse()
-                self.update_scenes()
-
-                if self.use_tick_rate and self.render:
-                    self.update_render()
-
-                self.current_time += step_time
-                accumulator -= step_time
-
-            if not self.use_tick_rate and self.render:
-                self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
-                self.update_render()
-
-            self.profile = logic.KX_ENGINE_DEBUG_OUTSIDE
+    def on_update(self, delta_time):
+        # Render as often as possible
+        if self.allow_update_display and not self.use_tick_rate:
+            self.profile = logic.KX_ENGINE_DEBUG_RASTERIZER
+            self.update_render()
 
     def clean_up(self):
         GameExitSignal.invoke()
@@ -271,18 +261,13 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener):
         self.__init__()
 
         try:
-            self.dispatch()
-
-        except Exception:
-            raise
+            self.delegate()
 
         finally:
             self.clean_up()
 
 
 class Server(GameLoop):
-
-    render = True
 
     @staticmethod
     def create_network():
@@ -291,13 +276,15 @@ class Server(GameLoop):
 
 class Client(GameLoop):
 
-    def quit(self):
+    graceful_exit_time_out = 0.6
+
+    def invoke_exit(self):
         """Gracefully quit server"""
-        quit_func = super().quit
+        quit_func = super().invoke_exit()
         # Try and quit gracefully
         DisconnectSignal.invoke(quit_func)
-        # Else abort
-        timeout = Timer(0.6)
+        # But include a time out
+        timeout = Timer(self.graceful_exit_time_out)
         timeout.on_target = quit_func
 
     @staticmethod
