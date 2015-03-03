@@ -170,13 +170,15 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
     @PhysicsReplicatedSignal.on_global
     def on_physics_replicated(self, timestamp, target):
-        extrapolator = self._extrapolators[target]
-
         position = target.network_position
         velocity = target.network_velocity
-        current_position = target.transform.world_position
 
-        extrapolator.add_sample(timestamp, WorldInfo.elapsed, current_position, position, velocity)
+        exists = target in self._extrapolators
+        extrapolator = self._extrapolators[target]
+        if not exists:
+            extrapolator.reset(timestamp, WorldInfo.elapsed, position, velocity)
+
+        extrapolator.add_sample(timestamp, WorldInfo.elapsed, position, velocity, target.transform.world_position)
 
     @ReplicableUnregisteredSignal.on_global
     def on_replicable_unregistered(self, target):
