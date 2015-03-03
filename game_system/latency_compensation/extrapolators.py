@@ -12,16 +12,18 @@ class EPICExtrapolator:
 
     def __init__(self):
         self._update_time = 0.0
+
         self._last_timestamp = 0.0
         self._snap_timestamp = 0.0
         self._target_timestamp = 0.0
 
         self._snap_value = self.VALUE_TYPE()
         self._target_value = self.VALUE_TYPE()
-        self._snap_derivative = self.VALUE_TYPE()
         self._last_value = self.VALUE_TYPE()
 
-    def add_sample(self, timestamp, current_time, current_value, new_value, new_derivative=None):
+        self._snap_derivative = self.VALUE_TYPE()
+
+    def add_sample(self, timestamp, current_time, new_value, new_derivative=None, c=1):
         """Add new sample to the extrapolator
 
         :param timestamp: timestamp of new sample
@@ -44,7 +46,7 @@ class EPICExtrapolator:
         self._last_value = new_value
         self._last_timestamp = timestamp
 
-        self._snap_value = copy(current_value)
+        self._snap_value = self.sample_at(current_time)[0]
         self._snap_timestamp = current_time
 
         self._target_timestamp = current_time + self._update_time
@@ -79,7 +81,7 @@ class EPICExtrapolator:
 
         :param request_time: timestamp of sample
         """
-        max_timestamp = self._target_timestamp + self._update_time
+        max_timestamp = self._target_timestamp
 
         valid = True
         if request_time < self._snap_timestamp:
@@ -126,7 +128,8 @@ class EPICExtrapolator:
             self._update_time = (self._update_time + update_time) * 0.5
 
         else:
-            self._update_time = (self._update_time * 7 + update_time) * 0.125
+            n = 8
+            self._update_time = (self._update_time * (n - 1) + update_time) * (1 / n)
 
 
 class PhysicsExtrapolator(EPICExtrapolator):
