@@ -499,7 +499,9 @@ class BGEComponentLoader(ComponentLoader):
         for component in loader_result.components.values():
             component.destroy()
 
-        loader_result.game_object.endObject()
+        game_object = loader_result.game_object
+        if not game_object.invalid:
+            game_object.endObject()
 
 
 class BGEComponentLoaderResult(ComponentLoaderResult):
