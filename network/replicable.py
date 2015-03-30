@@ -104,9 +104,10 @@ class Replicable(metaclass=ReplicableRegister):
 
         if existing is None:
             existing = cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
-            # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
-            roles = existing.roles
-            roles.local, roles.remote = roles.remote, roles.local
+
+        # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
+        roles = existing.roles
+        roles.local, roles.remote = roles.remote, roles.local
 
         return existing
 

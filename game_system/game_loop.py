@@ -61,6 +61,9 @@ class FixedTimeStepManager:
 
             self.on_update(delta_time)
 
+    def cleanup(self):
+        pass
+
     def delegate(self):
         """Start blocking execute of update functions at discrete time-step"""
         self._running = True
@@ -72,4 +75,8 @@ class FixedTimeStepManager:
             pass
         
         finally:
-            self._running = False
+            try:
+                self.cleanup()
+
+            finally:
+                self._running = False

@@ -477,6 +477,7 @@ class BGENavmeshInterface(BGEComponent):
 
 @with_tag("BGE")
 class BGEComponentLoader(ComponentLoader):
+    scene = None
 
     def __init__(self, *component_tags):
         self.component_tags = component_tags
@@ -484,14 +485,30 @@ class BGEComponentLoader(ComponentLoader):
 
     @classmethod
     def create_object(cls, config_parser):
-        scene = logic.getCurrentScene()
+        scene = cls.scene
 
         object_name = config_parser['object_name']
-        assert object_name in scene.objectsInactive, (object_name, scene.objectsInactive)
+        assert object_name in scene.objectsInactive, \
+            "As a non-static actor, object must be in hidden layer"
+
         return scene.addObject(object_name, object_name)
 
+    @classmethod
+    def find_object(cls, config_parser):
+        scene = cls.scene
+        object_name = config_parser['object_name']
+        assert object_name in scene.objects, "Unable to resolve object for static network object"
+        return scene.objects[object_name]
+
+    @classmethod
+    def find_or_create_object(cls, entity, config_parser):
+        if entity.is_static:
+            return cls.find_object(config_parser)
+
+        return cls.create_object(config_parser)
+
     def load(self, entity, config_parser):
-        obj = self.create_object(config_parser)
+        obj = self.find_or_create_object(entity, config_parser)
         components = self._load_components(config_parser, entity, obj)
         return BGEComponentLoaderResult(components, obj)
 
