@@ -491,7 +491,13 @@ class BGEComponentLoader(ComponentLoader):
         assert object_name in scene.objectsInactive, \
             "As a non-static actor, object must be in hidden layer"
 
-        return scene.addObject(object_name, object_name)
+        spawn_obj = scene.objects[0]
+        inverse_transform = spawn_obj.worldTransform.inverted()
+
+        obj = scene.addObject(object_name, spawn_obj)
+        obj.worldTransform = inverse_transform * obj.worldTransform
+
+        return obj
 
     @classmethod
     def find_object(cls, config_parser):
