@@ -34,6 +34,9 @@ class PawnController(Replicable):
         if name == "pawn":
             self.possess(self.pawn)
 
+    def on_unregistered(self):
+        self.pawn.deregister()
+
     def possess(self, pawn):
         """Take control of pawn
 
