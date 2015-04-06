@@ -488,13 +488,16 @@ class BGEComponentLoader(ComponentLoader):
         scene = cls.scene
 
         object_name = config_parser['object_name']
-        assert object_name in scene.objectsInactive, \
-            "As a non-static actor, object must be in hidden layer"
+        try:
+            spawn_obj = scene.objectsInactive[object_name]
 
-        spawn_obj = scene.objects[0]
-        inverse_transform = spawn_obj.worldTransform.inverted()
+        except KeyError:
+            raise RuntimeError("As a non-static actor, object must be in hidden layer")
 
-        obj = scene.addObject(object_name, spawn_obj)
+        transform_obj = scene.objects[0]
+        inverse_transform = transform_obj.worldTransform.inverted()
+
+        obj = scene.addObject(spawn_obj, transform_obj)
         obj.worldTransform = inverse_transform * obj.worldTransform
 
         return obj
