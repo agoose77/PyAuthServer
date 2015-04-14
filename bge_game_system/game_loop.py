@@ -28,9 +28,56 @@ RewindState = namedtuple("RewindState", "position rotation animations")
 #TODO Move away from un handled exceptions in protected (no-return) code
 #TODO implement client-side extrapolation
 #TODO implement raycast weapons
-#TODO rename non-actor signals to PawnSignal....
+#TODO rename non-actor s
+
+class FAKE_KX_PythonLogicLoop:
 
 
+    def start_profile(self, p):
+        pass
+
+    def update_scenes(self):
+        pass
+
+    def update_animations(self, t):
+        pass
+
+    def check_quit(self):
+        return logic.getExitKey() in logic.keyboard.active_events
+
+    def update_physics(self,*a, **k):
+        pass
+
+    def update_scenegraph(self, t):
+        pass
+
+    def update_blender(self):
+        pass
+
+    def update_logic_bricks(self, t):
+        logic.NextFrame()
+
+    def update_render(self):
+        pass
+
+    def update_mouse(self):
+        pass
+
+    def update_keyboard(self):
+        pass
+
+    def set_current_scene(self, s):
+        pass
+
+logic.KX_ENGINE_DEBUG_ANIMATIONS = 0
+logic.KX_ENGINE_DEBUG_LOGIC = 1
+logic.KX_ENGINE_DEBUG_MESSAGES = 2
+logic.KX_ENGINE_DEBUG_PHYSICS = 3
+logic.KX_ENGINE_DEBUG_RASTERIZER = 4
+logic.KX_ENGINE_DEBUG_SCENEGRAPH = 5
+logic.KX_ENGINE_DEBUG_SERVICES = 6
+
+types.KX_PythonLogicLoop = FAKE_KX_PythonLogicLoop
 class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
 
     allow_update_display = True
@@ -43,9 +90,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
         # Copy BGE data
-        self.use_tick_rate = logic.getUseFrameRate()
-        self.animation_rate = logic.getAnimationTicRate()
-        self.use_animation_rate = logic.getRestrictAnimationUpdates()
+        self.use_tick_rate = True#logic.getUseFrameRate()
+        self.animation_rate = 24#logic.getAnimationTicRate()
+        self.use_animation_rate = True#logic.getRestrictAnimationUpdates()
 
         self.network_scene = next(iter(logic.getSceneList()))
         self.network_scene.post_draw = [self.render_callback]

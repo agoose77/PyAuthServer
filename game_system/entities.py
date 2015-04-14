@@ -93,9 +93,9 @@ class Actor(ComponentEntity, Replicable):
 
     # Network data
     network_position = Attribute(data_type=Vector)
-    network_velocity = Attribute(data_type=Vector)
+    network_velocity = Attribute(Vector())
     network_orientation = Attribute(data_type=Euler, notify=True)
-    network_angular = Attribute(data_type=Vector, notify=True)
+    network_angular = Attribute(Vector(), notify=True)
     network_collision_group = Attribute(data_type=int, notify=True)
     network_collision_mask = Attribute(data_type=int, notify=True)
     network_replication_time = Attribute(data_type=float, notify=True)
@@ -132,11 +132,12 @@ class Actor(ComponentEntity, Replicable):
     def copy_state_to_network(self):
         """Copies Physics State to network attributes"""
         self.network_position = self.transform.world_position.copy()
+        print(self.network_position, WorldInfo.elapsed)
         self.network_orientation = self.transform.world_orientation.copy()
-        self.network_angular = self.physics.world_angular.copy()
-        self.network_velocity = self.physics.world_velocity.copy()
-        self.network_collision_group = self.physics.collision_group
-        self.network_collision_mask = self.physics.collision_mask
+       # self.network_angular = self.physics.world_angular.copy()
+        #self.network_velocity = self.physics.world_velocity.copy()
+        #self.network_collision_group = self.physics.collision_group
+        #self.network_collision_mask = self.physics.collision_mask
         self.network_replication_time = WorldInfo.elapsed
 
     def on_initialised(self):
@@ -163,6 +164,7 @@ class Actor(ComponentEntity, Replicable):
             self.physics.world_angular = self.network_angular
 
         elif name == "network_replication_time":
+            print(self.network_position)
             PhysicsReplicatedSignal.invoke(self.network_replication_time, target=self)
 
         else:

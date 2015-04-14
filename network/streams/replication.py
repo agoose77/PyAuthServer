@@ -184,7 +184,7 @@ class ServerReplicationStream(ReplicationStream):
 
             # Only send attributes if relevant
             if not (channel.awaiting_replication and (is_and_relevant_to_owner or
-                                                          is_relevant(connection_replicable, replicable))):
+                                                      is_relevant(connection_replicable, replicable))):
                 continue
 
             # If we've never replicated to this channel

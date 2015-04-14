@@ -10,7 +10,6 @@ __all__ = ['BGEInputManager', 'BGEMouseManager']
 
 
 bge_events = {k: v for k, v in getmembers(events) if k.isupper()}
-b2 = {v: k for k, v in bge_events.items()}
 
 
 class BGEInputManager:

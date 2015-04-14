@@ -17,7 +17,7 @@ class FixedTimeStepManager:
     
     def __init__(self):
         self._running = False
-        
+
         self._accumulator = 0.0
         self._last_time = None
     
