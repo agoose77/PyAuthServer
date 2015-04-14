@@ -47,7 +47,7 @@ class BGEInputManager:
         self.state.ranges['mouse_delta_x'] = delta_x
         self.state.ranges['mouse_delta_y'] = delta_y
 
-        x, y = self.mouse_manager.delta_position
+        x, y = self.mouse_manager.position
         self.state.ranges['mouse_x'] = x
         self.state.ranges['mouse_y'] = y
 
