@@ -132,7 +132,6 @@ class Actor(ComponentEntity, Replicable):
     def copy_state_to_network(self):
         """Copies Physics State to network attributes"""
         self.network_position = self.transform.world_position.copy()
-        print(self.network_position, WorldInfo.elapsed)
         self.network_orientation = self.transform.world_orientation.copy()
        # self.network_angular = self.physics.world_angular.copy()
         #self.network_velocity = self.physics.world_velocity.copy()
