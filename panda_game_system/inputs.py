@@ -79,18 +79,14 @@ class PandaMouseManager:
 
     def __init__(self):
         self.position = Vector((0.0, 0.0))
-        self._last_position = Vector()
+        self._last_position = Vector((0.0, 0.0))
 
     @property
     def delta_position(self):
         return self.position - self._last_position
 
     def update(self):
-        """Process new mouse state
-
-        :param position: new mouse position
-        :param visible: new mouse visibility state
-        """
+        """Process new mouse state"""
         mouse_node = base.mouseWatcherNode
 
         if mouse_node.hasMouse():
