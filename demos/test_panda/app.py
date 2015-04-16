@@ -13,6 +13,12 @@ from game_system.entities import Actor
 from game_system.replication_info import ReplicationInfo
 
 
+from panda3d.core import loadPrcFileData
+
+#loadPrcFileData('', 'bullet-filter-algorithm callback')
+loadPrcFileData('', 'bullet-enable-contact-events true')
+
+
 class Rules(ReplicationRulesBase):
 
     def pre_initialise(self, addr, netmode):
@@ -22,7 +28,6 @@ class Rules(ReplicationRulesBase):
         replicable.deregister()
 
     def post_initialise(self, replication_stream):
-        print("CON")
         cont = PlayerPawnController(register_immediately=True)
         cont.possess(TestActor())
         return cont
@@ -55,6 +60,12 @@ def run(mode):
         WorldInfo.netmode = Netmodes.client
 
     game_loop = cls()
+
     TestActor()
+
+    b = TestActor(register_immediately=True)
+    b.transform.world_position = [0, 30, -1]
+    b.physics._node.set_mass(0.0)
+
     game_loop.delegate()
     del game_loop

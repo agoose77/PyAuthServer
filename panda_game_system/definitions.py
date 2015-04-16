@@ -10,6 +10,8 @@ from game_system.animation import Animation
 from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
+from game_system.level_manager import LevelManager
+from game_system.physics import CollisionResult, CollisionContact
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 from game_system.resources import ResourceManager
 
@@ -18,7 +20,6 @@ from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.core import Filename, Vec3
 from os import path
-from functools import partial
 
 
 class PandaParentableBase:
@@ -65,9 +66,43 @@ class PandaPhysicsInterface(PandaComponent):
         for node in self._registered_nodes:
             RegisterPhysicsNode.invoke(node)
 
+        self._level_manager = LevelManager()
+        self._level_manager.on_enter = self._on_enter_collision
+        self._level_manager.on_exit = self._on_exit_collision
+
+        # Setup callbacks
+        self._nodepath.set_python_tag("on_contact_added", self._level_manager.add)
+        self._nodepath.set_python_tag("on_contact_removed", self._level_manager.remove)
+        self._nodepath.set_python_tag("physics_component", self)
+        self._node.notify_collisions(True)
+
+    @staticmethod
+    def entity_from_nodepath(nodepath):
+        if not nodepath.has_python_tag("physics_component"):
+            return None
+
+        component = nodepath.get_python_tag("physics_component")
+        return component._entity
+
+    def _on_enter_collision(self, other):
+        hit_entity = self.entity_from_nodepath(other)
+
+        result = CollisionResult(hit_entity, CollisionState.started, None)
+        CollisionSignal.invoke(result, target=self._entity)
+
+    def _on_exit_collision(self, other):
+        hit_entity = self.entity_from_nodepath(other)
+
+        result = CollisionResult(hit_entity, CollisionState.ended, None)
+        CollisionSignal.invoke(result, target=self._entity)
+
     def destroy(self):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
+
+    @property
+    def is_colliding(self):
+        return bool(self._level_manager)
 
     @property
     def world_linear_velocity(self):

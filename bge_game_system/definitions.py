@@ -11,16 +11,12 @@ from game_system.animation import Animation
 from game_system.coordinates import Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
+from game_system.physics import CollisionContact, CollisionResult, RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
 from functools import partial
 
 from .geometry.mesh.navmesh import BGENavmesh
-
-
-RayTestResult = namedtuple("RayTestResult", "position normal entity distance")
-CollisionResult = namedtuple("CollisionResult", "entity state contacts")
-CollisionContact = namedtuple("CollisionContact", "position normal impulse force")
 
 
 class BGEParentableBase:
