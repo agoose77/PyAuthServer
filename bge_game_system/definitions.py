@@ -23,15 +23,21 @@ CollisionResult = namedtuple("CollisionResult", "entity state contacts")
 CollisionContact = namedtuple("CollisionContact", "position normal impulse force")
 
 
-class BGESocket:
+class BGEParentableBase:
+
+    def __init__(self, game_object):
+        self._game_object = game_object
+        self.children = set()
+
+
+class BGESocket(BGEParentableBase):
     """Attachment socket interface"""
 
     def __init__(self, name, parent, obj):
-        self.name = name
-        self.children = set()
+        super().__init__(obj)
 
+        self.name = name
         self._parent = parent
-        self._game_object = obj
 
 
 class BGEComponent(FindByTag):
@@ -228,14 +234,14 @@ class BGEPhysicsInterface(BGEComponent):
 
 
 @with_tag("transform")
-class BGETransformInterface(BGEComponent, SignalListener):
+class BGETransformInterface(BGEComponent, SignalListener, BGEParentableBase):
     """Physics implementation for BGE entity"""
 
     def __init__(self, config_section, entity, obj):
-        self._game_object = obj
+        super().__init__(obj)
+
         self._entity = entity
 
-        self.children = set()
         self.sockets = self.create_sockets(self._game_object)
         self._parent = None
 
@@ -256,10 +262,10 @@ class BGETransformInterface(BGEComponent, SignalListener):
         if parent is None:
             return
 
-        if not hasattr(parent, "_obj"):
+        if not isinstance(parent, BGEParentableBase):
             raise TypeError("Invalid parent type {}".format(parent.__class__.__name__))
 
-        self._game_object.setParent(parent._obj)
+        self._game_object.setParent(parent._game_object)
         parent.children.add(self._entity)
         self._parent = parent
 
