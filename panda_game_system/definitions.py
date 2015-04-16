@@ -21,6 +21,23 @@ from os import path
 from functools import partial
 
 
+class PandaParentableBase:
+
+    def __init__(self, nodepath):
+        self._nodepath = nodepath
+        self.children = set()
+
+
+class PandaSocket(PandaParentableBase):
+    """Attachment socket interface"""
+
+    def __init__(self, name, parent, nodepath):
+        super().__init__(nodepath)
+
+        self.name = name
+        self._parent = parent
+
+
 class PandaComponent(FindByTag):
     """Base class for Panda component"""
 
@@ -38,14 +55,13 @@ class PandaPhysicsInterface(PandaComponent):
         self._nodepath = nodepath
         self._entity = entity
         self._node = self._nodepath.node()
-        self._nodepath.ls()
 
         # Set transform relationship
         self._registered_nodes = list(nodepath.find_all_matches("**/+BulletRigidBodyNode"))
 
         if isinstance(self._node, BulletRigidBodyNode):
             self._registered_nodes.append(self._node)
-        print("INIT")
+
         for node in self._registered_nodes:
             RegisterPhysicsNode.invoke(node)
 
@@ -67,9 +83,8 @@ class PandaPhysicsInterface(PandaComponent):
 
     @world_angular_velocity.setter
     def world_angular_velocity(self, angular):
-        self._node.setAngularVelocity(*angular)
+        self._node.setAngularVelocity(tuple(angular))
 
-    # TODO is this right? OR should we just apply inverse transform?
     @property
     def local_linear_velocity(self):
         parent = self._nodepath.getParent()
@@ -90,7 +105,7 @@ class PandaPhysicsInterface(PandaComponent):
         rotation = parent.getQuat()
         rotation.xform(velocity_)
 
-        self._node.setLinearVelocity((velocity_))
+        self._node.setLinearVelocity(velocity_)
 
     @property
     def local_angular_velocity(self):
@@ -116,17 +131,51 @@ class PandaPhysicsInterface(PandaComponent):
 
 
 @with_tag("transform")
-class PandaTransformInterface(PandaComponent, SignalListener):
+class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBase):
     """Transform implementation for Panda entity"""
 
-    def __init__(self, config_section, entity, obj):
-        self._nodepath = obj
+    def __init__(self, config_section, entity, nodepath):
+        super().__init__(nodepath)
+
         self._entity = entity
 
-        self.parent = None
-        self.children = set()
+        self.sockets = self.create_sockets(nodepath)
+        self._parent = None
 
         self.register_signals()
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @parent.setter
+    def parent(self, parent):
+        current_parent = self._parent
+        if parent is current_parent:
+            return
+
+        current_parent.children.remove(self._nodepath)
+
+        if parent is None:
+            self._nodepath.wrtReparentTo(base.render)
+            return
+
+        if not isinstance(parent, PandaParentableBase):
+            raise TypeError("Invalid parent type {}".format(parent.__class__.__name__))
+
+        self._game_object.wrtReparentTo(parent._nodepath)
+
+        parent.children.add(self._nodepath)
+        self._parent = parent
+
+    def create_sockets(self, nodepath):
+        sockets = set()
+        for child_nodepath in nodepath.find_all_matches("**/=socket"):
+            socket_name = child_nodepath.get_python_tag("socket")
+            socket = PandaSocket(socket_name, self, nodepath)
+            sockets.add(socket)
+
+        return sockets
 
     @property
     def world_position(self):
@@ -145,6 +194,20 @@ class PandaTransformInterface(PandaComponent, SignalListener):
     def world_orientation(self, orientation):
         p, r, h = orientation
         self._nodepath.setHpr(base.render, h, p, r)
+
+    def get_direction_vector(self, axis):
+        """Get the axis vector of this object in world space
+
+        :param axis: :py:class:`game_system.enums.Axis` value
+        :rtype: :py:class:`game_system.coordinates.Vector`
+        """
+        direction = Vec3(0, 0, 0)
+        direction[axis] = 1
+
+        rotation = self._nodepath.getQuat()
+        rotation.xform(direction)
+
+        return Vector(direction)
 
 
 @with_tag("Panda")
