@@ -28,9 +28,10 @@ class BGESocket:
 
     def __init__(self, name, parent, obj):
         self.name = name
+        self.children = set()
+
         self._parent = parent
         self._game_object = obj
-        self.children = set()
 
 
 class BGEComponent(FindByTag):
@@ -213,6 +214,18 @@ class BGEPhysicsInterface(BGEComponent):
                 result = CollisionResult(hit_entity, ended_collision, None)
                 callback(result, target=entity)
 
+    @property
+    def is_colliding(self):
+        return bool(self._dispatched)
+
+    def is_colliding_with(self, entity):
+        """Determines if the entity is colliding with another entity
+
+        :param entity: entity to __call__
+        :returns: result of condition
+        """
+        return entity in self._dispatched_entities
+
 
 @with_tag("transform")
 class BGETransformInterface(BGEComponent, SignalListener):
@@ -222,9 +235,9 @@ class BGETransformInterface(BGEComponent, SignalListener):
         self._game_object = obj
         self._entity = entity
 
-        self._parent = None
         self.children = set()
         self.sockets = self.create_sockets(self._game_object)
+        self._parent = None
 
         self.register_signals()
 
@@ -266,10 +279,6 @@ class BGETransformInterface(BGEComponent, SignalListener):
     def world_orientation(self, orientation):
         self._game_object.worldOrientation = orientation
 
-    @property
-    def is_colliding(self):
-        return bool(self._dispatched)
-
     def align_to(self, vector, factor=1, axis=Axis.y):
         """Align object to vector
 
@@ -301,21 +310,13 @@ class BGETransformInterface(BGEComponent, SignalListener):
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space
 
-        :param axis: :py:class:`bge_game_system.enums.Axis` value
-        :rtype: :py:class:`mathutils.Vector`
+        :param axis: :py:class:`game_system.enums.Axis` value
+        :rtype: :py:class:`game_system.coordinates.Vector`
         """
         vector = [0, 0, 0]
         vector[axis] = 1
 
         return Vector(self.object.getAxisVect(vector))
-
-    def is_colliding_with(self, entity):
-        """Determines if the entity is colliding with another entity
-
-        :param entity: entity to __call__
-        :returns: result of condition
-        """
-        return entity in self._dispatched_entities
 
 
 @with_tag("animation")
