@@ -23,6 +23,7 @@ from .tagged_delegate import EnvironmentDefinitionByTag
 
 
 class ComponentLoader(EnvironmentDefinitionByTag):
+    """Abstract component loader class"""
 
     subclasses = {}
 
@@ -37,8 +38,25 @@ class ComponentLoader(EnvironmentDefinitionByTag):
 
         return components
 
+    def load(self, entity, configuration):
+        """Load components for given entity with configuration file
+
+        :param entity: entity to load components
+        :param configuration: configuration dictionary
+        """
+        raise NotImplementedError()
+
 
 class ComponentLoaderResult:
+    """Container for loaded components from :py:class:`game_system.definitions.ComponentLoader`"""
 
-    def unload(self, result):
-        raise NotImplementedError()
+    def __init__(self, components):
+        self.components = components
+        self.on_unloaded = None
+
+    def unload(self):
+        for component in self.components.values():
+            component.destroy()
+
+        if callable(self.on_unloaded):
+            self.on_unloaded()

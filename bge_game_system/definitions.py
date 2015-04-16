@@ -524,21 +524,14 @@ class BGEComponentLoader(ComponentLoader):
         return cls.create_object(config_parser)
 
     def load(self, entity, config_parser):
-        obj = self.find_or_create_object(entity, config_parser)
-        components = self._load_components(config_parser, entity, obj)
-        return BGEComponentLoaderResult(components, obj)
+        game_object = self.find_or_create_object(entity, config_parser)
+        components = self._load_components(config_parser, entity, game_object)
 
-    def unload(self, loader_result):
-        for component in loader_result.components.values():
-            component.destroy()
+        def on_unloaded():
+            if not game_object.invalid:
+                game_object.endObject()
 
-        game_object = loader_result.game_object
-        if not game_object.invalid:
-            game_object.endObject()
+        result = ComponentLoaderResult(components)
+        result.on_unloaded = on_unloaded
 
-
-class BGEComponentLoaderResult(ComponentLoaderResult):
-
-    def __init__(self, components, obj):
-        self.game_object = obj
-        self.components = components
+        return result

@@ -34,7 +34,7 @@ class ComponentEntity:
         except AttributeError as err:
             raise AttributeError("Components have not been loaded yet") from err
 
-        self.__class__._component_loader.unload(result)
+        result.unload()
 
     def load_components(self):
         """Loads entity-specific components marked using the with_tag system/

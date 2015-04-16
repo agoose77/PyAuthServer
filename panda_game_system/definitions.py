@@ -248,21 +248,14 @@ class PandaComponentLoader(ComponentLoader):
         return cls.create_object(config_parser, entity)
 
     def load(self, entity, config_parser):
-        obj = self.find_or_create_object(entity, config_parser)
-        components = self._load_components(config_parser, entity, obj)
-        return PandaComponentLoaderResult(components, obj)
+        nodepath = self.find_or_create_object(entity, config_parser)
+        components = self._load_components(config_parser, entity, nodepath)
 
-    def unload(self, loader_result):
-        for component in loader_result.components.values():
-            component.destroy()
+        def on_unloaded():
+            nodepath.removeNode()
 
-        root_nodepath = loader_result.root_nodepath
-        root_nodepath.removeNode()
+        result = ComponentLoaderResult(components)
+        result.on_unloaded = on_unloaded
 
-
-class PandaComponentLoaderResult(ComponentLoaderResult):
-
-    def __init__(self, components, root_nodepath):
-        self.root_nodepath = root_nodepath
-        self.components = components
+        return result
 
