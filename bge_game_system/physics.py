@@ -1,4 +1,3 @@
-from collections import defaultdict
 from contextlib import contextmanager
 
 from network.decorators import with_tag
@@ -140,7 +139,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._extrapolators = defaultdict(PhysicsExtrapolator)
+        self._extrapolators = {}
 
     def extrapolate_network_states(self):
         """Apply state from extrapolators to replicated actors"""
@@ -173,10 +172,14 @@ class BGEClientPhysics(BGEPhysicsSystem):
         position = target.network_position
         velocity = target.network_velocity
 
-        exists = target in self._extrapolators
-        extrapolator = self._extrapolators[target]
-        if not exists:
+        try:
+            extrapolator = self._extrapolators[target]
+
+        except KeyError:
+            extrapolator = PhysicsExtrapolator()
             extrapolator.reset(timestamp, WorldInfo.elapsed, position, velocity)
+
+            self._extrapolators[target] = extrapolator
 
         extrapolator.add_sample(timestamp, WorldInfo.elapsed, position, velocity, target.transform.world_position)
 

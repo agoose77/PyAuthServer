@@ -1,11 +1,13 @@
 from network.decorators import with_tag
-from network.enums import Netmodes
+from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
-from network.signals import SignalListener
+from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.world_info import WorldInfo
 
+from game_system.controllers import PlayerPawnController
 from game_system.coordinates import Vector
 from game_system.entities import Actor
+from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.physics import CollisionContact
 from game_system.signals import *
 
@@ -116,4 +118,72 @@ class PandaServerPhysicsSystem(PandaPhysicsSystem):
         super().update(delta_time)
 
         self.save_network_states()
+        UpdateCollidersSignal.invoke()
+
+
+@with_tag(Netmodes.client)
+class PandaClientPhysicsSystem(PandaPhysicsSystem):
+
+    def __init__(self):
+        super().__init__()
+
+        self._extrapolators = {}
+
+    def extrapolate_network_states(self):
+        """Apply state from extrapolators to replicated actors"""
+        simulated_proxy = Roles.simulated_proxy
+
+        controller = PlayerPawnController.get_local_controller()
+
+        if controller is None or controller.info is None:
+            return
+
+        network_time = WorldInfo.elapsed + controller.info.ping / 2
+
+        for actor, extrapolator in self._extrapolators.items():
+            result = extrapolator.sample_at(network_time)
+            if actor.roles.local != simulated_proxy:
+                continue
+
+            position, velocity = result
+
+            current_orientation = actor.transform.world_orientation.to_quaternion()
+            new_rotation = actor.network_orientation.to_quaternion()
+            slerped_orientation = current_orientation.slerp(new_rotation, 0.3)
+
+            actor.transform.world_position = position
+            actor.physics.world_velocity = velocity
+            actor.transform.world_orientation = slerped_orientation
+
+    @PhysicsReplicatedSignal.on_global
+    def on_physics_replicated(self, timestamp, target):
+        position = target.network_position
+        velocity = target.network_velocity
+
+        try:
+            extrapolator = self._extrapolators[target]
+
+        except KeyError:
+            extrapolator = PhysicsExtrapolator()
+            extrapolator.reset(timestamp, WorldInfo.elapsed, position, velocity)
+
+            self._extrapolators[target] = extrapolator
+
+        extrapolator.add_sample(timestamp, WorldInfo.elapsed, position, velocity, target.transform.world_position)
+
+    @ReplicableUnregisteredSignal.on_global
+    def on_replicable_unregistered(self, target):
+        if target in self._extrapolators:
+            self._extrapolators.pop(target)
+
+    @PhysicsTickSignal.on_global
+    def update(self, delta_time):
+        """Listener for PhysicsTickSignal.
+
+        Copy physics state to network variable for Actor instances
+        """
+        super().update(delta_time)
+
+        self.extrapolate_network_states()
+
         UpdateCollidersSignal.invoke()

@@ -31,6 +31,21 @@ setup(name='bge_game_system',
           # 'something else?',
           ],
       )
+setup(name='panda_game_system',
+      version='1.0.1',
+      description="Panda3D network package",
+      long_description="",
+      author='Angus Hollands',
+      author_email='goosey15@gmail.com',
+      license='MIT',
+      packages=['panda_game_system'],
+      zip_safe=False,
+      install_requires=[
+          # 'Sphinx',
+          # ^^^ Not sure if this is needed on readthedocs.org
+          # 'something else?',
+          ],
+      )
 setup(name='game_system',
       version='1.0.1',
       description="Game System package",
