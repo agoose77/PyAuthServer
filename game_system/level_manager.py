@@ -26,11 +26,11 @@ class LevelManager:
 
         self._state.add(event)
 
-    def remove(self, event):
+    def remove(self, event, *args, **kwargs):
         try:
             self._state.remove(event)
 
         except KeyError:
             return
 
-        self._on_exit(event)
+        self._on_exit(event, *args, **kwargs)
