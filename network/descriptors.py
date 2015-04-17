@@ -1,4 +1,3 @@
-from collections import namedtuple
 from copy import deepcopy
 
 from .handlers import static_description
@@ -26,16 +25,14 @@ class Attribute(TypeFlag):
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
-        try:
-            storage_interface = self._instances[instance]
-
-        except KeyError:
+        if instance is None:
             return self
 
+        storage_interface = instance.__dict__[self]
         return storage_interface.get()
 
     def __set__(self, instance, value):
-        storage_interface = self._instances[instance]
+        storage_interface = instance.__dict__[self]
 
         # Get the last value
         last_value = storage_interface.get()
@@ -61,7 +58,7 @@ class Attribute(TypeFlag):
 
     def register(self, instance, storage_interface):
         """Registers attribute for instance"""
-        self._instances[instance] = storage_interface
+        instance.__dict__[self] = storage_interface
 
     def get_new_value(self):
         """Return copy of initial value"""
@@ -76,10 +73,18 @@ class DescriptorFactory:
 
     def __init__(self, callback):
         self.callback = callback
-        self._lookup = factory_dict(self.callback)
 
     def __get__(self, instance, base):
         if instance is None:
             return self
 
-        return self._lookup[instance]
+        instance_dict = instance.__dict__
+
+        try:
+            return instance_dict[self]
+
+        except KeyError:
+            result = self.callback(instance)
+            instance_dict[self] = result
+
+            return result
