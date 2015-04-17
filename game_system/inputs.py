@@ -8,7 +8,7 @@ from collections import defaultdict
 from .enums import ButtonState, InputButtons
 
 
-__all__ = ['InputState', 'LocalInputContext', 'RemoteInputContext']
+__all__ = ['InputState', 'lInputContext', 'NetworkInputContext']
 
 
 class InputState:
@@ -19,12 +19,20 @@ class InputState:
         self.ranges = {}
 
 
-class LocalInputContext:
+class InputContext:
     """Input context for local inputs"""
 
     def __init__(self, buttons=None, ranges=None):
-        self.buttons = buttons if buttons is not None else []
-        self.ranges = ranges if ranges is not None else []
+        if buttons is None:
+            buttons = []
+
+        if ranges is None:
+            ranges = []
+
+        self.buttons = buttons
+        self.ranges = ranges
+
+        self.network = NetworkInputContext(self.buttons, self.ranges)
 
     def remap_state(self, input_manager, keymap):
         """Remap native state to mapped state
@@ -49,13 +57,11 @@ class LocalInputContext:
         return button_state, range_state
 
 
-class RemoteInputContext:
+class NetworkInputContext:
     """Input context for network inputs"""
 
-    def __init__(self, local_context):
-        self.local_context = local_context
-
-        button_count = len(local_context.buttons)
+    def __init__(self, buttons, ranges):
+        button_count = len(buttons)
         state_count = len(ButtonState)
 
         state_bits = button_count * state_count
@@ -67,14 +73,14 @@ class RemoteInputContext:
             _buttons = Attribute(BitField(state_bits), fields=state_bits)
             _ranges = Attribute([], element_flag=TypeFlag(float))
 
-            def write(self, remapped_state):
-                button_state = self._buttons
-                range_state = self._ranges
+            def write(this, remapped_state):
+                button_state = this._buttons
+                range_state = this._ranges
 
                 remapped_button_state, remapped_range_state = remapped_state
 
                 # Update buttons
-                button_names = local_context.buttons
+                button_names = buttons
                 for button_index, mapped_key in enumerate(button_names):
                     mapped_state = remapped_button_state[mapped_key]
 
@@ -84,14 +90,14 @@ class RemoteInputContext:
                         button_state[bitfield_index] = True
 
                 # Update ranges
-                range_state[:] = [remapped_range_state[key] for key in local_context.ranges]
+                range_state[:] = [remapped_range_state[key] for key in ranges]
 
-            def read(self):
-                button_state = self._buttons[:]
-                range_state = self._ranges
+            def read(this):
+                button_state = this._buttons[:]
+                range_state = this._ranges
 
                 # Update buttons
-                button_names = local_context.buttons
+                button_names = buttons
                 # If the button is omitted, assume not pressed
                 button_states = defaultdict(lambda: ButtonState.none)
 
@@ -104,7 +110,7 @@ class RemoteInputContext:
                     button_states[mapped_key] = (state_index - button_index) // button_count
 
                 # Update ranges
-                range_states = {key: range_state[index] for index, key in enumerate(local_context.ranges)}
+                range_states = {key: range_state[index] for index, key in enumerate(ranges)}
                 return button_states, range_states
 
         self.state_struct_cls = InputStateStruct

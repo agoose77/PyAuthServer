@@ -7,7 +7,7 @@ from network.world_info import WorldInfo
 from .ai.behaviour.behaviour import Node
 from .configobj import ConfigObj
 from .enums import InputButtons
-from .inputs import LocalInputContext, RemoteInputContext
+from .inputs import InputContext
 from .resources import ResourceManager
 from .replication_info import PlayerReplicationInfo
 from .signals import PlayerInputSignal
@@ -71,11 +71,9 @@ class AIPawnController(PawnController):
 class PlayerPawnController(PawnController):
     """Base class for player pawn controllers"""
 
-    input_context = LocalInputContext()
-    remote_input_context = RemoteInputContext(input_context)
+    input_context = InputContext()
 
     info = Attribute(data_type=Replicable)
-
     info_cls = PlayerReplicationInfo
 
     @classmethod
@@ -98,7 +96,6 @@ class PlayerPawnController(PawnController):
     def initialise_client(self):
         """Initialise client-specific player controller state"""
         resources = ResourceManager[self.__class__.__name__]
-
         file_path = ResourceManager.get_absolute_path(resources['input_map.cfg'])
 
         parser = ConfigObj(file_path, interpolation="template")
@@ -109,7 +106,7 @@ class PlayerPawnController(PawnController):
         """Initialise server-specific player controller state"""
         self.info = self.__class__.info_cls()
 
-    def server_handle_inputs(self, input_state: TypeFlag(Pointer("remote_input_context.state_struct_cls"))):
+    def server_handle_inputs(self, input_state: TypeFlag(Pointer("input_context.network.state_struct_cls"))) -> Netmodes.server:
         """Handle remote client inputs
 
         :param input_state: state of inputs
@@ -123,8 +120,6 @@ class PlayerPawnController(PawnController):
         :param input_manager: input system
         """
         remapped_state = self.input_context.remap_state(input_manager, self.input_map)
-
-        packed_state = self.remote_input_context.state_struct_cls()
+        packed_state = self.input_context.network.state_struct_cls()
         packed_state.write(remapped_state)
-
         self.server_handle_inputs(packed_state)
