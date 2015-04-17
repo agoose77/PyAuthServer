@@ -1,4 +1,5 @@
 from game_system.entities import Actor
+from game_system.enums import CollisionState
 from game_system.signals import LogicUpdateSignal, CollisionSignal
 
 
@@ -13,7 +14,8 @@ class TestActor(Actor):
 
     @CollisionSignal.on_context
     def on_collided(self, collision_result):
-        print(collision_result)
+        if collision_result.state == CollisionState.started:
+            print([c.impulse for c in collision_result.contacts])
 
     @LogicUpdateSignal.on_global
     def on_update(self, delta_time):
@@ -21,5 +23,6 @@ class TestActor(Actor):
         # new_pos.y += 1 / 10
         # self.transform.world_position = new_pos
 
-        #self.physics.world_linear_velocity = [5, 10, 0]
+        velz = self.physics.world_linear_velocity.z
+        self.physics.world_linear_velocity = [2, 0, velz]
         pass

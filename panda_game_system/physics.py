@@ -4,13 +4,16 @@ from network.tagged_delegate import DelegateByNetmode
 from network.signals import SignalListener
 from network.world_info import WorldInfo
 
+from game_system.coordinates import Vector
 from game_system.entities import Actor
+from game_system.physics import CollisionContact
 from game_system.signals import *
 
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
+
 from panda3d.bullet import BulletWorld
-from panda3d.core import PythonCallbackObject
 from direct.showbase.DirectObject import DirectObject
+#from panda3d.core import PythonCallbackObject
 
 
 class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
@@ -33,14 +36,44 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
         self.listener.accept('bullet-contact-added', self._on_contact_added)
         self.listener.accept('bullet-contact-destroyed', self._on_contact_removed)
 
+    def _get_contacts(self, node):
+        test = self.world.contact_test(node)
+        contacts = []
+
+        for contact in test.get_contacts():
+            if contact.get_node0() == node:
+                manifold = contact.get_manifold_point()
+
+                position = manifold.get_position_world_on_a()
+                normal = None
+
+            elif contact.get_node1() == node:
+                manifold = contact.get_manifold_point()
+
+                position = manifold.get_position_world_on_b()
+                normal = None
+
+            else:
+                continue
+
+            impulse = manifold.get_applied_impulse()
+            contact_ = CollisionContact(position, normal, impulse)
+            contacts.append(contact_)
+
+        return contacts
+
     def _on_contact_added(self, node_a, node_b):
         if node_a.has_python_tag("on_contact_added"):
             callback = node_a.get_python_tag("on_contact_added")
-            callback(node_b)
+
+            contacts = self._get_contacts(node_a)
+            callback(node_b, contacts)
 
         if node_b.has_python_tag("on_contact_added"):
             callback = node_b.get_python_tag("on_contact_added")
-            callback(node_a)
+
+            contacts = self._get_contacts(node_b)
+            callback(node_a, contacts)
 
     def _on_contact_removed(self, node_a, node_b):
         if node_a.has_python_tag("on_contact_removed"):

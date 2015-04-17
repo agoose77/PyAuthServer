@@ -12,20 +12,25 @@ class LevelManager:
     def __bool__(self):
         return bool(self._state)
 
-    def _on_enter(self, event):
+    def _on_enter(self, event, *args, **kwargs):
         if callable(self.on_enter):
-            self.on_enter(event)
+            self.on_enter(event, *args, **kwargs)
 
-    def _on_exit(self, event):
+    def _on_exit(self, event, *args, **kwargs):
         if callable(self.on_exit):
-            self.on_exit(event)
+            self.on_exit(event, *args, **kwargs)
 
-    def add(self, event):
+    def add(self, event, *args, **kwargs):
         if event not in self._state:
-            self._on_enter(event)
+            self._on_enter(event, *args, **kwargs)
 
         self._state.add(event)
 
     def remove(self, event):
+        try:
+            self._state.remove(event)
+
+        except KeyError:
+            return
+
         self._on_exit(event)
-        self._state.remove(event)

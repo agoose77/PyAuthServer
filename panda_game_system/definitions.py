@@ -71,7 +71,7 @@ class PandaPhysicsInterface(PandaComponent):
         self._level_manager.on_exit = self._on_exit_collision
 
         # Setup callbacks
-        self._nodepath.set_python_tag("on_contact_added", self._level_manager.add)
+        self._nodepath.set_python_tag("on_contact_added", lambda n, c: self._level_manager.add(n, c))
         self._nodepath.set_python_tag("on_contact_removed", self._level_manager.remove)
         self._nodepath.set_python_tag("physics_component", self)
         self._node.notify_collisions(True)
@@ -84,10 +84,10 @@ class PandaPhysicsInterface(PandaComponent):
         component = nodepath.get_python_tag("physics_component")
         return component._entity
 
-    def _on_enter_collision(self, other):
+    def _on_enter_collision(self, other, contacts):
         hit_entity = self.entity_from_nodepath(other)
 
-        result = CollisionResult(hit_entity, CollisionState.started, None)
+        result = CollisionResult(hit_entity, CollisionState.started, contacts)
         CollisionSignal.invoke(result, target=self._entity)
 
     def _on_exit_collision(self, other):
