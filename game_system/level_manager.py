@@ -2,6 +2,7 @@ __all__ = "LevelManager",
 
 
 class LevelManager:
+    """Handles transitions as events enter or exit the tracked set of events"""
 
     def __init__(self):
         self._state = set()

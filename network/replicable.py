@@ -173,12 +173,12 @@ class Replicable(metaclass=ReplicableRegister):
         self.__class__._by_types[type(self)].append(self)
         ReplicableRegisteredSignal.invoke(target=self)
 
-    def on_unregistered(self):
+    def on_deregistered(self):
         """Called on unregistered of replicable.
 
         Removes instance from type list
         """
-        super().on_unregistered()
+        super().on_deregistered()
 
         self.unpossessed()
 

@@ -61,11 +61,13 @@ def run(mode):
 
     game_loop = cls()
 
-    TestActor()
+    # Create cube
+    cube = TestActor()
 
-    b = TestActor(register_immediately=True)
-    b.transform.world_position = [0, 30, -1]
-    b.physics._node.set_mass(0.0)
+    # Create floor
+    floor = TestActor(register_immediately=True)
+    floor.transform.world_position = [0, 30, -1]
+    floor.physics._node.set_mass(0.0)
 
     game_loop.delegate()
     del game_loop

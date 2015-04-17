@@ -4,6 +4,7 @@ from .type_register import TypeRegister
 
 from ...iterators import RenewableGenerator, take_single
 from ...signals import SignalListener
+from ...logger import logger
 
 __all__ = ['InstanceRegister', '_ManagedInstanceBase']
 
@@ -34,7 +35,7 @@ class _ManagedInstanceBase(SignalListener):
     def on_registered(self):
         pass
 
-    def on_unregistered(self):
+    def on_deregistered(self):
         pass
 
     def register(self, instance_id, immediately=False):
@@ -142,16 +143,17 @@ class InstanceRegister(TypeRegister):
 
         :param instance: instance to be unregistered
         """
-        if not instance.instance_id in cls._instances:
+        try:
+            cls._instances.pop(instance.instance_id)
+
+        except KeyError:
             return
 
-        cls._instances.pop(instance.instance_id)
-
         try:
-            instance.on_unregistered()
+            instance.on_deregistered()
 
-        except Exception as err:
-            print(err)
+        except Exception:
+            logger.exception("Failed to execute on_deregistered callback for {}".format(self))
 
         finally:
             instance.unregister_signals()

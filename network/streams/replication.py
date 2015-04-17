@@ -135,7 +135,7 @@ class ServerReplicationStream(ReplicationStream):
         self.latency_calculator = LatencyCalculator()
         self.latency_calculator.on_updated = partial(LatencyUpdatedSignal.invoke, target=self.replicable)
 
-    def wrap_callback(self, callback):
+    def get_ack_latency_wrapper(self, callback):
         """Wraps callback with latency calculator callback
 
         :param callback: callback used to stop timing
@@ -159,7 +159,7 @@ class ServerReplicationStream(ReplicationStream):
         """
 
         # If the target is not in channel list, we don't need to delete
-        if not target.instance_id in self.channels:
+        if target.instance_id not in self.channels:
             return
 
         channel = self.channels[target.instance_id]
@@ -222,7 +222,7 @@ class ServerReplicationStream(ReplicationStream):
         packets.members = members
 
         packet = members[0]
-        packet.on_success = self.wrap_callback(packet.on_success)
+        packet.on_success = self.get_ack_latency_wrapper(packet.on_success)
 
         self.latency_calculator.start_sample(packet)
 

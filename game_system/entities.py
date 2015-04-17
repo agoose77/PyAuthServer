@@ -147,10 +147,10 @@ class Actor(ComponentEntity, Replicable):
         self.camera_radius = 1.0
         self.indestructible = False
 
-    def on_unregistered(self):
+    def on_deregistered(self):
         self.unload_components()
 
-        super().on_unregistered()
+        super().on_deregistered()
 
     def on_notify(self, name):
         if name == "network_collision_group":
