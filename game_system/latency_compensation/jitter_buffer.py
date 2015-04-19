@@ -44,7 +44,7 @@ class JitterBuffer:
 
             # We've hit the head of the buffer
             elif current_id < id_:
-                self._index += 1
+                self._index = (self._index + 1) % self._total_length
 
         # Check that the item we wish to push isn't too old
         last_item = self._buffer[self._index % self._total_length]
