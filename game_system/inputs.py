@@ -62,7 +62,7 @@ class NetworkInputContext:
 
     def __init__(self, buttons, ranges):
         button_count = len(buttons)
-        state_count = len(ButtonState)
+        state_count = len(ButtonState) - 1
 
         state_bits = button_count * state_count
         state_indices = {ButtonState.pressed: 0, ButtonState.held: 1, ButtonState.released: 2}
@@ -80,8 +80,7 @@ class NetworkInputContext:
                 remapped_button_state, remapped_range_state = remapped_state
 
                 # Update buttons
-                button_names = buttons
-                for button_index, mapped_key in enumerate(button_names):
+                for button_index, mapped_key in enumerate(buttons):
                     mapped_state = remapped_button_state[mapped_key]
 
                     if mapped_state in state_indices:
@@ -96,17 +95,17 @@ class NetworkInputContext:
                 button_state = this._buttons[:]
                 range_state = this._ranges
 
-                # Update buttons
-                button_names = buttons
                 # If the button is omitted, assume not pressed
-                button_states = defaultdict(lambda: ButtonState.none)
+                NO_STATE = ButtonState.none
+                button_states = {n: NO_STATE for n in buttons}
 
                 for state_index, state in enumerate(button_state):
                     if not state:
                         continue
 
                     button_index = state_index % button_count
-                    mapped_key = button_names[button_index]
+
+                    mapped_key = buttons[button_index]
                     button_states[mapped_key] = (state_index - button_index) // button_count
 
                 # Update ranges
