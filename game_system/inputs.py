@@ -113,4 +113,4 @@ class NetworkInputContext:
                 range_states = {key: range_state[index] for index, key in enumerate(ranges)}
                 return button_states, range_states
 
-        self.state_struct_cls = InputStateStruct
+        self.struct_cls = InputStateStruct

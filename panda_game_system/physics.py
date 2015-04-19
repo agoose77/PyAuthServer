@@ -5,7 +5,6 @@ from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerPawnController
-from game_system.coordinates import Vector
 from game_system.entities import Actor
 from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.physics import CollisionContact
@@ -14,8 +13,12 @@ from game_system.signals import *
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 
 from panda3d.bullet import BulletWorld
+from panda3d.core import loadPrcFileData
 from direct.showbase.DirectObject import DirectObject
 #from panda3d.core import PythonCallbackObject
+
+loadPrcFileData('', 'bullet-enable-contact-events true')
+#loadPrcFileData('', 'bullet-filter-algorithm callback')
 
 
 class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
@@ -92,10 +95,12 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
     @RegisterPhysicsNode.on_global
     def register_node(self, node):
         self.world.attachRigidBody(node)
+        node.set_python_tag("world", self.world)
 
     @DeregisterPhysicsNode.on_global
     def deregister_node(self, node):
         self.world.removeRigidBody(node)
+        node.clear_python_tag("world")
 
     def update(self, delta_time):
         self.world.doPhysics(delta_time)

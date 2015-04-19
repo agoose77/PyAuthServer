@@ -2,20 +2,34 @@ from game_system.entities import Actor
 from game_system.enums import CollisionState
 from game_system.signals import LogicUpdateSignal, CollisionSignal
 
+from network.descriptors import Attribute
+from network.decorators import simulated
+
 
 class TestActor(Actor):
 
     replicate_physics_to_owner = True
+    mass = Attribute(0.0, notify=True)
 
     def on_initialised(self):
         super().on_initialised()
 
         self.transform.world_position = [0, 30, 2]
 
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+        yield "mass"
+
+    def on_notify(self, name):
+        super().on_notify(name)
+
+        if name == "mass":
+            self.physics._game_object.mass = self.mass
+
+    @simulated
     @CollisionSignal.on_context
     def on_collided(self, collision_result):
-        if collision_result.state == CollisionState.started:
-            print([c.impulse for c in collision_result.contacts])
+        pass
 
     @LogicUpdateSignal.on_global
     def on_update(self, delta_time):
@@ -25,4 +39,3 @@ class TestActor(Actor):
 
         velz = self.physics.world_linear_velocity.z
         self.physics.world_linear_velocity = [2, 0, velz]
-        pass

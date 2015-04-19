@@ -21,6 +21,23 @@ def import_world_info():
     from .world_info import WorldInfo as WorldInfo
 
 
+def _resolve_parameters(cls, flag):
+    data = flag.data
+
+    for arg_name, arg_value in data.items():
+        if isinstance(arg_value, TypeFlag):
+            _resolve_parameters(cls, arg_value)
+
+        if not isinstance(arg_value, Pointer):
+            continue
+
+        data[arg_name] = arg_value(cls)
+
+    # Allow types to be marked
+    if isinstance(flag.data_type, Pointer):
+        flag.data_type = flag.data_type(cls)
+
+
 class RPCInterface:
     """Mediates RPC calls to/from peers"""
 
@@ -163,21 +180,10 @@ class RPCInterfaceFactory:
         :param cls: class reference
         """
         serialiser_info = deepcopy(self._ordered_parameters)
-        lookup_type = Pointer
 
         # Update with new values
         for argument in serialiser_info.values():
-            data = argument.data
-
-            for arg_name, arg_value in data.items():
-                if not isinstance(arg_value, lookup_type):
-                    continue
-
-                data[arg_name] = arg_value(cls)
-
-            # Allow types to be marked
-            if isinstance(argument.data_type, lookup_type):
-                argument.data_type = argument.data_type(cls)
+            _resolve_parameters(cls, argument)
 
         return serialiser_info
 

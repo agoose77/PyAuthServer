@@ -15,7 +15,7 @@ class Replicable(metaclass=ReplicableRegister):
     Supports Replicated Function calls, Attribute replication
     and Signal subscription"""
 
-    _MAXIMUM_REPLICABLES = 255
+    MAXIMUM_REPLICABLES = 255
     _by_types = defaultdict(list)
 
     roles = Attribute(Roles(Roles.authority, Roles.none), notify=True)
@@ -118,7 +118,7 @@ class Replicable(metaclass=ReplicableRegister):
         :returns: range up to maximum ID
         :rtype: iterable
         """
-        return range(cls._MAXIMUM_REPLICABLES)
+        return range(cls.MAXIMUM_REPLICABLES)
 
     def register(self, instance_id=None, immediately=False):
         """Handles registered of instances.

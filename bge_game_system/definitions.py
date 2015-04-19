@@ -147,7 +147,7 @@ class BGEPhysicsInterface(BGEComponent):
         :param target: target to trace towards
         :param source: optional origin of trace, otherwise object position
         :param distance: distance to use instead of vector length
-        :rtype: :py:class:`bge_game_system.object_types.RayTestResult`
+        :rtype: :py:class:`game_system.physics.RayTestResult`
         """
         if source is None:
             source = self._game_object.worldPosition

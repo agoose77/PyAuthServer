@@ -163,7 +163,6 @@ class Actor(ComponentEntity, Replicable):
             self.physics.world_angular = self.network_angular
 
         elif name == "network_replication_time":
-            print(self.network_position)
             PhysicsReplicatedSignal.invoke(self.network_replication_time, target=self)
 
         else:

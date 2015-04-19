@@ -11,7 +11,7 @@ from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.level_manager import LevelManager
-from game_system.physics import CollisionResult, CollisionContact
+from game_system.physics import CollisionResult, CollisionContact, RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 from game_system.resources import ResourceManager
 
@@ -99,6 +99,36 @@ class PandaPhysicsInterface(PandaComponent):
     def destroy(self):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
+
+    def ray_test(self, target, source=None, distance=0.0):
+        """Perform a ray trace to a target
+
+        :param target: target to trace towards
+        :param source: optional origin of trace, otherwise object position
+        :param distance: distance to use instead of vector length
+        :rtype: :py:class:`game_system.physics.RayTestResult`
+        """
+        if source is None:
+            source = Vector(self._nodepath.getPos(base.render))
+
+        if distance:
+            direction = target - source
+            direction.length = distance
+
+        world = self._node.get_python_tag("world")
+
+        result = world.rayTestClosest(tuple(source), tuple(target))
+        hit_node = result.get_node()
+
+        if not hit_node:
+            return
+
+        hit_position = Vector(result.get_hit_pos())
+        hit_entity = self.entity_from_nodepath(hit_node)
+        hit_distance = (hit_position - source).length
+        hit_normal = Vector(result.get_hit_normal())
+
+        return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
     @property
     def is_colliding(self):

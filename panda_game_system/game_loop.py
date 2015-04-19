@@ -64,9 +64,6 @@ class GameLoop(SignalListener, FixedTimeStepManager, ShowBase):
         self.network_system.receive()
         self.update_graphs()
 
-        # Update Timers
-        TimerUpdateSignal.invoke(delta_time)
-
         # Update inputs
         base.taskMgr.step()
         self.input_manager.update()
@@ -79,9 +76,6 @@ class GameLoop(SignalListener, FixedTimeStepManager, ShowBase):
 
         if self.pending_exit:
             raise OnExitUpdate()
-
-        # Handle this outside of usual update
-        WorldInfo.update_clock(delta_time)
 
         # Update Player Controller inputs for client
         if WorldInfo.netmode != Netmodes.server:
@@ -116,6 +110,11 @@ class GameLoop(SignalListener, FixedTimeStepManager, ShowBase):
         UIUpdateSignal.invoke(delta_time)
         self.update_graphs()
 
+        # Update Timers
+        TimerUpdateSignal.invoke(delta_time)
+
+        # Handle this outside of usual update
+        WorldInfo.update_clock(delta_time)
         self.current_time += delta_time
 
 

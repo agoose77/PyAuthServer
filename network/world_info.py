@@ -10,7 +10,7 @@ __all__ = ['_WorldInfo', 'WorldInfo']
 class _WorldInfo(Replicable):
     """Holds info about game state"""
 
-    _MAXIMUM_TICK = (2 ** 32 - 1)
+    MAXIMUM_TICK = (2 ** 32 - 1)
     _ID = 255
 
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
@@ -18,7 +18,6 @@ class _WorldInfo(Replicable):
     elapsed = Attribute(0.0, complain=False)
     tick_rate = Attribute(60, complain=True, notify=True)
 
-    clock_adjustment = 0.0
     netmode = Netmodes.server
     rules = None
 
@@ -55,7 +54,8 @@ class _WorldInfo(Replicable):
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
 
-        yield "elapsed"
+        if is_initial:
+            yield "elapsed"
 
         if is_complain:
             yield "tick_rate"
@@ -63,7 +63,7 @@ class _WorldInfo(Replicable):
     @property
     def tick(self):
         """:returns: current simulation tick"""
-        return self.to_ticks(self.elapsed + self.clock_adjustment)
+        return self.to_ticks(self.elapsed)
 
     @simulated
     def to_ticks(self, delta_time):

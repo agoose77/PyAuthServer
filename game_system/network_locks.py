@@ -8,7 +8,7 @@ from network.structures import factory_dict
 
 from collections import OrderedDict
 
-TICK_FLAG = TypeFlag(int, max_value=WorldInfo._MAXIMUM_TICK)
+TICK_FLAG = TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK)
 
 
 __all__ = ["NetworkLocksMixin"]

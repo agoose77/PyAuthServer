@@ -3,47 +3,91 @@ __all__ = ["JitterBuffer"]
 
 class JitterBuffer:
 
-    def __init__(self, length, margin):
+    def __init__(self, length, margin=None):
+        """
+        :param length: number of entries required to allow item retrieval
+        :param margin: tolerance to jitter, default to double length
+        :return:
+        """
         self._length = length
+
+        if margin is None:
+            margin = length
+
         self._margin = margin
 
         self._total_length = length + margin
-        self.buffer = [None] * self._total_length
+        self._buffer = [None] * self._total_length
 
-        self.filling = True
-        self.valid_items = 0
-        self.index = 0
+        self._is_filling = True
+        self._valid_items = 0
+        self._index = 0
+
+    @property
+    def is_filling(self):
+        return self._is_filling
 
     def push(self, data, id_):
         index = id_ % self._total_length
 
-        if not self.valid_items:
-            self.index = index
+        if not self._valid_items:
+            self._index = index
 
-        self.buffer[index] = data
-        self.valid_items += 1
+        # Check that we've not already pushed this item
+        current_item = self._buffer[index]
+        if current_item is not None:
+            _, current_id = current_item
 
-        if self.valid_items >= self._length:
-            self.filling = False
+            # We've tried to add the same item
+            if id_ == current_id:
+                raise KeyError("Item already in buffer")
+
+            # We've hit the head of the buffer
+            elif current_id < id_:
+                self._index += 1
+
+        # Check that the item we wish to push isn't too old
+        last_item = self._buffer[self._index % self._total_length]
+        if last_item is not None:
+            _, last_id = last_item
+
+            if id_ <= last_id:
+                raise KeyError("Item expired")
+
+        self._buffer[index] = (data, id_)
+        self._valid_items += 1
+
+        if self._valid_items >= self._length:
+            self._is_filling = False
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.filling:
+        if self._is_filling:
             raise StopIteration("Buffer filling")
 
-        item, self.buffer[self.index] = self.buffer[self.index], None
+        read_index = self._index
+        item, self._buffer[read_index] = self._buffer[read_index], None
 
         # Update index
-        self.index = (self.index + 1) % self._total_length
+        self._index = (read_index + 1) % self._total_length
 
         if item is None:
             raise ValueError("Found unfilled member slot")
 
-        self.valid_items -= 1
+        self._valid_items -= 1
 
-        if not self.valid_items:
-            self.filling = True
+        if not self._valid_items:
+            self._is_filling = True
 
         return item
+
+    def __len__(self):
+        return self._valid_items
+
+    def __bool__(self):
+        return bool(self._valid_items)
+
+    def __repr__(self):
+        return repr(self._buffer)

@@ -186,12 +186,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
     def update_network_scene(self, delta_time):
         self.profile_category = logic.KX_ENGINE_DEBUG_MESSAGES
         self.network_system.receive()
-
         self.update_graphs()
-
-        # Update Timers
-        self.profile_category = logic.KX_ENGINE_DEBUG_LOGIC
-        TimerUpdateSignal.invoke(delta_time)
 
         # Update inputs
         self.input_manager.update()
@@ -234,9 +229,18 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
 
         # Update UI
         self.profile_category = logic.KX_ENGINE_DEBUG_RASTERIZER
-        UIUpdateSignal.invoke(delta_time)
 
+        UIUpdateSignal.invoke(delta_time)
         self.update_graphs()
+
+        # Update Timers
+        self.profile_category = logic.KX_ENGINE_DEBUG_LOGIC
+
+        TimerUpdateSignal.invoke(delta_time)
+        self.update_graphs()
+
+        # Handle this outside of usual update
+        WorldInfo.update_clock(delta_time)
 
         # # Set mouse position
         # logic.mouse.position = tuple(MouseManager.position)
@@ -270,9 +274,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         # If we are pending an exit
         if self.pending_exit:
             raise OnExitUpdate()
-
-        # Handle this outside of usual update
-        WorldInfo.update_clock(delta_time)
 
         # Update all scenes
         for scene in logic.getSceneList():

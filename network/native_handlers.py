@@ -409,7 +409,7 @@ class ReplicableBaseHandler:
     """
 
     def __init__(self):
-        id_flag = TypeFlag(int, max_value=Replicable._MAXIMUM_REPLICABLES)
+        id_flag = TypeFlag(int, max_value=Replicable.MAXIMUM_REPLICABLES)
         self._packer = get_handler(id_flag)
 
     def pack(self, replicable):
