@@ -45,7 +45,6 @@ class BGEComponent(FindByTag):
         """Destroy component"""
         pass
 
-# TODO use enums here
 
 @with_tag("physics")
 class BGEPhysicsInterface(BGEComponent):

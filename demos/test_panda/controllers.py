@@ -5,12 +5,16 @@ from network.enums import Netmodes
 from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerPawnController
+from game_system.coordinates import Vector
+from game_system.enums import ButtonState
 from game_system.inputs import InputContext
 from game_system.signals import LogicUpdateSignal
 
 
 class TestPandaPlayerController(PlayerPawnController):
-    input_context = InputContext(buttons=["left", "right", "up", "down"])
+    input_context = InputContext(buttons=["left", "right", "up", "down", "debug"])
+
+    debug = False
 
     @LogicUpdateSignal.on_global
     @requires_netmode(Netmodes.server)
@@ -19,6 +23,43 @@ class TestPandaPlayerController(PlayerPawnController):
             state, move_id = next(self.buffer)
 
         except StopIteration:
-            pass
+            return
 
-        buttons, ranges = state
+        pawn = self.pawn
+        if pawn is None:
+            return
+
+        buttons, ranges = state.read()
+        if buttons['debug'] == ButtonState.pressed:
+            self.debug = not self.debug
+
+        if self.debug:
+            print(self.buffer)
+            print(buttons)
+
+        y_sign = 0
+        if buttons['up'] in {ButtonState.pressed, ButtonState.held}:
+            y_sign += 1
+
+        if buttons['down'] in {ButtonState.pressed, ButtonState.held}:
+            y_sign -= 1
+
+        x_sign = 0
+        if buttons['right'] in {ButtonState.pressed, ButtonState.held}:
+            x_sign -= 1
+
+        if buttons['left'] in {ButtonState.pressed, ButtonState.held}:
+            x_sign += 1
+
+        y_speed = y_sign * 2.0
+        rotation_speed = x_sign
+
+        pawn = self.pawn
+
+        velocity = Vector((0.0, y_speed, 0.0))
+        velocity.rotate(pawn.transform.world_orientation)
+
+        angular = Vector((0.0, 0.0, rotation_speed))
+
+        pawn.physics.world_angular_velocity = angular
+        pawn.physics.world_linear_velocity = velocity

@@ -6,8 +6,7 @@ class JitterBuffer:
     def __init__(self, length, margin=None):
         """
         :param length: number of entries required to allow item retrieval
-        :param margin: tolerance to jitter, default to double length
-        :return:
+        :param margin: tolerance to overfill, default to length
         """
         self._length = length
 
@@ -90,4 +89,4 @@ class JitterBuffer:
         return bool(self._valid_items)
 
     def __repr__(self):
-        return repr(self._buffer)
+        return ''.join(["X" if item is not None else "_" for item in self._buffer])

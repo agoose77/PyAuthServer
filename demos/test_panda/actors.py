@@ -36,6 +36,6 @@ class TestActor(Actor):
         # new_pos = self.transform.world_position
         # new_pos.y += 1 / 10
         # self.transform.world_position = new_pos
-
+        return
         velz = self.physics.world_linear_velocity.z
         self.physics.world_linear_velocity = [2, 0, velz]

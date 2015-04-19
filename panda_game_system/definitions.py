@@ -20,6 +20,7 @@ from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 from panda3d.bullet import BulletRigidBodyNode
 from panda3d.core import Filename, Vec3
 from os import path
+from math import radians, degrees
 
 
 class PandaParentableBase:
@@ -74,7 +75,9 @@ class PandaPhysicsInterface(PandaComponent):
         self._nodepath.set_python_tag("on_contact_added", lambda n, c: self._level_manager.add(n, c))
         self._nodepath.set_python_tag("on_contact_removed", self._level_manager.remove)
         self._nodepath.set_python_tag("physics_component", self)
+
         self._node.notify_collisions(True)
+        self._node.set_deactivation_enabled(False)
 
     @staticmethod
     def entity_from_nodepath(nodepath):
@@ -253,12 +256,12 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
     @property
     def world_orientation(self):
         h, p, r = self._nodepath.getHpr(base.render)
-        return Euler((p, r, h))
+        return Euler((radians(p), radians(r), radians(h)))
 
     @world_orientation.setter
     def world_orientation(self, orientation):
         p, r, h = orientation
-        self._nodepath.setHpr(base.render, h, p, r)
+        self._nodepath.setHpr(base.render, degrees(h), degrees(p), degrees(r))
 
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space

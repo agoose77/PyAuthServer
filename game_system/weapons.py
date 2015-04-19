@@ -88,11 +88,11 @@ class TraceWeapon(Weapon):
 
         # But don't damage our owner!
         replicable = hit_result.entity
-        # TODO input code needs refactoring
+
         if replicable is self.owner.pawn:
             return
 
-        hit_position = hit_result._position
+        hit_position = hit_result.position
         hit_vector = (hit_position - camera_position)
 
         falloff = 1.0
