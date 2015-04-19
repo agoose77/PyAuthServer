@@ -65,7 +65,9 @@ class NetworkInputContext:
         state_count = len(ButtonState) - 1
 
         state_bits = button_count * state_count
-        state_indices = {ButtonState.pressed: 0, ButtonState.held: 1, ButtonState.released: 2}
+
+        state_to_index = {ButtonState.pressed: 0, ButtonState.held: 1, ButtonState.released: 2}
+        index_to_state = {v: k for k, v in state_to_index.items()}
 
         class InputStateStruct(Struct):
             """Struct for packing client inputs"""
@@ -83,8 +85,8 @@ class NetworkInputContext:
                 for button_index, mapped_key in enumerate(buttons):
                     mapped_state = remapped_button_state[mapped_key]
 
-                    if mapped_state in state_indices:
-                        state_index = state_indices[mapped_state]
+                    if mapped_state in state_to_index:
+                        state_index = state_to_index[mapped_state]
                         bitfield_index = (button_count * state_index) + button_index
                         button_state[bitfield_index] = True
 
@@ -104,9 +106,10 @@ class NetworkInputContext:
                         continue
 
                     button_index = state_index % button_count
-
                     mapped_key = buttons[button_index]
-                    button_states[mapped_key] = (state_index - button_index) // button_count
+
+                    relative_index = (state_index - button_index) // button_count
+                    button_states[mapped_key] = index_to_state[relative_index]
 
                 # Update ranges
                 range_states = {key: range_state[index] for index, key in enumerate(ranges)}
