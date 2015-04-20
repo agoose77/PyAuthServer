@@ -138,23 +138,23 @@ class PandaPhysicsInterface(PandaComponent):
         return bool(self._level_manager)
 
     @property
-    def world_linear_velocity(self):
+    def world_velocity(self):
         return Vector(self._node.getLinearVelocity())
 
-    @world_linear_velocity.setter
-    def world_linear_velocity(self, velocity):
+    @world_velocity.setter
+    def world_velocity(self, velocity):
         self._node.setLinearVelocity(tuple(velocity))
 
     @property
-    def world_angular_velocity(self):
+    def world_angular(self):
         return Vector(self._node.getAngularVelocity())
 
-    @world_angular_velocity.setter
-    def world_angular_velocity(self, angular):
+    @world_angular.setter
+    def world_angular(self, angular):
         self._node.setAngularVelocity(tuple(angular))
 
     @property
-    def local_linear_velocity(self):
+    def local_velocity(self):
         parent = self._nodepath.getParent()
 
         inverse_rotation = parent.getQuat()
@@ -165,8 +165,8 @@ class PandaPhysicsInterface(PandaComponent):
 
         return Vector(velocity)
 
-    @local_linear_velocity.setter
-    def local_linear_velocity(self, velocity):
+    @local_velocity.setter
+    def local_velocity(self, velocity):
         velocity_ = Vec3(*velocity)
         parent = self._nodepath.getParent()
 
@@ -176,7 +176,7 @@ class PandaPhysicsInterface(PandaComponent):
         self._node.setLinearVelocity(velocity_)
 
     @property
-    def local_angular_velocity(self):
+    def local_angular(self):
         parent = self._nodepath.getParent()
 
         inverse_rotation = parent.getQuat()
@@ -187,8 +187,8 @@ class PandaPhysicsInterface(PandaComponent):
 
         return Vector(angular)
 
-    @local_angular_velocity.setter
-    def local_angular_velocity(self, angular):
+    @local_angular.setter
+    def local_angular(self, angular):
         angular_ = Vec3(*angular)
         parent = self._nodepath.getParent()
 

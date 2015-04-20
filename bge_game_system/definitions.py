@@ -122,6 +122,7 @@ class BGEPhysicsInterface(BGEComponent):
     @world_velocity.setter
     def world_velocity(self, velocity):
         if not self._has_physics_controller:
+            print("nphys")
             return
 
         self._game_object.worldLinearVelocity = velocity

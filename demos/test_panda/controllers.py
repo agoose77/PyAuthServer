@@ -8,7 +8,6 @@ from game_system.controllers import PlayerPawnController
 from game_system.coordinates import Vector
 from game_system.enums import ButtonState
 from game_system.inputs import InputContext
-from game_system.signals import LogicUpdateSignal
 
 
 class TestPandaPlayerController(PlayerPawnController):
@@ -16,20 +15,7 @@ class TestPandaPlayerController(PlayerPawnController):
 
     debug = False
 
-    @LogicUpdateSignal.on_global
-    @requires_netmode(Netmodes.server)
-    def server_update(self, delta_time):
-        try:
-            state, move_id = next(self.buffer)
-
-        except StopIteration:
-            return
-
-        pawn = self.pawn
-        if pawn is None:
-            return
-
-        buttons, ranges = state.read()
+    def process_inputs(self, buttons, ranges):
         if buttons['debug'] == ButtonState.pressed:
             self.debug = not self.debug
 
@@ -61,5 +47,5 @@ class TestPandaPlayerController(PlayerPawnController):
 
         angular = Vector((0.0, 0.0, rotation_speed))
 
-        pawn.physics.world_angular_velocity = angular
-        pawn.physics.world_linear_velocity = velocity
+        pawn.physics.world_angular = angular
+        pawn.physics.world_velocity = velocity

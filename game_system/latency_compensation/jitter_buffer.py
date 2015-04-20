@@ -46,9 +46,9 @@ class JitterBuffer:
                 self._index = (self._index + 1) % self._total_length
 
         # Check that the item we wish to push isn't too old
-        last_item = self._buffer[self._index % self._total_length]
-        if last_item is not None:
-            _, last_id = last_item
+        pending_read_item = self._buffer[self._index % self._total_length]
+        if pending_read_item is not None:
+            _, last_id = pending_read_item
 
             if id_ <= last_id:
                 raise KeyError("Item expired")

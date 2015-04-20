@@ -4,12 +4,14 @@ from game_system.signals import LogicUpdateSignal, CollisionSignal
 
 from network.descriptors import Attribute
 from network.decorators import simulated
+from network.enums import Roles
 
 
 class TestActor(Actor):
 
-    replicate_physics_to_owner = True
+    replicate_physics_to_owner = False
     mass = Attribute(0.0, notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     def on_initialised(self):
         super().on_initialised()
@@ -37,5 +39,3 @@ class TestActor(Actor):
         # new_pos.y += 1 / 10
         # self.transform.world_position = new_pos
         return
-        velz = self.physics.world_linear_velocity.z
-        self.physics.world_linear_velocity = [2, 0, velz]
