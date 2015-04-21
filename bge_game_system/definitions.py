@@ -122,7 +122,6 @@ class BGEPhysicsInterface(BGEComponent):
     @world_velocity.setter
     def world_velocity(self, velocity):
         if not self._has_physics_controller:
-            print("nphys")
             return
 
         self._game_object.worldLinearVelocity = velocity
@@ -135,11 +134,13 @@ class BGEPhysicsInterface(BGEComponent):
         return self._game_object.worldLinearVelocity
 
     @world_angular.setter
-    def world_angular(self, velocity):
+    def world_angular(self, angular):
         if not self._has_physics_controller:
             return
 
-        self._game_object.worldAngularVelocity = velocity
+        if not any(angular):
+            angular = [0.0, 0.0, 0.0000002]
+        self._game_object.worldAngularVelocity = angular
 
     def ray_test(self, target, source=None, distance=0.0):
         """Perform a ray trace to a target

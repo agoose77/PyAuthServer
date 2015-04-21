@@ -1,5 +1,5 @@
 from network.descriptors import Attribute
-from network.decorators import requires_netmode
+from network.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.signals import LatencyUpdatedSignal
@@ -106,16 +106,22 @@ class PlayerPawnController(PawnController):
         self.clock = Clock()
         self.clock.possessed_by(self)
 
-    @requires_netmode(Netmodes.client)
-    def initialise_client(self):
-        """Initialise client-specific player controller state"""
-        resources = ResourceManager[self.__class__.__name__]
+    @classmethod
+    def get_input_map(cls):
+        """Return keybinding mapping (from actions to buttons)"""
+        resources = ResourceManager[cls.__name__]
         file_path = ResourceManager.get_absolute_path(resources['input_map.cfg'])
 
         parser = ConfigObj(file_path, interpolation="template")
         parser['DEFAULT'] = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
 
-        self.input_map = {name: int(binding) for name, binding in parser.items() if isinstance(binding, str)}
+        return {name: int(binding) for name, binding in parser.items() if isinstance(binding, str)}
+
+    @requires_netmode(Netmodes.client)
+    def initialise_client(self):
+        """Initialise client-specific player controller state"""
+
+        self.input_map = self.get_input_map()
         self.move_id = 0
 
         self.sent_states = OrderedDict()
@@ -126,6 +132,7 @@ class PlayerPawnController(PawnController):
         """Initialise server-specific player controller state"""
         self.info = self.__class__.info_cls()
 
+        # Network jitter compensation
         self.buffer = JitterBuffer(length=WorldInfo.to_ticks(0.1))
 
         # Client results of simulating moves
@@ -133,6 +140,7 @@ class PlayerPawnController(PawnController):
 
         # ID of move waiting to be verified
         self.pending_validation_move_id = None
+        self.pending_correction_confirmation = False
 
     @LatencyUpdatedSignal.on_context
     def server_update_ping(self, rtt):
@@ -166,6 +174,7 @@ class PlayerPawnController(PawnController):
     # Todo: handle acknowledged moves - pop from sent states
     # Handle older move pop in case no packet received?
 
+    @reliable
     def client_correct_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK), position: TypeFlag(Vector),
                             orientation: TypeFlag(Euler), velocity: TypeFlag(Vector),
                             angular: TypeFlag(Vector)) -> Netmodes.client:
@@ -198,8 +207,16 @@ class PlayerPawnController(PawnController):
             process_inputs(buttons, ranges)
             PhysicsSingleUpdateSignal.invoke(delta_time, target=pawn)
 
+        # Inform server of receipt
+        self.server_acknowledge_correction()
+
     def process_inputs(self, buttons, ranges):
         pass
+
+    @reliable
+    def server_acknowledge_correction(self) -> Netmodes.server:
+        """Acknowledge previous correction sent to client, allowing further corrections"""
+        self.pending_correction_confirmation = False
 
     @requires_netmode(Netmodes.client)
     def client_send_move(self):
@@ -221,6 +238,10 @@ class PlayerPawnController(PawnController):
         """
         pawn = self.pawn
         if not pawn:
+            return
+
+        # Don't bother checking if we're already checking invalid state
+        if self.pending_correction_confirmation:
             return
 
         move_id = self.pending_validation_move_id
@@ -249,6 +270,8 @@ class PlayerPawnController(PawnController):
         velocity = pawn.physics.world_velocity
         angular = pawn.physics.world_angular
 
+        # Correct client's state
+        self.pending_correction_confirmation = True
         self.client_correct_move(move_id, position, orientation, velocity, angular)
 
     @PlayerInputSignal.on_global
@@ -265,7 +288,6 @@ class PlayerPawnController(PawnController):
         self.sent_states[self.move_id] = packed_state
         self.recent_states.appendleft(packed_state)
 
-        print("PROC")
         self.process_inputs(*remapped_state)
 
     @PostPhysicsSignal.on_global
