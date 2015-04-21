@@ -1,23 +1,4 @@
-__all__ = ["Pointer", "TypeFlag"]
-
-
-class Pointer:
-    """Pointer to member of object"""
-
-    def __init__(self, qualname):
-        self._qualname = qualname
-
-    def __call__(self, obj):
-        """Retrieve member from object
-
-        :param obj: object to traverse
-        """
-        parts = self._qualname.split(".")
-
-        for part in parts:
-            obj = getattr(obj, part)
-
-        return obj
+__all__ = ["TypeFlag"]
 
 
 class TypeFlag:

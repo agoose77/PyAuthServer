@@ -1,5 +1,5 @@
 from .flag_serialiser import FlagSerialiser
-from .type_flag import Pointer, TypeFlag
+from .type_flag import TypeFlag
 from .logger import logger
 
 from collections import OrderedDict
@@ -7,7 +7,7 @@ from copy import deepcopy
 from functools import update_wrapper
 from inspect import signature, Parameter
 
-__all__ = ['RPCInterfaceFactory', 'RPCInterface']
+__all__ = ['RPCInterfaceFactory', 'RPCInterface', 'Pointer']
 
 
 WorldInfo = None
@@ -36,6 +36,25 @@ def _resolve_parameters(cls, flag):
     # Allow types to be marked
     if isinstance(flag.data_type, Pointer):
         flag.data_type = flag.data_type(cls)
+
+
+class Pointer:
+    """Pointer to member of object"""
+
+    def __init__(self, qualname):
+        self._qualname = qualname
+
+    def __call__(self, obj):
+        """Retrieve member from object
+
+        :param obj: object to traverse
+        """
+        parts = self._qualname.split(".")
+
+        for part in parts:
+            obj = getattr(obj, part)
+
+        return obj
 
 
 class RPCInterface:

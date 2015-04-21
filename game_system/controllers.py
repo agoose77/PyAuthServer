@@ -2,8 +2,9 @@ from network.descriptors import Attribute
 from network.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
+from network.rpc import Pointer
 from network.signals import LatencyUpdatedSignal
-from network.type_flag import Pointer, TypeFlag
+from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
 from .ai.behaviour.behaviour import Node
