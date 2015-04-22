@@ -9,7 +9,7 @@ class RigidBodyState(Struct):
     position = Attribute(data_type=Vector)
     velocity = Attribute(data_type=Vector)
     angular = Attribute(data_type=Vector)
-    rotation = Attribute(data_type=Euler)
+    orientation = Attribute(data_type=Euler)
 
     collision_group = Attribute(data_type=int)
     collision_mask = Attribute(data_type=int)
@@ -20,10 +20,10 @@ class RigidBodyState(Struct):
         self.angular += (other.angular - self.angular) * factor
 
         target_rotation = other.rotation.to_quaternion()
-        rotation = self.rotation.to_quaternion()
+        orientation = self.orientation.to_quaternion()
 
-        rotation.slerp(target_rotation, factor)
-        self.rotation = rotation.to_euler()
+        orientation.slerp(target_rotation, factor)
+        self.orientation = orientation.to_euler()
 
 
 class AnimationState(Struct):

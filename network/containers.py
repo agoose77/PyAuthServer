@@ -164,7 +164,9 @@ class AttributeStorageContainer(AbstractStorageContainer):
         members = self._ordered_mapping.values()
         get_description = static_description
 
-        return [complaints[member] if member in complaints else get_description(data[member]) for member in members]
+        descriptions = [complaints[member] if member in complaints else get_description(data[member])
+                        for member in members]
+        return tuple(descriptions)
 
     def get_default_descriptions(self):
         return {attribute: static_description(attribute.initial_value) for attribute in self.data}
