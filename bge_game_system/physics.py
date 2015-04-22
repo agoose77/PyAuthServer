@@ -160,7 +160,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
             position, velocity = result
 
             current_orientation = actor.transform.world_orientation.to_quaternion()
-            new_rotation = actor.network_orientation.to_quaternion()
+            new_rotation = actor.rigid_body_state.orientation.to_quaternion()
             slerped_orientation = current_orientation.slerp(new_rotation, 0.3)
 
             actor.transform.world_position = position
@@ -169,8 +169,10 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
     @PhysicsReplicatedSignal.on_global
     def on_physics_replicated(self, timestamp, target):
-        position = target.network_position
-        velocity = target.network_velocity
+        state = target.rigid_body_state
+
+        position = state.position
+        velocity = state.velocity
 
         try:
             extrapolator = self._extrapolators[target]

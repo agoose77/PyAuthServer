@@ -7,12 +7,14 @@ from network.utilities import mean
 from network.replicable import Replicable
 from network.signals import SignalListener
 from network.world_info import WorldInfo
+
 from .configobj import ConfigObj
 from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
 from .enums import Axis, CameraMode, CollisionGroups, CollisionState
 from .pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm
 from .resources import ResourceManager
+from .structs import RigidBodyState
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
 
 
@@ -92,13 +94,9 @@ class Actor(ComponentEntity, Replicable):
     component_tags = ("physics", "transform")
 
     # Network data
-    network_position = Attribute(data_type=Vector)
-    network_velocity = Attribute(Vector())
-    network_orientation = Attribute(data_type=Euler, notify=True)
-    network_angular = Attribute(Vector(), notify=True)
-    network_collision_group = Attribute(data_type=int, notify=True)
-    network_collision_mask = Attribute(data_type=int, notify=True)
-    network_replication_time = Attribute(data_type=float, notify=True)
+    rigid_body_state = Attribute(RigidBodyState())
+    rigid_body_time = Attribute(data_type=float, notify=True)
+
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
 
     # Replicated physics parameters
@@ -121,23 +119,20 @@ class Actor(ComponentEntity, Replicable):
         allowed_physics = self.replicate_simulated_physics and owner_accepts_physics and not self.transform.parent
 
         if (valid_role and allowed_physics) or is_initial:
-            yield "network_position"
-            yield "network_orientation"
-            yield "network_angular"
-            yield "network_velocity"
-            yield "network_collision_group"
-            yield "network_collision_mask"
-            yield "network_replication_time"
+            yield "rigid_body_state"
+            yield "rigid_body_time"
 
     def copy_state_to_network(self):
         """Copies Physics State to network attributes"""
-        self.network_position = self.transform.world_position.copy()
-        self.network_orientation = self.transform.world_orientation.copy()
-       # self.network_angular = self.physics.world_angular.copy()
-        #self.network_velocity = self.physics.world_velocity.copy()
-        #self.network_collision_group = self.physics.collision_group
-        #self.network_collision_mask = self.physics.collision_mask
-        self.network_replication_time = WorldInfo.elapsed
+        state = self.rigid_body_state
+
+        state.position = self.transform.world_position.copy()
+        state.orientation = self.transform.world_orientation.copy()
+        state.angular = self.physics.world_angular.copy()
+        state.velocity = self.physics.world_velocity.copy()
+        # state.collision_group = self.physics.collision_group
+        # state.collision_mask = self.physics.collision_mask
+        self.rigid_body_time = WorldInfo.elapsed
 
     def on_initialised(self):
         super().on_initialised()
@@ -153,17 +148,8 @@ class Actor(ComponentEntity, Replicable):
         super().on_deregistered()
 
     def on_notify(self, name):
-        if name == "network_collision_group":
-            pass#self.physics.collision_group = self.network_collision_group
-
-        elif name == "network_collision_mask":
-            pass#self.physics.collision_mask = self.network_collision_mask
-
-        elif name == "network_angular":
-            self.physics.world_angular = self.network_angular
-
-        elif name == "network_replication_time":
-            PhysicsReplicatedSignal.invoke(self.network_replication_time, target=self)
+        if name == "rigid_body_time":
+            PhysicsReplicatedSignal.invoke(self.rigid_body_time, target=self)
 
         else:
             super().on_notify(name)
@@ -190,7 +176,7 @@ class Camera(Actor):
         elif mode == CameraMode.third_person:
             self.local_position = Vector((0, -self.gimbal_offset, 0))
 
-        self.local_rotation = Euler()
+        self.local_orientation = Euler()
 
     def on_initialised(self):
         super().on_initialised()
