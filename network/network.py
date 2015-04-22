@@ -1,13 +1,11 @@
 from .connection import Connection
-from .decorators import ignore_arguments
-from .signals import SignalListener
 
-from collections import deque
+from random import random
 from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
 
-__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketUDP', 'Network', 'NetworkMetrics']
+__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketWrapper', 'Network', 'NetworkMetrics']
 
 
 class NonBlockingSocketUDP(socket):
@@ -21,25 +19,30 @@ class NonBlockingSocketUDP(socket):
         self.setblocking(False)
 
 
-class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
+class UnreliableSocketWrapper:
     """Non blocking socket class.
 
     A SignalListener which applies artificial latency
     to outgoing packets
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, socket_):
+        self._socket = socket_
 
-        self.delay = 0.000
-        self._buffer_out = deque()
+        self.latency = 0.250
+        self.packet_loss_factor = 0.10
 
-    @ignore_arguments
-    def delayed_send(self):
+        self._buffer_out = []
+        self._last_sent_bytes = 0
+
+    def __getattr__(self, name):
+        return getattr(self._socket, name)
+
+    def update(self):
         current_time = clock()
 
         # Check if we can send delayed data
-        delay = self.delay
+        delay = self.latency
 
         index = 0
         for index, (timestamp, *payload) in enumerate(self._buffer_out):
@@ -50,14 +53,24 @@ class UnreliableSocketUDP(SignalListener, NonBlockingSocketUDP):
         self._buffer_out[:] = self._buffer_out[index:]
 
         # Send the delayed data
-        send = super().sendto
-        for timestamp, (args, kwargs) in pending_send:
-            send(*args, **kwargs)
+        send = self._socket.sendto
+        sent_bytes = self._last_sent_bytes
+
+        for timestamp, args, kwargs in pending_send:
+            sent_bytes += send(*args, **kwargs)
+
+        self._last_sent_bytes = sent_bytes
 
     def sendto(self, *args, **kwargs):
+        # Send count from actual send call
+        sent_bytes, self._last_sent_bytes = self._last_sent_bytes, 0
+
         # Store data for delay
+        if random() <= self.packet_loss_factor:
+            return sent_bytes
+
         self._buffer_out.append((clock(), args, kwargs))
-        return 0
+        return sent_bytes
 
 
 class NetworkMetrics:
@@ -189,14 +202,14 @@ class Network:
     """Network management class"""
 
     def __init__(self, address, port):
-        self.metrics = NetworkMetrics()
-        self.receive_buffer_size = 63553
-        self._socket = NonBlockingSocketUDP(address, port)
+        self.socket = NonBlockingSocketUDP(address, port)
 
         self.address = address
         self.port = port
 
+        self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
+        self.receive_buffer_size = 63553
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
@@ -209,7 +222,7 @@ class Network:
 
         while True:
             try:
-                data = self._socket.recvfrom(buff_size)
+                data = self.socket.recvfrom(buff_size)
 
             except SOCK_ERROR:
                 return
@@ -220,14 +233,15 @@ class Network:
             yield data
 
     @staticmethod
-    def connect_to(peer_data):
+    def connect_to(address, port):
         """Return connection interface to remote peer.
 
         If connection does not exist, create a new ConnectionInterface.
 
-        :param peer_data: tuple of address, port of remote peer
+        :param address: address of remote peer
+        :param port: port of remote peer
         """
-        return Connection.create_connection(*peer_data)
+        return Connection.create_connection(address, port)
 
     def receive(self):
         """Receive all data from socket"""
@@ -252,7 +266,7 @@ class Network:
         self.multicast.receive()
 
         # Apply any changes to the Connection interface
-        Connection.update_graph()  # @UndefinedVariable
+        Connection.update_graph()
 
     def send(self, full_update):
         """Send all connection data and update timeouts
@@ -279,9 +293,9 @@ class Network:
         :param data: data to send
         :param address: address of remote peer
         """
-        data_length = self._socket.sendto(data, address)
-
+        data_length = self.socket.sendto(data, address)
         self.metrics.on_sent_bytes(data_length)
+
         return data_length
 
     def ping_multicast(self, multicast_host=None):
@@ -299,6 +313,6 @@ class Network:
 
     def stop(self):
         """Close network socket"""
-        self._socket.close()
+        self.socket.close()
 
         self.multicast.stop()

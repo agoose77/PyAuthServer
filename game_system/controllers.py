@@ -1,6 +1,7 @@
 from network.descriptors import Attribute
 from network.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
+from network.logger import logger
 from network.replicable import Replicable
 from network.rpc import Pointer
 from network.signals import LatencyUpdatedSignal
@@ -251,7 +252,7 @@ class PlayerPawnController(PawnController):
             client_state = self.client_moves_states[move_id]
 
         except KeyError:
-            print("Unable to verify client state for move: {}".format(move_id))
+            logger.warn("Unable to verify client state for move: {}".format(move_id))
             return
 
         client_position, client_orientation = client_state

@@ -91,7 +91,7 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
             return
 
         # Make a list of actors which aren't us
-        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a is not target] # warning: removed "and a" check here
+        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a is not target]
 
         with self.protect_exemptions(other_actors):
             self._update_bullet(delta_time)
