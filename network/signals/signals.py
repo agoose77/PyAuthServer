@@ -1,5 +1,6 @@
 from collections import defaultdict
 from inspect import signature
+from functools import wraps
 
 from ..logger import logger
 from ..decorators import signal_listener
@@ -78,6 +79,32 @@ class Signal(metaclass=TypeRegister):
     def get_total_subscribers(cls):
         return len(cls.subscribers) + len(cls.isolated_subscribers)
 
+    @staticmethod
+    def bind_callback(callback):
+        parameters = signature(callback).parameters
+
+        bind_signal = "signal" in parameters
+        accept_target = "target" in parameters
+
+        if accept_target:
+            if bind_signal:
+                def wrapper(*args, target, signal_cls, **kwargs):
+                    callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+
+            else:
+                def wrapper(*args, target, signal_cls, **kwargs):
+                    callback(*args, target=target, **kwargs)
+
+        else:
+            if bind_signal:
+                def wrapper(*args, target, signal_cls, **kwargs):
+                    callback(*args, signal_cls=signal_cls, **kwargs)
+            else:
+                def wrapper(*args, target, signal_cls, **kwargs):
+                    callback(*args, **kwargs)
+
+        return wraps(callback)(wrapper)
+
     @classmethod
     def subscribe(cls, identifier, callback):
         """Subscribe to this Signal class using an identifier handle and a callback when invoked
@@ -86,50 +113,49 @@ class Signal(metaclass=TypeRegister):
         :param callback: callable to run when signal is invoked
         """
         signals_data = cls.get_signals(callback)
-        func_signature = signature(callback)
-
-        accepts_signal = "signal" in func_signature.parameters
-        accepts_target = "target" in func_signature.parameters
 
         for signal_cls, is_context in signals_data:
-            data_dict = (signal_cls.to_subscribe_context if is_context else signal_cls.to_subscribe_global)
-            data_dict[identifier] = callback, accepts_signal, accepts_target
+            subscribe_dict = signal_cls.to_subscribe_context if is_context else signal_cls.to_subscribe_global
+            subscribe_dict[identifier] = cls.bind_callback(callback)
 
     @classmethod
     def update_state(cls):
         """Update subscribers and children of this Signal class"""
+        on_subscribed = cls.on_subscribed
+
         # Global subscribers
         to_subscribe_global = cls.to_subscribe_global
         if to_subscribe_global:
             popitem = to_subscribe_global.popitem
             subscribers = cls.subscribers
-            callback = cls.on_subscribed
 
             while to_subscribe_global:
-                identifier, data = popitem()
-                subscribers[identifier] = data
-                callback(False, identifier, data)
+                identifier, callback = popitem()
+                subscribers[identifier] = callback
+                on_subscribed(False, identifier, callback)
 
         # Context subscribers
         to_subscribe_context = cls.to_subscribe_context
         if to_subscribe_context:
             popitem = to_subscribe_context.popitem
             subscribers = cls.isolated_subscribers
-            callback = cls.on_subscribed
+
             while to_subscribe_context:
-                identifier, data = popitem()
-                subscribers[identifier] = data
-                callback(True, identifier, data)
+                identifier, callback = popitem()
+                subscribers[identifier] = callback
+                on_subscribed(True, identifier, callback)
 
         # Remove old subscribers
         if cls.to_unsubscribe_context:
             for key in cls.to_unsubscribe_context:
                 cls.subscribers.pop(key, None)
+
             cls.to_unsubscribe_context.clear()
 
         if cls.to_unsubscribe_global:
             for key in cls.to_unsubscribe_global:
                 cls.isolated_subscribers.pop(key, None)
+
             cls.to_unsubscribe_global.clear()
 
         # Add new children
@@ -160,25 +186,6 @@ class Signal(metaclass=TypeRegister):
         cls.update_state()
 
     @classmethod
-    def invoke_signal(cls, signal_cls, target, args, kwargs, callback, supply_signal, supply_target):
-        signal_args = {}
-
-        if supply_signal:
-            signal_args['signal'] = signal_cls
-
-        if supply_target:
-            signal_args['target'] = target
-
-        signal_args.update(kwargs)
-
-        try:
-            callback(*args, **signal_args)
-
-        except Exception:
-            logger.exception("Failed to invoke signal")
-
-
-    @classmethod
     def invoke_targets(cls, target_dict, signal_cls, target, args, kwargs, addressee=None):
         """Invoke signals for targeted recipient.
 
@@ -198,9 +205,13 @@ class Signal(metaclass=TypeRegister):
 
         # If the child is a context on_context
         if addressee in target_dict:
-            callback, supply_signal, supply_target = target_dict[addressee]
-            # Invoke with the same target context even if this is a child
-            cls.invoke_signal(signal_cls, target, args, kwargs, callback, supply_signal, supply_target)
+            callback = target_dict[addressee]
+            # Invoke with the same signal context even if this is a child
+            try:
+                callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+
+            except Exception:
+                logger.exception("Unable to invoke Signal {}".format(signal_cls))
 
         # Update children of this on_context
         if addressee in cls.children:
@@ -211,13 +222,17 @@ class Signal(metaclass=TypeRegister):
     def invoke_general(cls, subscriber_dict, signal_cls, target, args, kwargs):
         """Invoke signals for non targeted listeners
 
-        :param subscriber_dict: mapping from on_context to on_context information
+        :param subscriber_dict: mapping from subscriber identifier to callback
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
-        for (callback, supply_signal, supply_target) in subscriber_dict.values():
-            cls.invoke_signal(signal_cls, target, args, kwargs, callback, supply_signal, supply_target)
+        for callback in subscriber_dict.values():
+            try:
+                callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+
+            except Exception:
+                logger.exception("Unable to invoke Signal {}".format(signal_cls))
 
     @classmethod
     def invoke(cls, *args, signal_cls=None, target=None, **kwargs):
@@ -232,6 +247,7 @@ class Signal(metaclass=TypeRegister):
 
         if target:
             cls.invoke_targets(cls.isolated_subscribers, signal_cls, target, args, kwargs)
+
         cls.invoke_general(cls.subscribers, signal_cls, target, args, kwargs)
         cls.invoke_parent(signal_cls, target, args, kwargs)
 
@@ -271,44 +287,6 @@ class Signal(metaclass=TypeRegister):
         :returns: passed function func
         """
         return signal_listener(cls, False)(func)
-
-
-class CachedSignal(Signal):
-
-    @classmethod
-    def register_subclass(cls):
-        # Unfortunate hack to reproduce super() behaviour
-        Signal.register_subclass.__func__(cls)
-
-        cls.cache = []
-
-    @classmethod
-    def invoke(cls, *args, subscriber_data=None, signal_cls=None, target=None, **kwargs):
-        if signal_cls is None:
-            signal_cls = cls
-
-        # Don't cache from cache itself!
-        if subscriber_data is None:
-            cls.cache.append((signal_cls, target, args, kwargs))
-            cls.invoke_targets(cls.isolated_subscribers, signal_cls, target, args, kwargs)
-            cls.invoke_general(cls.subscribers, signal_cls, target, args, kwargs)
-
-        else:
-            # Otherwise run a general invocation on new subscriber
-            cls.invoke_general(subscriber_data, signal_cls, target, args, kwargs)
-
-        cls.invoke_parent(signal_cls, target, args, kwargs)
-
-    @classmethod
-    def on_subscribed(cls, is_contextual, subscriber, data):
-        # Only inform global listeners (wouldn't work anyway)
-        if is_contextual:
-            return
-
-        subscriber_info = {subscriber: data}
-        invoke_signal = cls.invoke
-        for signal_cls, target, args, kwargs in cls.cache:
-            invoke_signal(*args, signal_cls=signal_cls, target=target, subscriber_data=subscriber_info, **kwargs)
 
 
 class SignalValue:
