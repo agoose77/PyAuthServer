@@ -72,10 +72,6 @@ class Signal(metaclass=TypeRegister):
         cls.to_remove_child.add((identifier, parent_identifier))
 
     @classmethod
-    def on_subscribed(cls, is_contextual, subscriber, data):
-        pass
-
-    @classmethod
     def get_total_subscribers(cls):
         return len(cls.subscribers) + len(cls.isolated_subscribers)
 
@@ -121,29 +117,15 @@ class Signal(metaclass=TypeRegister):
     @classmethod
     def update_state(cls):
         """Update subscribers and children of this Signal class"""
-        on_subscribed = cls.on_subscribed
-
         # Global subscribers
         to_subscribe_global = cls.to_subscribe_global
         if to_subscribe_global:
-            popitem = to_subscribe_global.popitem
-            subscribers = cls.subscribers
-
-            while to_subscribe_global:
-                identifier, callback = popitem()
-                subscribers[identifier] = callback
-                on_subscribed(False, identifier, callback)
+            cls.subscribers.update(to_subscribe_global)
 
         # Context subscribers
         to_subscribe_context = cls.to_subscribe_context
         if to_subscribe_context:
-            popitem = to_subscribe_context.popitem
-            subscribers = cls.isolated_subscribers
-
-            while to_subscribe_context:
-                identifier, callback = popitem()
-                subscribers[identifier] = callback
-                on_subscribed(True, identifier, callback)
+            cls.isolated_subscribers.update(to_subscribe_context)
 
         # Remove old subscribers
         if cls.to_unsubscribe_context:
