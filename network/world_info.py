@@ -85,8 +85,7 @@ class _WorldInfo(Replicable):
             return self._replicable_lookup_cache[actor_type]
 
         except KeyError:
-            values = self._replicable_lookup_cache[actor_type] = [a for a in Replicable if isinstance(a, actor_type)]
-            return values
+            return []
 
     @simulated
     def update_clock(self, delta_time):
@@ -105,9 +104,9 @@ class _WorldInfo(Replicable):
         """
         return Replicable._by_types.get(name)
 
-    replicables = property(Replicable.get_graph_instances)
-    get_replicable = simulated(Replicable.get_from_graph)
-    has_replicable = simulated(Replicable.graph_has_instance)
+    @property
+    def replicables(self):
+        return Replicable._instances.values()
 
 
 WorldInfo = _WorldInfo(_WorldInfo._ID, register_immediately=True)

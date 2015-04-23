@@ -8,10 +8,10 @@ from network.enums import Roles
 
 
 class TestActor(Actor):
+    mass = Attribute(1.0, notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     replicate_physics_to_owner = False
-    mass = Attribute(0.0, notify=True)
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     def on_initialised(self):
         super().on_initialised()
@@ -20,13 +20,14 @@ class TestActor(Actor):
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
+
         yield "mass"
 
     def on_notify(self, name):
         super().on_notify(name)
 
         if name == "mass":
-            self.physics._game_object.mass = self.mass
+            self.physics.mass = self.mass
 
     @simulated
     @CollisionSignal.on_context
@@ -35,7 +36,7 @@ class TestActor(Actor):
 
     @LogicUpdateSignal.on_global
     def on_update(self, delta_time):
-        # new_pos = self.transform.world_position
-        # new_pos.y += 1 / 10
-        # self.transform.world_position = new_pos
+        new_pos = self.transform.world_position
+        new_pos.z -= 1 / 200
+        self.transform.world_position = new_pos
         return

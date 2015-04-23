@@ -105,7 +105,6 @@ class ServerHandshakeStream(HandshakeStream):
             self.handshake_error = err
 
         else:
-            self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
             self.state = ConnectionState.handshake
 
     @send_state(ConnectionState.handshake)
@@ -127,6 +126,7 @@ class ServerHandshakeStream(HandshakeStream):
                           on_success=self.on_ack_handshake_failed)
 
         else:
+            self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
             # Set success state
             self.state = ConnectionState.connected
             ConnectionSuccessSignal.invoke(target=self)

@@ -32,9 +32,9 @@ class Connection(metaclass=InstanceRegister):
         ip_info = address, port
 
         try:
-            return cls.get_from_graph(ip_info)
+            return cls[ip_info]
 
-        except LookupError:
+        except KeyError:
             return cls(ip_info)
 
     def on_initialised(self):

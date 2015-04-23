@@ -24,7 +24,7 @@ class _ManagedInstanceBase(SignalListener):
         self.instance_id = instance_id
 
         # Add to register queue
-        self.register(instance_id, immediately=register_immediately)
+        self.register(immediately=register_immediately)
 
         # Run clean init function
         self.on_initialised()
@@ -33,12 +33,12 @@ class _ManagedInstanceBase(SignalListener):
         pass
 
     def on_registered(self):
-        pass
+        self.register_signals()
 
     def on_deregistered(self):
-        pass
+        self.unregister_signals()
 
-    def register(self, instance_id, immediately=False):
+    def register(self, immediately=False):
         """Mark the instance for registered on the next graph update
 
         :param instance_id: ID to register to
@@ -46,30 +46,70 @@ class _ManagedInstanceBase(SignalListener):
         """
         cls = self.__class__
 
-        if instance_id is None:
-            if not self.allow_random_key:
-                raise ValueError("No key specified")
-
-            instance_id = cls.get_next_id()
-
-        self.instance_id = instance_id
-
         if immediately:
-            cls._register_to_graph(self)
+            self._register_to_graph()
 
         else:
-            cls._pending_registered.add(self)
+            cls._pending_operations.append(self._register_to_graph)
 
     def deregister(self, immediately=False):
         """Mark the instance for unregistered on the next graph update
 
         :param register: Avoid graph update and immediately immediately
         """
+        cls = self.__class__
+
         if immediately:
-            self.__class__._unregister_from_graph(self)
+            self._deregister_from_graph()
 
         else:
-            self.__class__._pending_unregistered.add(self)
+            cls._pending_operations.append(self._deregister_from_graph)
+
+    def resolve_id_conflict(self, instance_id, conflicting_instance):
+        raise ValueError("Unable to register instance with this ID: ID already in use")
+
+    def _register_to_graph(self):
+        """Internal graph method.
+
+        Registers instance to the instance dict.
+        """
+        # Check instance isn't registered to this ID already
+        instance_id = self.instance_id
+
+        cls = self.__class__
+        instances = cls._instances
+
+        # Choose random ID
+        if instance_id is None:
+            if not self.allow_random_key:
+                raise ValueError("No key specified, random keys are not permitted")
+
+            instance_id = cls._get_next_id()
+            self.instance_id = instance_id
+
+        elif instance_id in instances:
+            conflicting_instance = instances[instance_id]
+
+            # Check we're not re-registering
+            if conflicting_instance is not self:
+                self.resolve_id_conflict(instance_id, conflicting_instance)
+
+            else:
+                raise ValueError("Unable to register instance: already registered")
+
+        instances[self.instance_id] = self
+        self.on_registered()
+
+    def _deregister_from_graph(self):
+        """Internal graph method.
+
+        Un-registers instance from instance dict.
+        """
+        if not self.registered:
+            return
+
+        self.__class__._instances.pop(self.instance_id)
+        self.on_deregistered()
 
     @property
     def registered(self):
@@ -109,154 +149,40 @@ class InstanceRegister(TypeRegister):
 
         if not hasattr(cls, "_instances"):
             cls._instances = {}
-            cls._pending_registered = set()
-            cls._pending_unregistered = set()
-            cls._id_generator = RenewableGenerator(cls.iter_available_ids)
+            cls._pending_operations = []
+            cls._id_generator = RenewableGenerator(cls.get_available_ids)
 
         return cls
 
-    @property
-    def total_instances(cls):
-        return len(cls._instances) + len(cls._pending_registered)
-
-    def _register_to_graph(cls, instance):
-        """Internal graph method
-        Registers an instance to the instance dict
-
-        :param instance: instance to be registered
-        """
-        if instance.registered:
-            return
-
-        cls._instances[instance.instance_id] = instance
-        instance.register_signals()
-
-        try:
-            instance.on_registered()
-
-        except Exception as err:
-            raise err
-
-    def _unregister_from_graph(cls, instance):
-        """Internal graph method
-        Un-registers an instance from instance dict
-
-        :param instance: instance to be unregistered
-        """
-        try:
-            cls._instances.pop(instance.instance_id)
-
-        except KeyError:
-            return
-
-        try:
-            instance.on_deregistered()
-
-        except Exception:
-            logger.exception("Failed to execute on_deregistered callback for {}".format(self))
-
-        finally:
-            instance.unregister_signals()
-
-    def clear_graph(cls):
-        """Removes all internal registered instances"""
-        cls.update_graph()
-
-        while cls._instances:
-            instance = take_single(cls._instances.values())
-            instance.deregister(immediately=True)
-
-    def get_next_id(cls):
+    def _get_next_id(cls):
         """Gets the next free ID
 
         :returns: first free ID
         """
         next_id = next(cls._id_generator)
-        try:
-            cls.get_from_graph(next_id, False)
 
-        except LookupError:
-            return next_id
+        if next_id in cls:
+            return cls._get_next_id()
 
-        return cls.get_next_id()
+        return next_id
 
-    def get_id_iterable(cls):
+    def get_id_range(cls):
         """Get iterable of all potential IDs
 
         :returns: range object wider than the current range of IDs in use
         """
-        return range(cls.total_instances + 1)
+        return range(len(cls._instances) + 1)
 
-    def iter_available_ids(cls):
+    def get_available_ids(cls):
         """Get iterator of available Instance IDs"""
-        potential_ids = cls.get_id_iterable()
-        current_ids = cls.get_all_graph_ids()
+        potential_ids = cls.get_id_range()
+        current_ids = cls._instances.keys()
         free_ids = set(potential_ids).difference(current_ids)
 
         if not free_ids:
             raise IndexError("No free Instance IDs remaining")
 
         return iter(free_ids)
-
-    def get_all_graph_ids(cls):
-        """Find all managed instance IDs, registered or otherwise"""
-        return (instance.instance_id for instance in cls.get_graph_instances(only_registered=False))
-
-    def get_graph_instances(cls, only_registered=True):
-        """Find all maanged instances.
-
-        :param only_registered: only include registered instances
-        """
-        if only_registered:
-            return cls._instances.values()
-
-        return chain(cls._instances.values(), cls._pending_registered)
-
-    def graph_has_instance(cls, instance_id):
-        """Checks for instance ID in registered instances
-
-        :param instance_id: ID of instance
-        """
-        return instance_id in cls._instances
-
-    def get_from_graph(cls, instance_id, only_registered=True):
-        """Find instance with a given ID.
-
-        Optionally includes those pending registered
-
-        :param only_registered: only search registered instances
-        """
-        try:
-            return cls._instances[instance_id]
-
-        except KeyError:
-            # If we don't want the other values
-            if only_registered:
-                raise LookupError
-
-            try:
-                return next(i for i in cls._pending_registered if i.instance_id == instance_id)
-
-            except StopIteration:
-                raise LookupError
-
-    def remove_from_graph(cls, instance_id):
-        """Remove instance with a given ID from the graph.
-        Prevent registered if pending.
-
-        :param instance_id: ID of instance to remove
-        """
-        try:
-            instance = cls.get_from_graph(instance_id, only_registered=False)
-        except LookupError:
-            return
-
-        cls._unregister_from_graph(instance)
-
-        if instance in cls._pending_unregistered:
-            cls._pending_unregistered.remove(instance)
-
-        return instance
 
     def update_graph(cls):
         """Update internal managed instances.
@@ -265,27 +191,36 @@ class InstanceRegister(TypeRegister):
 
         Un-registers managed instances which requested un-registered
         """
-        if cls._pending_registered:
-            get_instance = cls._pending_registered.pop
-            register = cls._register_to_graph
+        pending_operations = cls._pending_operations
 
-            while cls._pending_registered:
-                instance = get_instance()
-                register(instance)
+        if pending_operations:
+            for callback in pending_operations:
+                callback()
 
-        if cls._pending_unregistered:
-            get_instance = cls._pending_unregistered.pop
-            unregister = cls._unregister_from_graph
+            pending_operations.clear()
 
-            while cls._pending_unregistered:
-                instance = get_instance()
-                unregister(instance)
+    def clear_graph(cls):
+        """Removes all internal registered instances"""
+        cls.update_graph()
+
+        for instance in cls._instances.values():
+            instance.deregister()
+
+        cls.update_graph()
+
+        # If any of the on_deregistered methods register an instance, we will need to deregister again
+        if cls._instances:
+            print("Found remaining instances, recursively clearing")
+            cls.clear_graph()
+
+    def __contains__(cls, key):
+        return key in cls._instances
 
     def __bool__(cls):
         return bool(cls._instances)
 
     def __getitem__(cls, key):
-        return cls.get_from_graph(key)
+        return cls._instances[key]
 
     def __iter__(cls):
         return iter(cls._instances.values())

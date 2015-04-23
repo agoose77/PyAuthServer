@@ -54,50 +54,6 @@ class BGEPhysicsSystem(DelegateByNetmode, SignalListener):
         state.collision_group = actor.physics.collision_group
         state.collision_mask = actor.physics.collision_mask
 
-    @contextmanager
-    def protect_exemptions(self, exemptions):
-        """Suspend and restore state of exempted actors around an operation
-
-        :param exemptions: Iterable of exempt Actor instances
-        """
-        # Suspend exempted objects
-        skip_updates = set()
-        for actor in exemptions:
-            physics = actor.physics
-            if physics.suspended:
-                skip_updates.add(physics)
-                continue
-
-            physics.suspended = True
-
-        yield
-
-        # Restore scheduled objects
-        for actor in exemptions:
-            physics = actor.physics
-            if physics in skip_updates:
-                continue
-
-            physics.suspended = False
-
-    @PhysicsSingleUpdateSignal.on_global
-    def update_for(self, delta_time, target):
-        """Listener for PhysicsSingleUpdateSignal
-        Attempts to update physics simulation for single actor
-
-        :param delta_time: Time to progress simulation
-        :param target: Actor instance to update state"""
-        if target.physics.type not in self._active_physics:
-            return
-
-        # Make a list of actors which aren't us
-        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a is not target]
-
-        with self.protect_exemptions(other_actors):
-            self._update_bullet(delta_time)
-
-        self._update_scenegraph()
-
     @PhysicsTickSignal.on_global
     def update(self, delta_time):
         """Listener for PhysicsTickSignal
@@ -141,6 +97,52 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
         self._extrapolators = {}
 
+    @contextmanager
+    def protect_exemptions(self, exemptions):
+        """Suspend and restore state of exempted actors around an operation
+
+        :param exemptions: Iterable of exempt Actor instances
+        """
+        # Suspend exempted objects
+        already_suspended = set()
+
+        for actor in exemptions:
+            physics = actor.physics
+
+            if physics.suspended:
+                already_suspended.add(physics)
+                continue
+
+            physics.suspended = True
+
+        yield
+
+        # Restore scheduled objects
+        for actor in exemptions:
+            physics = actor.physics
+            if physics in already_suspended:
+                continue
+
+            physics.suspended = False
+
+    @PhysicsSingleUpdateSignal.on_global
+    def update_for(self, delta_time, target):
+        """Listener for PhysicsSingleUpdateSignal
+        Attempts to update physics simulation for single actor
+
+        :param delta_time: Time to progress simulation
+        :param target: Actor instance to update state"""
+        if target.physics.type not in self._active_physics:
+            return
+
+        # Make a list of actors which aren't us
+        other_actors = [a for a in WorldInfo.subclass_of(Actor) if a is not target]
+
+        with self.protect_exemptions(other_actors):
+            self._update_bullet(delta_time)
+
+        self._update_scenegraph()
+
     def extrapolate_network_states(self):
         """Apply state from extrapolators to replicated actors"""
         simulated_proxy = Roles.simulated_proxy
@@ -161,7 +163,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
             current_orientation = actor.transform.world_orientation.to_quaternion()
             new_rotation = actor.rigid_body_state.orientation.to_quaternion()
-            slerped_orientation = current_orientation.slerp(new_rotation, 0.3)
+            slerped_orientation = current_orientation.slerp(new_rotation, 0.3).to_euler()
 
             actor.transform.world_position = position
             actor.physics.world_velocity = velocity

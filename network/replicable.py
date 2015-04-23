@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from .descriptors import Attribute
 from .enums import Roles
+from .logger import logger
 from .metaclasses.register import ReplicableRegister
 from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
 
@@ -66,7 +67,9 @@ class Replicable(metaclass=ReplicableRegister):
 
         # Walk the parent tree until no parent
         try:
+            #print("WALK TREE")
             while replicable:
+                #print(replicable, replicable.owner)
                 last, replicable = replicable, replicable.owner
 
         except AttributeError:
@@ -88,10 +91,10 @@ class Replicable(metaclass=ReplicableRegister):
         """
         # Try and match an existing instance
         try:
-            existing = cls.get_from_graph(instance_id)
+            existing = cls[instance_id]
 
         # If we don't find one, make one
-        except LookupError:
+        except KeyError:
             existing = None
 
         else:
@@ -109,6 +112,8 @@ class Replicable(metaclass=ReplicableRegister):
         roles = existing.roles
         roles.local, roles.remote = roles.remote, roles.local
 
+        print("CREATE", existing)
+
         return existing
 
     @classmethod
@@ -120,40 +125,34 @@ class Replicable(metaclass=ReplicableRegister):
         """
         return range(cls.MAXIMUM_REPLICABLES)
 
-    def register(self, instance_id=None, immediately=False):
-        """Handles registered of instances.
-
-        Modifies behaviour to allow network priority over local instances.
-
-        Handles edge cases such as static replicables.
-
-        :param instance_id: instance id to register with
-        :param register: if registered should be immediate
-        """
-        # This is not static or replicated then it's local
-        if instance_id is None:
+    def register(self, immediately=False):
+        # If replicable instantiated without ID, must be local, cannot be static
+        if self.instance_id is None:
             self._local_authority = True
             self._static = False
 
-        # Therefore we will have authority to change things
-        if self.__class__.graph_has_instance(instance_id):
-            instance = self.__class__.get_from_graph(instance_id)
-            # If the instance is not local, then we have a conflict
-            error_message = "Authority over instance id {}\
-                             cannot be resolved".format(instance_id)
-            assert instance._local_authority, error_message
+        super().register(immediately)
 
-            # Forces reassignment of instance id
-            instance.register(None, immediately)
+    def resolve_id_conflict(self, instance_id, conflicting_instance):
+        # If the instance is not local, then we have a conflict
+        error_message = "Authority over instance id {} cannot be resolved".format(instance_id)
+        assert conflicting_instance._local_authority, error_message
 
-        # Possess the instance id
-        super().register(instance_id, immediately)
+        # Forces reassignment of instance id
+        conflicting_instance.on_deregistered()
+
+        logger.info("Resolved Replicable instance ID conflict")
+
+        # Re register
+        conflicting_instance.instance_id = None
+        conflicting_instance.register()
 
     def possessed_by(self, other):
         """Called on possession by other replicable
 
         :param other: other replicable (owner)
         """
+        print("POSSESSED", self, other)
         self.owner = other
 
     def unpossessed(self):
@@ -178,21 +177,19 @@ class Replicable(metaclass=ReplicableRegister):
 
         Removes instance from type list
         """
-        super().on_deregistered()
-
         self.unpossessed()
 
         self.__class__._by_types[type(self)].remove(self)
         ReplicableUnregisteredSignal.invoke(target=self)
+
+        super().on_deregistered()
 
     def on_notify(self, name):
         """Called on notifier attribute change
 
         :param name: name of attribute that has changed
         """
-        if 0:
-            print("{} attribute of {} was changed by the network".format(name,
-                                                 self.__class__.__name__))
+        pass
 
     def conditions(self, is_owner, is_complaint, is_initial):
         """Condition generator that determines replicated attributes.
@@ -209,12 +206,15 @@ class Replicable(metaclass=ReplicableRegister):
             yield "owner"
             yield "torn_off"
 
+            if self.__class__.__name__ == "Clock":
+                print(self.owner, "REPLICATE", self, self.owner.instance_id)
+
     def __description__(self):
         """Returns a hash-like description for this replicable.
 
         Used by replication system to determine if reference has changed
         :rtype: int"""
-        return hash(self.instance_id)
+        return id(self)
 
     def __repr__(self):
         class_name = self.__class__.__name__
