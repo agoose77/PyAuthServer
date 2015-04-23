@@ -79,6 +79,8 @@ class PandaPhysicsInterface(PandaComponent):
         self._node.notify_collisions(True)
         self._node.set_deactivation_enabled(False)
 
+        self._suspended_mass = None
+
     @staticmethod
     def entity_from_nodepath(nodepath):
         if not nodepath.has_python_tag("physics_component"):
@@ -132,6 +134,43 @@ class PandaPhysicsInterface(PandaComponent):
         hit_normal = Vector(result.get_hit_normal())
 
         return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
+
+    @property
+    def type(self):
+        return PhysicsType.dynamic
+
+    @property
+    def suspended(self):
+        return self._suspended_mass is not None
+
+    @suspended.setter
+    def suspended(self, value):
+        if value == self.suspended:
+            return
+
+        if value:
+            self._suspended_mass = self._node.get_mass()
+            self._node.set_mass(0.0)
+
+        else:
+            self._node.set_mass(self._suspended_mass)
+            self._suspended_mass = None
+
+    @property
+    def mass(self):
+        if self.suspended:
+            return self._suspended_mass
+
+        else:
+            return self._node.get_mass()
+
+    @mass.setter
+    def mass(self, value):
+        if self.suspended:
+            self._suspended_mass = value
+
+        else:
+            self._node.set_mass(value)
 
     @property
     def is_colliding(self):

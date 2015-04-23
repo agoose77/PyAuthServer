@@ -6,6 +6,7 @@ from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerPawnController
 from game_system.entities import Actor
+from game_system.enums import PhysicsType
 from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.physics import CollisionContact
 from game_system.signals import *
@@ -15,6 +16,9 @@ from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 from panda3d.bullet import BulletWorld
 from panda3d.core import loadPrcFileData
 from direct.showbase.DirectObject import DirectObject
+
+from contextlib import contextmanager
+
 #from panda3d.core import PythonCallbackObject
 
 loadPrcFileData('', 'bullet-enable-contact-events true')
@@ -128,9 +132,11 @@ class PandaServerPhysicsSystem(PandaPhysicsSystem):
 
 @with_tag(Netmodes.client)
 class PandaClientPhysicsSystem(PandaPhysicsSystem):
+    active_physics_types = {PhysicsType.dynamic, PhysicsType.rigid_body}
 
     def __init__(self):
         super().__init__()
+
 
         self._extrapolators = {}
 
@@ -139,14 +145,14 @@ class PandaClientPhysicsSystem(PandaPhysicsSystem):
         simulated_proxy = Roles.simulated_proxy
 
         controller = PlayerPawnController.get_local_controller()
-
-        if controller is None or controller.info is None:
+        if controller is None:
             return
 
         network_time = WorldInfo.elapsed + controller.info.ping / 2
 
         for actor, extrapolator in self._extrapolators.items():
             result = extrapolator.sample_at(network_time)
+
             if actor.roles.local != simulated_proxy:
                 continue
 
@@ -154,11 +160,56 @@ class PandaClientPhysicsSystem(PandaPhysicsSystem):
 
             current_orientation = actor.transform.world_orientation.to_quaternion()
             new_rotation = actor.rigid_body_state.orientation.to_quaternion()
-            slerped_orientation = current_orientation.slerp(new_rotation, 0.3)
+            slerped_orientation = current_orientation.slerp(new_rotation, 0.3).to_euler()
 
             actor.transform.world_position = position
             actor.physics.world_velocity = velocity
             actor.transform.world_orientation = slerped_orientation
+
+    @contextmanager
+    def protect_exemptions(self, exemptions):
+        """Suspend and restore state of exempted actors around an operation
+
+        :param exemptions: Iterable of exempt Actor instances
+        """
+        # Suspend exempted objects
+        already_suspended = set()
+
+        for actor in exemptions:
+            physics = actor.physics
+
+            if physics.suspended:
+                already_suspended.add(physics)
+                continue
+
+            physics.suspended = True
+
+        yield
+
+        # Restore scheduled objects
+        for actor in exemptions:
+            physics = actor.physics
+            if physics in already_suspended:
+                continue
+
+            physics.suspended = False
+
+    @PhysicsSingleUpdateSignal.on_global
+    def update_for(self, delta_time, target):
+        """Listener for PhysicsSingleUpdateSignal
+        Attempts to update physics simulation for single actor
+
+        :param delta_time: Time to progress simulation
+        :param target: Actor instance to update state"""
+        if target.physics.type not in self.active_physics_types:
+            return
+
+        # Make a list of actors which aren't us
+        other_actors = WorldInfo.subclass_of(Actor).copy()
+        other_actors.discard(target)
+
+        with self.protect_exemptions(other_actors):
+            self.world.doPhysics(delta_time)
 
     @PhysicsReplicatedSignal.on_global
     def on_physics_replicated(self, timestamp, target):

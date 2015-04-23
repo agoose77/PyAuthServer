@@ -67,11 +67,13 @@ class RolesHandler:
 
     @classmethod
     def pack(cls, roles):
-        """Pack roles for client
-        Switches remote and local roles
+        """Pack roles for client.
+
+        Switches remote and local roles.
 
         :param roles: role enum
-        :returms: packed roles (bytes)"""
+        :returns: packed roles (bytes)
+        """
         pack = cls.packer.pack
         return pack(roles.remote) + pack(roles.local)
 
@@ -446,22 +448,22 @@ class ReplicableBaseHandler:
 
         # Return only a replicable that was created by the network
         try:
-            replicable = WorldInfo.get_replicable(instance_id)
+            replicable = Replicable[instance_id]
             return replicable, id_size
 
-        except LookupError:
+        except KeyError:
             logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
             return None, id_size
 
     def unpack_multiple(self, bytes_string, count, offset=0):
         instance_ids, offset = self._packer.unpack_multiple(bytes_string, count, offset)
-        get_replicable = WorldInfo.get_replicable
+
         replicables = []
         for instance_id in instance_ids:
             try:
-                replicable = get_replicable(instance_id)
+                replicable = Replicable[instance_id]
 
-            except LookupError:
+            except KeyError:
                 replicable = None
                 logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
 

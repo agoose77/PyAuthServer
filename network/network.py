@@ -245,19 +245,16 @@ class Network:
 
     def receive(self):
         """Receive all data from socket"""
-        # Get connections
-        get_connection = Connection.get_from_graph
-
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
 
             try:
-                connection = get_connection(address, only_registered=False)
+                connection = Connection[address]
 
             # Create a new interface to handle connection
-            except LookupError:
-                connection = Connection(address)
+            except KeyError:
+                connection = Connection(address, register_immediately=True)
 
             # Dispatch data to connection
             connection.receive(data)

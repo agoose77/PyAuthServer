@@ -157,7 +157,6 @@ class ServerReplicationStream(ReplicationStream):
 
         :param target: replicable that was unregistered
         """
-
         # If the target is not in channel list, we don't need to delete
         if target.instance_id not in self.channels:
             return
@@ -305,9 +304,9 @@ class ClientReplicationStream(ReplicationStream):
         instance_id, _ = self.replicable_packer.unpack_id(data)
 
         try:
-            replicable = Replicable.get_from_graph(instance_id)
+            replicable = Replicable[instance_id]
 
-        except LookupError:
+        except KeyError:
             pass
 
         else:

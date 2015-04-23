@@ -2,7 +2,7 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
 from network.enums import Netmodes
-from network.network import Network
+from network.network import Network, UnreliableSocketWrapper
 from network.replicable import Replicable
 from network.signals import *
 from network.world_info import WorldInfo
@@ -335,9 +335,18 @@ class Client(GameLoop):
         timeout = Timer(self.graceful_exit_time_out)
         timeout.on_target = quit_func
 
+    def on_step(self, delta_time):
+        network = self.network_system
+        if hasattr(network.socket, "update"):
+            network.socket.update()
+
+        super().on_step(delta_time)
+
     @staticmethod
     def create_network():
-        return Network("", 0)
+        network = Network("", 0)
+        #network.socket = UnreliableSocketWrapper(network.socket)
+        return network
 
     @ConnectToSignal.on_global
     def new_connection(self, address, port):

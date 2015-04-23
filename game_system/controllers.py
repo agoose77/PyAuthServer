@@ -48,6 +48,8 @@ class PawnController(Replicable):
     def on_deregistered(self):
         self.pawn.deregister()
 
+        super().on_deregistered()
+
     def possess(self, pawn):
         """Take control of pawn
 
@@ -93,20 +95,12 @@ class PlayerPawnController(PawnController):
     @classmethod
     def get_local_controller(cls):
         """Return the local player controller instance, or None if not found"""
-        try:
-            return WorldInfo.subclass_of(PlayerPawnController)[0]
-
-        except IndexError:
-            return None
+        return next(iter(WorldInfo.subclass_of(PlayerPawnController)), None)
 
     def on_initialised(self):
         """Initialisation method"""
         self.initialise_client()
         self.initialise_server()
-
-        # Network clock
-        self.clock = Clock()
-        self.clock.possessed_by(self)
 
     @classmethod
     def get_input_map(cls):
@@ -133,6 +127,10 @@ class PlayerPawnController(PawnController):
     def initialise_server(self):
         """Initialise server-specific player controller state"""
         self.info = self.__class__.info_cls()
+
+        # Network clock
+        self.clock = Clock()
+        self.clock.possessed_by(self)
 
         # Network jitter compensation
         self.buffer = JitterBuffer(length=WorldInfo.to_ticks(0.1))
@@ -252,7 +250,9 @@ class PlayerPawnController(PawnController):
             client_state = self.client_moves_states[move_id]
 
         except KeyError:
-            logger.warn("Unable to verify client state for move: {}".format(move_id))
+            if move_id is not None:
+                logger.warn("Unable to verify client state for move: {}".format(move_id))
+
             return
 
         client_position, client_orientation = client_state
