@@ -24,10 +24,10 @@ class TestActor(Actor):
         yield "mass"
 
     def on_notify(self, name):
-        super().on_notify(name)
-
         if name == "mass":
             self.physics.mass = self.mass
+        else:
+            super().on_notify(name)
 
     @simulated
     @CollisionSignal.on_context
@@ -36,7 +36,8 @@ class TestActor(Actor):
 
     @LogicUpdateSignal.on_global
     def on_update(self, delta_time):
-        new_pos = self.transform.world_position
-        new_pos.z -= 1 / 200
-        self.transform.world_position = new_pos
+
+        # new_pos = self.transform.world_position
+        # new_pos.z -= 1 / 200
+        # self.transform.world_position = new_pos
         return

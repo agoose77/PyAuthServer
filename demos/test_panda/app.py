@@ -26,9 +26,8 @@ class Rules(ReplicationRulesBase):
         replicable.deregister()
 
     def post_initialise(self, replication_stream):
-        x = 0
-        cont = TestPandaPlayerController(register_immediately=x)
-        cont.possess(TestActor(register_immediately=x))
+        cont = TestPandaPlayerController()
+        cont.possess(TestActor())
         return cont
 
     def is_relevant(self, connection, replicable):

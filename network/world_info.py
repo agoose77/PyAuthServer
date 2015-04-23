@@ -33,12 +33,15 @@ class _WorldInfo(Replicable):
 
         :param target: Replicable instance
         """
-        if not type(target) in self._replicable_lookup_cache:
-            self._replicable_lookup_cache[type(target)] = []
+        cache = self._replicable_lookup_cache
 
-        for cls_type, values in self._replicable_lookup_cache.items():
-            if isinstance(target, cls_type):
-                values.append(target)
+        for base_cls in target.__class__.__mro__:
+            try:
+                instances = cache[base_cls]
+            except KeyError:
+                instances = cache[base_cls] = set()
+
+            instances.add(target)
 
     @ReplicableUnregisteredSignal.on_global
     @simulated
@@ -85,7 +88,7 @@ class _WorldInfo(Replicable):
             return self._replicable_lookup_cache[actor_type]
 
         except KeyError:
-            return []
+            return set()
 
     @simulated
     def update_clock(self, delta_time):

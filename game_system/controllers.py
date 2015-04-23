@@ -44,7 +44,6 @@ class PawnController(Replicable):
     def on_notify(self, name):
         if name == "pawn":
             self.possess(self.pawn)
-            print("POSSESS")
 
     def on_deregistered(self):
         self.pawn.deregister()
@@ -96,12 +95,7 @@ class PlayerPawnController(PawnController):
     @classmethod
     def get_local_controller(cls):
         """Return the local player controller instance, or None if not found"""
-        try:
-            cont = WorldInfo.subclass_of(PlayerPawnController)[0]
-            return
-
-        except IndexError:
-            return None
+        return next(iter(WorldInfo.subclass_of(PlayerPawnController)), None)
 
     def on_initialised(self):
         """Initialisation method"""

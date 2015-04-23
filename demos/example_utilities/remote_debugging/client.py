@@ -17,7 +17,7 @@ def run_interface(namespace):
     if namespace.get("waiting"):
         return
 
-    terminal = terminals[0]
+    terminal = next(iter(terminals))
     command = multiline_input()
 
     namespace['waiting'] = True

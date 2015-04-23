@@ -117,7 +117,6 @@ class Actor(ComponentEntity, Replicable):
         valid_role = (remote_role == Roles.simulated_proxy)
         allowed_physics = (self.replicate_simulated_physics and (self.replicate_physics_to_owner or not is_owner)
                            and not self.transform.parent)
-
         if (valid_role and allowed_physics) or is_initial:
             yield "rigid_body_state"
             yield "rigid_body_time"
