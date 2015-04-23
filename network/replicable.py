@@ -112,8 +112,6 @@ class Replicable(metaclass=ReplicableRegister):
         roles = existing.roles
         roles.local, roles.remote = roles.remote, roles.local
 
-        print("CREATE", existing)
-
         return existing
 
     @classmethod
@@ -152,7 +150,6 @@ class Replicable(metaclass=ReplicableRegister):
 
         :param other: other replicable (owner)
         """
-        print("POSSESSED", self, other)
         self.owner = other
 
     def unpossessed(self):
@@ -205,9 +202,6 @@ class Replicable(metaclass=ReplicableRegister):
             yield "roles"
             yield "owner"
             yield "torn_off"
-
-            if self.__class__.__name__ == "Clock":
-                print(self.owner, "REPLICATE", self, self.owner.instance_id)
 
     def __description__(self):
         """Returns a hash-like description for this replicable.
