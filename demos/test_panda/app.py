@@ -74,8 +74,6 @@ def run(mode):
         WorldInfo.netmode = Netmodes.client
 
     game_loop = cls()
-
     init_game()
-
     game_loop.delegate()
     del game_loop
