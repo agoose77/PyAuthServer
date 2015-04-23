@@ -122,7 +122,7 @@ class Server(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network("localhost", 1200)
+        return Network("", 1200)
 
 
 class Client(GameLoop):
@@ -140,7 +140,7 @@ class Client(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network("localhost", 0)
+        return Network("", 0)
 
     @ConnectToSignal.on_global
     def new_connection(self, address, port):
