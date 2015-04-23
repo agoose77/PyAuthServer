@@ -20,16 +20,9 @@ class Signal(metaclass=TypeRegister):
     def register_subclass(cls):
         cls.subscribers = {}
         cls.isolated_subscribers = {}
-
-        cls.to_subscribe_global = {}
-        cls.to_subscribe_context = {}
-
-        cls.to_unsubscribe_context = []
-        cls.to_unsubscribe_global = []
-
         cls.children = {}
-        cls.to_remove_child = set()
-        cls.to_add_child = defaultdict(set)
+
+        cls.pending_operations = []
 
     @staticmethod
     def get_signals(decorated):
@@ -41,35 +34,30 @@ class Signal(metaclass=TypeRegister):
         cls.highest_signal = cls
 
     @classmethod
-    def unsubscribe(cls, identifier, callback):
-        """Unsubscribe from this Signal class
-
-        :param identifier: identifier used to subscribe
-        :param callback: callback that was used to subscribe
-        """
-        signals_data = cls.get_signals(callback)
-
-        for signal_cls, is_context in signals_data:
-            remove_list = (signal_cls.to_unsubscribe_global if is_context else signal_cls.to_unsubscribe_context)
-            remove_list.append(identifier)
-
-            signal_children = signal_cls.children
-
-            if identifier in signal_children:
-                for child in signal_children[identifier]:
-                    signal_cls.remove_parent(child, identifier)
-
-            for parent, next_children in signal_children.items():
-                if identifier in next_children:
-                    signal_cls.remove_parent(identifier, parent)
-
-    @classmethod
     def set_parent(cls, identifier, parent_identifier):
-        cls.to_add_child[parent_identifier].add(identifier)
+        def wrapper():
+            if parent_identifier in cls.children:
+                children = cls.children[parent_identifier]
+
+            else:
+                children = cls.children[parent_identifier] = set()
+
+            children.add(identifier)
+
+        cls.pending_operations.append(wrapper)
 
     @classmethod
     def remove_parent(cls, identifier, parent_identifier):
-        cls.to_remove_child.add((identifier, parent_identifier))
+        def wrapper():
+            children = cls.children
+            parent_children_dict = children[parent_identifier]
+            # Remove from parent's children
+            parent_children_dict.remove(identifier)
+            # If we are the last child, remove parent
+            if not parent_children_dict:
+                children.pop(parent_identifier)
+
+        cls.pending_operations.append(wrapper)
 
     @classmethod
     def get_total_subscribers(cls):
@@ -102,6 +90,43 @@ class Signal(metaclass=TypeRegister):
         return wraps(callback)(wrapper)
 
     @classmethod
+    def deferred_subscribe(cls, identifier, subscribe_dict, callback):
+        def wrapper():
+            subscribe_dict[identifier] = cls.bind_callback(callback)
+
+        cls.pending_operations.append(wrapper)
+
+    @classmethod
+    def deferred_unsubscribe(cls, identifier, subscribe_dict):
+        def wrapper():
+            subscribe_dict.pop(identifier)
+
+        cls.pending_operations.append(wrapper)
+
+    @classmethod
+    def unsubscribe(cls, identifier, callback):
+        """Unsubscribe from this Signal class
+
+        :param identifier: identifier used to subscribe
+        :param callback: callback that was used to subscribe
+        """
+        signals_data = cls.get_signals(callback)
+
+        for signal_cls, is_context in signals_data:
+            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
+            signal_cls.deferred_unsubscribe(identifier, subscribe_dict)
+
+            signal_children = signal_cls.children
+
+            if identifier in signal_children:
+                for child in signal_children[identifier]:
+                    signal_cls.remove_parent(child, identifier)
+
+            for parent, next_children in signal_children.items():
+                if identifier in next_children:
+                    signal_cls.remove_parent(identifier, parent)
+
+    @classmethod
     def subscribe(cls, identifier, callback):
         """Subscribe to this Signal class using an identifier handle and a callback when invoked
 
@@ -111,53 +136,19 @@ class Signal(metaclass=TypeRegister):
         signals_data = cls.get_signals(callback)
 
         for signal_cls, is_context in signals_data:
-            subscribe_dict = signal_cls.to_subscribe_context if is_context else signal_cls.to_subscribe_global
-            subscribe_dict[identifier] = cls.bind_callback(callback)
+            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
+            signal_cls.deferred_subscribe(identifier, subscribe_dict, callback)
 
     @classmethod
     def update_state(cls):
         """Update subscribers and children of this Signal class"""
+        # Todo: move to operations list`
         # Global subscribers
-        to_subscribe_global = cls.to_subscribe_global
-        if to_subscribe_global:
-            cls.subscribers.update(to_subscribe_global)
+        if cls.pending_operations:
+            for operation in cls.pending_operations:
+                operation()
 
-        # Context subscribers
-        to_subscribe_context = cls.to_subscribe_context
-        if to_subscribe_context:
-            cls.isolated_subscribers.update(to_subscribe_context)
-
-        # Remove old subscribers
-        if cls.to_unsubscribe_context:
-            for key in cls.to_unsubscribe_context:
-                cls.subscribers.pop(key, None)
-
-            cls.to_unsubscribe_context.clear()
-
-        if cls.to_unsubscribe_global:
-            for key in cls.to_unsubscribe_global:
-                cls.isolated_subscribers.pop(key, None)
-
-            cls.to_unsubscribe_global.clear()
-
-        # Add new children
-        if cls.to_add_child:
-            cls.children.update(cls.to_add_child)
-            cls.to_add_child.clear()
-
-        # Remove old children
-        if cls.to_remove_child:
-            children = cls.children
-
-            for (child, parent) in cls.to_remove_child:
-                parent_children_dict = children[parent]
-                # Remove from parent's children
-                parent_children_dict.remove(child)
-                # If we are the last child, remove parent
-                if not parent_children_dict:
-                    children.pop(parent)
-
-            cls.to_remove_child.clear()
+            cls.pending_operations.clear()
 
     @classmethod
     def update_graph(cls):
