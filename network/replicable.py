@@ -67,9 +67,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         # Walk the parent tree until no parent
         try:
-            #print("WALK TREE")
             while replicable:
-                #print(replicable, replicable.owner)
                 last, replicable = replicable, replicable.owner
 
         except AttributeError:
