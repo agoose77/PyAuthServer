@@ -17,25 +17,26 @@ class Clock(Replicable):
     def on_initialised(self):
         super().on_initialised()
 
-        self.elapsed = 0.0
-
         self.on_server_initialised()
         self.on_client_initialised()
 
     @requires_netmode(Netmodes.client)
     def on_client_initialised(self):
-        self.nudge_interval = 0.1
+        self.nudge_minimum = 0.05
+        self.nudge_maximum = 0.4
         self.nudge_factor = 0.8
+
+        self.estimated_elapsed_server = 0.0
 
     @requires_netmode(Netmodes.server)
     def on_server_initialised(self):
-        self.poll_timer = Timer(2, repeat=True)
+        self.poll_timer = Timer(1.0, repeat=True)
         self.poll_timer.on_target = self.server_send_clock
 
     def server_send_clock(self):
-        self._server_send_clock(self.elapsed)
+        self.client_update_clock(WorldInfo.elapsed)
 
-    def _server_send_clock(self, elapsed: TypeFlag(float)) -> Netmodes.client:
+    def client_update_clock(self, elapsed: TypeFlag(float)) -> Netmodes.client:
         controller = self.owner
         if controller is None:
             return
@@ -43,15 +44,21 @@ class Clock(Replicable):
         info = controller.info
 
         # Find difference between local and remote time
-        difference = self.elapsed - elapsed - info.ping
-        if abs(difference) < self.nudge_interval:
+        difference = self.estimated_elapsed_server - (elapsed + info.ping)
+        abs_difference = abs(difference)
+
+        if abs_difference < self.nudge_minimum:
             return
 
-        self.elapsed -= difference * self.nudge_factor
+        if abs_difference > self.nudge_maximum:
+            self.estimated_elapsed_server -= difference
+
+        else:
+            self.estimated_elapsed_server -= difference * self.nudge_factor
 
     @property
     def tick(self):
-        return floor(self.elapsed * WorldInfo.tick_rate)
+        return floor(self.estimated_elapsed_server * WorldInfo.tick_rate)
 
     @property
     def sync_interval(self):
@@ -63,5 +70,6 @@ class Clock(Replicable):
 
     @TimerUpdateSignal.on_global
     @simulated
+    @requires_netmode(Netmodes.client)
     def update(self, delta_time):
-        self.elapsed += delta_time
+        self.estimated_elapsed_server += delta_time

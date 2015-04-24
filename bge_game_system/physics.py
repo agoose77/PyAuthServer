@@ -148,12 +148,11 @@ class BGEClientPhysics(BGEPhysicsSystem):
         """Apply state from extrapolators to replicated actors"""
         simulated_proxy = Roles.simulated_proxy
 
-        controller = PlayerPawnController.get_local_controller()
-
-        if controller is None or controller.info is None:
+        clock = self.network_clock
+        if clock is None:
             return
 
-        network_time = WorldInfo.elapsed + controller.info.ping / 2
+        network_time = clock.estimated_elapsed_server
 
         for actor, extrapolator in self._extrapolators.items():
             result = extrapolator.sample_at(network_time)
@@ -177,16 +176,22 @@ class BGEClientPhysics(BGEPhysicsSystem):
         position = state.position
         velocity = state.velocity
 
+        clock = self.network_clock
+        if clock is None:
+            return
+
+        network_time = clock.estimated_elapsed_server
+
         try:
             extrapolator = self._extrapolators[target]
 
         except KeyError:
             extrapolator = PhysicsExtrapolator()
-            extrapolator.reset(timestamp, WorldInfo.elapsed, position, velocity)
+            extrapolator.reset(timestamp, network_time, position, velocity)
 
             self._extrapolators[target] = extrapolator
 
-        extrapolator.add_sample(timestamp, WorldInfo.elapsed, position, velocity, target.transform.world_position)
+        extrapolator.add_sample(timestamp, network_time, position, velocity)
 
     @ReplicableUnregisteredSignal.on_global
     def on_replicable_unregistered(self, target):

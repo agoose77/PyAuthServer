@@ -89,7 +89,7 @@ class PlayerPawnController(PawnController):
 
     input_context = InputContext()
 
-    info = Attribute(data_type=Replicable)
+    clock = Attribute(data_type=Replicable, complain=True)
     info_cls = PlayerReplicationInfo
 
     @classmethod
@@ -101,6 +101,12 @@ class PlayerPawnController(PawnController):
         """Initialisation method"""
         self.initialise_client()
         self.initialise_server()
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "clock"
 
     @classmethod
     def get_input_map(cls):

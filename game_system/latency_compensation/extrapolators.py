@@ -6,9 +6,8 @@ __all__ = 'EPICExtrapolator', 'PhysicsExtrapolator'
 
 
 class EPICExtrapolator:
-
-    MINIMUM_DT = 0.01
-    VALUE_TYPE = None
+    minimum_dt = 1e-4
+    variable_cls = None
 
     def __init__(self):
         self._update_time = 0.0
@@ -17,13 +16,13 @@ class EPICExtrapolator:
         self._snap_timestamp = 0.0
         self._target_timestamp = 0.0
 
-        self._snap_value = self.VALUE_TYPE()
-        self._target_value = self.VALUE_TYPE()
-        self._last_value = self.VALUE_TYPE()
+        self._snap_value = self.variable_cls()
+        self._target_value = self.variable_cls()
+        self._last_value = self.variable_cls()
 
-        self._snap_derivative = self.VALUE_TYPE()
+        self._snap_derivative = self.variable_cls()
 
-    def add_sample(self, timestamp, current_time, new_value, new_derivative=None, c=1):
+    def add_sample(self, timestamp, current_time, new_value, new_derivative=None):
         """Add new sample to the extrapolator
 
         :param timestamp: timestamp of new sample
@@ -54,7 +53,7 @@ class EPICExtrapolator:
         delta_time = self._target_timestamp - timestamp
         self._target_value = new_value + new_derivative * delta_time
 
-        if abs(self._target_timestamp - self._snap_timestamp) < self.__class__.MINIMUM_DT:
+        if abs(self._target_timestamp - self._snap_timestamp) < self.__class__.minimum_dt:
             self._snap_derivative = new_derivative
 
         else:
@@ -67,12 +66,12 @@ class EPICExtrapolator:
         :param timestamp: timestamp of new position
         :param value: target position
         """
-        if abs(timestamp - self._last_timestamp) > self.__class__.MINIMUM_DT:
+        if abs(timestamp - self._last_timestamp) > self.__class__.minimum_dt:
             inv_delta_time = 1.0 / (timestamp - self._last_timestamp)
             derivative = (value - self._last_value) * inv_delta_time
 
         else:
-            derivative = self.VALUE_TYPE()
+            derivative = self.variable_cls()
 
         return derivative
 
@@ -96,7 +95,7 @@ class EPICExtrapolator:
         value = self._snap_value + derivative * (request_time - self._snap_timestamp)
 
         if not valid:
-            derivative = self.VALUE_TYPE()
+            derivative = self.variable_cls()
 
         return value, derivative
 
@@ -108,7 +107,8 @@ class EPICExtrapolator:
         :param value: position of base sample
         :param derivative: velocity of base sample
         """
-        assert timestamp <= current_time
+        current_time = max(current_time, timestamp)
+
         self._last_timestamp = timestamp
         self._last_value = value
         self._snap_timestamp = current_time
@@ -133,5 +133,4 @@ class EPICExtrapolator:
 
 
 class PhysicsExtrapolator(EPICExtrapolator):
-
-    VALUE_TYPE = Vector
+    variable_cls = Vector

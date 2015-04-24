@@ -9,19 +9,29 @@ from game_system.coordinates import Vector
 from game_system.enums import ButtonState
 from game_system.inputs import InputContext
 
+from .actors import TestActor
+
 
 class TestPandaPlayerController(PlayerPawnController):
     input_context = InputContext(buttons=["left", "right", "up", "down", "debug"])
 
     debug = False
 
+    @requires_netmode(Netmodes.server)
+    def shoot(self):
+        cube = TestActor()
+        pawn = self.pawn
+        cube.transform.world_position = pawn.transform.world_position + Vector((-5, 0, 0))
+
     def process_inputs(self, buttons, ranges):
         if buttons['debug'] == ButtonState.pressed:
-            self.debug = not self.debug
+            self.shoot()
+            #self.debug = not self.debug
 
         if self.debug:
-            print(self.buffer)
-            print(buttons)
+            self.shoot()
+            # print(self.buffer)
+            # print(buttons)
 
         y_sign = 0
         if buttons['up'] in {ButtonState.pressed, ButtonState.held}:
