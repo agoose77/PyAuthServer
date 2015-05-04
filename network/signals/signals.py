@@ -72,19 +72,23 @@ class Signal(metaclass=TypeRegister):
 
         if accept_target:
             if bind_signal:
-                def wrapper(*args, target, signal_cls, **kwargs):
-                    callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+                def wrapper(*args, target, signal, **kwargs):
+                    try:
+                        callback(*args, target=target, signal=signal, **kwargs)
+                    except Exception:
+                        print(callback)
+                        raise
 
             else:
-                def wrapper(*args, target, signal_cls, **kwargs):
+                def wrapper(*args, target, signal, **kwargs):
                     callback(*args, target=target, **kwargs)
 
         else:
             if bind_signal:
-                def wrapper(*args, target, signal_cls, **kwargs):
-                    callback(*args, signal_cls=signal_cls, **kwargs)
+                def wrapper(*args, target, signal, **kwargs):
+                    callback(*args, signal=signal, **kwargs)
             else:
-                def wrapper(*args, target, signal_cls, **kwargs):
+                def wrapper(*args, target, signal, **kwargs):
                     callback(*args, **kwargs)
 
         return wraps(callback)(wrapper)
@@ -159,7 +163,7 @@ class Signal(metaclass=TypeRegister):
         cls.update_state()
 
     @classmethod
-    def invoke_targets(cls, target_dict, signal_cls, target, args, kwargs, addressee=None):
+    def invoke_targets(cls, target_dict, signal, target, args, kwargs, addressee=None):
         """Invoke signals for targeted recipient.
 
         If recipient has children, invoke them as well.
@@ -181,18 +185,18 @@ class Signal(metaclass=TypeRegister):
             callback = target_dict[addressee]
             # Invoke with the same signal context even if this is a child
             try:
-                callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+                callback(*args, target=target, signal=signal, **kwargs)
 
             except Exception:
-                logger.exception("Unable to invoke Signal {}".format(signal_cls))
+                logger.exception("Unable to invoke Signal {}".format(signal))
 
         # Update children of this on_context
         if addressee in cls.children:
             for target_child in cls.children[addressee]:
-                cls.invoke_targets(target_dict, signal_cls, target, args, kwargs, addressee=target_child)
+                cls.invoke_targets(target_dict, signal, target, args, kwargs, addressee=target_child)
 
     @classmethod
-    def invoke_general(cls, subscriber_dict, signal_cls, target, args, kwargs):
+    def invoke_general(cls, subscriber_dict, signal, target, args, kwargs):
         """Invoke signals for non targeted listeners
 
         :param subscriber_dict: mapping from subscriber identifier to callback
@@ -202,30 +206,30 @@ class Signal(metaclass=TypeRegister):
         """
         for callback in subscriber_dict.values():
             try:
-                callback(*args, target=target, signal_cls=signal_cls, **kwargs)
+                callback(*args, target=target, signal=signal, **kwargs)
 
             except Exception:
-                logger.exception("Unable to invoke Signal {}".format(signal_cls))
+                logger.exception("Unable to invoke Signal {}".format(signal))
 
     @classmethod
-    def invoke(cls, *args, signal_cls=None, target=None, **kwargs):
+    def invoke(cls, *args, signal=None, target=None, **kwargs):
         """Invoke signals for a Signal type
 
         :param target: target referred to by Signal invocation
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
-        if signal_cls is None:
-            signal_cls = cls
+        if signal is None:
+            signal = cls
 
         if target:
-            cls.invoke_targets(cls.isolated_subscribers, signal_cls, target, args, kwargs)
+            cls.invoke_targets(cls.isolated_subscribers, signal, target, args, kwargs)
 
-        cls.invoke_general(cls.subscribers, signal_cls, target, args, kwargs)
-        cls.invoke_parent(signal_cls, target, args, kwargs)
+        cls.invoke_general(cls.subscribers, signal, target, args, kwargs)
+        cls.invoke_parent(signal, target, args, kwargs)
 
     @classmethod
-    def invoke_parent(cls, signal_cls, target, args, kwargs):
+    def invoke_parent(cls, signal, target, args, kwargs):
         """Invoke signals for superclass of Signal type
 
         :param target: target referred to by Signal invocation
@@ -241,7 +245,7 @@ class Signal(metaclass=TypeRegister):
         except IndexError:
             return
 
-        parent.invoke(*args, signal_cls=signal_cls, target=target, **kwargs)
+        parent.invoke(*args, signal=signal, target=target, **kwargs)
 
     @classmethod
     def on_global(cls, func):
