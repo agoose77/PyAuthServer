@@ -97,6 +97,14 @@ class BGEClientPhysics(BGEPhysicsSystem):
 
         self._extrapolators = {}
 
+    @property
+    def network_clock(self):
+        local_controller = PlayerPawnController.get_local_controller()
+        if local_controller is None:
+            return
+
+        return local_controller.clock
+
     @contextmanager
     def protect_exemptions(self, exemptions):
         """Suspend and restore state of exempted actors around an operation
