@@ -17,13 +17,14 @@ class SafeProxy(Proxy):
 
 class ThreadDataInterface:
 
-    def __init__(self, requests, commits, timeout=0.0):
-        self.requests = requests
-        self.commits = commits
+    def __init__(self, queue, block=False, timeout=None):
+        self.queue = queue
+
+        self._block = block
         self._timeout = timeout
 
     def commit(self, task):
-        self.commits.put(task, timeout=self._timeout)
+        self.queue.put(task, block=self._block, timeout=self._timeout)
 
     @contextmanager
     def guarded_request(self):
@@ -31,20 +32,17 @@ class ThreadDataInterface:
 
         yield item
 
-        if item is not None:
-            self.on_request_complete()
+        self.on_request_complete()
 
     def on_request_complete(self):
-        self.requests.task_done()
+        self.queue.task_done()
 
     def request(self):
         try:
-            item = self.requests.get(timeout=self._timeout)
+            return self.queue.get(block=self._block, timeout=self._timeout)
 
         except Empty:
             return
-
-        return item
 
 
 class QueuedThread(Thread):
@@ -56,8 +54,8 @@ class QueuedThread(Thread):
         self._queue_a = Queue()
         self._queue_b = Queue()
 
-        self.client = ThreadDataInterface(self._queue_a, self._queue_b)
-        self.slave = ThreadDataInterface(self._queue_b, self._queue_a, timeout=1/30)
+        self.to_worker = ThreadDataInterface(self._queue_a, block=True)
+        self.from_worker = ThreadDataInterface(self._queue_b)
 
         self._event = Event()
 
