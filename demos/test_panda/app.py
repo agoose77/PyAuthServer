@@ -1,4 +1,9 @@
-from panda_game_system.game_loop import Client, Server
+try:
+    import bge
+except ImportError:
+    from panda_game_system.game_loop import Client, Server
+else:
+    from bge_game_system.game_loop import Client, Server
 
 from network.connection import Connection
 from network.world_info import WorldInfo

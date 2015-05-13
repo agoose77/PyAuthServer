@@ -65,8 +65,8 @@ class BGEPhysicsInterface(BGEComponent):
 
         # Physics type
         self._physics_type = PhysicsType.dynamic
-
         self._has_physics_controller = obj.getPhysicsId() != 0
+        self._suspended = False
 
         if self._has_physics_controller:
             obj.collisionCallbacks.append(self._on_collision)
@@ -103,6 +103,21 @@ class BGEPhysicsInterface(BGEComponent):
     @collision_mask.setter
     def collision_mask(self, mask):
         pass
+
+    @property
+    def suspended(self):
+        return self._suspended
+
+    @suspended.setter
+    def suspended(self, value):
+        self._suspended = value
+
+        obj = self._game_object
+        if value:
+            obj.suspendDynamics()
+        else:
+            obj.restoreDynamics()
+
 
     @property
     def type(self):

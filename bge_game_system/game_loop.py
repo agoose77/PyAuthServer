@@ -14,6 +14,7 @@ from game_system.game_loop import FixedTimeStepManager, OnExitUpdate
 
 from .inputs import BGEInputManager
 from .physics import BGEPhysicsSystem
+from .definitions import BGEComponentLoader
 
 from bge import types, logic
 
@@ -109,6 +110,7 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
 
         self.network_scene = next(iter(logic.getSceneList()))
         self.network_scene.post_draw = [self.render_callback]
+        BGEComponentLoader.scene = self.network_scene
 
         # Create sub systems
         self.network_system = self.create_network()

@@ -147,7 +147,7 @@ class PlayerPawnController(PawnController):
 
         # ID of move waiting to be verified
         self.pending_validation_move_id = None
-        self.last_corrected_move_id = None
+        self.last_corrected_move_id = 0
 
     @LatencyUpdatedSignal.on_context
     def server_update_ping(self, rtt):
@@ -207,7 +207,7 @@ class PlayerPawnController(PawnController):
         process_inputs = self.process_inputs
         sent_states = self.sent_states
         delta_time = 1 / WorldInfo.tick_rate
-
+        print("CORRECT")
         for move_id in range(move_id, self.move_id + 1):
             state = sent_states[move_id]
             buttons, ranges = state.read()
