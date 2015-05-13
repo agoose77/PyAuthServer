@@ -144,4 +144,4 @@ class Client(GameLoop):
 
     @ConnectToSignal.on_global
     def new_connection(self, address, port):
-        self.network_system.connect_to((address, port))
+        self.network_system.connect_to(address, port)
