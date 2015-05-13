@@ -30,54 +30,67 @@ RewindState = namedtuple("RewindState", "position rotation animations")
 #TODO implement raycast weapons
 #TODO rename non-actor s
 
-class FAKE_KX_PythonLogicLoop:
+
+def for_non_patched_build():
+    class FAKE_KX_PythonLogicLoop:
+
+        def start_profile(self, p):
+            pass
+
+        def update_scenes(self):
+            pass
+
+        def update_animations(self, t):
+            pass
+
+        def check_quit(self):
+            return logic.getExitKey() in logic.keyboard.active_events
+
+        def update_physics(self, *a, **k):
+            pass
+
+        def update_scenegraph(self, t):
+            pass
+
+        def update_blender(self):
+            pass
+
+        def update_logic_bricks(self, t):
+            logic.NextFrame()
+
+        def update_render(self):
+            pass
+
+        def update_mouse(self):
+            pass
+
+        def update_keyboard(self):
+            pass
+
+        def set_current_scene(self, s):
+            pass
 
 
-    def start_profile(self, p):
-        pass
+    logic.getUseFrameRate = lambda: True
+    logic.getRestrictAnimationUpdates = lambda: True
+    logic.getAnimationTicRate = lambda: 24
 
-    def update_scenes(self):
-        pass
+    logic.KX_ENGINE_DEBUG_ANIMATIONS = 0
+    logic.KX_ENGINE_DEBUG_LOGIC = 1
+    logic.KX_ENGINE_DEBUG_MESSAGES = 2
+    logic.KX_ENGINE_DEBUG_PHYSICS = 3
+    logic.KX_ENGINE_DEBUG_RASTERIZER = 4
+    logic.KX_ENGINE_DEBUG_SCENEGRAPH = 5
+    logic.KX_ENGINE_DEBUG_SERVICES = 6
 
-    def update_animations(self, t):
-        pass
+    types.KX_PythonLogicLoop = FAKE_KX_PythonLogicLoop
 
-    def check_quit(self):
-        return logic.getExitKey() in logic.keyboard.active_events
 
-    def update_physics(self,*a, **k):
-        pass
+# If not patched, use lazy types
+if not hasattr(types, "KX_PythonLogicLoop"):
+    for_non_patched_build()
 
-    def update_scenegraph(self, t):
-        pass
 
-    def update_blender(self):
-        pass
-
-    def update_logic_bricks(self, t):
-        logic.NextFrame()
-
-    def update_render(self):
-        pass
-
-    def update_mouse(self):
-        pass
-
-    def update_keyboard(self):
-        pass
-
-    def set_current_scene(self, s):
-        pass
-
-logic.KX_ENGINE_DEBUG_ANIMATIONS = 0
-logic.KX_ENGINE_DEBUG_LOGIC = 1
-logic.KX_ENGINE_DEBUG_MESSAGES = 2
-logic.KX_ENGINE_DEBUG_PHYSICS = 3
-logic.KX_ENGINE_DEBUG_RASTERIZER = 4
-logic.KX_ENGINE_DEBUG_SCENEGRAPH = 5
-logic.KX_ENGINE_DEBUG_SERVICES = 6
-
-types.KX_PythonLogicLoop = FAKE_KX_PythonLogicLoop
 class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
 
     allow_update_display = True
@@ -90,9 +103,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         WorldInfo.tick_rate = int(logic.getLogicTicRate())
 
         # Copy BGE data
-        self.use_tick_rate = True#logic.getUseFrameRate()
-        self.animation_rate = 24#logic.getAnimationTicRate()
-        self.use_animation_rate = True#logic.getRestrictAnimationUpdates()
+        self.use_tick_rate = logic.getUseFrameRate()
+        self.animation_rate = logic.getAnimationTicRate()
+        self.use_animation_rate = logic.getRestrictAnimationUpdates()
 
         self.network_scene = next(iter(logic.getSceneList()))
         self.network_scene.post_draw = [self.render_callback]

@@ -125,6 +125,7 @@ class PlayerPawnController(PawnController):
 
         self.input_map = self.get_input_map()
         self.move_id = 0
+        self.latest_correction_id = 0
 
         self.sent_states = OrderedDict()
         self.recent_states = deque(maxlen=5)
@@ -146,7 +147,7 @@ class PlayerPawnController(PawnController):
 
         # ID of move waiting to be verified
         self.pending_validation_move_id = None
-        self.pending_correction_confirmation = False
+        self.last_corrected_move_id = None
 
     @LatencyUpdatedSignal.on_context
     def server_update_ping(self, rtt):
@@ -157,6 +158,7 @@ class PlayerPawnController(PawnController):
         self.info.ping = rtt / 2
 
     def server_receive_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK),
+                            latest_correction_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK),
                             recent_states: TypeFlag(list, element_flag=TypeFlag(
                                  Pointer("input_context.network.struct_cls"))),
                             position: TypeFlag(Vector), orientation: TypeFlag(Euler)) -> Netmodes.server:
@@ -175,7 +177,7 @@ class PlayerPawnController(PawnController):
             pass
 
         # Save physics state for this move for later validation
-        self.client_moves_states[move_id] = position, orientation
+        self.client_moves_states[move_id] = position, orientation, latest_correction_id
 
     # Todo: handle acknowledged moves - pop from sent states
     # Handle older move pop in case no packet received?
@@ -213,16 +215,11 @@ class PlayerPawnController(PawnController):
             process_inputs(buttons, ranges)
             PhysicsSingleUpdateSignal.invoke(delta_time, target=pawn)
 
-        # Inform server of receipt
-        self.server_acknowledge_correction()
+        # Remember this correction, so that older moves are not corrected
+        self.latest_correction_id = move_id
 
     def process_inputs(self, buttons, ranges):
         pass
-
-    @reliable
-    def server_acknowledge_correction(self) -> Netmodes.server:
-        """Acknowledge previous correction sent to client, allowing further corrections"""
-        self.pending_correction_confirmation = False
 
     @requires_netmode(Netmodes.client)
     def client_send_move(self):
@@ -234,53 +231,50 @@ class PlayerPawnController(PawnController):
         position = pawn.transform.world_position
         orientation = pawn.transform.world_orientation
 
-        self.server_receive_move(self.move_id, self.recent_states, position, orientation)
+        self.server_receive_move(self.move_id, self.latest_correction_id, self.recent_states, position, orientation)
 
     @requires_netmode(Netmodes.server)
-    def server_validate_move(self):
+    def server_validate_last_move(self):
         """Validate result of applied input states.
 
         Send correction to client if move was invalid.
         """
+        # Well, we need a Pawn!
         pawn = self.pawn
         if not pawn:
             return
 
-        # Don't bother checking if we're already checking invalid state
-        if self.pending_correction_confirmation:
-            return
-
+        # If we don't have a move ID, bail here
         move_id = self.pending_validation_move_id
-
-        try:
-            client_state = self.client_moves_states[move_id]
-
-        except KeyError:
-            if move_id is not None:
-                logger.warn("Unable to verify client state for move: {}".format(move_id))
-
+        if move_id is None:
             return
 
-        client_position, client_orientation = client_state
+        # Get corrected state
+        client_position, client_orientation, client_last_correction = self.client_moves_states[move_id]
+
+        # Don't bother checking if we're already checking invalid state
+        if client_last_correction < self.last_corrected_move_id:
+            return
+
         position = pawn.transform.world_position
 
         # Position valid
         if (client_position - position).length_squared <= self.__class__.MAX_POSITION_ERROR_SQUARED:
             return
-            # orientation = pawn.transform.world_orientation
-            # rotation_difference = orientation.to_quaternion().rotation_difference(client_position).to_euler()
-
-            # # Orientation valid
-            # if Vector(orientation_difference).length_squared <= self.__class__.MAX_ORIENTATION_ANGLE_ERROR_SQUARED:
-            #     return
 
         orientation = pawn.transform.world_orientation
+        # rotation_difference = orientation.to_quaternion().rotation_difference(client_position).to_euler()
+
+        # # Orientation valid
+        # if Vector(orientation_difference).length_squared <= self.__class__.MAX_ORIENTATION_ANGLE_ERROR_SQUARED:
+        #     return
+
         velocity = pawn.physics.world_velocity
         angular = pawn.physics.world_angular
 
         # Correct client's state
-        self.pending_correction_confirmation = True
         self.client_correct_move(move_id, position, orientation, velocity, angular)
+        self.last_corrected_move_id = move_id
 
     @PlayerInputSignal.on_global
     def client_handle_inputs(self, delta_time, input_manager):
@@ -301,13 +295,13 @@ class PlayerPawnController(PawnController):
     @PostPhysicsSignal.on_global
     def post_physics(self):
         self.client_send_move()
-        self.server_validate_move()
+        self.server_validate_last_move()
 
     @LogicUpdateSignal.on_global
     @requires_netmode(Netmodes.server)
     def server_update(self, delta_time):
         try:
-            state, move_id = next(self.buffer)
+            input_state, move_id = next(self.buffer)
 
         except StopIteration:
             return
@@ -315,7 +309,7 @@ class PlayerPawnController(PawnController):
         if not self.pawn:
             return
 
-        buttons, ranges = state.read()
+        buttons, ranges = input_state.read()
         self.process_inputs(buttons, ranges)
 
         self.pending_validation_move_id = move_id

@@ -34,13 +34,7 @@ class Rules(ReplicationRulesBase):
         if isinstance(replicable, PawnController):
             return False
 
-        elif isinstance(replicable, Actor):
-            return True
-
-        elif isinstance(replicable, ReplicationInfo):
-            return True
-
-        elif isinstance(replicable, Clock):
+        elif isinstance(replicable, (Actor, ReplicationInfo, Clock)):
             return True
 
         elif replicable.always_relevant:
