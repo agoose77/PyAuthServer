@@ -45,7 +45,7 @@ class ContextMemberMeta(type):
     def __new__(metacls, name, bases, attrs):
         cls = super().__new__(metacls, name, bases, attrs)
 
-        if not hasattr(cls, "_context_data"):
+        if not hasattr(cls, "context_data"):
             cls.context_data = {}
             cls.context_stack = deque(("<DEFAULT>",))
 

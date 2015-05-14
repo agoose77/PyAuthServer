@@ -270,8 +270,7 @@ class Network:
         send_func = self.send_to
 
         # Send all queued data
-        for connection in Connection:
-            print(connection, list(Connection))
+        for connection in list(Connection):
             # Give the option to send nothing
             data = connection.send(full_update)
 
