@@ -275,7 +275,7 @@ class ClientReplicationStream(ReplicationStream):
         # Find replicable class
         replicable_cls = Replicable.from_type_name(type_name)
         # Create replicable of same type
-        replicable = replicable_cls.create_or_return(instance_id, register_immediately=True)
+        replicable = replicable_cls.create_or_return(instance_id)
         # If replicable is parent (top owner)
         if is_connection_host:
             # Register as own replicable
@@ -321,7 +321,7 @@ class ClientReplicationStream(ReplicationStream):
         self.pending_notifications.clear()
 
     def on_disconnected(self):
-        for replicable in WorldInfo.replicables:
+        for replicable in list(Replicable):
             if replicable.is_static:
                 continue
 

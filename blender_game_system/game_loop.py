@@ -169,7 +169,7 @@ class Rules(ReplicationRulesBase):
         pass#replicable.deregister()
 
     def post_initialise(self, replication_stream):
-        cont = PlayerPawnController(register_immediately=True)
+        cont = PlayerPawnController()
         print("CONNECTED")
         return cont
 

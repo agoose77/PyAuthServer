@@ -254,16 +254,13 @@ class Network:
 
             # Create a new interface to handle connection
             except KeyError:
-                connection = Connection(address, register_immediately=True)
+                connection = Connection(address)
 
             # Dispatch data to connection
             connection.receive(data)
 
         # Update multi-cast listeners
         self.multicast.receive()
-
-        # Apply any changes to the Connection interface
-        Connection.update_graph()
 
     def send(self, full_update):
         """Send all connection data and update timeouts
@@ -280,9 +277,6 @@ class Network:
             # If returns data, send it
             if data:
                 send_func(data, connection.instance_id)
-
-        # Delete dead connections
-        Connection.update_graph()
 
     def send_to(self, data, address):
         """Send data to remote peer

@@ -1,6 +1,40 @@
-from contextlib import contextmanager
 from copy import deepcopy
 from collections import deque
+
+
+class BoundContext:
+
+    def __init__(self, cls, name):
+        self.name = name
+
+        self._cls = cls
+        self._context = {}
+        self._depth = 0
+        self._previous_context = None
+
+    def __enter__(self):
+        if self._depth:
+            return
+
+        cls = self._cls
+
+        self._previous_context = cls._context_data
+        cls._context_data = self._context
+
+        cls._context_stack.append(self.name)
+        self._depth += 1
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._depth > 1:
+            return
+
+        cls = self._cls
+
+        cls._context_stack.pop()
+        cls._context_data = self._previous_context
+
+    def __repr__(self):
+        return "{}::{{{}}}".format(self._cls.__name__, self.name)
 
 
 class GlobalDataContext(type):
@@ -15,24 +49,7 @@ class GlobalDataContext(type):
         return ".".join(cls._context_stack)
 
     def get_context(cls, name="Context"):
-        context_dict = {}
-        context_stack = cls._context_stack
-
-        @contextmanager
-        def context():
-            previous_context = cls._context_data
-            if previous_context is context_dict:
-                yield
-
-            else:
-                cls._context_data = context_dict
-                context_stack.append(name)
-                yield
-                context_stack.pop()
-                cls._context_data = previous_context
-
-        context.__qualname__ = "{}::{{{}}}".format(cls.__name__, name)
-        return context
+        return BoundContext(cls, name)
     
 
 class ContextMember:

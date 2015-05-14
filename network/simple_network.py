@@ -23,7 +23,7 @@ class SimpleNetwork(Network):
         Replicable.clear_graph()
         Signal.update_graph()
 
-        WorldInfo.register(instance_id=WorldInfo.instance_id, immediately=True)
+        WorldInfo.register(instance_id=WorldInfo.instance_id)
         Signal.update_graph()
 
     def stop(self):

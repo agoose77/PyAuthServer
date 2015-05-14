@@ -48,7 +48,7 @@ class Rules(ReplicationRulesBase):
 
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
-        floor = TestActor(register_immediately=True)
+        floor = TestActor()
         floor.transform.world_position = [0, 30, -1]
 
         floor.physics.mass = 0.0
