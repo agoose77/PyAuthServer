@@ -4,32 +4,47 @@ from functools import wraps
 
 from ..logger import logger
 from ..decorators import signal_listener
+from ..descriptors import ContextMember
 from ..metaclasses.register import TypeRegister
+from ..metaclasses.context import ContextMemberMeta
 
 
-__all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
-           'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
-           'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
+# __all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
+#            'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
+#            'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
 
 
-class Signal(metaclass=TypeRegister):
+class SignalMeta(TypeRegister, ContextMemberMeta):
+
+    subscribers = ContextMember({})
+    isolated_subscribers = ContextMember({})
+    children = ContextMember({})
+
+    def register_base_class(cls):
+        cls.register_subclass()
+        cls.highest_signal = cls
+
+    def register_subclass(cls):
+        cls.context_data = {}
+
+    def get_context(cls):
+        return {sub_cls: sub_cls.context_data for sub_cls in cls.subclasses.values()}
+
+    def get_default_context(cls):
+        return {sub_cls: {} for sub_cls in cls.subclasses.values()}
+
+    def set_context(cls, context):
+        for sub_cls in cls.subclasses.values():
+            sub_cls.context_data = context[sub_cls]
+
+
+class Signal(metaclass=SignalMeta):
     """Observer class for signal-like invocation"""
     subclasses = {}
-
-    @classmethod
-    def register_subclass(cls):
-        cls.subscribers = {}
-        cls.isolated_subscribers = {}
-        cls.children = {}
 
     @staticmethod
     def get_signals(decorated):
         return decorated.__annotations__['signals']
-
-    @classmethod
-    def register_base_class(cls):
-        cls.register_subclass()
-        cls.highest_signal = cls
 
     @classmethod
     def set_parent(cls, child_identifier, parent_identifier):

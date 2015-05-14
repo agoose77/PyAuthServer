@@ -4,7 +4,7 @@ from .descriptors import Attribute
 from .enums import Roles
 from .logger import logger
 from .metaclasses.register import ReplicableRegister
-from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
+from .signals import ReplicableRegisteredSignal, ReplicableUnregisteredSignal
 
 
 __all__ = ['Replicable']

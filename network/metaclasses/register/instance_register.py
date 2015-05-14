@@ -1,6 +1,7 @@
 from .type_register import TypeRegister
 
-from ...context import GlobalDataContext, ContextMember
+from ..context import ContextMemberMeta
+from ...descriptors import ContextMember
 from ...iterators import RenewableGenerator
 from ...signals import SignalListener
 
@@ -103,7 +104,7 @@ class _ManagedInstanceBase(SignalListener):
             return "(Instance {}: id={})".format(class_name, self.instance_id)
 
 
-class InstanceRegister(TypeRegister, GlobalDataContext):
+class InstanceRegister(TypeRegister, ContextMemberMeta):
     """Graph managing metaclass
 
     Provides high level interface for managing instance objects
@@ -122,9 +123,6 @@ class InstanceRegister(TypeRegister, GlobalDataContext):
         parents += (_ManagedInstanceBase,)
 
         return super().__new__(metacls, name, parents, attrs)
-
-    def register_base_class(cls):
-        cls._
 
     def _get_next_id(cls):
         """Gets the next free ID
