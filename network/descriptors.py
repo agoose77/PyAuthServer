@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 from .handlers import static_description
-from .structures import factory_dict
 from .type_flag import TypeFlag
 
 __all__ = ['TypeFlag', 'Attribute', 'DescriptorFactory']
@@ -68,6 +67,35 @@ class Attribute(TypeFlag):
         return deepcopy(self.initial_value)
 
 
+class ContextMember:
+    """Data descriptor used with ContextMemberMeta to store contextually global data"""
+
+    def __init__(self, default):
+        self.default = default
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self
+
+        try:
+            return instance.context_data[self]
+
+        except KeyError:
+            new_value = self.factory(instance)
+            instance.context_data[self] = new_value
+            return new_value
+
+    def __set__(self, instance, value):
+        try:
+            instance.context_data[self] = value
+
+        except AttributeError:
+            raise
+
+    def factory(self, instance):
+        return deepcopy(self.default)
+
+
 class DescriptorFactory:
     """Factory for class descriptors"""
 
@@ -85,9 +113,6 @@ class DescriptorFactory:
 
         except KeyError:
             result = self.callback(instance)
-
-
-
             instance_dict[self] = result
 
             return result
