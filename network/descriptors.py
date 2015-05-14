@@ -12,7 +12,7 @@ class Attribute(TypeFlag):
     __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
     def __init__(self, value=None, data_type=None, notify=False, complain=False, **kwargs):
-        super().__init__(data_type or type(value), **kwargs)
+        super().__init__(type(value) if data_type is None else data_type, **kwargs)
 
         self.notify = notify
         self.complain = complain
