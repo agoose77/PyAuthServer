@@ -21,10 +21,8 @@ class SimpleNetwork(Network):
     def on_finished(self):
         Connection.clear_graph()
         Replicable.clear_graph()
-        Signal.update_graph()
 
         WorldInfo.register(instance_id=WorldInfo.instance_id)
-        Signal.update_graph()
 
     def stop(self):
         self.on_finished()
@@ -32,8 +30,6 @@ class SimpleNetwork(Network):
 
     def step(self):
         self.receive()
-        Replicable.update_graph()
-        Signal.update_graph()
 
         full_update = True
 

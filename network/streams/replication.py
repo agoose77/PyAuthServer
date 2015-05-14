@@ -39,7 +39,6 @@ class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
 
         # Call this last to ensure we intercept registration callbacks at the correct time
         self.register_signals()
-        Signal.update_graph()
 
     @property
     def prioritised_channels(self):

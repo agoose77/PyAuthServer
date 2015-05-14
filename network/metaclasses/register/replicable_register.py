@@ -108,8 +108,8 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         return_type = get_annotation("return", default=None)(func)
         return return_type in Netmodes
 
-    @classmethod
-    def is_wrapable(mcs, attribute):
+    @staticmethod
+    def is_wrapable(attribute):
         """Determine if function can be wrapped as an RPC call
 
         :param attribute: attribute in question
@@ -117,7 +117,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         return isfunction(attribute) and not isinstance(attribute, (classmethod, staticmethod))
 
     @classmethod
-    def is_found_in_parents(mcs, name, parents):
+    def is_found_in_parents(metacls, name, parents):
         """Determine if parent classes contain an attribute
 
         :param name: name of attribute
@@ -130,7 +130,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
                 if hasattr(cls, name):
                     return True
 
-                if cls.__class__ is mcs:
+                if cls.__class__ is metacls:
                     break
 
         return False

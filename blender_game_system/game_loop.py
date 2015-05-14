@@ -391,7 +391,6 @@ class GameLoop(SignalListener, FixedTimeStepManager):
         self.metric_interval = 0.10
 
         # Load world
-        Signal.update_graph()
         self.pending_exit = False
 
         print("Network initialised")
@@ -399,16 +398,11 @@ class GameLoop(SignalListener, FixedTimeStepManager):
     def cleanup(self):
         pass
 
-    def update_graphs(self):
-        Replicable.update_graph()
-        Signal.update_graph()
-
     def invoke_exit(self):
         self.pending_exit = True
 
     def on_step(self, delta_time):
         self.network_system.receive()
-        self.update_graphs()
 
         # Update inputs
         # base.taskMgr.step()
@@ -430,15 +424,12 @@ class GameLoop(SignalListener, FixedTimeStepManager):
 
         # Update main logic (Replicable update)
         LogicUpdateSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Update Physics, which also handles Scene-graph
         PhysicsTickSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Clean up following Physics update
         PostPhysicsSignal.invoke()
-        self.update_graphs()
 
         # Transmit new state to remote peer
         is_full_update = ((self.current_time - self.last_sent_time) >= (1 / self.network_tick_rate))
@@ -454,7 +445,6 @@ class GameLoop(SignalListener, FixedTimeStepManager):
 
         # Update UI
         UIUpdateSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Update Timers
         TimerUpdateSignal.invoke(delta_time)
