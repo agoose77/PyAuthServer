@@ -280,6 +280,8 @@ class ClientReplicationStream(ReplicationStream):
             # Register as own replicable
             self.replicable = replicable
 
+        print("INIT", replicable)
+
     @response_protocol(ConnectionProtocols.attribute_update)
     def handle_replication_update(self, data):
         instance_id, id_size = self.replicable_packer.unpack_id(data)

@@ -51,12 +51,10 @@ class TestPandaPlayerController(PlayerPawnController):
         rotation_speed = x_sign
 
         pawn = self.pawn
-
+        if pawn is None:
+            return
         velocity = Vector((0.0, y_speed, 0.0))
-        try:
-            velocity.rotate(pawn.transform.world_orientation)
-        except AttributeError:
-            base.invoke_exit()
+        velocity.rotate(pawn.transform.world_orientation)
 
         angular = Vector((0.0, 0.0, rotation_speed))
 
