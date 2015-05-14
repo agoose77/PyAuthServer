@@ -85,6 +85,9 @@ class DescriptorFactory:
 
         except KeyError:
             result = self.callback(instance)
+
+
+
             instance_dict[self] = result
 
             return result

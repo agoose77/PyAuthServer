@@ -2,7 +2,6 @@ from .decorators import simulated
 from .descriptors import Attribute
 from .enums import Roles, Netmodes
 from .replicable import Replicable
-from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
 
 __all__ = ['_WorldInfo', 'WorldInfo']
 
@@ -22,37 +21,7 @@ class _WorldInfo(Replicable):
     rules = None
 
     def on_initialised(self):
-        self._replicable_lookup_cache = {}
-
         self.always_relevant = True
-
-    @ReplicableRegisteredSignal.on_global
-    @simulated
-    def cache_replicable(self, target):
-        """Stores replicable instance for fast lookup by type
-
-        :param target: Replicable instance
-        """
-        cache = self._replicable_lookup_cache
-
-        for base_cls in target.__class__.__mro__:
-            try:
-                instances = cache[base_cls]
-            except KeyError:
-                instances = cache[base_cls] = set()
-
-            instances.add(target)
-
-    @ReplicableUnregisteredSignal.on_global
-    @simulated
-    def uncache_replicable(self, target):
-        """Removes stored replicable instance for fast lookup by type
-
-        :param target: Replicable instance
-        """
-        for values in self._replicable_lookup_cache.values():
-            if target in values:
-                values.remove(target)
 
     def conditions(self, is_owner, is_complain, is_initial):
         yield from super().conditions(is_owner, is_complain, is_initial)
@@ -78,19 +47,6 @@ class _WorldInfo(Replicable):
         return round(delta_time * self.tick_rate)
 
     @simulated
-    def subclass_of(self, actor_type):
-        """Find registered actors that are subclasses of a given type
-
-        :param actor_type: type to compare against
-        :returns: list of subclass instances
-        """
-        try:
-            return self._replicable_lookup_cache[actor_type]
-
-        except KeyError:
-            return set()
-
-    @simulated
     def update_clock(self, delta_time):
         """Update internal clock
 
@@ -98,18 +54,5 @@ class _WorldInfo(Replicable):
         """
         self.elapsed += delta_time
 
-    @simulated
-    def type_is(self, name):
-        """Find Replicable instances with provided type
 
-        :param name: name of class type
-        :returns: list of sibling instances derived from provided type
-        """
-        return Replicable._by_types.get(name)
-
-    @property
-    def replicables(self):
-        return Replicable._instances.values()
-
-
-WorldInfo = _WorldInfo(_WorldInfo._ID, register_immediately=True)
+WorldInfo = _WorldInfo(_WorldInfo._ID)

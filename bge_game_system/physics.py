@@ -4,6 +4,7 @@ from network.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
 from network.signals import SignalListener, ReplicableUnregisteredSignal
+from network.replicable import Replicable
 from network.world_info import WorldInfo
 
 from game_system.entities import Actor
@@ -73,7 +74,7 @@ class BGEServerPhysics(BGEPhysicsSystem):
 
     def save_network_states(self):
         """Saves Physics transformations to network variables"""
-        for actor in WorldInfo.subclass_of(Actor):
+        for actor in Replicable.subclass_of_type(Actor):
             actor.copy_state_to_network()
 
     @PhysicsTickSignal.on_global
@@ -144,7 +145,7 @@ class BGEClientPhysics(BGEPhysicsSystem):
             return
 
         # Make a list of actors which aren't us
-        other_actors = WorldInfo.subclass_of(Actor).copy()
+        other_actors = Replicable.subclass_of_type(Actor).copy()
         other_actors.discard(target)
 
         with self.protect_exemptions(other_actors):
