@@ -12,6 +12,9 @@ class RenewableGenerator:
         self._renew_func = renew_func
         self._internal = renew_func()
 
+    def __deepcopy__(self, memodict):
+        return self.__class__(self._renew_func)
+
     def renew(self):
         self._internal = self._renew_func()
 

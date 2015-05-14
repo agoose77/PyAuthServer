@@ -21,7 +21,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
     forced_redefinitions = {}
 
     def __new__(metacls, cls_name, bases, cls_dict):
-        # We cannot operate on base classes
+        # We need not operate on base classes
         if not bases:
             return super().__new__(metacls, cls_name, bases, cls_dict)
 

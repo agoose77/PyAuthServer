@@ -1,8 +1,7 @@
-from itertools import chain
-
 from .type_register import TypeRegister
 
-from ...iterators import RenewableGenerator, take_single
+from ...context import GlobalDataContext, ContextMember
+from ...iterators import RenewableGenerator
 from ...signals import SignalListener
 from ...logger import logger
 
@@ -114,7 +113,7 @@ class _ManagedInstanceBase(SignalListener):
     @property
     def registered(self):
         try:
-            return self._instances[self.instance_id] is self
+            return self.__class__._instances[self.instance_id] is self
 
         except KeyError:
             return False
@@ -132,7 +131,7 @@ class _ManagedInstanceBase(SignalListener):
             return "(Instance {}: id={})".format(class_name, self.instance_id)
 
 
-class InstanceRegister(TypeRegister):
+class InstanceRegister(TypeRegister, GlobalDataContext):
     """Graph managing metaclass
 
     Provides high level interface for managing instance objects
@@ -142,17 +141,16 @@ class InstanceRegister(TypeRegister):
     however this metaclass prevents namespace cluttering
     """
 
-    def __new__(meta, name, parents, cls_attrs):
+    _instances = ContextMember({})
+    _pending_operations = ContextMember([])
+
+    _id_generator = ContextMember(None)
+    _id_generator.factory = lambda cls: RenewableGenerator(cls.get_available_ids)
+
+    def __new__(meta, name, parents, attrs):
         parents += (_ManagedInstanceBase,)
 
-        cls = super().__new__(meta, name, parents, cls_attrs)
-
-        if not hasattr(cls, "_instances"):
-            cls._instances = {}
-            cls._pending_operations = []
-            cls._id_generator = RenewableGenerator(cls.get_available_ids)
-
-        return cls
+        return super().__new__(meta, name, parents, attrs)
 
     def _get_next_id(cls):
         """Gets the next free ID
