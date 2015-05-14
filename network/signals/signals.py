@@ -20,13 +20,6 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
     isolated_subscribers = ContextMember({})
     children = ContextMember({})
 
-    def register_base_class(cls):
-        cls.register_subclass()
-        cls.highest_signal = cls
-
-    def register_subclass(cls):
-        cls.context_data = {}
-
     def get_context(cls):
         return {sub_cls: sub_cls.context_data for sub_cls in cls.subclasses.values()}
 
@@ -41,6 +34,15 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
 class Signal(metaclass=SignalMeta):
     """Observer class for signal-like invocation"""
     subclasses = {}
+
+    @classmethod
+    def register_base_class(cls):
+        cls.register_subclass()
+        cls.highest_signal = cls
+
+    @classmethod
+    def register_subclass(cls):
+        cls.context_data = {}
 
     @staticmethod
     def get_signals(decorated):
