@@ -123,9 +123,6 @@ class InstanceRegister(TypeRegister, GlobalDataContext):
 
         return super().__new__(metacls, name, parents, attrs)
 
-    def register_base_class(cls):
-        cls._
-
     def _get_next_id(cls):
         """Gets the next free ID
 -

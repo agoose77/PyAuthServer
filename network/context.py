@@ -2,7 +2,7 @@ from copy import deepcopy
 from collections import deque
 
 
-class BoundContext:
+class BoundContextManager:
 
     def __init__(self, cls, name):
         self.name = name
@@ -46,7 +46,7 @@ class GlobalDataContext(type):
         cls = super().__new__(metacls, name, bases, attrs)
 
         if not hasattr(cls, "_context_data"):
-            cls._context_data = {}
+            cls._context_data = cls.get_default_context()
             cls._context_stack = deque(("<DEFAULT>",))
 
         return cls
@@ -55,8 +55,16 @@ class GlobalDataContext(type):
     def qualified_context(cls):
         return ".".join(cls._context_stack)
 
-    def get_context(cls, name="Context"):
-        return BoundContext(cls, name)
+    def get_default_context(cls):
+        return {}
+
+    def replace_context(cls, context):
+        old_context = cls._context_data
+        cls._context_data = context
+        return old_context
+
+    def get_context_manager(cls, name="Context"):
+        return BoundContextManager(cls, name)
     
 
 class ContextMember:

@@ -17,6 +17,11 @@ class Signal(metaclass=TypeRegister):
     subclasses = {}
 
     @classmethod
+    def register_base_class(cls):
+        cls.register_subclass()
+        cls.highest_signal = cls
+
+    @classmethod
     def register_subclass(cls):
         cls.subscribers = {}
         cls.isolated_subscribers = {}
@@ -25,11 +30,6 @@ class Signal(metaclass=TypeRegister):
     @staticmethod
     def get_signals(decorated):
         return decorated.__annotations__['signals']
-
-    @classmethod
-    def register_base_class(cls):
-        cls.register_subclass()
-        cls.highest_signal = cls
 
     @classmethod
     def set_parent(cls, child_identifier, parent_identifier):
