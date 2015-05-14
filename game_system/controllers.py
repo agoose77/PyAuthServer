@@ -95,7 +95,7 @@ class PlayerPawnController(PawnController):
     @classmethod
     def get_local_controller(cls):
         """Return the local player controller instance, or None if not found"""
-        return next(iter(WorldInfo.subclass_of(PlayerPawnController)), None)
+        return next(iter(Replicable.subclass_of_type(PlayerPawnController)), None)
 
     def on_initialised(self):
         """Initialisation method"""

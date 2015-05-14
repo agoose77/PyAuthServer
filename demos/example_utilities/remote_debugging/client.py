@@ -9,7 +9,7 @@ from .tools import multiline_input
 
 
 def run_interface(namespace):
-    terminals = WorldInfo.subclass_of(RemoteTerminal)
+    terminals = Replicable.subclass_of_type(RemoteTerminal)
     if not terminals:
         return
 

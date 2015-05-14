@@ -123,7 +123,7 @@ class Signal(metaclass=TypeRegister):
         bind_callback = cls.bind_callback(callback)
 
         for signal_cls, is_context in signals_data:
-            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribe
+            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
             subscribe_dict[identifier] = bind_callback
 
     @classmethod

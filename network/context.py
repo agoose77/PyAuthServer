@@ -41,8 +41,15 @@ class GlobalDataContext(type):
     """ContextMember instances attributed to members of the class tree of GlobalDataContext (metaclasses, derived classes)
     will be dependent upon a global context
     """
-    _context_data = {}
-    _context_stack = deque(("<DEFAULT>",))
+
+    def __new__(metacls, name, bases, attrs):
+        cls = super().__new__(metacls, name, bases, attrs)
+
+        if not hasattr(cls, "_context_data"):
+            cls._context_data = {}
+            cls._context_stack = deque(("<DEFAULT>",))
+
+        return cls
 
     @property
     def qualified_context(cls):
@@ -59,6 +66,9 @@ class ContextMember:
         self.default = default
     
     def __get__(self, instance, cls):
+        if instance is None:
+            return self
+
         try:
             return instance._context_data[self]
         
@@ -66,9 +76,13 @@ class ContextMember:
             new_value = self.factory(instance)
             instance._context_data[self] = new_value
             return new_value
-        
+
     def __set__(self, instance, value):
-        instance._context_data[self] = value
+        try:
+            instance._context_data[self] = value
+
+        except AttributeError:
+            raise
 
     def factory(self, instance):
         return deepcopy(self.default)
