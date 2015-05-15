@@ -226,7 +226,7 @@ class BlenderComponentLoader(ComponentLoader):
 
     @classmethod
     def find_or_create_object(cls, entity, config_parser):
-        if entity.is_static or 1:
+        if entity.is_static:
             return cls.find_object(config_parser)
 
         raise ValueError(entity)
@@ -243,10 +243,6 @@ class BlenderComponentLoader(ComponentLoader):
         result.on_unloaded = on_unloaded
 
         return result
-
-
-from network.descriptors import Attribute
-from network.enums import Roles
 
 
 class OperatorPanel(bpy.types.Panel):
