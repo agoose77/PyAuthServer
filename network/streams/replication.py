@@ -309,7 +309,7 @@ class ClientReplicationStream(ReplicationStream):
             pass
 
         else:
-            replicable.deregister(True)
+            replicable.deregister()
 
     def handle_packets(self, packet_collection):
         super().handle_packets(packet_collection)
