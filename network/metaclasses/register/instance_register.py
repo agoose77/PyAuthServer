@@ -1,10 +1,9 @@
-from itertools import chain
-
 from .type_register import TypeRegister
 
-from ...iterators import RenewableGenerator, take_single
+from ..context import ContextMemberMeta
+from ...descriptors import ContextMember
+from ...iterators import RenewableGenerator
 from ...signals import SignalListener
-from ...logger import logger
 
 __all__ = ['InstanceRegister', '_ManagedInstanceBase']
 
@@ -16,7 +15,7 @@ class _ManagedInstanceBase(SignalListener):
     individual registered functions and registered status
     """
 
-    def __init__(self, instance_id=None, register_immediately=False, allow_random_key=False):
+    def __init__(self, instance_id=None, allow_random_key=False):
         # Generator used for finding IDs
         self.allow_random_key = allow_random_key
 
@@ -24,7 +23,7 @@ class _ManagedInstanceBase(SignalListener):
         self.instance_id = instance_id
 
         # Add to register queue
-        self.register(immediately=register_immediately)
+        self.register()
 
         # Run clean init function
         self.on_initialised()
@@ -38,40 +37,10 @@ class _ManagedInstanceBase(SignalListener):
     def on_deregistered(self):
         self.unregister_signals()
 
-    def register(self, immediately=False):
+    def register(self):
         """Mark the instance for registered on the next graph update
 
         :param instance_id: ID to register to
-        :param immediately: Avoid graph update and immediately register
-        """
-        cls = self.__class__
-
-        if immediately:
-            self._register_to_graph()
-
-        else:
-            cls._pending_operations.append(self._register_to_graph)
-
-    def deregister(self, immediately=False):
-        """Mark the instance for unregistered on the next graph update
-
-        :param register: Avoid graph update and immediately immediately
-        """
-        cls = self.__class__
-
-        if immediately:
-            self._deregister_from_graph()
-
-        else:
-            cls._pending_operations.append(self._deregister_from_graph)
-
-    def resolve_id_conflict(self, instance_id, conflicting_instance):
-        raise ValueError("Unable to register instance with this ID: ID already in use")
-
-    def _register_to_graph(self):
-        """Internal graph method.
-
-        Registers instance to the instance dict.
         """
         # Check instance isn't registered to this ID already
         instance_id = self.instance_id
@@ -100,10 +69,10 @@ class _ManagedInstanceBase(SignalListener):
         instances[self.instance_id] = self
         self.on_registered()
 
-    def _deregister_from_graph(self):
-        """Internal graph method.
+    def deregister(self):
+        """Mark the instance for unregistered on the next graph update
 
-        Un-registers instance from instance dict.
+        :param register: Avoid graph update and immediately immediately
         """
         if not self.registered:
             return
@@ -111,10 +80,13 @@ class _ManagedInstanceBase(SignalListener):
         self.__class__._instances.pop(self.instance_id)
         self.on_deregistered()
 
+    def resolve_id_conflict(self, instance_id, conflicting_instance):
+        raise ValueError("Unable to register instance with this ID: ID already in use")
+
     @property
     def registered(self):
         try:
-            return self._instances[self.instance_id] is self
+            return self.__class__._instances[self.instance_id] is self
 
         except KeyError:
             return False
@@ -132,7 +104,7 @@ class _ManagedInstanceBase(SignalListener):
             return "(Instance {}: id={})".format(class_name, self.instance_id)
 
 
-class InstanceRegister(TypeRegister):
+class InstanceRegister(TypeRegister, ContextMemberMeta):
     """Graph managing metaclass
 
     Provides high level interface for managing instance objects
@@ -142,21 +114,19 @@ class InstanceRegister(TypeRegister):
     however this metaclass prevents namespace cluttering
     """
 
-    def __new__(meta, name, parents, cls_attrs):
+    _instances = ContextMember({})
+
+    _id_generator = ContextMember(None)
+    _id_generator.factory = lambda cls: RenewableGenerator(cls.get_available_ids)
+
+    def __new__(metacls, name, parents, attrs):
         parents += (_ManagedInstanceBase,)
 
-        cls = super().__new__(meta, name, parents, cls_attrs)
-
-        if not hasattr(cls, "_instances"):
-            cls._instances = {}
-            cls._pending_operations = []
-            cls._id_generator = RenewableGenerator(cls.get_available_ids)
-
-        return cls
+        return super().__new__(metacls, name, parents, attrs)
 
     def _get_next_id(cls):
         """Gets the next free ID
-
+-
         :returns: first free ID
         """
         next_id = next(cls._id_generator)
@@ -184,34 +154,12 @@ class InstanceRegister(TypeRegister):
 
         return iter(free_ids)
 
-    def update_graph(cls):
-        """Update internal managed instances.
-
-        Registers pending instances which requested registered.
-
-        Un-registers managed instances which requested un-registered
-        """
-        pending_operations = cls._pending_operations
-
-        if pending_operations:
-            for callback in pending_operations:
-                callback()
-
-            pending_operations.clear()
-
     def clear_graph(cls):
         """Removes all internal registered instances"""
-        cls.update_graph()
-
-        for instance in cls._instances.values():
+        instances = cls._instances
+        while instances:
+            instance_id, instance = instances.popitem()
             instance.deregister()
-
-        cls.update_graph()
-
-        # If any of the on_deregistered methods register an instance, we will need to deregister again
-        if cls._instances:
-            print("Found remaining instances, recursively clearing")
-            cls.clear_graph()
 
     def __contains__(cls, key):
         return key in cls._instances

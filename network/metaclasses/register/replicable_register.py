@@ -4,6 +4,7 @@ from .instance_register import InstanceRegister
 from ..mapping.attribute_mapping import AttributeMeta
 from ..mapping.rpc_mapping import RPCMeta
 from ...conditions import is_annotatable
+from ...descriptors import ContextMember
 from ...decorators import get_annotation, requires_permission
 from ...enums import Netmodes
 from ...rpc import RPCInterfaceFactory
@@ -18,10 +19,13 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
     Wraps methods in protectors for simulated decorators.
     """
 
-    forced_redefinitions = {}
+    _forced_redefinitions = {}
+
+    _of_type_cache = ContextMember({})
+    _of_subclass_cache = ContextMember({})
 
     def __new__(metacls, cls_name, bases, cls_dict):
-        # We cannot operate on base classes
+        # We need not operate on base classes
         if not bases:
             return super().__new__(metacls, cls_name, bases, cls_dict)
 
@@ -29,8 +33,8 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         marked_parameter_functions = {}
 
         # Include certain RPCs for redefinition
-        for parent_cls in set(bases).intersection(metacls.forced_redefinitions):
-            rpc_functions = metacls.forced_redefinitions[parent_cls]
+        for parent_cls in set(bases).intersection(metacls._forced_redefinitions):
+            rpc_functions = metacls._forced_redefinitions[parent_cls]
 
             for name, function in rpc_functions.items():
                 # Only redefine inherited rpc calls
@@ -63,9 +67,33 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
         # If we will require redefinitions
         if marked_parameter_functions:
-            metacls.forced_redefinitions[cls] = marked_parameter_functions
+            metacls._forced_redefinitions[cls] = marked_parameter_functions
 
         return cls
+
+    def subclass_of_type(cls, cls_type):
+        """Find registered Replicable instances that are subclasses of a given type
+
+        :param actor_type: type to compare against
+        :returns: list of subclass instances
+        """
+        try:
+            return cls._of_subclass_cache[cls_type]
+
+        except KeyError:
+            return set()
+
+    def of_type(cls, cls_type):
+        """Find Replicable instances with provided type
+
+        :param cls_type: class type to find
+        :returns: list of sibling instances derived from provided type
+        """
+        try:
+            return cls._of_type_cache[cls_type]
+
+        except KeyError:
+            return set()
 
     @staticmethod
     def is_unbound_rpc_function(func):
@@ -79,8 +107,8 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         return_type = get_annotation("return", default=None)(func)
         return return_type in Netmodes
 
-    @classmethod
-    def is_wrapable(mcs, attribute):
+    @staticmethod
+    def is_wrapable(attribute):
         """Determine if function can be wrapped as an RPC call
 
         :param attribute: attribute in question
@@ -88,7 +116,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
         return isfunction(attribute) and not isinstance(attribute, (classmethod, staticmethod))
 
     @classmethod
-    def is_found_in_parents(mcs, name, parents):
+    def is_found_in_parents(metacls, name, parents):
         """Determine if parent classes contain an attribute
 
         :param name: name of attribute
@@ -101,7 +129,7 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
                 if hasattr(cls, name):
                     return True
 
-                if cls.__class__ is mcs:
+                if cls.__class__ is metacls:
                     break
 
         return False

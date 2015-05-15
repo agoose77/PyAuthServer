@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 from .handlers import static_description
-from .structures import factory_dict
 from .type_flag import TypeFlag
 
 __all__ = ['TypeFlag', 'Attribute', 'DescriptorFactory']
@@ -13,7 +12,7 @@ class Attribute(TypeFlag):
     __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
 
     def __init__(self, value=None, data_type=None, notify=False, complain=False, **kwargs):
-        super().__init__(data_type or type(value), **kwargs)
+        super().__init__(type(value) if data_type is None else data_type, **kwargs)
 
         self.notify = notify
         self.complain = complain
@@ -66,6 +65,35 @@ class Attribute(TypeFlag):
             return None
 
         return deepcopy(self.initial_value)
+
+
+class ContextMember:
+    """Data descriptor used with ContextMemberMeta to store contextually global data"""
+
+    def __init__(self, default):
+        self.default = default
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self
+
+        try:
+            return instance.context_data[self]
+
+        except KeyError:
+            new_value = self.factory(instance)
+            instance.context_data[self] = new_value
+            return new_value
+
+    def __set__(self, instance, value):
+        try:
+            instance.context_data[self] = value
+
+        except AttributeError:
+            raise
+
+    def factory(self, instance):
+        return deepcopy(self.default)
 
 
 class DescriptorFactory:

@@ -4,29 +4,36 @@ from functools import wraps
 
 from ..logger import logger
 from ..decorators import signal_listener
+from ..descriptors import ContextMember
 from ..metaclasses.register import TypeRegister
+from ..metaclasses.context import ContextMemberMeta
 
 
-__all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
-           'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
-           'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
+# __all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
+#            'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
+#            'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
 
 
-class Signal(metaclass=TypeRegister):
+class SignalMeta(TypeRegister, ContextMemberMeta):
+
+    subscribers = ContextMember({})
+    isolated_subscribers = ContextMember({})
+    children = ContextMember({})
+
+    def get_context(cls):
+        return {sub_cls: sub_cls.context_data for sub_cls in cls.subclasses.values()}
+
+    def get_default_context(cls):
+        return {sub_cls: {} for sub_cls in cls.subclasses.values()}
+
+    def set_context(cls, context):
+        for sub_cls in cls.subclasses.values():
+            sub_cls.context_data = context[sub_cls]
+
+
+class Signal(metaclass=SignalMeta):
     """Observer class for signal-like invocation"""
     subclasses = {}
-
-    @classmethod
-    def register_subclass(cls):
-        cls.subscribers = {}
-        cls.isolated_subscribers = {}
-        cls.children = {}
-
-        cls.pending_operations = []
-
-    @staticmethod
-    def get_signals(decorated):
-        return decorated.__annotations__['signals']
 
     @classmethod
     def register_base_class(cls):
@@ -34,30 +41,34 @@ class Signal(metaclass=TypeRegister):
         cls.highest_signal = cls
 
     @classmethod
-    def set_parent(cls, identifier, parent_identifier):
-        def wrapper():
-            if parent_identifier in cls.children:
-                children = cls.children[parent_identifier]
+    def register_subclass(cls):
+        cls.context_data = {}
 
-            else:
-                children = cls.children[parent_identifier] = set()
-
-            children.add(identifier)
-
-        cls.pending_operations.append(wrapper)
+    @staticmethod
+    def get_signals(decorated):
+        return decorated.__annotations__['signals']
 
     @classmethod
-    def remove_parent(cls, identifier, parent_identifier):
-        def wrapper():
-            children = cls.children
-            parent_children_dict = children[parent_identifier]
-            # Remove from parent's children
-            parent_children_dict.remove(identifier)
-            # If we are the last child, remove parent
-            if not parent_children_dict:
-                children.pop(parent_identifier)
+    def set_parent(cls, child_identifier, parent_identifier):
+        children = cls.children
 
-        cls.pending_operations.append(wrapper)
+        try:
+            children = children[parent_identifier]
+
+        except KeyError:
+            children = children[parent_identifier] = set()
+
+        children.add(child_identifier)
+
+    @classmethod
+    def remove_parent(cls, child_identifier, parent_identifier):
+        children = cls.children
+        parent_children_dict = children[parent_identifier]
+        # Remove from parent's children
+        parent_children_dict.remove(child_identifier)
+        # If we are the last child, remove parent
+        if not parent_children_dict:
+            children.pop(parent_identifier)
 
     @classmethod
     def get_total_subscribers(cls):
@@ -94,20 +105,6 @@ class Signal(metaclass=TypeRegister):
         return wraps(callback)(wrapper)
 
     @classmethod
-    def deferred_subscribe(cls, identifier, subscribe_dict, callback):
-        def wrapper():
-            subscribe_dict[identifier] = cls.bind_callback(callback)
-
-        cls.pending_operations.append(wrapper)
-
-    @classmethod
-    def deferred_unsubscribe(cls, identifier, subscribe_dict):
-        def wrapper():
-            subscribe_dict.pop(identifier)
-
-        cls.pending_operations.append(wrapper)
-
-    @classmethod
     def unsubscribe(cls, identifier, callback):
         """Unsubscribe from this Signal class
 
@@ -118,15 +115,17 @@ class Signal(metaclass=TypeRegister):
 
         for signal_cls, is_context in signals_data:
             subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
-            signal_cls.deferred_unsubscribe(identifier, subscribe_dict)
+            subscribe_dict.pop(identifier)
 
             signal_children = signal_cls.children
 
+            # Remove parent from children
             if identifier in signal_children:
-                for child in signal_children[identifier]:
+                for child in list(signal_children[identifier]):
                     signal_cls.remove_parent(child, identifier)
 
-            for parent, next_children in signal_children.items():
+            # Remove from parents if a child
+            for parent, next_children in list(signal_children.items()):
                 if identifier in next_children:
                     signal_cls.remove_parent(identifier, parent)
 
@@ -138,29 +137,11 @@ class Signal(metaclass=TypeRegister):
         :param callback: callable to run when signal is invoked
         """
         signals_data = cls.get_signals(callback)
+        bind_callback = cls.bind_callback(callback)
 
         for signal_cls, is_context in signals_data:
             subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
-            signal_cls.deferred_subscribe(identifier, subscribe_dict, callback)
-
-    @classmethod
-    def update_state(cls):
-        """Update subscribers and children of this Signal class"""
-        # Todo: move to operations list`
-        # Global subscribers
-        if cls.pending_operations:
-            for operation in cls.pending_operations:
-                operation()
-
-            cls.pending_operations.clear()
-
-    @classmethod
-    def update_graph(cls):
-        """Update subscribers and children of this Signal class and any subclasses thereof"""
-        for subclass in cls.subclasses.values():
-            subclass.update_state()
-
-        cls.update_state()
+            subscribe_dict[identifier] = bind_callback
 
     @classmethod
     def invoke_targets(cls, target_dict, signal, target, args, kwargs, addressee=None):
@@ -183,6 +164,7 @@ class Signal(metaclass=TypeRegister):
         # If the child is a context on_context
         if addressee in target_dict:
             callback = target_dict[addressee]
+
             # Invoke with the same signal context even if this is a child
             try:
                 callback(*args, target=target, signal=signal, **kwargs)
@@ -192,7 +174,7 @@ class Signal(metaclass=TypeRegister):
 
         # Update children of this on_context
         if addressee in cls.children:
-            for target_child in cls.children[addressee]:
+            for target_child in list(cls.children[addressee]):
                 cls.invoke_targets(target_dict, signal, target, args, kwargs, addressee=target_child)
 
     @classmethod
@@ -204,7 +186,7 @@ class Signal(metaclass=TypeRegister):
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
-        for callback in subscriber_dict.values():
+        for callback in list(subscriber_dict.values()):
             try:
                 callback(*args, target=target, signal=signal, **kwargs)
 

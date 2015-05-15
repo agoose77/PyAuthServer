@@ -46,14 +46,14 @@ class TypeRegister(type):
     def type_name(cls):
         return cls.__name__
 
-    def from_type_name(self, type_name):
+    def from_type_name(cls, type_name):
         """Get class type from type_name
 
         :param type_name: name of class type
         :returns: class reference
         """
         try:
-            return self.subclasses[type_name]
+            return cls.subclasses[type_name]
 
         except KeyError:
             raise LookupError("No class with name {} can be found in this subclass tree".format(type_name))

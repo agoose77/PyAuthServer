@@ -132,7 +132,6 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         self.pending_exit = False
 
         # Load world
-        Signal.update_graph()
         MapLoadedSignal.invoke()
 
         print("Network initialised")
@@ -192,16 +191,9 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         with self.profile_as(logic.KX_ENGINE_DEBUG_PHYSICS):
             self.update_physics(self.current_time, delta_time)
 
-    def update_graphs(self):
-        """Update isolated resource graphs"""
-        with self.profile_as(logic.KX_ENGINE_DEBUG_SCENEGRAPH):
-            Replicable.update_graph()
-            Signal.update_graph()
-
     def update_network_scene(self, delta_time):
         self.profile_category = logic.KX_ENGINE_DEBUG_MESSAGES
         self.network_system.receive()
-        self.update_graphs()
 
         # Update inputs
         self.input_manager.update()
@@ -209,21 +201,16 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         # Update Player Controller inputs for client
         if WorldInfo.netmode != Netmodes.server:
             PlayerInputSignal.invoke(delta_time, self.input_manager.state)
-            self.update_graphs()
 
         # Update main logic (Replicable update)
         LogicUpdateSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Update Physics, which also handles Scene-graph
         self.profile_category = logic.KX_ENGINE_DEBUG_PHYSICS
         PhysicsTickSignal.invoke(delta_time)
 
-        self.update_graphs()
-
         # Clean up following Physics update
         PostPhysicsSignal.invoke()
-        self.update_graphs()
 
         # Update Animation system
         self.profile_category = logic.KX_ENGINE_DEBUG_ANIMATIONS
@@ -246,13 +233,11 @@ class GameLoop(types.KX_PythonLogicLoop, SignalListener, FixedTimeStepManager):
         self.profile_category = logic.KX_ENGINE_DEBUG_RASTERIZER
 
         UIUpdateSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Update Timers
         self.profile_category = logic.KX_ENGINE_DEBUG_LOGIC
 
         TimerUpdateSignal.invoke(delta_time)
-        self.update_graphs()
 
         # Handle this outside of usual update
         WorldInfo.update_clock(delta_time)

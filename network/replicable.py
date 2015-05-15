@@ -4,7 +4,7 @@ from .descriptors import Attribute
 from .enums import Roles
 from .logger import logger
 from .metaclasses.register import ReplicableRegister
-from .signals import (ReplicableRegisteredSignal, ReplicableUnregisteredSignal)
+from .signals import ReplicableRegisteredSignal, ReplicableUnregisteredSignal
 
 
 __all__ = ['Replicable']
@@ -26,7 +26,7 @@ class Replicable(metaclass=ReplicableRegister):
     # Dictionary of class-owned instances
     subclasses = {}
 
-    def __init__(self, instance_id=None, register_immediately=False, static=True, **kwargs):
+    def __init__(self, instance_id=None, static=True, **kwargs):
         # If this is a locally authoritative
         self._local_authority = False
 
@@ -48,8 +48,7 @@ class Replicable(metaclass=ReplicableRegister):
         self.replication_update_period = 1 / 20
 
         # Instantiate parent (this is when the creation callback may be called)
-        super().__init__(instance_id=instance_id, register_immediately=register_immediately,
-                         allow_random_key=True, **kwargs)
+        super().__init__(instance_id=instance_id, allow_random_key=True, **kwargs)
 
     @property
     def is_static(self):
@@ -76,7 +75,7 @@ class Replicable(metaclass=ReplicableRegister):
         return last
 
     @classmethod
-    def create_or_return(cls, instance_id, register_immediately=True):
+    def create_or_return(cls, instance_id):
         """Creates a replicable if it is not already registered.
 
         Called by the replication system to establish
@@ -84,8 +83,6 @@ class Replicable(metaclass=ReplicableRegister):
 
         If the instance_id is registered, take precedence over non-static
         instances.
-
-        :param register_immediately: if registration should occur immediately
         """
         # Try and match an existing instance
         try:
@@ -104,7 +101,7 @@ class Replicable(metaclass=ReplicableRegister):
                 existing = None
 
         if existing is None:
-            existing = cls(instance_id=instance_id, register_immediately=register_immediately, static=False)
+            existing = cls(instance_id=instance_id, static=False)
 
         # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
         roles = existing.roles
@@ -121,13 +118,13 @@ class Replicable(metaclass=ReplicableRegister):
         """
         return range(cls.MAXIMUM_REPLICABLES)
 
-    def register(self, immediately=False):
+    def register(self):
         # If replicable instantiated without ID, must be local, cannot be static
         if self.instance_id is None:
             self._local_authority = True
             self._static = False
 
-        super().register(immediately)
+        super().register()
 
     def resolve_id_conflict(self, instance_id, conflicting_instance):
         # If the instance is not local, then we have a conflict
@@ -164,7 +161,31 @@ class Replicable(metaclass=ReplicableRegister):
         """
         super().on_registered()
 
-        self.__class__._by_types[type(self)].append(self)
+        # Register type information
+        cls = self.__class__
+
+        subclass_cache = cls._of_subclass_cache
+        type_cache = cls._of_type_cache
+
+        # Cache subtypes
+        for base_cls in cls.__mro__:
+            try:
+                instances = subclass_cache[base_cls]
+
+            except KeyError:
+                instances = subclass_cache[base_cls] = set()
+
+            instances.add(self)
+
+        # Cache the type
+        try:
+            instances = type_cache[cls]
+
+        except KeyError:
+            instances = type_cache[cls] = set()
+
+        instances.add(self)
+
         ReplicableRegisteredSignal.invoke(target=self)
 
     def on_deregistered(self):
@@ -174,7 +195,27 @@ class Replicable(metaclass=ReplicableRegister):
         """
         self.unpossessed()
 
-        self.__class__._by_types[type(self)].remove(self)
+        # Register type information
+        cls = self.__class__
+
+        subclass_cache = cls._of_subclass_cache
+        type_cache = cls._of_type_cache
+
+        # Uncache subtypes
+        for base_cls in cls.__mro__:
+            instances = subclass_cache[base_cls]
+            instances.remove(self)
+
+            if not instances:
+                subclass_cache.pop(base_cls)
+
+        # Uncache the type
+        instances = type_cache[cls]
+        instances.remove(self)
+
+        if not instances:
+            type_cache.pop(self)
+
         ReplicableUnregisteredSignal.invoke(target=self)
 
         super().on_deregistered()

@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from network.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
+from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
 from network.world_info import WorldInfo
 
@@ -69,8 +70,7 @@ class BlenderServerPhysics(BlenderPhysicsSystem):
 
     def save_network_states(self):
         """Saves Physics transformations to network variables"""
-  #      print(list(Actor), WorldInfo.subclass_of(Actor))
-        for actor in WorldInfo.subclass_of(Actor):
+        for actor in Replicable.subclass_of_type(Actor):
             actor.copy_state_to_network()
 
     @PhysicsTickSignal.on_global
@@ -141,7 +141,7 @@ class BlenderClientPhysics(BlenderPhysicsSystem):
             return
 
         # Make a list of actors which aren't us
-        other_actors = WorldInfo.subclass_of(Actor).copy()
+        other_actors = Replicable.subclass_of_type(Actor).copy()
         other_actors.discard(target)
 
     def extrapolate_network_states(self):
@@ -207,5 +207,4 @@ class BlenderClientPhysics(BlenderPhysicsSystem):
         """
         super().update(delta_time)
         self.extrapolate_network_states()
-        print("CLIEYUOP")
         UpdateCollidersSignal.invoke()

@@ -11,7 +11,7 @@ class Rules:
         pass
 
     def post_initialise(self, connection):
-        terminal = RemoteTerminal(register_immediately=True)
+        terminal = RemoteTerminal()
         return terminal
 
     def post_disconnect(self, connection, replicable):

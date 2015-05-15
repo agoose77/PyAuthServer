@@ -1,7 +1,13 @@
 try:
     import bge
+
 except ImportError:
-    from panda_game_system.game_loop import Client, Server
+    try:
+        from blender_game_system.game_loop import Client, Server, register
+        register()
+    except ImportError:
+        from panda_game_system.game_loop import Client, Server
+
 else:
     from bge_game_system.game_loop import Client, Server
 
@@ -51,12 +57,13 @@ def init_game():
         floor = TestActor()
         floor.transform.world_position = [0, 30, -1]
 
-        floor.physics.mass = 0.0
-        floor.mass = 0.0
+     #   floor.physics.mass = 0.0
+     #   floor.mass = 0.0
 
     else:
         Connection.create_connection("localhost", 1200)
 
+WorldInfo.rules = Rules()
 
 def run(mode):
     try:
@@ -67,8 +74,7 @@ def run(mode):
         return
 
     if mode == "server":
-        WorldInfo.rules = Rules()
-
+        pass
     else:
         WorldInfo.netmode = Netmodes.client
 

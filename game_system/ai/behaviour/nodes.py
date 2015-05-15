@@ -20,7 +20,7 @@ class GetNearestPlayerPawn(Node):
         origin = pawn.transform.world_position
         distance_to = lambda p: (p.pawn.transform.world_position - origin).length_squared
 
-        controller = min([p for p in WorldInfo.subclass_of(PlayerPawnController) if p.pawn], key=distance_to)
+        controller = min([p for p in Replicable.subclass_of_type(PlayerPawnController) if p.pawn], key=distance_to)
         blackboard['nearest_pawn'] = controller
 
         return EvaluationState.success
@@ -39,7 +39,7 @@ class GetNearestAIPawn(Node):
         origin = pawn.transform.world_position
         distance_to = lambda p: (p.pawn.transform.world_position - origin).length_squared
 
-        controller = min([p for p in WorldInfo.subclass_of(AIPawnController) if p.pawn], key=distance_to)
+        controller = min([p for p in Replicable.subclass_of_type(AIPawnController) if p.pawn], key=distance_to)
         blackboard['nearest_pawn'] = controller
 
         return EvaluationState.success
