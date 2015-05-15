@@ -214,7 +214,7 @@ class Replicable(metaclass=ReplicableRegister):
         instances.remove(self)
 
         if not instances:
-            type_cache.pop(self)
+            type_cache.pop(cls)
 
         ReplicableUnregisteredSignal.invoke(target=self)
 
