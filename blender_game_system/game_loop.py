@@ -23,7 +23,7 @@ from game_system.entities import Actor
 
 from game_system.resources import ResourceManager
 ResourceManager.environment = "Blender"
-ResourceManager.data_path = bpy.path.abspath("//network_data")
+ResourceManager.data_path = bpy.path.abspath("//data")
 
 from network.decorators import with_tag
 from network.signals import SignalListener
@@ -153,43 +153,6 @@ class BlenderPhysicsInterface(BlenderComponent):
 
 
 from network.world_info import WorldInfo
-from network.rules import ReplicationRulesBase
-
-from game_system.controllers import PawnController, PlayerPawnController
-from game_system.entities import Actor
-from game_system.replication_info import ReplicationInfo
-
-class Rules(ReplicationRulesBase):
-
-    def pre_initialise(self, addr, netmode):
-        print("PRECONNECTED")
-        return
-
-    def post_disconnect(self, conn, replicable):
-        pass#replicable.deregister()
-
-    def post_initialise(self, replication_stream):
-        cont = PlayerPawnController()
-        print("CONNECTED")
-        return cont
-
-    def is_relevant(self, connection, replicable):
-        if isinstance(replicable, PawnController):
-            return False
-
-        elif isinstance(replicable, Actor):
-            return True
-
-        elif isinstance(replicable, ReplicationInfo):
-            return True
-
-        elif replicable.always_relevant:
-            return True
-
-# INIT RULES
-rules = Rules()
-WorldInfo.rules = rules
-
 
 
 @with_tag("transform")
@@ -280,16 +243,6 @@ class BlenderComponentLoader(ComponentLoader):
         result.on_unloaded = on_unloaded
 
         return result
-
-
-from network.descriptors import Attribute
-from network.enums import Roles
-
-
-class Cube(Actor):
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
-    replicate_physics_to_owner = True
-    replicate_simulated_physics = True
 
 
 class OperatorPanel(bpy.types.Panel):

@@ -70,7 +70,7 @@ class BlenderServerPhysics(BlenderPhysicsSystem):
 
     def save_network_states(self):
         """Saves Physics transformations to network variables"""
-        for actor in Replicable.subclass_of_tpe(Actor):
+        for actor in Replicable.subclass_of_type(Actor):
             actor.copy_state_to_network()
 
     @PhysicsTickSignal.on_global
@@ -207,5 +207,4 @@ class BlenderClientPhysics(BlenderPhysicsSystem):
         """
         super().update(delta_time)
         self.extrapolate_network_states()
-        print("CLIEYUOP")
         UpdateCollidersSignal.invoke()
