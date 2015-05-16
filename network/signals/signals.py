@@ -114,8 +114,15 @@ class Signal(metaclass=SignalMeta):
         signals_data = cls.get_signals(callback)
 
         for signal_cls, is_context in signals_data:
-            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
-            subscribe_dict.pop(identifier)
+            if is_context:
+                callbacks = signal_cls.isolated_subscribers[identifier]
+                callbacks.pop(callback)
+
+                if not callbacks:
+                    signal_cls.isolated_subscribers.pop(identifier)
+
+            else:
+                signal_cls.subscribers.pop(callback)
 
             signal_children = signal_cls.children
 
@@ -137,11 +144,20 @@ class Signal(metaclass=SignalMeta):
         :param callback: callable to run when signal is invoked
         """
         signals_data = cls.get_signals(callback)
-        bind_callback = cls.bind_callback(callback)
+        bound_callback = cls.bind_callback(callback)
 
         for signal_cls, is_context in signals_data:
-            subscribe_dict = signal_cls.isolated_subscribers if is_context else signal_cls.subscribers
-            subscribe_dict[identifier] = bind_callback
+            if is_context:
+                try:
+                    callbacks = signal_cls.isolated_subscribers[identifier]
+
+                except KeyError:
+                    callbacks = signal_cls.isolated_subscribers[identifier] = {}
+
+                callbacks[callback] = bound_callback
+
+            else:
+                signal_cls.subscribers[callback] = bound_callback
 
     @classmethod
     def invoke_targets(cls, target_dict, signal, target, args, kwargs, addressee=None):
@@ -163,14 +179,15 @@ class Signal(metaclass=SignalMeta):
 
         # If the child is a context on_context
         if addressee in target_dict:
-            callback = target_dict[addressee]
+            callbacks = target_dict[addressee]
 
-            # Invoke with the same signal context even if this is a child
-            try:
-                callback(*args, target=target, signal=signal, **kwargs)
+            for callback in callbacks.values():
+                # Invoke with the same signal context even if this is a child
+                try:
+                    callback(*args, target=target, signal=signal, **kwargs)
 
-            except Exception:
-                logger.exception("Unable to invoke Signal {}".format(signal))
+                except Exception:
+                    logger.exception("Unable to invoke Signal {}".format(signal))
 
         # Update children of this on_context
         if addressee in cls.children:

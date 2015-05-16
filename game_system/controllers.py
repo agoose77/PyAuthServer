@@ -91,6 +91,7 @@ class PlayerPawnController(PawnController):
     input_context = InputContext()
 
     clock = Attribute(data_type=Replicable, complain=True)
+
     info_cls = PlayerReplicationInfo
 
     @classmethod
@@ -154,22 +155,21 @@ class PlayerPawnController(PawnController):
     def receive_message(self, message: TypeFlag(str), info: TypeFlag(Replicable)) -> Netmodes.client:
         MessageReceivedSignal.invoke(message, info)
 
-    def send_message(self, message: TypeFlag(str), info: TypeFlag(Replicable)=None, to_self: TypeFlag(bool)=False) -> Netmodes.server:
+    def send_message(self, message: TypeFlag(str), info: TypeFlag(Replicable)=None) -> Netmodes.server:
         self_info = self.info
 
         # Broadcast to all controllers
         if info is None:
             for info in Replicable.subclass_of_type(PlayerReplicationInfo).copy():
                 controller = info.owner
-
-                if not to_self and controller is self:
-                    continue
-
                 controller.receive_message(message, self_info)
 
         else:
             controller = info.owner
             controller.receive_message(message, self_info)
+
+    def set_name(self, name: TypeFlag(str))->Netmodes.server:
+        self.info.name = name
 
     @LatencyUpdatedSignal.on_context
     def server_update_ping(self, rtt):

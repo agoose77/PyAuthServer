@@ -64,9 +64,6 @@ class IRCClient(Thread):
 
     @nickname.setter
     def nickname(self, nickname):
-        if self._nickname is not None:
-            raise ValueError("Nickname already assigned")
-
         self.enqueue_command("NICK {}".format(nickname), requires_registered=False)
         self._nickname = nickname
 
@@ -114,7 +111,6 @@ class IRCClient(Thread):
                     break
 
                 self._send_command(command)
-                print("SEND", command)
 
             # Receive all commands
             try:
@@ -135,14 +131,6 @@ class IRCClient(Thread):
                     continue
 
                 prefix, command, params = self.split_message(data)
-
-                # server ping/pong?
-                if command == "PING":
-                    self._send_command('PONG :{}'.format(params[0]))
-
-                    if not self.connected:
-                        self._send_command("MODE {} +x".format(self.nickname))
-                        self.connected = True
 
                 response = dict(prefix=prefix, command=command, params=params)
                 self.response_queue.put(response)
@@ -181,7 +169,15 @@ class IRCClient(Thread):
             else:
                 sender_nick = prefix.split("!")[0]
 
-            if command == 'PRIVMSG':
+            # server ping/pong?
+            if command == "PING":
+                self.enqueue_command('PONG :{}'.format(params[0]))
+
+                if not self.connected:
+                    self.enqueue_command("PRIVMSG R : Login <> MODE {} +x".format(self.nickname))
+                    self.connected = True
+
+            elif command == 'PRIVMSG':
                 target, message = params
 
                 if target in self.channels:
@@ -209,6 +205,9 @@ class IRCClient(Thread):
 
             else:
                 print(response)
+
+    def say(self, message, target):
+        self.enqueue_command("PRIVMSG %s :%s" % (target, message))
 
     def _on_registered(self):
         # Send pending commands
