@@ -17,7 +17,8 @@ from .inputs import InputContext
 from .latency_compensation import JitterBuffer
 from .resources import ResourceManager
 from .replication_info import PlayerReplicationInfo
-from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, PhysicsSingleUpdateSignal
+from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, PhysicsSingleUpdateSignal, \
+    MessageReceivedSignal
 
 
 from collections import OrderedDict, deque
@@ -134,6 +135,7 @@ class PlayerPawnController(PawnController):
     def initialise_server(self):
         """Initialise server-specific player controller state"""
         self.info = self.__class__.info_cls()
+        self.info.possessed_by(self)
 
         # Network clock
         self.clock = Clock()
@@ -148,6 +150,26 @@ class PlayerPawnController(PawnController):
         # ID of move waiting to be verified
         self.pending_validation_move_id = None
         self.last_corrected_move_id = 0
+
+    def receive_message(self, message: TypeFlag(str), info: TypeFlag(Replicable)) -> Netmodes.client:
+        MessageReceivedSignal.invoke(message, info)
+
+    def send_message(self, message: TypeFlag(str), info: TypeFlag(Replicable)=None, to_self: TypeFlag(bool)=False) -> Netmodes.server:
+        self_info = self.info
+
+        # Broadcast to all controllers
+        if info is None:
+            for info in Replicable.subclass_of_type(PlayerReplicationInfo).copy():
+                controller = info.owner
+
+                if not to_self and controller is self:
+                    continue
+
+                controller.receive_message(message, self_info)
+
+        else:
+            controller = info.owner
+            controller.receive_message(message, self_info)
 
     @LatencyUpdatedSignal.on_context
     def server_update_ping(self, rtt):
