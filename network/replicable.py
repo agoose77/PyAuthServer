@@ -17,7 +17,6 @@ class Replicable(metaclass=ReplicableRegister):
     and Signal subscription"""
 
     MAXIMUM_REPLICABLES = 255
-    _by_types = defaultdict(list)
 
     roles = Attribute(Roles(Roles.authority, Roles.none), notify=True)
     owner = Attribute(complain=True, notify=True)
