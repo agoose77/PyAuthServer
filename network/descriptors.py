@@ -9,7 +9,7 @@ __all__ = ['TypeFlag', 'Attribute', 'DescriptorFactory']
 class Attribute(TypeFlag):
     """Container for static-type values"""
 
-    __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
+    __slots__ = ["notify", "complain", "name", "initial_value"]
 
     def __init__(self, value=None, data_type=None, notify=False, complain=False, **kwargs):
         super().__init__(type(value) if data_type is None else data_type, **kwargs)
@@ -19,8 +19,6 @@ class Attribute(TypeFlag):
         self.initial_value = value
 
         self.name = None
-
-        self._instances = {}
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
