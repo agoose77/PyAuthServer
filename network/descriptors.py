@@ -78,16 +78,16 @@ class ContextMember:
             return self
 
         try:
-            return instance.context_data[self]
+            return instance.context_member_data[self]
 
         except KeyError:
             new_value = self.factory(instance)
-            instance.context_data[self] = new_value
+            instance.context_member_data[self] = new_value
             return new_value
 
     def __set__(self, instance, value):
         try:
-            instance.context_data[self] = value
+            instance.context_member_data[self] = value
 
         except AttributeError:
             raise

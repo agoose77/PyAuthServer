@@ -20,15 +20,21 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
     isolated_subscribers = ContextMember({})
     children = ContextMember({})
 
-    def get_context(cls):
-        return {sub_cls: sub_cls.context_data for sub_cls in cls.subclasses.values()}
+    @property
+    def current_context_manager(cls):
+        return cls._current_context_manager
+
+    @current_context_manager.setter
+    def current_context_manager(cls, context_manager):
+        cls._current_context_manager = context_manager
+
+        # Apply for all subclasses
+        context_member_data = context_manager.data
+        for sub_cls in cls.subclasses.values():
+            sub_cls.context_member_data = context_member_data[sub_cls]
 
     def get_default_context(cls):
         return {sub_cls: {} for sub_cls in cls.subclasses.values()}
-
-    def set_context(cls, context):
-        for sub_cls in cls.subclasses.values():
-            sub_cls.context_data = context[sub_cls]
 
 
 class Signal(metaclass=SignalMeta):
@@ -42,7 +48,7 @@ class Signal(metaclass=SignalMeta):
 
     @classmethod
     def register_subclass(cls):
-        cls.context_data = {}
+        cls.context_member_data = {}
 
     @staticmethod
     def get_signals(decorated):
