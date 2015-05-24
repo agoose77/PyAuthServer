@@ -1,6 +1,5 @@
 class BoundContextManager:
-    """Context manager for ContextMemberMeta objects
-    """
+    """Context manager for ContextMemberMeta objects"""
 
     def __init__(self, cls, name):
         self.name = name
@@ -24,8 +23,8 @@ class BoundContextManager:
 
 
 class ContextMemberMeta(type):
-    """ContextMember instances attributed to members of the class tree of GlobalDataContext (metaclasses, derived classes)
-    will be dependent upon a global context
+    """ContextMember instances attributed to members of the class tree of GlobalDataContext
+    (metaclasses, derived classes) will be dependent upon a global context
     """
 
     def __new__(metacls, name, bases, attrs):
@@ -46,7 +45,12 @@ class ContextMemberMeta(type):
         cls.context_member_data = context_manager.data
 
     def get_context_manager(cls, name="Context"):
+        """Create a context manager which owns the contextual state for this class
+
+        :param name: name of context manager
+        """
         return BoundContextManager(cls, name)
 
     def get_default_context(cls):
+        """Return default context data for this class, for new context managers"""
         return {}
