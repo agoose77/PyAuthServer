@@ -34,7 +34,28 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
             sub_cls.context_member_data = context_member_data[sub_cls]
 
     def get_default_context(cls):
+        """Return default context data for this class, for new context managers"""
         return {sub_cls: {} for sub_cls in cls.subclasses.values()}
+
+    def merge_context(cls, context):
+        """Merge other context with current context.
+
+        Returns current context manager
+        """
+        current_context_manager = cls.current_context_manager
+
+        context_member_data = current_context_manager.data
+        for sub_cls, other_context_member_data in context.data.items():
+            try:
+                current_data = context_member_data[sub_cls]
+
+            except KeyError:
+                current_data = context_member_data[sub_cls] = {}
+
+            current_data.update(other_context_member_data)
+            other_context_member_data.clear()
+
+        return current_context_manager
 
 
 class Signal(metaclass=SignalMeta):

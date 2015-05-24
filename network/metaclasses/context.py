@@ -21,6 +21,10 @@ class BoundContextManager:
     def __repr__(self):
         return "{}::{{{}}}".format(self._cls.__name__, self.name)
 
+    def merge(self, other):
+        """Merge with other context"""
+        return self._cls.merge_context(other)
+
 
 class ContextMemberMeta(type):
     """ContextMember instances attributed to members of the class tree of GlobalDataContext
@@ -54,3 +58,13 @@ class ContextMemberMeta(type):
     def get_default_context(cls):
         """Return default context data for this class, for new context managers"""
         return {}
+
+    def merge_context(cls, context):
+        """Merge other context with current context.
+
+        Returns current context manager
+        """
+        current_context_manager = cls.current_context_manager
+        current_context_manager.data.update(context.data)
+        context.data.clear()
+        return current_context_manager
