@@ -305,10 +305,8 @@ class PlayerPawnController(PawnController):
         pos_err = (client_position - position).length_squared > self.__class__.MAX_POSITION_ERROR_SQUARED
         abs_yaw_diff = ((client_yaw - yaw) % pi) ** 2
         rot_err = min(abs_yaw_diff, pi - abs_yaw_diff) > self.__class__.MAX_ORIENTATION_ANGLE_ERROR_SQUARED
-        if (pos_err or
-           rot_err):
-            from math import degrees
-            print(yaw, client_yaw, min(abs_yaw_diff, abs_yaw_diff % pi), self.MAX_ORIENTATION_ANGLE_ERROR_SQUARED)
+
+        if pos_err or rot_err:
             self.client_correct_move(move_id, position, yaw, velocity, angular_yaw)
             self.last_corrected_move_id = move_id
 
