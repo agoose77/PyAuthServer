@@ -30,8 +30,9 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
 
         # Apply for all subclasses
         context_member_data = context_manager.data
+
         for sub_cls in cls.subclasses.values():
-            sub_cls.context_member_data = context_member_data[sub_cls]
+            sub_cls.context_member_data = context_member_data.setdefault(sub_cls, {})
 
     def get_default_context(cls):
         """Return default context data for this class, for new context managers"""
