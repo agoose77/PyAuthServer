@@ -22,7 +22,7 @@ from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, Ph
 
 
 from collections import OrderedDict, deque
-from math import radians
+from math import radians, pi
 
 
 __all__ = ['PawnController', 'PlayerPawnController', 'AIPawnController']
@@ -85,8 +85,8 @@ class AIPawnController(PawnController):
 class PlayerPawnController(PawnController):
     """Base class for player pawn controllers"""
 
-    MAX_POSITION_ERROR_SQUARED = 1
-    MAX_ORIENTATION_ANGLE_ERROR_SQUARED = radians(10) ** 2
+    MAX_POSITION_ERROR_SQUARED = 0.5
+    MAX_ORIENTATION_ANGLE_ERROR_SQUARED = radians(5) ** 2
 
     input_context = InputContext()
 
@@ -182,8 +182,8 @@ class PlayerPawnController(PawnController):
     def server_receive_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK),
                             latest_correction_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK),
                             recent_states: TypeFlag(list, element_flag=TypeFlag(
-                                 Pointer("input_context.network.struct_cls"))),
-                            position: TypeFlag(Vector), orientation: TypeFlag(Euler)) -> Netmodes.server:
+                                Pointer("input_context.network.struct_cls"))),
+                            position: TypeFlag(Vector), yaw: TypeFlag(float)) -> Netmodes.server:
         """Handle remote client inputs
 
         :param move_id: unique ID of move
@@ -199,22 +199,19 @@ class PlayerPawnController(PawnController):
             pass
 
         # Save physics state for this move for later validation
-        self.client_moves_states[move_id] = position, orientation, latest_correction_id
-
-    # Todo: handle acknowledged moves - pop from sent states
-    # Handle older move pop in case no packet received?
+        self.client_moves_states[move_id] = position, yaw, latest_correction_id
 
     @reliable
     def client_correct_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK), position: TypeFlag(Vector),
-                            orientation: TypeFlag(Euler), velocity: TypeFlag(Vector),
-                            angular: TypeFlag(Vector)) -> Netmodes.client:
-        """Correct previous move which was mispredicted
+                            yaw: TypeFlag(float), velocity: TypeFlag(Vector),
+                            angular_yaw: TypeFlag(float)) -> Netmodes.client:
+        """Correct previous move which was mis-predicted
 
         :param move_id: ID of move to correct
-        :param position: correct position (of move to correct)
-        :param orientation: correct orientation
-        :param velocity: correct velocity
-        :param angular: correct angular
+        :param position: corrected position
+        :param yaw: corrected yaw
+        :param velocity: corrected velocity
+        :param angular_yaw: corrected angular yaw
         """
         pawn = self.pawn
         if not pawn:
@@ -222,14 +219,25 @@ class PlayerPawnController(PawnController):
 
         # Restore pawn state
         pawn.transform.world_position = position
-        pawn.transform.world_orientation = orientation
         pawn.physics.world_velocity = velocity
+
+        # Recreate Z rotation
+        orientation = pawn.transform.world_orientation
+        orientation.z = yaw
+        pawn.transform.world_orientation = orientation
+
+        # Recreate Z angular rotation
+        angular = pawn.physics.world_angular
+        angular.z = angular_yaw
         pawn.physics.world_angular = angular
 
         process_inputs = self.process_inputs
         sent_states = self.sent_states
         delta_time = 1 / WorldInfo.tick_rate
-        print("CORRECT")
+
+        # Correcting move
+        print("Correcting an invalid move: {}".format(move_id))
+
         for move_id in range(move_id, self.move_id + 1):
             state = sent_states[move_id]
             buttons, ranges = state.read()
@@ -251,9 +259,9 @@ class PlayerPawnController(PawnController):
             return
 
         position = pawn.transform.world_position
-        orientation = pawn.transform.world_orientation
+        yaw = pawn.transform.world_orientation.z
 
-        self.server_receive_move(self.move_id, self.latest_correction_id, self.recent_states, position, orientation)
+        self.server_receive_move(self.move_id, self.latest_correction_id, self.recent_states, position, yaw)
 
     @requires_netmode(Netmodes.server)
     def server_validate_last_move(self):
@@ -271,32 +279,39 @@ class PlayerPawnController(PawnController):
         if move_id is None:
             return
 
+        # We've handled this
+        self.pending_validation_move_id = None
+
+        moves_states = self.client_moves_states
+
+        # Delete old move states
+        old_move_ids = [i for i in moves_states if i < move_id]
+        for old_move_id in old_move_ids:
+            moves_states.pop(old_move_id)
+
         # Get corrected state
-        client_position, client_orientation, client_last_correction = self.client_moves_states[move_id]
+        client_position, client_yaw, client_last_correction = moves_states.pop(move_id)
 
         # Don't bother checking if we're already checking invalid state
         if client_last_correction < self.last_corrected_move_id:
             return
 
+        # Check predicted position is valid
         position = pawn.transform.world_position
-
-        # Position valid
-        if (client_position - position).length_squared <= self.__class__.MAX_POSITION_ERROR_SQUARED:
-            return
-
-        orientation = pawn.transform.world_orientation
-        # rotation_difference = orientation.to_quaternion().rotation_difference(client_position).to_euler()
-
-        # # Orientation valid
-        # if Vector(orientation_difference).length_squared <= self.__class__.MAX_ORIENTATION_ANGLE_ERROR_SQUARED:
-        #     return
-
         velocity = pawn.physics.world_velocity
-        angular = pawn.physics.world_angular
+        yaw = pawn.transform.world_orientation.z
+        angular_yaw = pawn.physics.world_angular.z
 
-        # Correct client's state
-        self.client_correct_move(move_id, position, orientation, velocity, angular)
-        self.last_corrected_move_id = move_id
+        pos_err = (client_position - position).length_squared > self.__class__.MAX_POSITION_ERROR_SQUARED
+        abs_yaw_diff = ((client_yaw - yaw) % pi) ** 2
+        rot_err = min(abs_yaw_diff, pi - abs_yaw_diff) > self.__class__.MAX_ORIENTATION_ANGLE_ERROR_SQUARED
+        if (pos_err or
+           rot_err):
+            from math import degrees
+            print(yaw, client_yaw, min(abs_yaw_diff, abs_yaw_diff % pi), self.MAX_ORIENTATION_ANGLE_ERROR_SQUARED)
+            self.client_correct_move(move_id, position, yaw, velocity, angular_yaw)
+            self.last_corrected_move_id = move_id
+
 
     @PlayerInputSignal.on_global
     def client_handle_inputs(self, delta_time, input_manager):

@@ -29,9 +29,7 @@ class TestPandaPlayerController(PlayerPawnController):
             #self.debug = not self.debug
 
         if self.debug:
-            self.shoot()
-            # print(self.buffer)
-            # print(buttons)
+            pass
 
         y_sign = 0
         if buttons['up'] in {ButtonState.pressed, ButtonState.held}:
@@ -47,14 +45,16 @@ class TestPandaPlayerController(PlayerPawnController):
         if buttons['left'] in {ButtonState.pressed, ButtonState.held}:
             x_sign += 1
 
-        y_speed = y_sign * 2.0
-        rotation_speed = x_sign
+        y_speed = y_sign * 15.0
+        rotation_speed = x_sign * 5
 
         pawn = self.pawn
         if pawn is None:
             return
+
         velocity = Vector((0.0, y_speed, 0.0))
         velocity.rotate(pawn.transform.world_orientation)
+        velocity.z = pawn.physics.world_velocity.z
 
         angular = Vector((0.0, 0.0, rotation_speed))
 

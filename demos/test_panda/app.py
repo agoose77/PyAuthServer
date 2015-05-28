@@ -1,7 +1,10 @@
 try:
     import bge
+
 except ImportError:
     from panda_game_system.game_loop import Client, Server
+    from .ui import UI; UI()
+
 else:
     from bge_game_system.game_loop import Client, Server
 
@@ -48,11 +51,14 @@ class Rules(ReplicationRulesBase):
 
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
-        floor = TestActor()
-        floor.transform.world_position = [0, 30, -1]
+        base.cam.set_pos((0, -60, 0))
 
+        floor = Plane()
+        floor.transform.world_position = [0, 0, -5]
+        floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
         floor.physics.mass = 0.0
         floor.mass = 0.0
+        pass
 
     else:
         Connection.create_connection("localhost", 1200)

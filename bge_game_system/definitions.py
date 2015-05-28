@@ -179,11 +179,7 @@ class BGEPhysicsInterface(BGEComponent):
 
         return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
-    @staticmethod
-    def _convert_contacts(contacts):
-        return [CollisionContact(c.hitPosition, c.hitNormal, c.hitImpulse, c.hitForce) for c in contacts]
-
-    def _on_collision(self, other, data=None):
+    def _on_collision(self, other, *data):
         self._new_collisions.add(other)
 
         if other in self._dispatched:
@@ -196,12 +192,12 @@ class BGEPhysicsInterface(BGEComponent):
         if hit_entity:
             self._dispatched_entities.add(hit_entity)
 
-        # Support trunk blender
-        if data is None:
+        if not data:
             hit_contacts = []
 
         else:
-            hit_contacts = self._convert_contacts(data)
+            hit_position, hit_normal = data
+            hit_contacts = [CollisionContact(hit_position, hit_normal, Vector())]
 
         result = CollisionResult(hit_entity, CollisionState.started, hit_contacts)
 
