@@ -9,7 +9,7 @@ __all__ = ['TypeFlag', 'Attribute', 'DescriptorFactory']
 class Attribute(TypeFlag):
     """Container for static-type values"""
 
-    __slots__ = ["notify", "complain", "name", "_instances", "initial_value"]
+    __slots__ = ["notify", "complain", "name", "initial_value"]
 
     def __init__(self, value=None, data_type=None, notify=False, complain=False, **kwargs):
         super().__init__(type(value) if data_type is None else data_type, **kwargs)
@@ -19,8 +19,6 @@ class Attribute(TypeFlag):
         self.initial_value = value
 
         self.name = None
-
-        self._instances = {}
 
     def __get__(self, instance, base):
         # Try and get value, or register to instance
@@ -78,16 +76,16 @@ class ContextMember:
             return self
 
         try:
-            return instance.context_data[self]
+            return instance.context_member_data[self]
 
         except KeyError:
             new_value = self.factory(instance)
-            instance.context_data[self] = new_value
+            instance.context_member_data[self] = new_value
             return new_value
 
     def __set__(self, instance, value):
         try:
-            instance.context_data[self] = value
+            instance.context_member_data[self] = value
 
         except AttributeError:
             raise

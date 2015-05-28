@@ -1,25 +1,28 @@
 from direct.showbase import ShowBase
 
-from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
+from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape, BulletPlaneShape
 from panda3d.core import NodePath, Filename
 
 
-bam_path = Filename.fromOsSpecific("D:\\PycharmProjects\\PyAuthServer\\demos\\test_panda\\data\\TestActor\\Cube.bam")
+fp = "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/test_panda/data/TestActor"
+from os import path
+
+bam_path = Filename.fromOsSpecific(path.join(fp, "Cube.bam"))
 base = ShowBase.ShowBase()
 
 
 def save():
-    model = loader.loadModel(Filename.fromOsSpecific("D:/PycharmProjects/PyAuthServer/demos/test_panda/data/TestActor/Cube.egg"))
+    f = Filename.fromOsSpecific(path.join(fp, "Cube.egg"))
+    model = loader.loadModel(f)
 
-    bullet_node = BulletRigidBodyNode("BulletCube")
+    bullet_node = BulletRigidBodyNode("BulletPlane")
     bullet_nodepath = NodePath(bullet_node)
 
-    shape = BulletBoxShape((1, 1, 1))
+    shape = BulletRigidBodyNode((1, 1, 1), 0)
     bullet_node.addShape(shape)
     bullet_node.setMass(1.0)
 
     model.reparentTo(bullet_nodepath)
-
     bullet_nodepath.writeBamFile(bam_path)
     bullet_nodepath.ls()
 

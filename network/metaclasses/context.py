@@ -1,73 +1,70 @@
-from collections import deque
-
-
 class BoundContextManager:
-    """Context manager for ContextMemberMeta objects
-    """
+    """Context manager for ContextMemberMeta objects"""
 
     def __init__(self, cls, name):
         self.name = name
+        self.data = cls.get_default_context()
 
         self._cls = cls
-        self._context = cls.get_default_context()
         self._depth = 0
-        self._previous_context = None
+        self._previous_context_managers = []
 
     def __enter__(self):
-        if self._depth:
-            return
-
         cls = self._cls
 
-        self._previous_context = cls.get_context()
-        cls.set_context(self._context)
-
-        cls.context_stack.append(self.name)
-        self._depth += 1
+        self._previous_context_managers.append(cls.current_context_manager)
+        cls.current_context_manager = self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._depth > 1:
-            return
-
-        cls = self._cls
-        cls.context_stack.pop()
-        cls.set_context(self._previous_context)
+        self._cls.current_context_manager = self._previous_context_managers.pop()
 
     def __repr__(self):
         return "{}::{{{}}}".format(self._cls.__name__, self.name)
 
+    def merge(self, other):
+        """Merge with other context"""
+        return self._cls.merge_context(other)
+
 
 class ContextMemberMeta(type):
-    """ContextMember instances attributed to members of the class tree of GlobalDataContext (metaclasses, derived classes)
-    will be dependent upon a global context
+    """ContextMember instances attributed to members of the class tree of GlobalDataContext
+    (metaclasses, derived classes) will be dependent upon a global context
     """
 
     def __new__(metacls, name, bases, attrs):
         cls = super().__new__(metacls, name, bases, attrs)
 
-        if not hasattr(cls, "context_data"):
-            cls.context_data = {}
-            cls.context_stack = deque(("<DEFAULT>",))
+        if not hasattr(cls, "current_context_manager"):
+            cls.current_context_manager = BoundContextManager(cls, "<DEFAULT>")
 
         return cls
 
     @property
-    def qualified_context(cls):
-        return ".".join(cls.context_stack)
+    def current_context_manager(cls):
+        return cls._current_context_manager
+
+    @current_context_manager.setter
+    def current_context_manager(cls, context_manager):
+        cls._current_context_manager = context_manager
+        cls.context_member_data = context_manager.data
 
     def get_context_manager(cls, name="Context"):
+        """Create a context manager which owns the contextual state for this class
+
+        :param name: name of context manager
+        """
         return BoundContextManager(cls, name)
 
-    def get_context(cls):
-        """Get description of current context data for this class.
-
-        This data may be in a different format to that of _context_data
-        """
-        return cls.context_data
-
     def get_default_context(cls):
+        """Return default context data for this class, for new context managers"""
         return {}
 
-    def set_context(cls, context):
-        """Set current context data for this class from previous description"""
-        cls.context_data = context
+    def merge_context(cls, context):
+        """Merge other context with current context.
+
+        Returns current context manager
+        """
+        current_context_manager = cls.current_context_manager
+        current_context_manager.data.update(context.data)
+        context.data.clear()
+        return current_context_manager

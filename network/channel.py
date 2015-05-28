@@ -29,6 +29,7 @@ class Channel(DelegateByNetmode):
         # Set initial (replication status) to True
         self.last_replication_time = 0.0
         self.is_initial = True
+
         # Get network attributes
         self.attribute_storage = replicable._attribute_container
         self.rpc_storage = replicable._rpc_container

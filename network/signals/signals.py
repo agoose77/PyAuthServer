@@ -9,9 +9,9 @@ from ..metaclasses.register import TypeRegister
 from ..metaclasses.context import ContextMemberMeta
 
 
-# __all__ = ['Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal', 'ConnectionErrorSignal',
-#            'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal', 'ConnectionDeletedSignal',
-#            'LatencyUpdatedSignal', 'ConnectionTimeoutSignal']
+__all__ = ('SignalMeta', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
+           'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal',
+           'ConnectionDeletedSignal', 'LatencyUpdatedSignal', 'ConnectionTimeoutSignal')
 
 
 class SignalMeta(TypeRegister, ContextMemberMeta):
@@ -20,15 +20,42 @@ class SignalMeta(TypeRegister, ContextMemberMeta):
     isolated_subscribers = ContextMember({})
     children = ContextMember({})
 
-    def get_context(cls):
-        return {sub_cls: sub_cls.context_data for sub_cls in cls.subclasses.values()}
+    @property
+    def current_context_manager(cls):
+        return cls._current_context_manager
+
+    @current_context_manager.setter
+    def current_context_manager(cls, context_manager):
+        cls._current_context_manager = context_manager
+
+        # Apply for all subclasses
+        context_member_data = context_manager.data
+        for sub_cls in cls.subclasses.values():
+            sub_cls.context_member_data = context_member_data[sub_cls]
 
     def get_default_context(cls):
+        """Return default context data for this class, for new context managers"""
         return {sub_cls: {} for sub_cls in cls.subclasses.values()}
 
-    def set_context(cls, context):
-        for sub_cls in cls.subclasses.values():
-            sub_cls.context_data = context[sub_cls]
+    def merge_context(cls, context):
+        """Merge other context with current context.
+
+        Returns current context manager
+        """
+        current_context_manager = cls.current_context_manager
+
+        context_member_data = current_context_manager.data
+        for sub_cls, other_context_member_data in context.data.items():
+            try:
+                current_data = context_member_data[sub_cls]
+
+            except KeyError:
+                current_data = context_member_data[sub_cls] = {}
+
+            current_data.update(other_context_member_data)
+            other_context_member_data.clear()
+
+        return current_context_manager
 
 
 class Signal(metaclass=SignalMeta):
@@ -42,7 +69,7 @@ class Signal(metaclass=SignalMeta):
 
     @classmethod
     def register_subclass(cls):
-        cls.context_data = {}
+        cls.context_member_data = {}
 
     @staticmethod
     def get_signals(decorated):
