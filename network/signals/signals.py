@@ -78,13 +78,11 @@ class Signal(metaclass=SignalMeta):
 
     @classmethod
     def set_parent(cls, child_identifier, parent_identifier):
-        children = cls.children
-
         try:
-            children = children[parent_identifier]
+            children = cls.children[parent_identifier]
 
         except KeyError:
-            children = children[parent_identifier] = set()
+            children = cls.children[parent_identifier] = set()
 
         children.add(child_identifier)
 
@@ -202,7 +200,9 @@ class Signal(metaclass=SignalMeta):
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
+        c=0
         if addressee is None:
+            c=1
             addressee = target
 
         # If the child is a context on_context
@@ -219,7 +219,7 @@ class Signal(metaclass=SignalMeta):
 
         # Update children of this on_context
         if addressee in cls.children:
-            for target_child in list(cls.children[addressee]):
+            for target_child in cls.children[addressee].copy():
                 cls.invoke_targets(target_dict, signal, target, args, kwargs, addressee=target_child)
 
     @classmethod

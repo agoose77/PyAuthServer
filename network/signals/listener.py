@@ -61,7 +61,7 @@ class SignalListener:
     def unregister_child(self, child, signal_store=None, greedy=False):
         """Unsubscribe the child to parent for signals
 
-        :param child:cChild to be unsubscribed
+        :param child: Child to be unsubscribed
         :param signal_store: SignalListener subclass instance, default=None
         :param greedy: determines if child should un-bind its own events,
         default=False

@@ -122,18 +122,17 @@ class PandaPhysicsInterface(PandaComponent):
 
         world = self._node.get_python_tag("world")
 
-        result = world.rayTestClosest(tuple(source), tuple(target))
-        hit_node = result.get_node()
+        result = world.rayTestAll(tuple(source), tuple(target))
+        for result in result.get_hits():
+            hit_node = result.get_node()
 
-        if not hit_node:
-            return
+            if hit_node is not self._node:
+                hit_position = Vector(result.get_hit_pos())
+                hit_entity = self.entity_from_nodepath(hit_node)
+                hit_distance = (hit_position - source).length
+                hit_normal = Vector(result.get_hit_normal())
 
-        hit_position = Vector(result.get_hit_pos())
-        hit_entity = self.entity_from_nodepath(hit_node)
-        hit_distance = (hit_position - source).length
-        hit_normal = Vector(result.get_hit_normal())
-
-        return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
+                return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
     @property
     def type(self):
@@ -326,15 +325,18 @@ class PandaComponentLoader(ComponentLoader):
 
     @staticmethod
     def create_object(config_parser, entity):
-        object_name = config_parser['model_name']
+        file_name = config_parser['model_name']
 
-        entity_data = ResourceManager[entity.__class__.type_name]
+        if "bam" not in file_name:
+            entity_data = ResourceManager[entity.__class__.type_name]
+            model_path = path.join(entity_data.absolute_path, file_name)
+            panda_filename = Filename.fromOsSpecific(model_path)
 
-        file_name = "{}".format(object_name)
-        model_path = path.join(entity_data.absolute_path, file_name)
-        panda_filename = Filename.fromOsSpecific(model_path)
+            obj = base.loader.loadModel(panda_filename)
 
-        obj = base.loader.loadModel(panda_filename)
+        else:
+            obj = entity.create_object()
+
         obj.reparentTo(base.render)
 
         return obj

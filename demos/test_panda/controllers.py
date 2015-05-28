@@ -1,4 +1,5 @@
 from network.descriptors import TypeFlag
+from network.enums import Enumeration
 from network.rpc import Pointer
 from network.decorators import requires_netmode
 from network.enums import Netmodes
@@ -8,14 +9,22 @@ from game_system.controllers import PlayerPawnController
 from game_system.coordinates import Vector
 from game_system.enums import ButtonState
 from game_system.inputs import InputContext
+from game_system.timer import Timer
 
 from .actors import TestActor
 
 
-class TestPandaPlayerController(PlayerPawnController):
-    input_context = InputContext(buttons=["left", "right", "up", "down", "debug"])
+class JumpState(Enumeration):
+    values = ""
 
-    debug = False
+
+class TestPandaPlayerController(PlayerPawnController):
+    input_context = InputContext(buttons=["left", "right", "up", "down", "jump"])
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.jump_cooldown = Timer(0.3, active=False)
 
     @requires_netmode(Netmodes.server)
     def shoot(self):
@@ -24,39 +33,40 @@ class TestPandaPlayerController(PlayerPawnController):
         cube.transform.world_position = pawn.transform.world_position + Vector((-5, 0, 0))
 
     def process_inputs(self, buttons, ranges):
-        if buttons['debug'] == ButtonState.pressed:
-            self.shoot()
-            #self.debug = not self.debug
-
-        if self.debug:
-            pass
-
-        y_sign = 0
-        if buttons['up'] in {ButtonState.pressed, ButtonState.held}:
-            y_sign += 1
-
-        if buttons['down'] in {ButtonState.pressed, ButtonState.held}:
-            y_sign -= 1
-
-        x_sign = 0
-        if buttons['right'] in {ButtonState.pressed, ButtonState.held}:
-            x_sign -= 1
-
-        if buttons['left'] in {ButtonState.pressed, ButtonState.held}:
-            x_sign += 1
-
-        y_speed = y_sign * 15.0
-        rotation_speed = x_sign * 5
-
         pawn = self.pawn
         if pawn is None:
             return
 
-        velocity = Vector((0.0, y_speed, 0.0))
-        velocity.rotate(pawn.transform.world_orientation)
-        velocity.z = pawn.physics.world_velocity.z
+        y_speed = 15
+        x_speed = 8
+        turn_speed = 3
+        jump_speed = 5
 
-        angular = Vector((0.0, 0.0, rotation_speed))
+        angular = Vector()
+
+        if pawn.on_ground:
+            velocity = Vector()
+            velocity.z = self.pawn.physics.world_velocity.z
+
+            if buttons['jump'] == ButtonState.pressed and not self.jump_cooldown.active:
+                velocity.z += jump_speed
+
+                self.jump_cooldown.reset()
+
+            if buttons['up'] in {ButtonState.pressed, ButtonState.held}:
+                velocity.y += y_speed
+
+            if buttons['down'] in {ButtonState.pressed, ButtonState.held}:
+                velocity.y -= y_speed
+
+            # Convert velocity to world space
+            velocity.rotate(pawn.transform.world_orientation)
+            pawn.physics.world_velocity = velocity
+
+        if buttons['right'] in {ButtonState.pressed, ButtonState.held}:
+            angular.z -= turn_speed
+
+        if buttons['left'] in {ButtonState.pressed, ButtonState.held}:
+            angular.z += turn_speed
 
         pawn.physics.world_angular = angular
-        pawn.physics.world_velocity = velocity

@@ -4,7 +4,7 @@ from network.enums import Netmodes, Roles
 from network.logger import logger
 from network.replicable import Replicable
 from network.rpc import Pointer
-from network.signals import LatencyUpdatedSignal
+from network.signals import Signal, LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
@@ -59,9 +59,17 @@ class PawnController(Replicable):
         self.pawn = pawn
         pawn.possessed_by(self)
 
+        # Set pawn as parent for signals
+        pawn.register_child(self, greedy=True)
+
     def unpossess(self):
         """Release control of possessed pawn"""
-        self.pawn.unpossessed()
+        pawn = self.pawn
+
+        # Set pawn as parent for signals
+        pawn.unregister_child(self, greedy=True)
+        pawn.unpossessed()
+
         self.pawn = None
 
 

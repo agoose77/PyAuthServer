@@ -229,7 +229,7 @@ class Pawn(Actor):
 
     @property
     def on_ground(self):
-        downwards = -self.physics.get_direction(Axis.z)
+        downwards = -self.transform.get_direction_vector(Axis.z)
         target = self.transform.world_position + downwards
         trace = self.physics.ray_test(target, distance=self.__class__.FLOOR_OFFSET + 0.5)
         return trace is not None

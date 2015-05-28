@@ -1,5 +1,5 @@
 from game_system.entities import Actor
-from game_system.enums import CollisionState
+from game_system.enums import Axis, CollisionState
 from game_system.signals import LogicUpdateSignal, CollisionSignal
 
 from network.descriptors import Attribute
@@ -12,6 +12,13 @@ class TestActor(Actor):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     replicate_physics_to_owner = False
+
+    @property
+    def on_ground(self):
+        downwards = -self.transform.get_direction_vector(Axis.z)
+        target = self.transform.world_position + downwards
+        trace = self.physics.ray_test(target, distance=1.3)
+        return bool(trace)
 
     def create_object(self):
         from panda3d.core import Filename, NodePath
