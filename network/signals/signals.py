@@ -200,16 +200,14 @@ class Signal(metaclass=SignalMeta):
         :param *args: tuple of additional arguments
         :param **kwargs: dict of additional keyword arguments
         """
-        c=0
         if addressee is None:
-            c=1
             addressee = target
 
         # If the child is a context on_context
         if addressee in target_dict:
             callbacks = target_dict[addressee]
 
-            for callback in callbacks.values():
+            for callback in list(callbacks.values()):
                 # Invoke with the same signal context even if this is a child
                 try:
                     callback(*args, target=target, signal=signal, **kwargs)
