@@ -94,7 +94,6 @@ class Plane(Actor):
     def on_initialised(self):
         super().on_initialised()
 
-
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
@@ -118,3 +117,76 @@ class Plane(Actor):
         # new_pos.z -= 1 / 200
         # self.transform.world_position = new_pos
         return
+
+
+class RocketBomb(Actor):
+    mass = Attribute(1.0, notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
+
+    replicate_physics_to_owner = False
+
+    def create_object(self):
+        from panda3d.core import Filename, NodePath
+        from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
+
+        from game_system.resources import ResourceManager
+        f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["RocketBomb"]["Cube.egg"]))
+        model = loader.loadModel(f)
+
+        bullet_node = BulletRigidBodyNode("BulletPlane")
+        bullet_nodepath = NodePath(bullet_node)
+
+        shape = BulletBoxShape((1, 1, 1))
+        bullet_node.addShape(shape)
+        bullet_node.setMass(1.0)
+
+        model.reparentTo(bullet_nodepath)
+        return bullet_nodepath
+
+    def on_initialised(self):
+        super().on_initialised()
+        from game_system.timer import Timer
+
+        self.timer = Timer(0.3, active=False)
+        self.pawn = None
+
+    def launch_from(self, owner):
+        self.possessed_by(owner)
+
+        from network.replicable import Replicable
+        from game_system.controllers import PlayerPawnController
+        for cont in Replicable.subclass_of_type(PlayerPawnController):
+            if cont is owner:
+                continue
+
+            pawn = cont.pawn
+            self.pawn = pawn
+
+        self.timer.reset()
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        yield "mass"
+
+    def on_notify(self, name):
+        if name == "mass":
+            self.physics.mass = self.mass
+        else:
+            super().on_notify(name)
+
+    @CollisionSignal.on_context
+    def on_collided(self, collision_result):
+        if self.timer.active:
+            return
+
+        self.deregister()
+
+    @LogicUpdateSignal.on_global
+    def on_update(self, delta_time):
+        if not self.pawn:
+            return
+
+        to_target = self.pawn.transform.world_position - self.transform.world_position
+        velocity = to_target.normalized() * 20
+        self.physics.world_velocity = velocity

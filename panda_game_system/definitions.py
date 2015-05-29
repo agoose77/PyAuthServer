@@ -326,7 +326,7 @@ class PandaComponentLoader(ComponentLoader):
     @staticmethod
     def create_object(config_parser, entity):
         file_name = config_parser['model_name']
-
+        print("SPAWN", entity)
         if "bam" not in file_name:
             entity_data = ResourceManager[entity.__class__.type_name]
             model_path = path.join(entity_data.absolute_path, file_name)

@@ -1,9 +1,6 @@
-from network.descriptors import TypeFlag
 from network.enums import Enumeration
-from network.rpc import Pointer
 from network.decorators import requires_netmode
 from network.enums import Netmodes
-from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerPawnController
 from game_system.coordinates import Vector
@@ -11,15 +8,13 @@ from game_system.enums import ButtonState
 from game_system.inputs import InputContext
 from game_system.timer import Timer
 
-from .actors import TestActor
-
 
 class JumpState(Enumeration):
     values = ""
 
 
 class TestPandaPlayerController(PlayerPawnController):
-    input_context = InputContext(buttons=["left", "right", "up", "down", "jump"])
+    input_context = InputContext(buttons=["left", "right", "up", "down", "jump", "shoot"])
 
     def on_initialised(self):
         super().on_initialised()
@@ -28,9 +23,10 @@ class TestPandaPlayerController(PlayerPawnController):
 
     @requires_netmode(Netmodes.server)
     def shoot(self):
-        cube = TestActor()
-        pawn = self.pawn
-        cube.transform.world_position = pawn.transform.world_position + Vector((-5, 0, 0))
+        from .actors import RocketBomb
+        cube = RocketBomb()
+        cube.launch_from(self)
+        cube.transform.world_position = self.pawn.transform.world_position + Vector((0, 0, 4))
 
     def process_inputs(self, buttons, ranges):
         pawn = self.pawn
@@ -68,5 +64,8 @@ class TestPandaPlayerController(PlayerPawnController):
 
         if buttons['left'] in {ButtonState.pressed, ButtonState.held}:
             angular.z += turn_speed
+
+        if buttons['shoot'] == ButtonState.pressed:
+            self.shoot()
 
         pawn.physics.world_angular = angular
