@@ -101,7 +101,7 @@ class Signal(metaclass=SignalMeta):
         return len(cls.subscribers) + len(cls.isolated_subscribers)
 
     @staticmethod
-    def bind_callback(callback):
+    def _bind_callback(callback):
         parameters = signature(callback).parameters
 
         bind_signal = "signal" in parameters
@@ -170,7 +170,7 @@ class Signal(metaclass=SignalMeta):
         :param callback: callable to run when signal is invoked
         """
         signals_data = cls.get_signals(callback)
-        bound_callback = cls.bind_callback(callback)
+        bound_callback = cls._bind_callback(callback)
 
         for signal_cls, is_context in signals_data:
             if is_context:
@@ -186,7 +186,14 @@ class Signal(metaclass=SignalMeta):
                 signal_cls.subscribers[callback] = bound_callback
 
     @classmethod
-    def invoke_targets(cls, target_dict, signal, target, args, kwargs, addressee=None):
+    def clear_graph(cls):
+        for signal_cls in Signal.subclasses.values():
+            signal_cls.children.clear()
+            signal_cls.subscribers.clear()
+            signal_cls.isolated_subscribers.clear()
+
+    @classmethod
+    def _invoke_targets(cls, target_dict, signal, target, args, kwargs, addressee=None):
         """Invoke signals for targeted recipient.
 
         If recipient has children, invoke them as well.
@@ -218,10 +225,10 @@ class Signal(metaclass=SignalMeta):
         # Update children of this on_context
         if addressee in cls.children:
             for target_child in cls.children[addressee].copy():
-                cls.invoke_targets(target_dict, signal, target, args, kwargs, addressee=target_child)
+                cls._invoke_targets(target_dict, signal, target, args, kwargs, addressee=target_child)
 
     @classmethod
-    def invoke_general(cls, subscriber_dict, signal, target, args, kwargs):
+    def _invoke_general(cls, subscriber_dict, signal, target, args, kwargs):
         """Invoke signals for non targeted listeners
 
         :param subscriber_dict: mapping from subscriber identifier to callback
@@ -248,13 +255,13 @@ class Signal(metaclass=SignalMeta):
             signal = cls
 
         if target:
-            cls.invoke_targets(cls.isolated_subscribers, signal, target, args, kwargs)
+            cls._invoke_targets(cls.isolated_subscribers, signal, target, args, kwargs)
 
-        cls.invoke_general(cls.subscribers, signal, target, args, kwargs)
-        cls.invoke_parent(signal, target, args, kwargs)
+        cls._invoke_general(cls.subscribers, signal, target, args, kwargs)
+        cls._invoke_parent(signal, target, args, kwargs)
 
     @classmethod
-    def invoke_parent(cls, signal, target, args, kwargs):
+    def _invoke_parent(cls, signal, target, args, kwargs):
         """Invoke signals for superclass of Signal type
 
         :param target: target referred to by Signal invocation

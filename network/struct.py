@@ -108,3 +108,8 @@ class Struct(metaclass=StructMeta):
         attribute_data = self._attribute_container.data
         attributes = self._attribute_container._ordered_mapping.values()
         return [attribute_data[attribute] for attribute in attributes]
+
+    def __iter__(self):
+        return iter(self.to_list())
+
+    __bytes__ = to_bytes

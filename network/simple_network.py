@@ -16,13 +16,15 @@ class SimpleNetwork(Network):
     def __init__(self, address="", port=0):
         super().__init__(address, port)
 
-        self.on_update = None
-
     def on_finished(self):
         Connection.clear_graph()
         Replicable.clear_graph()
+        Signal.clear_graph()
 
         WorldInfo.register(instance_id=WorldInfo.instance_id)
+
+    def on_update(self):
+        return True
 
     def stop(self):
         self.on_finished()
@@ -30,13 +32,7 @@ class SimpleNetwork(Network):
 
     def step(self):
         self.receive()
-
-        full_update = True
-
-        on_update = self.on_update
-        if callable(on_update):
-            full_update = on_update()
-
+        full_update = self.on_update()
         self.send(full_update)
 
     def run(self, timeout=None, update_rate=1/60):
@@ -62,9 +58,6 @@ class SimpleNetwork(Network):
                 break
              
             self.step()
-
-        if callable(self.on_finished):
-            self.on_finished()
 
         self.stop()
 

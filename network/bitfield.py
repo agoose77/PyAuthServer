@@ -189,6 +189,9 @@ class NamedBitField:
             def __init__(self):
                 super().__init__(len(names))
 
+            def __repr__(self):
+                return "{{{}}}".format(", ".join("{}: {}".format(name, self[i]) for i, name in enumerate(names)))
+
         for i, name in enumerate(names):
             def get(self, i=i):
                 return self[i]
@@ -196,7 +199,6 @@ class NamedBitField:
             def set(self, value, i=i):
                 self[i] = value
 
-            prop = property(get, set)
-            exec("BitField_.{} = prop".format(name), locals(), globals())
+            setattr(BitField_, name, property(get, set))
 
         return BitField_

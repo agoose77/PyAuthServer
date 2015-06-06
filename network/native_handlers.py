@@ -114,12 +114,13 @@ class IterableHandler:
         except KeyError as err:
             raise TypeError("Unable to pack iterable without full type information") from err
 
-        int_flag = TypeFlag(int)
+        max_count = static_value.data.get("max_length", 255)
+        count_flag = TypeFlag(int, max_value=max_count)
         variable_bitfield_flag = TypeFlag(BitField)
 
         self.element_type = element_flag.data_type
         self.element_packer = get_handler(element_flag)
-        self.count_packer = get_handler(int_flag)
+        self.count_packer = get_handler(count_flag)
         self.bitfield_packer = get_handler(variable_bitfield_flag)
 
         self.is_variable_sized = is_variable_sized(self.element_packer)
