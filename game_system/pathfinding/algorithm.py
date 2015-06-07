@@ -87,16 +87,32 @@ class AlgorithmNotImplementedException(Exception):
     pass
 
 
+class AStarNode:
+
+    g_score = 0
+    f_score = 0
+    h_score = 0
+
+    def get_g_score_from(self, other):
+        raise NotImplementedError
+
+
+class AStarGoalNode(AStarNode):
+
+    def get_h_score_from(self, other):
+        raise NotImplementedError
+
+
 class AStarAlgorithm:
 
-    def __init__(self, get_neighbours, get_h_score, get_g_score, check_completed):
-        self.get_h_score = get_h_score
-        self.get_g_score = get_g_score
-        self.get_neighbours = get_neighbours
-        self.is_finished = check_completed
+    def __init__(self):
+        pass
+
+    def is_finished(self, goal, current, path):
+        raise NotImplementedError
 
     @staticmethod
-    def reconstruct_path(node, path):
+    def reconstruct_path(node, goal, path):
         result = deque()
         while node:
             result.appendleft(node)
@@ -104,39 +120,36 @@ class AStarAlgorithm:
 
         return result
 
-    def find_path(self, start):
+    def find_path(self, goal, start=None):
+        if start is None:
+            start = goal
+
         open_set = {start}
         closed_set = set()
-
+        path = {}
         f_scored = [(0, start)]
-        g_scored = {start: 0}
 
-        get_h_score = self.get_h_score
-        get_g_score = self.get_g_score
-        get_neighbours = self.get_neighbours
         is_complete = self.is_finished
 
-        path = {}
-        i=0
         while open_set:
-          #  print(i, path, "\n");i+=1
             current = heappop(f_scored)[1]
-            if is_complete(current, path):
-                return self.reconstruct_path(current, path)
 
             open_set.remove(current)
             closed_set.add(current)
 
-            for neighbour in get_neighbours(current):
+            if is_complete(current, goal, path):
+                return self.reconstruct_path(current, goal, path)
+
+            for neighbour in current.neighbours:
                 if neighbour in closed_set:
                     continue
 
-                tentative_g_score = g_scored[current] + get_g_score(current, neighbour)
+                tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
 
-                if neighbour not in open_set or tentative_g_score < g_scored[neighbour]:
+                if neighbour not in open_set or tentative_g_score < neighbour.g_score:
                     path[neighbour] = current
-                    g_scored[neighbour] = tentative_g_score
-                    heappush(f_scored, (tentative_g_score + get_h_score(neighbour), neighbour))
+                    neighbour.g_score = tentative_g_score
+                    heappush(f_scored, (tentative_g_score + goal.get_h_score_from(neighbour), neighbour))
 
                     if neighbour not in open_set:
                         open_set.add(neighbour)
