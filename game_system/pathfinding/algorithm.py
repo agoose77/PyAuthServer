@@ -117,8 +117,9 @@ class AStarAlgorithm:
         is_complete = self.is_finished
 
         path = {}
-
+        i=0
         while open_set:
+          #  print(i, path, "\n");i+=1
             current = heappop(f_scored)[1]
             if is_complete(current, path):
                 return self.reconstruct_path(current, path)
@@ -132,12 +133,12 @@ class AStarAlgorithm:
 
                 tentative_g_score = g_scored[current] + get_g_score(current, neighbour)
 
-                if not neighbour in open_set or tentative_g_score < g_scored[neighbour]:
+                if neighbour not in open_set or tentative_g_score < g_scored[neighbour]:
                     path[neighbour] = current
                     g_scored[neighbour] = tentative_g_score
                     heappush(f_scored, (tentative_g_score + get_h_score(neighbour), neighbour))
 
-                    if not neighbour in open_set:
+                    if neighbour not in open_set:
                         open_set.add(neighbour)
 
         raise PathNotFoundException("Couldn't find path for given nodes")

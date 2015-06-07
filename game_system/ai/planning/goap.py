@@ -1,13 +1,17 @@
-from ..enums import EvaluationState
-from ..pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
+from game_system.enums import EvaluationState
+from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
 
-from collections import defaultdict, namedtuple
+from network.structures import factory_dict
+
+from collections import defaultdict
 from operator import attrgetter
 
 __all__ = "Goal", "Action", "Planner", "GOAPAIManager", "ActionAStarNode", "GOAPAStarNode", "Goal"
 
 
-Goal = namedtuple("Goal", "state priority")
+class Goal:
+    state = {}
+    priority = 0
 
 
 def total_ordering(cls):
@@ -50,8 +54,11 @@ class Action:
     effects = {}
     preconditions = {}
 
-    def procedural_precondition(self, blackboard):
+    def check_procedural_precondition(self, blackboard):
         return True
+
+    def get_procedural_cost(self, blackboard):
+        return self.cost
 
     def evaluate(self, blackboard):
         return EvaluationState.success
@@ -64,7 +71,7 @@ class GOAPAStarNode:
         self.goal_state = goal_state
 
     @property
-    def finished(self):
+    def is_solution(self):
         return not self.unsatisfied_state
 
     @property
@@ -73,14 +80,22 @@ class GOAPAStarNode:
         return [k for k, v in self.goal_state.items() if not current_state[k] == v]
 
 
+class GOAPGoalNode(GOAPAStarNode):
+
+    def __repr__(self):
+        return "<GOAPGoalNode: {}>".format(self.goal_state)
+
+
 @total_ordering
 class ActionAStarNode(GOAPAStarNode):
 
     def __init__(self, action):
-        super().__init__(action.effects.copy(), action.preconditions.copy())
+        effects = action.effects.copy()
+        preconditions = action.preconditions.copy()
+
+        super().__init__(current_state=effects, goal_state=preconditions)
 
         self.action = action
-        self.cost = action.cost
 
     def __lt__(self, other):
         return self.action.precedence < other.action.precedence
@@ -88,17 +103,22 @@ class ActionAStarNode(GOAPAStarNode):
     def __repr__(self):
         return "<ActionNode {}>".format(self.action.__class__.__name__)
 
+    def get_procedural_cost(self, blackboard):
+        return self.action.get_procedural_cost(blackboard)
+
     def update_state(self, blackboard, parent):
+        # Get state of preconditions
         action_preconditions = self.action.preconditions
-        current_precondition_state = {k: blackboard.get(k) for k in action_preconditions}
 
+        # Update state from parent, current preconditions, effects
         self.current_state = parent.current_state.copy()
+        self.current_state.update({k: blackboard.get(k) for k in action_preconditions if k not in self.current_state})
         self.current_state.update(self.action.effects)
-        self.current_state.update(current_precondition_state)
 
+        # Update goal state from action preconditions
         self.goal_state = parent.goal_state.copy()
         self.goal_state.update(action_preconditions)
- 
+
 
 class Planner:
 
@@ -107,28 +127,34 @@ class Planner:
         self.blackboard = blackboard
 
         self.effects_to_actions = self.get_actions_by_effects(actions)
-
+        self.actions_to_astar = factory_dict(lambda a: ActionAStarNode(a))
         self.finder = AStarAlgorithm(self.get_neighbours, self.get_heuristic_cost, self.get_g_cost, self.check_complete)
 
     def check_complete(self, node, path):
-        if not node.finished:
+        ordered_path = self.finder.reconstruct_path(node, path)
+        print("{}:\n\t{}\n\t{}\n".format(node, node.goal_state, node.current_state, node.current_state))
+        if not node.is_solution:
             return False
         
         ordered_path = self.finder.reconstruct_path(node, path)
         current_state = self.blackboard.copy()
 
-        for node in ordered_path:
-            current_state.update(node.current_state)
-        
+        for node_ in ordered_path:
+            current_state.update(node_.current_state)
+
         for key, goal_value in node.goal_state.items():
             current_value = current_state[key]
             if not current_value == goal_value:
                 return False
-             
+
         return True
 
     @staticmethod
     def get_actions_by_effects(actions):
+        """Associate effects with appropriate actions
+
+        :param actions: valid actions
+        """
         mapping = defaultdict(list)
 
         for action in actions:
@@ -139,38 +165,77 @@ class Planner:
 
     def get_g_cost(self, node_a, node_b):
         node_b.update_state(self.blackboard, node_a)
-        
-        return node_b.cost
+        return node_b.get_procedural_cost(self.blackboard)
 
     @staticmethod
     def get_heuristic_cost(node):
+        """Rough estimate of cost of node, based upon satisfaction of goal state
+
+        :param node: node to evaluate heuristic
+        """
         return len(node.unsatisfied_state)
 
     def get_neighbours(self, node):
+        """Find neighbours of node, which fulfil unsatisfied state
+
+        :param node: node to evaluate
+        """
         unsatisfied_effects = node.unsatisfied_state
         effects_to_actions = self.effects_to_actions
         blackboard = self.blackboard
-        
+
+        neighbours = []
+        node_map = self.actions_to_astar
         for effect in unsatisfied_effects:
             try:
                 actions = effects_to_actions[effect]
 
             except KeyError:
                 continue
-            
-            yield from [ActionAStarNode(a) for a in actions if a.procedural_precondition(blackboard)]
-        
+
+            effect_neighbours = [node_map[a] for a in actions if a.check_procedural_precondition(blackboard)]
+            neighbours.extend(effect_neighbours)
+
+        neighbours.sort(key=attrgetter("action.precedence"))
+        return neighbours
+
     def build(self, goal_state):
         blackboard = self.blackboard
         current_state = {k: blackboard.get(k) for k in goal_state}
 
-        goal_node = GOAPAStarNode(current_state, goal_state)
+        goal_node = GOAPGoalNode(current_state, goal_state)
         node_path = self.finder.find_path(goal_node)
 
         path = [node.action for node in list(node_path)[1:]]
         path.reverse()
-
+        print(path)
         return path
+
+
+class GOAPPlannerFailedException(Exception):
+    pass
+
+
+class GOAPAIPlan:
+
+    def __init__(self, actions):
+        self._actions = iter(actions)
+        self.current_action = next(self._actions)
+
+    def update(self, blackboard):
+        state = self.current_action.evaluate(blackboard)
+
+        if state == EvaluationState.success:
+            try:
+                self.current_action = next(self._actions)
+
+            # Unless we're finished
+            except StopIteration:
+                return EvaluationState.success
+
+            return self.update(blackboard)
+
+        return state
 
 
 class GOAPAIManager:
@@ -183,29 +248,41 @@ class GOAPAIManager:
 
         self._plan = None
 
-    def update(self):
+    def find_best_plan(self):
         build_plan = self.planner.build
+        for goal in self.goals:
+            try:
+                path = build_plan(goal.state)
+
+            except PathNotFoundException:
+                continue
+
+            return GOAPAIPlan(path)
+
+        raise GOAPPlannerFailedException("Couldn't find suitable plan")
+
+    def update(self):
         blackboard = self.blackboard
-        plan = self._plan
 
-        if not plan:
-            for goal in self.goals:
-                try:
-                    path = build_plan(goal.state)
+        # Rebuild plan
+        if self._plan is None:
+            try:
+                self._plan = self.find_best_plan()
 
-                except PathNotFoundException:
-                    continue
+            except GOAPPlannerFailedException as err:
+                print(err)
 
-                plan = path
-                break
+        else:
+            plan_state = self._plan.update(blackboard)
 
-            else:
-                return
+            if plan_state == EvaluationState.failure:
+                print("Plan failed: {}".format(self._plan.current_action))
+                self._plan = None
+                self.update()
 
-            self.plan = plan
+            elif plan_state == EvaluationState.success:
+                self._plan = None
+                self.update()
 
-        action = plan[0]
-        state = action.__call__(blackboard)
 
-        if state == EvaluationState.success:
-            plan[:] = plan[1:]
+
