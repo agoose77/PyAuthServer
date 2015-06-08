@@ -1,4 +1,4 @@
-from game_system.ai.planning.goap import Action, Goal, GOAPAIManager
+from game_system.ai.planning.goap import Action, Goal, GOAPAIManager, Variable
 from game_system.ai.state_machine.fsm import FiniteStateMachine
 from game_system.ai.state_machine.state import State
 from game_system.enums import EvaluationState
@@ -51,77 +51,89 @@ def create_finder_class(name, cast_ray=True):
     return Finder
 
 
-LookForAxe = create_finder_class("axe")
-LookForWoods = create_finder_class("woods")
-LookForSticks = create_finder_class("sticks")
+class GetWood(Action):
+    effects = {"has_firewood": True}
+    preconditions = {"at_location": "trees", "has_axe": True}
 
 
 class GetAxe(Action):
-    preconditions = {"axe_available": True}
     effects = {"has_axe": True}
+    preconditions = {"at_location": "axe"}
 
-    def get_procedural_cost(self, blackboard):
-        return super().get_procedural_cost(blackboard)
 
-        player = blackboard['player']
-        axe = blackboard['axe']
+class GOTOAction(Action):
+    effects = {"at_location": Variable("at_location")}
 
-        return (player.worldPosition - axe.worldPosition).length / 10
+    def repr(self, no):
+        return "GOTO: {}".format(no.goal_state['at_location'])
 
     def evaluate(self, blackboard):
-        axe = blackboard['axe']
+        target = blackboard['goto_target']
 
         fsm = blackboard['fsm']
         goto_state = fsm.states["GOTO"]
 
-        if goto_state.request is None or goto_state.request.target is not axe:
-            goto_state.request = GOTORequest(axe)
+        if goto_state.request is None or goto_state.request.target is not target:
+            goto_state.request = GOTORequest(target)
 
         return goto_state.request.status
-
-
-class GOTOWoods(Action):
-    effects = {"at_woods": True}
-    preconditions = {"woods_available": True}
-
-    def evaluate(self, blackboard):
-        woods = blackboard['woods']
-
-        fsm = blackboard['fsm']
-        goto_state = fsm.states["GOTO"]
-
-        if goto_state.request is None or goto_state.request.target is not woods:
-            goto_state.request = GOTORequest(woods)
-
-        return goto_state.request.status
-
-
-class ChopLog(Action):
-    preconditions = {"has_axe": True, "at_woods": True}
-    effects = {"has_firewood": True}
-    cost = 2
-
-    def evaluate(self, blackboard):
-        blackboard['woods'].endObject()
-        blackboard['at_woods'] = False
-        return EvaluationState.success
-
-
-class CollectBranches(Action):
-    effects = {"has_firewood": True}
-    preconditions = {"sticks_available": True}
-    cost = 70
-
-    def evaluate(self, blackboard):
-        sticks = blackboard['sticks']
-
-        fsm = blackboard['fsm']
-        goto_state = fsm.states["GOTO"]
-
-        if goto_state.request is None or goto_state.request.target is not sticks:
-            goto_state.request = GOTORequest(sticks)
-
-        return goto_state.request.status
+#
+#
+# LookForAxe = create_finder_class("axe")
+# LookForWoods = create_finder_class("woods")
+# LookForSticks = create_finder_class("sticks")
+#
+#
+# class GetAxe(Action):
+#     preconditions = {"at_location": Variable("axe_location")}
+#     effects = {"has_axe": True}
+#
+#     def get_procedural_cost(self, blackboard):
+#         return super().get_procedural_cost(blackboard)
+#
+#         player = blackboard['player']
+#         axe = blackboard['axe']
+#
+#         return (player.worldPosition - axe.worldPosition).length / 10
+#
+#     def evaluate(self, blackboard):
+#         axe = blackboard['axe']
+#
+#         fsm = blackboard['fsm']
+#         goto_state = fsm.states["GOTO"]
+#
+#         if goto_state.request is None or goto_state.request.target is not axe:
+#             goto_state.request = GOTORequest(axe)
+#
+#         return goto_state.request.status
+#
+#
+# class ChopLog(Action):
+#     preconditions = {"has_axe": True, "at_woods": True}
+#     effects = {"has_firewood": True}
+#     cost = 2
+#
+#     def evaluate(self, blackboard):
+#         blackboard['woods'].endObject()
+#         blackboard['at_woods'] = False
+#         return EvaluationState.success
+#
+#
+# class CollectBranches(Action):
+#     effects = {"has_firewood": True}
+#     preconditions = {"sticks_available": True}
+#     cost = 70
+#
+#     def evaluate(self, blackboard):
+#         sticks = blackboard['sticks']
+#
+#         fsm = blackboard['fsm']
+#         goto_state = fsm.states["GOTO"]
+#
+#         if goto_state.request is None or goto_state.request.target is not sticks:
+#             goto_state.request = GOTORequest(sticks)
+#
+#         return goto_state.request.status
 
 
 class GetFirewoodGoal(Goal):
@@ -217,6 +229,7 @@ def init(cont):
 
     blackboard["player"] = own
     blackboard["fsm"] = fsm
+    blackboard["at_location"] = None
 
     actions = Action.__subclasses__()
     goals = [GetFirewoodGoal()]

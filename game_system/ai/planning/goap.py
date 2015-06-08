@@ -47,6 +47,23 @@ def total_ordering(cls):
     return cls
 
 
+class Variable:
+    """Variable value for effects and preconditions
+
+    Must be resolved during plan-time
+    """
+
+    def __init__(self, key):
+        self._key = key
+
+    def resolve(self, blackboard):
+        """Determine true value of variable
+
+        :param blackboard: AI blackboard dictionary
+        """
+        return blackboard[self._key]
+
+
 class Goal:
 
     state = {}
@@ -90,14 +107,12 @@ class IGOAPAStarNode:
 
     @property
     def is_solution(self):
+        """If this node is the start node for a solution"""
         return not self.unsatisfied_state
-
-    def get_unsatisfied_state(self, goal_state):
-        current_state = self.current_state
-        return [k for k, v in goal_state.items() if not current_state[k] == v]
 
     @property
     def unsatisfied_state(self):
+        """Return the keys of the unsatisfied state symbols between the goal and current state"""
         current_state = self.current_state
         return [k for k, v in self.goal_state.items() if not current_state[k] == v]
 
@@ -111,7 +126,6 @@ class IGOAPAStarNode:
 
 
 class GOAPAStarNode(IGOAPAStarNode, AStarNode):
-
     pass
 
 
@@ -125,12 +139,13 @@ class GOAPGoalNode(IGOAPAStarNode, AStarGoalNode):
 
         :param node: node to evaluate heuristic
         """
-        node.update_state()
+        node.update_internal_states()
         return len(node.unsatisfied_state)
 
 
 @total_ordering
 class ActionAStarNode(GOAPAStarNode):
+    """A* Node with associated GOAP action"""
 
     def __init__(self, planner, action):
         super().__init__(planner)
@@ -141,28 +156,78 @@ class ActionAStarNode(GOAPAStarNode):
         return self.action.precedence < other.action.precedence
 
     def __repr__(self):
-        return "<ActionNode {} ({})>".format(self.action.__class__.__name__, self.parent.action.__class__.__name__ if hasattr(self.parent, "action") else "")
+        if hasattr(self.action, "repr"):
+            c = self.action.repr(self)
+        else:
+            c = self.action.__class__.__name__
+
+        if hasattr(self.parent, "action"):
+            if hasattr(self.parent.action, "repr"):
+                h = self.parent.action.repr(self.parent)
+            else:
+                h = self.parent.action.__class__.__name__
+        else:
+            h = ""
+        return "<ActionNode {} ({})>".format(c, h)
 
     def get_g_score_from(self, node):
+        """Determine procedural (or static) cost of this action
+
+        :param node: node to move from (unused)
+        """
         # Update world states
         self.current_state.update(node.current_state)
         self.goal_state.update(node.goal_state)
 
         return self.action.get_procedural_cost(self.planner.blackboard)
 
-    def update_state(self):
+    def update_state_with(self, state, source,sc=None):
+        """Update one state dictionary with another
+
+        Resolves state from goal state (for Variable instances)
+
+        :param state: state to update
+        :param source: source from which to update state
+        """
+        if sc is None:sc=source
+        for key, value in source.items():
+            if isinstance(value, Variable):
+                value = value.resolve(sc)
+
+            state[key] = value
+
+    def update_internal_states(self):
+        """Update internal current and goal states, according to action effects and preconditions
+
+        Required for heuristic estimate
+        """
         # Get state of preconditions
         action_preconditions = self.action.preconditions
         blackboard = self.planner.blackboard
 
-       # print(self, parent, parent.current_state, self.current_state, "\n")
-
-        # Update state from parent, current preconditions, effects
+        # Update current state with current precondition values
         self.current_state.update({k: blackboard.get(k) for k in action_preconditions if k not in self.current_state})
-        self.current_state.update(self.action.effects)
+
+        # Update current state with applied effects
+        self.update_state_with(self.current_state, self.action.effects, sc=self.goal_state)
 
         # Update goal state from action preconditions
-        self.goal_state.update(action_preconditions)
+        self.update_state_with(self.goal_state, action_preconditions)
+      #  print(self, self.goal_state, self.current_state)
+        # 1
+        # Solve unsatisfied props
+        # Get value from goal, resolve from goal if var
+        # Set current from value
+
+        # 2
+        # Add precond from action to goal
+        # If variable get from goal state then set
+
+        # 3
+        # Iterate over goal properties
+        # If prop already in curr ignore
+        # Add missing props to current
+        # Get values from AI current state
 
 
 def f(d):
@@ -177,34 +242,69 @@ class Planner(AStarAlgorithm):
 
         self.effects_to_action_classes = self.get_action_classes_by_effects(action_classes)
 
-    @staticmethod
-    def reconstruct_path(node, goal):
-        result = deque()
-        while node:
-            result.appendleft(node)
-            node = node.parent
+    def find_plan_for_goal(self, goal_state):
+        """Find shortest plan to produce goal state
 
-        return result
+        :param goal_state: state of goal
+        """
+        blackboard = self.blackboard
 
-    def is_finished(self, node, goal):
-        print("State of {}:\n\tGoal: {}\n\tCurrent: {}\n".format(node, f(node.goal_state), f(node.current_state)))
-        if not node.is_solution:
-            return False
-        
-        ordered_path = self.reconstruct_path(node, goal)
-        current_state = self.blackboard.copy()
+        goal_node = GOAPGoalNode(self)
 
-        for node_ in ordered_path:
-            current_state.update(node_.current_state)
+        goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
+        goal_node.goal_state = goal_state
 
-        for key, goal_value in node.goal_state.items():
-            current_value = current_state[key]
-            if not current_value == goal_value:
-                return False
+        node_path = self.find_path(goal_node)
 
-        return True
+        path = [node.action for node in list(node_path)[1:]]
+        path.reverse()
+
+        return path
+
+    def find_path(self, goal, start=None):
+        """Find shortest path from goal to start"""
+        if start is None:
+            start = goal
+
+        start.f_score = 0
+        open_set = PriorityQueue(start, key=attrgetter("f_score"))
+
+        is_complete = self.is_finished
+
+        while open_set:
+            current = open_set.pop()
+
+            if is_complete(current, goal):
+                return self.reconstruct_path(current, goal)
+
+            current_parent = current.parent
+
+            for neighbour in current.neighbours:
+                if current_parent is neighbour:
+                    continue
+
+                tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
+                h_score = goal.get_h_score_from(neighbour)
+                f_score = tentative_g_score + h_score
+
+                if f_score >= neighbour.f_score:
+                    continue
+
+                neighbour.g_score = tentative_g_score
+                neighbour.f_score = f_score
+                neighbour.h_score = h_score
+
+                open_set.add(neighbour)
+                neighbour.parent = current
+                print(neighbour)
+
+        raise PathNotFoundException("Couldn't find path for given nodes")
 
     def get_neighbour_nodes_for_effects(self, effects):
+        """Return new nodes for actions which produce the given effects
+
+        :param effects: effects to request
+        """
         effects_to_action_classes = self.effects_to_action_classes
         blackboard = self.blackboard
 
@@ -216,6 +316,7 @@ class Planner(AStarAlgorithm):
             except KeyError:
                 continue
 
+            # Create new action instances for every node
             new_actions = [c() for c in action_classes]
             effect_neighbours = [ActionAStarNode(self, a) for a in new_actions
                                  if a.check_procedural_precondition(blackboard)]
@@ -244,54 +345,31 @@ class Planner(AStarAlgorithm):
 
         return mapping
 
-    def build(self, goal_state):
-        blackboard = self.blackboard
+    def is_finished(self, node, goal):
+        if not node.is_solution:
+            return False
 
-        goal_node = GOAPGoalNode(self)
+        ordered_path = self.reconstruct_path(node, goal)
+        current_state = self.blackboard.copy()
 
-        goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
-        goal_node.goal_state = goal_state
+        for node_ in ordered_path:
+            current_state.update(node_.current_state)
 
-        node_path = self.find_path(goal_node)
+        for key, goal_value in node.goal_state.items():
+            current_value = current_state[key]
+            if not current_value == goal_value:
+                return False
 
-        path = [node.action for node in list(node_path)[1:]]
-        path.reverse()
+        return True
 
-        return path
+    @staticmethod
+    def reconstruct_path(node, goal):
+        result = deque()
+        while node:
+            result.appendleft(node)
+            node = node.parent
 
-    def find_path(self, goal, start=None):
-        if start is None:
-            start = goal
-
-        start.f_score = 0
-
-        open_set = PriorityQueue(start, key=attrgetter("f_score"))
-        closed_set = set()
-
-        is_complete = self.is_finished
-
-        while open_set:
-            current = open_set.pop()
-
-            if is_complete(current, goal):
-                return self.reconstruct_path(current, goal)
-
-            for neighbour in current.neighbours:
-                tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
-                h_score = goal.get_h_score_from(neighbour)
-                f_score = tentative_g_score + h_score
-
-                if f_score >= neighbour.f_score:
-                    continue
-
-                neighbour.g_score = tentative_g_score
-                neighbour.f_score = f_score
-                neighbour.h_score = h_score
-
-                open_set.add(neighbour)
-                neighbour.parent = current
-
-        raise PathNotFoundException("Couldn't find path for given nodes")
+        return result
 
 
 class GOAPPlannerFailedException(Exception):
@@ -304,6 +382,7 @@ class GOAPAIPlan:
         self._actions_it = iter(actions)
         self._actions = actions
         self.current_action = next(self._actions_it)
+        print(self)
 
     def __repr__(self):
         return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_action else "", repr(x)) for x in self._actions]))
@@ -342,7 +421,7 @@ class GOAPAIManager:
         self._plan = None
 
     def find_best_plan(self):
-        build_plan = self.planner.build
+        build_plan = self.planner.find_plan_for_goal
         arrange_plan = self.scheduler.arrange
 
         for goal in self.goals:
