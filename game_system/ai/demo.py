@@ -14,35 +14,46 @@ class GOTORequest:
         self.status = EvaluationState.success
 
 
-class LookForAxe(Action):
-    effects = {"axe_available": True}
+def create_finder_class(name, cast_ray=True):
 
-    def __init__(self):
-        super().__init__()
+    class Finder(Action):
+        effects = {"{}_available".format(name): True}
 
-        self._axe = None
+        def __init__(self):
+            super().__init__()
 
-    def check_procedural_precondition(self, blackboard):
-        player = blackboard['player']
-        for obj in player.scene.objects:
-            if "axe" not in obj:
-                continue
+            self._obj = None
 
-            hit_obj = player.rayCastTo(obj)
+        def check_procedural_precondition(self, blackboard):
+            player = blackboard['player']
+            for obj in player.scene.objects:
+                if name not in obj:
+                    continue
 
-            if hit_obj is not obj:
-                continue
+                if cast_ray:
+                    hit_obj = player.rayCastTo(obj)
 
-            self._axe = hit_obj
-            return True
+                    if hit_obj is not obj:
+                        continue
 
-        return False
+                self._obj = obj
+                return True
 
-    def evaluate(self, blackboard):
-        blackboard['axe'] = self._axe
-        self._axe = None
+            return False
 
-        return EvaluationState.success
+        def evaluate(self, blackboard):
+            blackboard[name] = self._obj
+            self._obj = None
+
+            return EvaluationState.success
+
+    Finder.__name__ = "{}Finder".format(name.upper())
+    return Finder
+
+
+LookForAxe = create_finder_class("axe")
+LookForWoods = create_finder_class("woods")
+LookForSticks = create_finder_class("sticks")
 
 
 class GetAxe(Action):
@@ -51,7 +62,7 @@ class GetAxe(Action):
 
     def get_procedural_cost(self, blackboard):
         return super().get_procedural_cost(blackboard)
-        assert self.check_procedural_precondition(blackboard)
+
         player = blackboard['player']
         axe = blackboard['axe']
 
@@ -59,46 +70,168 @@ class GetAxe(Action):
 
     def evaluate(self, blackboard):
         axe = blackboard['axe']
-        goto_request = blackboard['goto_request']
 
-        if goto_request is None or goto_request.target is not axe:
-            blackboard['goto_request'] = GOTORequest(axe)
-            return EvaluationState.running
+        fsm = blackboard['fsm']
+        goto_state = fsm.states["GOTO"]
 
-        return goto_request.status
+        if goto_state.request is None or goto_state.request.target is not axe:
+            goto_state.request = GOTORequest(axe)
+
+        return goto_state.request.status
+
+
+class GOTOWoods(Action):
+    effects = {"at_woods": True}
+    preconditions = {"woods_available": True}
+
+    def evaluate(self, blackboard):
+        woods = blackboard['woods']
+
+        fsm = blackboard['fsm']
+        goto_state = fsm.states["GOTO"]
+
+        if goto_state.request is None or goto_state.request.target is not woods:
+            goto_state.request = GOTORequest(woods)
+
+        return goto_state.request.status
 
 
 class ChopLog(Action):
-    preconditions = {"has_axe": True}
+    preconditions = {"has_axe": True, "at_woods": True}
     effects = {"has_firewood": True}
     cost = 2
+
+    def evaluate(self, blackboard):
+        blackboard['woods'].endObject()
+        blackboard['at_woods'] = False
+        return EvaluationState.success
 
 
 class CollectBranches(Action):
     effects = {"has_firewood": True}
-    cost = 4
+    preconditions = {"sticks_available": True}
+    cost = 70
+
+    def evaluate(self, blackboard):
+        sticks = blackboard['sticks']
+
+        fsm = blackboard['fsm']
+        goto_state = fsm.states["GOTO"]
+
+        if goto_state.request is None or goto_state.request.target is not sticks:
+            goto_state.request = GOTORequest(sticks)
+
+        return goto_state.request.status
 
 
 class GetFirewoodGoal(Goal):
     state = {"has_firewood": True}
 
 
+class GameObjBlackboard:
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getitem__(self, name):
+        return self._obj[name]
+
+    def __setitem__(self, name, value):
+        self._obj[name] = value
+
+    def copy(self):
+        return dict(self.items())
+
+    def get(self, name, default=None):
+        try:
+            return self[name]
+
+        except KeyError:
+            return default
+
+    def setdefault(self, name, value):
+        try:
+            return self[name]
+
+        except KeyError:
+            self[name] = value
+            return value
+
+    def keys(self):
+        return iter(self._obj.getPropertyNames())
+
+    def values(self):
+        return (self._obj[x] for x in self.keys())
+
+    def items(self):
+        return ((x, y) for x, y in zip(self.keys(), self.values()))
+
+    def __repr__(self):
+        return repr(dict(self.items()))
+
+
+class GOTOState(State):
+
+    def __init__(self, blackboard):
+        super().__init__("GOTO")
+
+        self.blackboard = blackboard
+        self.request = None
+
+    def update(self):
+        request = self.request
+
+        if request is None:
+            return
+
+        player = self.blackboard["player"]
+        to_target = request.target.worldPosition - player.worldPosition
+
+        if to_target.length_squared < 1:
+            request.status = EvaluationState.success
+
+        else:
+            player.worldPosition += to_target.normalized() * 0.15
+
+
+class AnimateState(State):
+
+    def __init__(self, blackboard):
+        super().__init__("Animate")
+
+        self.blackboard = blackboard
+
+
 def init(cont):
     own = cont.owner
-    
-    blackboard = {"has_axe": False, "axe_available": False, "has_firewood": False, "goto_request": None,
-                  "player": own}
-    actions = [GetAxe(), ChopLog(),
-               CollectBranches(),
-               LookForAxe()]
+
+    blackboard = GameObjBlackboard(own)
+
+    fsm = FiniteStateMachine()
+
+    goto_state = GOTOState(blackboard)
+    animate_state = AnimateState(blackboard)
+
+    fsm.add_state(goto_state)
+    fsm.add_state(animate_state)
+
+    blackboard["player"] = own
+    blackboard["fsm"] = fsm
+
+    actions = [c() for c in Action.__subclasses__()]
     goals = [GetFirewoodGoal()]
 
     goap_ai_manager = GOAPAIManager(blackboard, goals, actions)
+
     own['ai'] = goap_ai_manager
+    own['fsm'] = fsm
 
 
 def main(cont):
     own = cont.owner
     
     ai_manager = own['ai']
+    fsm = own['fsm']
+
     ai_manager.update()
+    fsm.state.update()

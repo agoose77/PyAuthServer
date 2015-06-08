@@ -1,10 +1,7 @@
-from .state import State
-
-
 class FiniteStateMachine:
 
     def __init__(self):
-        self._states = set()
+        self.states = {}
         self._state = None
 
     @property
@@ -22,7 +19,7 @@ class FiniteStateMachine:
         self._state = state
 
     def add_state(self, state, set_default=True):
-        self._states.add(state)
+        self.states[state.name] = state
         state.manager = self
 
         # Set default state if none set
@@ -37,4 +34,4 @@ class FiniteStateMachine:
         if self._state is state:
             self._state = None
 
-        self._states.remove(state)
+        self.states.pop(state.name)

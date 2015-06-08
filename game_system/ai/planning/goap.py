@@ -3,8 +3,9 @@ from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundExcept
 
 from network.structures import factory_dict
 
+from .priority_queue import PriorityQueue
+
 from collections import defaultdict, deque
-from heapq import heappop, heappush
 from operator import attrgetter
 from sys import float_info
 
@@ -58,7 +59,7 @@ class Goal:
 
 class Action:
 
-    cost = 0
+    cost = 1
     precedence = 0
 
     effects = {}
@@ -203,7 +204,7 @@ class Planner(AStarAlgorithm):
         return result
 
     def is_finished(self, node, goal, path):
-        #print("State of {}:\n\tGoal: {}\n\tCurrent: {}\n".format(node, f(node.goal_state), f(node.current_state)))
+        print("State of {}:\n\tGoal: {}\n\tCurrent: {}\n".format(node, f(node.goal_state), f(node.current_state)))
         if not node.is_solution:
             return False
         
@@ -253,18 +254,16 @@ class Planner(AStarAlgorithm):
         if start is None:
             start = goal
 
-        open_set = {start}
+        start.f_score = 0
+
+        open_set = PriorityQueue(start, key=attrgetter("f_score"))
         closed_set = set()
         path = {}
-        f_scored = [(0, start)]
 
         is_complete = self.is_finished
 
         while open_set:
-            current = heappop(f_scored)[1]
-
-            if current in open_set:
-                open_set.remove(current)
+            current = open_set  .pop()
             closed_set.add(current)
 
             if is_complete(current, goal, path):
@@ -272,23 +271,23 @@ class Planner(AStarAlgorithm):
 
             for neighbour in current.neighbours:
                 tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
-                f_score = tentative_g_score + goal.get_h_score_from(neighbour)
 
-                if f_score >= neighbour.f_score * 0.9999:
-                    continue
+                if neighbour in open_set:# and tentative_g_score < neighbour.g_score:
+                    open_set.remove(neighbour)
 
-                neighbour.g_score = tentative_g_score
-                neighbour.f_score = f_score
-                heappush(f_scored, (f_score, neighbour))
-
-                path[neighbour] = current
-
-                if neighbour in closed_set:
+                if neighbour in closed_set:# and tentative_g_score < neighbour.g_score:
                     closed_set.remove(neighbour)
 
-                open_set.add(neighbour)
+                if neighbour not in open_set and neighbour not in closed_set:
+                    f_score = tentative_g_score + goal.get_h_score_from(neighbour)
 
-                print("{} -> {}".format(current, neighbour))
+                    neighbour.g_score = tentative_g_score
+                    neighbour.f_score = f_score
+
+                    open_set.add(neighbour)
+                    path[neighbour] = current
+
+                    print("{} -> {}".format(current, neighbour))
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 

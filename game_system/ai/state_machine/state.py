@@ -1,7 +1,8 @@
 class State:
 
-    def __init__(self):
+    def __init__(self, name):
         self.manager = None
+        self.name = name
 
     def on_enter(self):
         pass
