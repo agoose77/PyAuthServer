@@ -119,21 +119,21 @@ class GOTOAction(Action):
 #         return EvaluationState.success
 #
 #
-# class CollectBranches(Action):
-#     effects = {"has_firewood": True}
-#     preconditions = {"sticks_available": True}
-#     cost = 70
-#
-#     def evaluate(self, blackboard):
-#         sticks = blackboard['sticks']
-#
-#         fsm = blackboard['fsm']
-#         goto_state = fsm.states["GOTO"]
-#
-#         if goto_state.request is None or goto_state.request.target is not sticks:
-#             goto_state.request = GOTORequest(sticks)
-#
-#         return goto_state.request.status
+class CollectBranches(Action):
+    effects = {"has_firewood": True}
+    # preconditions = {"sticks_available": True}
+    cost = 70
+
+    # def evaluate(self, blackboard):
+    #     sticks = blackboard['sticks']
+    #
+    #     fsm = blackboard['fsm']
+    #     goto_state = fsm.states["GOTO"]
+    #
+    #     if goto_state.request is None or goto_state.request.target is not sticks:
+    #         goto_state.request = GOTORequest(sticks)
+    #
+    #     return goto_state.request.status
 
 
 class GetFirewoodGoal(Goal):

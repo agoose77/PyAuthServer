@@ -106,11 +106,6 @@ class IGOAPAStarNode:
         self.planner = planner
 
     @property
-    def is_solution(self):
-        """If this node is the start node for a solution"""
-        return not self.unsatisfied_state
-
-    @property
     def unsatisfied_state(self):
         """Return the keys of the unsatisfied state symbols between the goal and current state"""
         current_state = self.current_state
@@ -123,6 +118,41 @@ class IGOAPAStarNode:
         :param node: node to evaluate
         """
         return self.planner.get_neighbour_nodes_for_effects(self.unsatisfied_state)
+
+    def validate_preconditions(self, current_state, goal_state):
+        for key, value in self.action.preconditions.items():
+            current_value = current_state[key]
+            if isinstance(value, Variable):
+                value = value.resolve(goal_state)
+
+            if current_value != value:
+                return False
+
+        return True
+
+    def copy_state(self, source, destination, resolve_source):
+        """Copy state from one state to another, resolving any variables
+
+        :param source: source of state
+        :param destination: state to modify
+        :param resolve_source: source for variables
+        """
+        for key, value in source.items():
+            if isinstance(value, Variable):
+                value = value.resolve(resolve_source)
+
+            destination[key] = value
+
+    def satisfies_goal_state(self, current_state):
+        goal_state = self.goal_state
+        for key, current_value in current_state.items():
+            if key not in goal_state:
+                continue
+
+            if current_value != goal_state[key]:
+                return False
+
+        return True
 
 
 class GOAPAStarNode(IGOAPAStarNode, AStarNode):
@@ -181,21 +211,6 @@ class ActionAStarNode(GOAPAStarNode):
 
         return self.action.get_procedural_cost(self.planner.blackboard)
 
-    def update_state_with(self, state, source,sc=None):
-        """Update one state dictionary with another
-
-        Resolves state from goal state (for Variable instances)
-
-        :param state: state to update
-        :param source: source from which to update state
-        """
-        if sc is None:sc=source
-        for key, value in source.items():
-            if isinstance(value, Variable):
-                value = value.resolve(sc)
-
-            state[key] = value
-
     def update_internal_states(self):
         """Update internal current and goal states, according to action effects and preconditions
 
@@ -204,30 +219,16 @@ class ActionAStarNode(GOAPAStarNode):
         # Get state of preconditions
         action_preconditions = self.action.preconditions
         blackboard = self.planner.blackboard
+        goal_state = self.goal_state
 
-        # Update current state with current precondition values
+        # 1 Update current state from effects, resolve variables
+        self.copy_state(self.action.effects, self.current_state, resolve_source=goal_state)
+
+        # 2 Update goal state from action preconditions
+        self.copy_state(action_preconditions, goal_state, resolve_source=goal_state)
+
+        # 3 Update current state with current values of missing precondition keys
         self.current_state.update({k: blackboard.get(k) for k in action_preconditions if k not in self.current_state})
-
-        # Update current state with applied effects
-        self.update_state_with(self.current_state, self.action.effects, sc=self.goal_state)
-
-        # Update goal state from action preconditions
-        self.update_state_with(self.goal_state, action_preconditions)
-      #  print(self, self.goal_state, self.current_state)
-        # 1
-        # Solve unsatisfied props
-        # Get value from goal, resolve from goal if var
-        # Set current from value
-
-        # 2
-        # Add precond from action to goal
-        # If variable get from goal state then set
-
-        # 3
-        # Iterate over goal properties
-        # If prop already in curr ignore
-        # Add missing props to current
-        # Get values from AI current state
 
 
 def f(d):
@@ -269,12 +270,12 @@ class Planner(AStarAlgorithm):
         start.f_score = 0
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
 
-        is_complete = self.is_finished
+        is_finished = self.is_finished
 
         while open_set:
             current = open_set.pop()
 
-            if is_complete(current, goal):
+            if is_finished(current, goal):
                 return self.reconstruct_path(current, goal)
 
             current_parent = current.parent
@@ -296,7 +297,6 @@ class Planner(AStarAlgorithm):
 
                 open_set.add(neighbour)
                 neighbour.parent = current
-                print(neighbour)
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 
@@ -346,21 +346,29 @@ class Planner(AStarAlgorithm):
         return mapping
 
     def is_finished(self, node, goal):
-        if not node.is_solution:
-            return False
+        # Get world state
+        world_state = {key: self.blackboard[key] for key in node.current_state}
 
-        ordered_path = self.reconstruct_path(node, goal)
-        current_state = self.blackboard.copy()
+        parent = None
 
-        for node_ in ordered_path:
-            current_state.update(node_.current_state)
+        while node is not goal:
+            action = node.action
+            parent = node.parent
+            parent_goal_state = parent.goal_state
 
-        for key, goal_value in node.goal_state.items():
-            current_value = current_state[key]
-            if not current_value == goal_value:
+            if not node.validate_preconditions(world_state, parent_goal_state):
                 return False
 
-        return True
+            # May be able to remove this, should already be checked?
+            if not action.check_procedural_precondition(parent_goal_state):
+                return False
+
+            # Apply effects to world state
+            node.copy_state(action.effects, world_state, resolve_source=parent_goal_state)
+            node = parent
+
+        if parent and parent.satisfies_goal_state(world_state):
+            return True
 
     @staticmethod
     def reconstruct_path(node, goal):
