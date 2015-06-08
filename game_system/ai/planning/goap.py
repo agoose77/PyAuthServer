@@ -107,23 +107,7 @@ class IGOAPAStarNode:
 
         :param node: node to evaluate
         """
-        effects_to_actions = self.planner.effects_to_actions
-        node_map = self.planner.actions_to_astar
-        blackboard = self.planner.blackboard
-
-        neighbours = []
-        for effect in self.unsatisfied_state:
-            try:
-                actions = effects_to_actions[effect]
-
-            except KeyError:
-                continue
-
-            effect_neighbours = [node_map[a] for a in actions if a.check_procedural_precondition(blackboard)]
-            neighbours.extend(effect_neighbours)
-
-        neighbours.sort(key=attrgetter("action.precedence"))
-        return neighbours
+        return self.planner.get_neighbour_nodes_for_effects(self.unsatisfied_state)
 
 
 class GOAPAStarNode(IGOAPAStarNode, AStarNode):
@@ -157,7 +141,7 @@ class ActionAStarNode(GOAPAStarNode):
         return self.action.precedence < other.action.precedence
 
     def __repr__(self):
-        return "<ActionNode {}>".format(self.action.__class__.__name__)
+        return "<ActionNode {} ({})>".format(self.action.__class__.__name__, self.parent.action.__class__.__name__ if hasattr(self.parent, "action") else "")
 
     def get_g_score_from(self, node):
         # Update world states
@@ -187,28 +171,27 @@ def f(d):
 
 class Planner(AStarAlgorithm):
 
-    def __init__(self, actions, blackboard):
-        self.actions = actions
+    def __init__(self, action_classes, blackboard):
+        self.action_classes = action_classes
         self.blackboard = blackboard
 
-        self.effects_to_actions = self.get_actions_by_effects(actions)
-        self.actions_to_astar = factory_dict(lambda a: ActionAStarNode(self, a))
+        self.effects_to_action_classes = self.get_action_classes_by_effects(action_classes)
 
     @staticmethod
-    def reconstruct_path(node, goal, path):
+    def reconstruct_path(node, goal):
         result = deque()
         while node:
             result.appendleft(node)
-            node = path.get(node)
+            node = node.parent
 
         return result
 
-    def is_finished(self, node, goal, path):
+    def is_finished(self, node, goal):
         print("State of {}:\n\tGoal: {}\n\tCurrent: {}\n".format(node, f(node.goal_state), f(node.current_state)))
         if not node.is_solution:
             return False
         
-        ordered_path = self.reconstruct_path(node, goal, path)
+        ordered_path = self.reconstruct_path(node, goal)
         current_state = self.blackboard.copy()
 
         for node_ in ordered_path:
@@ -221,17 +204,43 @@ class Planner(AStarAlgorithm):
 
         return True
 
+    def get_neighbour_nodes_for_effects(self, effects):
+        effects_to_action_classes = self.effects_to_action_classes
+        blackboard = self.blackboard
+
+        neighbours = []
+        for effect in effects:
+            try:
+                action_classes = effects_to_action_classes[effect]
+
+            except KeyError:
+                continue
+
+            new_actions = [c() for c in action_classes]
+            effect_neighbours = [ActionAStarNode(self, a) for a in new_actions
+                                 if a.check_procedural_precondition(blackboard)]
+            neighbours.extend(effect_neighbours)
+
+        neighbours.sort(key=attrgetter("action.precedence"))
+        return neighbours
+
     @staticmethod
-    def get_actions_by_effects(actions):
+    def get_action_classes_by_effects(action_classes):
         """Associate effects with appropriate actions
 
-        :param actions: valid actions
+        :param action_classes: valid actions
         """
-        mapping = defaultdict(list)
+        mapping = {}
 
-        for action in actions:
-            for effect in action.effects:
-                mapping[effect].append(action)
+        for cls in action_classes:
+            for effect in cls.effects:
+                try:
+                    effect_classes = mapping[effect]
+
+                except KeyError:
+                    effect_classes = mapping[effect] = []
+
+                effect_classes.append(cls)
 
         return mapping
 
@@ -258,36 +267,29 @@ class Planner(AStarAlgorithm):
 
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
         closed_set = set()
-        path = {}
 
         is_complete = self.is_finished
 
         while open_set:
-            current = open_set  .pop()
-            closed_set.add(current)
+            current = open_set.pop()
 
-            if is_complete(current, goal, path):
-                return self.reconstruct_path(current, goal, path)
+            if is_complete(current, goal):
+                return self.reconstruct_path(current, goal)
 
             for neighbour in current.neighbours:
                 tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
+                h_score = goal.get_h_score_from(neighbour)
+                f_score = tentative_g_score + h_score
 
-                if neighbour in open_set:# and tentative_g_score < neighbour.g_score:
-                    open_set.remove(neighbour)
+                if f_score >= neighbour.f_score:
+                    continue
 
-                if neighbour in closed_set:# and tentative_g_score < neighbour.g_score:
-                    closed_set.remove(neighbour)
+                neighbour.g_score = tentative_g_score
+                neighbour.f_score = f_score
+                neighbour.h_score = h_score
 
-                if neighbour not in open_set and neighbour not in closed_set:
-                    f_score = tentative_g_score + goal.get_h_score_from(neighbour)
-
-                    neighbour.g_score = tentative_g_score
-                    neighbour.f_score = f_score
-
-                    open_set.add(neighbour)
-                    path[neighbour] = current
-
-                    print("{} -> {}".format(current, neighbour))
+                open_set.add(neighbour)
+                neighbour.parent = current
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 

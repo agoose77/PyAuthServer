@@ -218,7 +218,7 @@ def init(cont):
     blackboard["player"] = own
     blackboard["fsm"] = fsm
 
-    actions = [c() for c in Action.__subclasses__()]
+    actions = Action.__subclasses__()
     goals = [GetFirewoodGoal()]
 
     goap_ai_manager = GOAPAIManager(blackboard, goals, actions)

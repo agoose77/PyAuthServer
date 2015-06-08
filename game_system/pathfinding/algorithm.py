@@ -93,6 +93,8 @@ class AStarNode:
     f_score = 0
     h_score = 0
 
+    parent = None
+
     def get_g_score_from(self, other):
         raise NotImplementedError
 
