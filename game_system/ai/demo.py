@@ -4,6 +4,17 @@ from game_system.ai.state_machine.state import State
 from game_system.enums import EvaluationState
 
 
+def find_visible(player, tag):
+    for obj in player.scene.objects:
+        if not tag in obj:
+            continue
+
+        if player.rayCastTo(obj) is not obj:
+            continue
+
+        return obj
+
+
 class GOTORequest:
 
     def __init__(self, target):
@@ -14,61 +25,26 @@ class GOTORequest:
         self.status = EvaluationState.success
 
 
-def create_finder_class(name, cast_ray=True):
-
-    class Finder(Action):
-        effects = {"{}_available".format(name): True}
-
-        def __init__(self):
-            super().__init__()
-
-            self._obj = None
-
-        def check_procedural_precondition(self, blackboard):
-            player = blackboard['player']
-            for obj in player.scene.objects:
-                if name not in obj:
-                    continue
-
-                if cast_ray:
-                    hit_obj = player.rayCastTo(obj)
-
-                    if hit_obj is not obj:
-                        continue
-
-                self._obj = obj
-                return True
-
-            return False
-
-        def evaluate(self, blackboard):
-            blackboard[name] = self._obj
-            self._obj = None
-
-            return EvaluationState.success
-
-    Finder.__name__ = "{}Finder".format(name.upper())
-    return Finder
-
-
 class GetWood(Action):
     effects = {"has_firewood": True}
-    preconditions = {"at_location": "trees", "has_axe": True}
+    preconditions = {"at_location": "woods", "has_axe": True}
 
 
 class GetAxe(Action):
     effects = {"has_axe": True}
-    preconditions = {"at_location": "axe"}
+    preconditions = {"has_axe": False, "at_location": "axe"}
 
 
-class GOTOAction(Action):
-    effects = {"at_location": Variable("at_location")}
+class GOTONearestAxe(Action):
+    effects = {"at_location": "axe"}
 
-    def repr(self, no):
-        return "GOTO: {}".format(no.goal_state['at_location'])
+    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
+        player = blackboard['player']
+        return find_visible(player, "axe") is not None
 
-    def evaluate(self, blackboard):
-        target = blackboard['goto_target']
+    def evaluate(self, blackboard, world_state):
+        player = blackboard['player']
+        target = find_visible(player, "axe")
 
         fsm = blackboard['fsm']
         goto_state = fsm.states["GOTO"]
@@ -77,6 +53,45 @@ class GOTOAction(Action):
             goto_state.request = GOTORequest(target)
 
         return goto_state.request.status
+
+
+class GOTONearestWoods(Action):
+    effects = {"at_location": "woods"}
+
+    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
+        player = blackboard['player']
+        return find_visible(player, "trees") is not None
+
+    def evaluate(self, blackboard, world_state):
+        player = blackboard['player']
+        target = find_visible(player, "trees")
+
+        fsm = blackboard['fsm']
+        goto_state = fsm.states["GOTO"]
+
+        if goto_state.request is None or goto_state.request.target is not target:
+            goto_state.request = GOTORequest(target)
+
+        return goto_state.request.status
+
+
+
+# class GOTOAction(Action):
+#     effects = {"at_location": Variable("at_location")}
+#
+#     def repr(self, no):
+#         return "GOTO: {}".format(no.goal_state['at_location'])
+#
+#     def evaluate(self, blackboard, world_state):
+#         target = world_state['at_location']
+#
+#         fsm = blackboard['fsm']
+#         goto_state = fsm.states["GOTO"]
+#
+#         if goto_state.request is None or goto_state.request.target is not target:
+#             goto_state.request = GOTORequest(target)
+#
+#         return goto_state.request.status
 #
 #
 # LookForAxe = create_finder_class("axe")
@@ -119,12 +134,14 @@ class GOTOAction(Action):
 #         return EvaluationState.success
 #
 #
+
+
 class CollectBranches(Action):
     effects = {"has_firewood": True}
     # preconditions = {"sticks_available": True}
     cost = 70
 
-    # def evaluate(self, blackboard):
+    # def evaluate(self, world_state):
     #     sticks = blackboard['sticks']
     #
     #     fsm = blackboard['fsm']

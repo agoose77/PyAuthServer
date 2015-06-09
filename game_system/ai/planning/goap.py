@@ -56,12 +56,12 @@ class Variable:
     def __init__(self, key):
         self._key = key
 
-    def resolve(self, blackboard):
+    def resolve(self, source):
         """Determine true value of variable
 
-        :param blackboard: AI blackboard dictionary
+        :param source: variable dictionary
         """
-        return blackboard[self._key]
+        return source[self._key]
 
 
 class Goal:
@@ -82,13 +82,13 @@ class Action:
     effects = {}
     preconditions = {}
 
-    def check_procedural_precondition(self, blackboard):
+    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
         return True
 
-    def get_procedural_cost(self, blackboard):
+    def get_cost(self):
         return self.cost
 
-    def evaluate(self, blackboard):
+    def evaluate(self, blackboard, world_state):
         return EvaluationState.success
 
     def __repr__(self):
@@ -117,7 +117,7 @@ class IGOAPAStarNode:
 
         :param node: node to evaluate
         """
-        return self.planner.get_neighbour_nodes_for_effects(self.unsatisfied_state)
+        return self.planner.get_neighbour_nodes_for(self)
 
     def validate_preconditions(self, current_state, goal_state):
         for key, value in self.action.preconditions.items():
@@ -209,7 +209,7 @@ class ActionAStarNode(GOAPAStarNode):
         self.current_state.update(node.current_state)
         self.goal_state.update(node.goal_state)
 
-        return self.action.get_procedural_cost(self.planner.blackboard)
+        return self.action.get_cost()
 
     def update_internal_states(self):
         """Update internal current and goal states, according to action effects and preconditions
@@ -224,7 +224,7 @@ class ActionAStarNode(GOAPAStarNode):
         # 1 Update current state from effects, resolve variables
         self.copy_state(self.action.effects, self.current_state, resolve_source=goal_state)
 
-        # 2 Update goal state from action preconditions
+        # 2 Update goal state from action preconditions, resolve variables
         self.copy_state(action_preconditions, goal_state, resolve_source=goal_state)
 
         # 3 Update current state with current values of missing precondition keys
@@ -257,10 +257,10 @@ class Planner(AStarAlgorithm):
 
         node_path = self.find_path(goal_node)
 
-        path = [node.action for node in list(node_path)[1:]]
-        path.reverse()
+        plan_steps = [GOAPAIPlanStep(node.action, node.parent.goal_state) for node in list(node_path)[1:]]
+        plan_steps.reverse()
 
-        return path
+        return GOAPAIPlan(plan_steps)
 
     def find_path(self, goal, start=None):
         """Find shortest path from goal to start"""
@@ -271,9 +271,14 @@ class Planner(AStarAlgorithm):
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
 
         is_finished = self.is_finished
-
+        from time import monotonic
+        s=monotonic()
         while open_set:
             current = open_set.pop()
+            if (monotonic() - s) > 0.4:
+                import bge
+                bge.logic.endGame()
+                break
 
             if is_finished(current, goal):
                 return self.reconstruct_path(current, goal)
@@ -300,16 +305,18 @@ class Planner(AStarAlgorithm):
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 
-    def get_neighbour_nodes_for_effects(self, effects):
-        """Return new nodes for actions which produce the given effects
+    def get_neighbour_nodes_for(self, node):
+        """Return new nodes for given node which satisfy missing state
 
-        :param effects: effects to request
+        :param node: node performing request
         """
         effects_to_action_classes = self.effects_to_action_classes
         blackboard = self.blackboard
+        world_state = node.goal_state
 
         neighbours = []
-        for effect in effects:
+
+        for effect in node.unsatisfied_state:
             try:
                 action_classes = effects_to_action_classes[effect]
 
@@ -319,7 +326,7 @@ class Planner(AStarAlgorithm):
             # Create new action instances for every node
             new_actions = [c() for c in action_classes]
             effect_neighbours = [ActionAStarNode(self, a) for a in new_actions
-                                 if a.check_procedural_precondition(blackboard)]
+                                 if a.check_procedural_precondition(blackboard, world_state, is_planning=True)]
             neighbours.extend(effect_neighbours)
 
         neighbours.sort(key=attrgetter("action.precedence"))
@@ -355,12 +362,12 @@ class Planner(AStarAlgorithm):
             action = node.action
             parent = node.parent
             parent_goal_state = parent.goal_state
-
+            print(node)
             if not node.validate_preconditions(world_state, parent_goal_state):
                 return False
 
             # May be able to remove this, should already be checked?
-            if not action.check_procedural_precondition(parent_goal_state):
+            if not action.check_procedural_precondition(self.blackboard, parent_goal_state):
                 return False
 
             # Apply effects to world state
@@ -384,23 +391,36 @@ class GOAPPlannerFailedException(Exception):
     pass
 
 
+class GOAPAIPlanStep:
+
+    def __init__(self, action, state):
+        self.action = action
+        self.state = state
+
+    def evaluate(self, blackboard):
+        return self.action.evaluate(blackboard, self.state)
+
+    def __repr__(self):
+        return repr(self.action)
+
+
 class GOAPAIPlan:
 
-    def __init__(self, actions):
-        self._actions_it = iter(actions)
-        self._actions = actions
-        self.current_action = next(self._actions_it)
+    def __init__(self, plan_steps):
+        self._plan_steps_it = iter(plan_steps)
+        self._plan_steps = plan_steps
+        self.current_plan_step = next(self._plan_steps_it)
         print(self)
 
     def __repr__(self):
-        return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_action else "", repr(x)) for x in self._actions]))
+        return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_plan_step else "", repr(x)) for x in self._plan_steps]))
 
     def update(self, blackboard):
-        state = self.current_action.evaluate(blackboard)
+        state = self.current_plan_step.evaluate(blackboard)
 
         if state == EvaluationState.success:
             try:
-                self.current_action = next(self._actions_it)
+                self.current_plan_step = next(self._plan_steps_it)
 
             # Unless we're finished
             except StopIteration:
@@ -430,17 +450,13 @@ class GOAPAIManager:
 
     def find_best_plan(self):
         build_plan = self.planner.find_plan_for_goal
-        arrange_plan = self.scheduler.arrange
 
         for goal in self.goals:
             try:
-                path = build_plan(goal.state)
+                return build_plan(goal.state)
 
             except PathNotFoundException:
                 continue
-
-            ordered_path = arrange_plan(path, goal.state)
-            return GOAPAIPlan(ordered_path)
 
         raise GOAPPlannerFailedException("Couldn't find suitable plan")
 
@@ -456,7 +472,6 @@ class GOAPAIManager:
                 print(err)
 
         else:
-            print(self._plan)
             plan_state = self._plan.update(blackboard)
 
             if plan_state == EvaluationState.failure:
