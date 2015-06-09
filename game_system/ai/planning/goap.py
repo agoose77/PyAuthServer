@@ -1,13 +1,10 @@
-from game_system.enums import EvaluationState
-from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode, AStarGoalNode
-
-from network.structures import factory_dict
-
-from .priority_queue import PriorityQueue
-
-from collections import defaultdict, deque
 from operator import attrgetter
 from sys import float_info
+
+from game_system.enums import EvaluationState
+from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode, AStarGoalNode
+from game_system.pathfinding.priority_queue import PriorityQueue
+
 
 __all__ = "Goal", "Action", "Planner", "GOAPAIManager", "ActionAStarNode", "GOAPAStarNode", "Goal"
 
@@ -82,17 +79,17 @@ class Action:
     effects = {}
     preconditions = {}
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
         return True
-
-    def get_cost(self):
-        return self.cost
 
     def evaluate(self, blackboard, world_state):
         return EvaluationState.success
 
-    def __repr__(self):
-        return self.__class__.__name__
+    def get_cost(self):
+        return self.cost
 
 
 class IGOAPAStarNode:
@@ -106,12 +103,6 @@ class IGOAPAStarNode:
         self.planner = planner
 
     @property
-    def unsatisfied_state(self):
-        """Return the keys of the unsatisfied state symbols between the goal and current state"""
-        current_state = self.current_state
-        return [k for k, v in self.goal_state.items() if not current_state[k] == v]
-
-    @property
     def neighbours(self):
         """Find neighbours of node, which fulfil unsatisfied state
 
@@ -119,29 +110,11 @@ class IGOAPAStarNode:
         """
         return self.planner.get_neighbour_nodes_for(self)
 
-    def validate_preconditions(self, current_state, goal_state):
-        for key, value in self.action.preconditions.items():
-            current_value = current_state[key]
-            if isinstance(value, Variable):
-                value = value.resolve(goal_state)
-
-            if current_value != value:
-                return False
-
-        return True
-
-    def copy_state(self, source, destination, resolve_source):
-        """Copy state from one state to another, resolving any variables
-
-        :param source: source of state
-        :param destination: state to modify
-        :param resolve_source: source for variables
-        """
-        for key, value in source.items():
-            if isinstance(value, Variable):
-                value = value.resolve(resolve_source)
-
-            destination[key] = value
+    @property
+    def unsatisfied_state(self):
+        """Return the keys of the unsatisfied state symbols between the goal and current state"""
+        current_state = self.current_state
+        return [k for k, v in self.goal_state.items() if not current_state[k] == v]
 
     def satisfies_goal_state(self, current_state):
         goal_state = self.goal_state
@@ -186,19 +159,19 @@ class ActionAStarNode(GOAPAStarNode):
         return self.action.precedence < other.action.precedence
 
     def __repr__(self):
-        if hasattr(self.action, "repr"):
-            c = self.action.repr(self)
-        else:
-            c = self.action.__class__.__name__
+        return "<ActionNode {} ({})>".format(self.action)
 
-        if hasattr(self.parent, "action"):
-            if hasattr(self.parent.action, "repr"):
-                h = self.parent.action.repr(self.parent)
-            else:
-                h = self.parent.action.__class__.__name__
-        else:
-            h = ""
-        return "<ActionNode {} ({})>".format(c, h)
+    def apply_effects(self, destination, resolve_source):
+        """Apply action effects to GOAP state, resolving any variables
+
+        :param destination: state to modify
+        :param resolve_source: source for variables
+        """
+        for key, value in self.action.effects.items():
+            if isinstance(value, Variable):
+                value = value.resolve(resolve_source)
+
+            destination[key] = value
 
     def get_g_score_from(self, node):
         """Determine procedural (or static) cost of this action
@@ -222,7 +195,6 @@ class ActionAStarNode(GOAPAStarNode):
         goal_state = self.goal_state
 
         # 1 Update current state from effects, resolve variables
-        #self.copy_state(self.action.effects, self.current_state, resolve_source=goal_state)
         for key in self.action.effects:
             try:
                 value = self.goal_state[key]
@@ -235,14 +207,26 @@ class ActionAStarNode(GOAPAStarNode):
             self.current_state[key] = value
 
         # 2 Update goal state from action preconditions, resolve variables
-        self.copy_state(action_preconditions, goal_state, resolve_source=goal_state)
+        for key, value in action_preconditions.items():
+
+            if isinstance(value, Variable):
+                value = value.resolve(self.goal_state)
+
+            goal_state[key] = value
 
         # 3 Update current state with current values of missing precondition keys
         self.current_state.update({k: blackboard.get(k) for k in action_preconditions if k not in self.current_state})
 
+    def validate_preconditions(self, current_state, goal_state):
+        for key, value in self.action.preconditions.items():
+            current_value = current_state[key]
+            if isinstance(value, Variable):
+                value = value.resolve(goal_state)
 
-def f(d):
-    return "[{}]".format(", ".join("{}={}".format(k, v) for k, v in d.items()))
+            if current_value != value:
+                return False
+
+        return True
 
 
 class Planner(AStarAlgorithm):
@@ -281,15 +265,9 @@ class Planner(AStarAlgorithm):
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
 
         is_finished = self.is_finished
-        from time import monotonic
-        s=monotonic()
+
         while open_set:
             current = open_set.pop()
-            if (monotonic() - s) > 0.4:
-                import bge
-                bge.logic.endGame()
-                print("BREAK")
-                break
 
             if is_finished(current, goal):
                 return self.reconstruct_path(current, goal)
@@ -304,9 +282,9 @@ class Planner(AStarAlgorithm):
                 h_score = goal.get_h_score_from(neighbour)
                 f_score = tentative_g_score + h_score
 
-                if f_score >= (neighbour.f_score * 0.9999):
+                if f_score >= neighbour.f_score:
                     continue
-                print(neighbour,current)
+
                 neighbour.g_score = tentative_g_score
                 neighbour.f_score = f_score
                 neighbour.h_score = h_score
@@ -383,7 +361,7 @@ class Planner(AStarAlgorithm):
                 return False
 
             # Apply effects to world state
-            node.copy_state(action.effects, world_state, resolve_source=parent_goal_state)
+            node.apply_effects(world_state, resolve_source=parent_goal_state)
             node = parent
 
         if parent and parent.satisfies_goal_state(world_state):
@@ -391,11 +369,12 @@ class Planner(AStarAlgorithm):
 
     @staticmethod
     def reconstruct_path(node, goal):
-        result = deque()
+        result = []
         while node:
-            result.appendleft(node)
+            result.append(node)
             node = node.parent
 
+        result.reverse()
         return result
 
 
