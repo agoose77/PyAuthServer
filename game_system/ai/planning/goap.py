@@ -222,7 +222,17 @@ class ActionAStarNode(GOAPAStarNode):
         goal_state = self.goal_state
 
         # 1 Update current state from effects, resolve variables
-        self.copy_state(self.action.effects, self.current_state, resolve_source=goal_state)
+        #self.copy_state(self.action.effects, self.current_state, resolve_source=goal_state)
+        for key in self.action.effects:
+            try:
+                value = self.goal_state[key]
+            except KeyError:
+                continue
+
+            if isinstance(value, Variable):
+                value = value.resolve(self.goal_state)
+
+            self.current_state[key] = value
 
         # 2 Update goal state from action preconditions, resolve variables
         self.copy_state(action_preconditions, goal_state, resolve_source=goal_state)
@@ -241,7 +251,7 @@ class Planner(AStarAlgorithm):
         self.action_classes = action_classes
         self.blackboard = blackboard
 
-        self.effects_to_action_classes = self.get_action_classes_by_effects(action_classes)
+        self.effects_to_actions = self.get_actions_by_effects(action_classes)
 
     def find_plan_for_goal(self, goal_state):
         """Find shortest plan to produce goal state
@@ -278,6 +288,7 @@ class Planner(AStarAlgorithm):
             if (monotonic() - s) > 0.4:
                 import bge
                 bge.logic.endGame()
+                print("BREAK")
                 break
 
             if is_finished(current, goal):
@@ -293,9 +304,9 @@ class Planner(AStarAlgorithm):
                 h_score = goal.get_h_score_from(neighbour)
                 f_score = tentative_g_score + h_score
 
-                if f_score >= neighbour.f_score:
+                if f_score >= (neighbour.f_score * 0.9999):
                     continue
-
+                print(neighbour,current)
                 neighbour.g_score = tentative_g_score
                 neighbour.f_score = f_score
                 neighbour.h_score = h_score
@@ -310,7 +321,7 @@ class Planner(AStarAlgorithm):
 
         :param node: node performing request
         """
-        effects_to_action_classes = self.effects_to_action_classes
+        effects_to_actions = self.effects_to_actions
         blackboard = self.blackboard
         world_state = node.goal_state
 
@@ -318,14 +329,13 @@ class Planner(AStarAlgorithm):
 
         for effect in node.unsatisfied_state:
             try:
-                action_classes = effects_to_action_classes[effect]
+                actions = effects_to_actions[effect]
 
             except KeyError:
                 continue
 
-            # Create new action instances for every node
-            new_actions = [c() for c in action_classes]
-            effect_neighbours = [ActionAStarNode(self, a) for a in new_actions
+            # Create new node instances for every node
+            effect_neighbours = [ActionAStarNode(self, a) for a in actions
                                  if a.check_procedural_precondition(blackboard, world_state, is_planning=True)]
             neighbours.extend(effect_neighbours)
 
@@ -333,22 +343,24 @@ class Planner(AStarAlgorithm):
         return neighbours
 
     @staticmethod
-    def get_action_classes_by_effects(action_classes):
+    def get_actions_by_effects(action_classes):
         """Associate effects with appropriate actions
 
-        :param action_classes: valid actions
+        :param action_classes: valid action classes
         """
         mapping = {}
 
         for cls in action_classes:
-            for effect in cls.effects:
+            action = cls()
+
+            for effect in action.effects:
                 try:
                     effect_classes = mapping[effect]
 
                 except KeyError:
                     effect_classes = mapping[effect] = []
 
-                effect_classes.append(cls)
+                effect_classes.append(action)
 
         return mapping
 
@@ -362,7 +374,7 @@ class Planner(AStarAlgorithm):
             action = node.action
             parent = node.parent
             parent_goal_state = parent.goal_state
-            print(node)
+           # print(node)
             if not node.validate_preconditions(world_state, parent_goal_state):
                 return False
 

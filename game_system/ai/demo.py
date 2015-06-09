@@ -49,8 +49,9 @@ class GOTONearestAxe(Action):
         fsm = blackboard['fsm']
         goto_state = fsm.states["GOTO"]
 
-        if goto_state.request is None or goto_state.request.target is not target:
-            goto_state.request = GOTORequest(target)
+        if target:
+            if goto_state.request is None or goto_state.request.target is not target:
+                goto_state.request = GOTORequest(target)
 
         return goto_state.request.status
 
@@ -69,8 +70,9 @@ class GOTONearestWoods(Action):
         fsm = blackboard['fsm']
         goto_state = fsm.states["GOTO"]
 
-        if goto_state.request is None or goto_state.request.target is not target:
-            goto_state.request = GOTORequest(target)
+        if target:
+            if goto_state.request is None or goto_state.request.target is not target:
+                goto_state.request = GOTORequest(target)
 
         return goto_state.request.status
 
