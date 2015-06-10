@@ -91,7 +91,13 @@ class Action:
     def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
         return True
 
-    def evaluate(self, blackboard, world_state):
+    def on_enter(self, blackboard, world_state):
+        pass
+
+    def on_exit(self, blackboard):
+        pass
+
+    def get_status(self, blackboard):
         return EvaluationState.success
 
     def get_cost(self):
@@ -403,46 +409,61 @@ class GOAPAIPlanStep:
         self.action = action
         self.state = state
 
-    def evaluate(self, blackboard):
-        return self.action.evaluate(blackboard, self.state)
+    def on_enter(self, blackboard):
+        self.action.on_enter(blackboard, self.state)
+
+    def on_exit(self, blackboard):
+        self.action.on_exit(blackboard)
+
+    def get_status(self, blackboard):
+        return self.action.get_status(blackboard)
 
     def __repr__(self):
         return repr(self.action)
 
 
 class GOAPAIPlan:
+    """Manager of a series of Actions which fulfil a goal state"""
 
     def __init__(self, plan_steps):
         self._plan_steps_it = iter(plan_steps)
         self._plan_steps = plan_steps
-        self.current_plan_step = next(self._plan_steps_it)
+        self.current_plan_step = None
 
     def __repr__(self):
         return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_plan_step else "", repr(x)) for x in self._plan_steps]))
 
     def update(self, blackboard):
-        state = self.current_plan_step.evaluate(blackboard)
+        finished_state = EvaluationState.success
+        current_step = self.current_plan_step
 
-        if state == EvaluationState.success:
-            # Update world state with plan world state
-            blackboard.update(self.current_plan_step.state)
+        # Initialise if not currently running
+        if current_step is None:
+            current_step = self.current_plan_step = next(self._plan_steps_it)
+            current_step.on_enter(blackboard)
 
+        while True:
+            plan_state = current_step.get_status(blackboard)
+            # If the plan isn't finished, return its state (failure / running)
+            if plan_state != finished_state:
+                return plan_state
+
+            # Leave previous step
+            current_step.on_exit(blackboard)
+
+            blackboard.update(current_step.action.effects)
+
+            # Get next step
             try:
-                self.current_plan_step = next(self._plan_steps_it)
+                current_step = self.current_plan_step = next(self._plan_steps_it)
 
-            # Unless we're finished
             except StopIteration:
                 return EvaluationState.success
 
-            return self.update(blackboard)
+            # Enter step
+            current_step.on_enter(blackboard)
 
-        return state
-
-
-class Scheduler:
-
-    def arrange(self, path, goal_state):
-        return path
+        return finished_state
 
 
 class GOAPAIManager:
@@ -452,7 +473,6 @@ class GOAPAIManager:
 
         self.blackboard = blackboard
         self.planner = Planner(self.actions, self.blackboard)
-        self.scheduler = Scheduler()
 
         self.goals = goals
 
@@ -502,6 +522,7 @@ class GOAPAIManager:
         if self._plan is None:
             try:
                 self._plan = self.find_best_plan()
+                print(self._plan)
 
             except GOAPPlannerFailedException as err:
                 print(err)
