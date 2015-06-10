@@ -4,20 +4,10 @@ from game_system.ai.state_machine.state import State
 from game_system.enums import EvaluationState
 
 
-def find_visible(player, tag):
-    for obj in player.scene.objects:
-        if not tag in obj:
-            continue
-
-        if player.rayCastTo(obj) is not obj:
-            continue
-
-        return obj
-
-
 class GOTORequest:
 
-    def __init__(self, target):
+    def __init__(self, name, target):
+        self.name = name
         self.target = target
         self.status = EvaluationState.running
 
@@ -26,133 +16,79 @@ class GOTORequest:
 
 
 class GetWood(Action):
-    effects = {"has_firewood": True}
-    preconditions = {"at_location": "woods", "has_axe": True}
+    effects = {"has_firewood": True, "near_item": "asd"}
+    preconditions = {"near_item": "trees", "has_axe": True}
+
+    max_distance = 30
+
+    def get_near_object(self, tag, player):
+        return min([o for o in player.scene.objects if tag in o], key=player.getDistanceTo)
+
+    def evaluate(self, blackboard, world_state):
+        tag = "trees"
+        player = blackboard["player"]
+        wood = self.get_near_object(tag, player)
+        wood.endObject()
+        return EvaluationState.success
 
 
 class GetAxe(Action):
     effects = {"has_axe": True}
-    preconditions = {"has_axe": False, "at_location": "axe"}
+    preconditions = {"has_axe": False, "near_item": "axe"}
 
 
-class GOTONearestAxe(Action):
-    effects = {"at_location": "axe"}
+class GOTONearItem(Action):
+    effects = {"near_item": Variable("near_item")}
+
+    max_distance = 30
+
+    def get_near_object(self, tag, player):
+        for obj in player.scene.objects:
+            if tag not in obj:
+                continue
+
+            if obj.getDistanceTo(player) > self.max_distance:
+                continue
+
+            if player.rayCastTo(obj) is not obj:
+                continue
+
+            return obj
+
+        return None
 
     def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
-        player = blackboard['player']
-        return find_visible(player, "axe") is not None
+        tag = world_state["near_item"]
+        player = blackboard["player"]
+        return self.get_near_object(tag, player) is not None
 
     def evaluate(self, blackboard, world_state):
-        player = blackboard['player']
-        target = find_visible(player, "axe")
-
+        tag = world_state["near_item"]
         fsm = blackboard['fsm']
         goto_state = fsm.states["GOTO"]
 
-        if target:
-            if goto_state.request is None or goto_state.request.target is not target:
-                goto_state.request = GOTORequest(target)
+        # If no request exists or belongs elsewhere (shouldn't happen, might)
+        if goto_state.request is None or goto_state.request.name is not tag:
+            player = blackboard["player"]
+
+            # Find near object
+            obj = self.get_near_object(tag, player)
+
+            if obj is None:
+                return EvaluationState.failure
+
+            goto_state.request = GOTORequest(tag, obj)
 
         return goto_state.request.status
-
-
-class GOTONearestWoods(Action):
-    effects = {"at_location": "woods"}
-
-    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
-        player = blackboard['player']
-        return find_visible(player, "trees") is not None
-
-    def evaluate(self, blackboard, world_state):
-        player = blackboard['player']
-        target = find_visible(player, "trees")
-
-        fsm = blackboard['fsm']
-        goto_state = fsm.states["GOTO"]
-
-        if target:
-            if goto_state.request is None or goto_state.request.target is not target:
-                goto_state.request = GOTORequest(target)
-
-        return goto_state.request.status
-
-
-
-# class GOTOAction(Action):
-#     effects = {"at_location": Variable("at_location")}
-#
-#     def repr(self, no):
-#         return "GOTO: {}".format(no.goal_state['at_location'])
-#
-#     def evaluate(self, blackboard, world_state):
-#         target = world_state['at_location']
-#
-#         fsm = blackboard['fsm']
-#         goto_state = fsm.states["GOTO"]
-#
-#         if goto_state.request is None or goto_state.request.target is not target:
-#             goto_state.request = GOTORequest(target)
-#
-#         return goto_state.request.status
-#
-#
-# LookForAxe = create_finder_class("axe")
-# LookForWoods = create_finder_class("woods")
-# LookForSticks = create_finder_class("sticks")
-#
-#
-# class GetAxe(Action):
-#     preconditions = {"at_location": Variable("axe_location")}
-#     effects = {"has_axe": True}
-#
-#     def get_procedural_cost(self, blackboard):
-#         return super().get_procedural_cost(blackboard)
-#
-#         player = blackboard['player']
-#         axe = blackboard['axe']
-#
-#         return (player.worldPosition - axe.worldPosition).length / 10
-#
-#     def evaluate(self, blackboard):
-#         axe = blackboard['axe']
-#
-#         fsm = blackboard['fsm']
-#         goto_state = fsm.states["GOTO"]
-#
-#         if goto_state.request is None or goto_state.request.target is not axe:
-#             goto_state.request = GOTORequest(axe)
-#
-#         return goto_state.request.status
-#
-#
-# class ChopLog(Action):
-#     preconditions = {"has_axe": True, "at_woods": True}
-#     effects = {"has_firewood": True}
-#     cost = 2
-#
-#     def evaluate(self, blackboard):
-#         blackboard['woods'].endObject()
-#         blackboard['at_woods'] = False
-#         return EvaluationState.success
-#
-#
 
 
 class CollectBranches(Action):
     effects = {"has_firewood": True}
-    # preconditions = {"sticks_available": True}
-    cost = 70
+    preconditions = {"near_item": "sticks"}
+    cost = 7
 
-    # def evaluate(self, world_state):
-    #     sticks = blackboard['sticks']
-    #
-    #     fsm = blackboard['fsm']
-    #     goto_state = fsm.states["GOTO"]
-    #
-    #     if goto_state.request is None or goto_state.request.target is not sticks:
-    #         goto_state.request = GOTORequest(sticks)
-    #
-    #     return goto_state.request.status
+    def evaluate(self, blackboard, world_state):
+        return EvaluationState.success
 
 
 class GetFirewoodGoal(Goal):
@@ -191,6 +127,10 @@ class GameObjBlackboard:
     def keys(self):
         return iter(self._obj.getPropertyNames())
 
+    def update(self, other):
+        for key, value in other.items():
+            self._obj[key] = value
+
     def values(self):
         return (self._obj[x] for x in self.keys())
 
@@ -213,6 +153,9 @@ class GOTOState(State):
         request = self.request
 
         if request is None:
+            return
+
+        if request.status != EvaluationState.running:
             return
 
         player = self.blackboard["player"]

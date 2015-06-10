@@ -159,7 +159,7 @@ class ActionAStarNode(GOAPAStarNode):
         return self.action.precedence < other.action.precedence
 
     def __repr__(self):
-        return "<ActionNode {} ({})>".format(self.action)
+        return "<ActionNode {}>".format(self.action)
 
     def apply_effects(self, destination, resolve_source):
         """Apply action effects to GOAP state, resolving any variables
@@ -249,9 +249,14 @@ class Planner(AStarAlgorithm):
         goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
         goal_node.goal_state = goal_state
 
-        node_path = self.find_path(goal_node)
+        node_path = list(self.find_path(goal_node))[1:]
 
-        plan_steps = [GOAPAIPlanStep(node.action, node.parent.goal_state) for node in list(node_path)[1:]]
+        plan_steps = []
+        for node in node_path:
+            node.apply_effects(node.goal_state, node.goal_state)
+            plan_step = GOAPAIPlanStep(node.action, node.goal_state)
+            plan_steps.append(plan_step)
+
         plan_steps.reverse()
 
         return GOAPAIPlan(plan_steps)
@@ -282,7 +287,7 @@ class Planner(AStarAlgorithm):
                 h_score = goal.get_h_score_from(neighbour)
                 f_score = tentative_g_score + h_score
 
-                if f_score >= neighbour.f_score:
+                if f_score >= neighbour.f_score * 0.99:
                     continue
 
                 neighbour.g_score = tentative_g_score
@@ -305,6 +310,7 @@ class Planner(AStarAlgorithm):
 
         neighbours = []
 
+        node_action = getattr(node, "action", None)
         for effect in node.unsatisfied_state:
             try:
                 actions = effects_to_actions[effect]
@@ -314,7 +320,10 @@ class Planner(AStarAlgorithm):
 
             # Create new node instances for every node
             effect_neighbours = [ActionAStarNode(self, a) for a in actions
-                                 if a.check_procedural_precondition(blackboard, world_state, is_planning=True)]
+                                 # Ensure action can be included at this stage
+                                 if a.check_procedural_precondition(blackboard, world_state, is_planning=True)
+                                 # Ensure we don't get recursive neighbours!
+                                 and a is not node_action]
             neighbours.extend(effect_neighbours)
 
         neighbours.sort(key=attrgetter("action.precedence"))
@@ -352,7 +361,7 @@ class Planner(AStarAlgorithm):
             action = node.action
             parent = node.parent
             parent_goal_state = parent.goal_state
-           # print(node)
+
             if not node.validate_preconditions(world_state, parent_goal_state):
                 return False
 
@@ -401,7 +410,6 @@ class GOAPAIPlan:
         self._plan_steps_it = iter(plan_steps)
         self._plan_steps = plan_steps
         self.current_plan_step = next(self._plan_steps_it)
-        print(self)
 
     def __repr__(self):
         return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_plan_step else "", repr(x)) for x in self._plan_steps]))
@@ -410,6 +418,9 @@ class GOAPAIPlan:
         state = self.current_plan_step.evaluate(blackboard)
 
         if state == EvaluationState.success:
+            # Update world state with plan world state
+            blackboard.update(self.current_plan_step.state)
+
             try:
                 self.current_plan_step = next(self._plan_steps_it)
 
@@ -466,7 +477,7 @@ class GOAPAIManager:
             plan_state = self._plan.update(blackboard)
 
             if plan_state == EvaluationState.failure:
-                print("Plan failed: {}".format(self._plan.current_action))
+                print("Plan failed: {}".format(self._plan.current_plan_step))
                 self._plan = None
                 self.update()
 
