@@ -66,9 +66,15 @@ class Goal:
     state = {}
     priority = 0
 
-    @property
-    def relevance(self):
+    def get_relevance(self, blackboard):
         return self.priority
+
+    def is_satisfied(self, blackboard):
+        for key, value in self.state.items():
+            if blackboard[key] != value:
+                return False
+
+        return True
 
 
 class Action:
@@ -443,17 +449,43 @@ class GOAPAIManager:
 
     def __init__(self, blackboard, goals, actions):
         self.actions = actions
-        self.goals = sorted(goals, key=attrgetter("relevance"), reverse=True)
+
         self.blackboard = blackboard
         self.planner = Planner(self.actions, self.blackboard)
         self.scheduler = Scheduler()
 
+        self.goals = goals
+
         self._plan = None
 
+    @property
+    def sorted_goals(self):
+        """Return sorted list of goals, if relevant"""
+        # Update goals with sorted list
+        blackboard = self.blackboard
+
+        goal_pairs = []
+        for goal in self.goals:
+            relevance = goal.get_relevance(blackboard)
+            if relevance <= 0.0:
+                continue
+
+            goal_pairs.append((relevance, goal))
+
+        goal_pairs.sort()
+
+        return [g for r, g in goal_pairs]
+
     def find_best_plan(self):
+        """Find best plan to satisfy most relevant, valid goal"""
         build_plan = self.planner.find_plan_for_goal
 
-        for goal in self.goals:
+        # Try all goals to see if we can satisfy them
+        for goal in self.sorted_goals:
+            # Check the goal isn't satisfied already
+            if goal.is_satisfied(self.blackboard):
+                continue
+
             try:
                 return build_plan(goal.state)
 
@@ -463,6 +495,7 @@ class GOAPAIManager:
         raise GOAPPlannerFailedException("Couldn't find suitable plan")
 
     def update(self):
+        """Update current plan, or find new plan"""
         blackboard = self.blackboard
 
         # Rebuild plan

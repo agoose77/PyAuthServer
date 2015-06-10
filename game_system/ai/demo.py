@@ -15,28 +15,6 @@ class GOTORequest:
         self.status = EvaluationState.success
 
 
-class GetWood(Action):
-    effects = {"has_firewood": True, "near_item": "asd"}
-    preconditions = {"near_item": "trees", "has_axe": True}
-
-    max_distance = 30
-
-    def get_near_object(self, tag, player):
-        return min([o for o in player.scene.objects if tag in o], key=player.getDistanceTo)
-
-    def evaluate(self, blackboard, world_state):
-        tag = "trees"
-        player = blackboard["player"]
-        wood = self.get_near_object(tag, player)
-        wood.endObject()
-        return EvaluationState.success
-
-
-class GetAxe(Action):
-    effects = {"has_axe": True}
-    preconditions = {"has_axe": False, "near_item": "axe"}
-
-
 class GOTONearItem(Action):
     effects = {"near_item": Variable("near_item")}
 
@@ -64,12 +42,12 @@ class GOTONearItem(Action):
 
     def evaluate(self, blackboard, world_state):
         tag = world_state["near_item"]
-        fsm = blackboard['fsm']
+        fsm = blackboard.fsm
         goto_state = fsm.states["GOTO"]
 
         # If no request exists or belongs elsewhere (shouldn't happen, might)
         if goto_state.request is None or goto_state.request.name is not tag:
-            player = blackboard["player"]
+            player = blackboard.player
 
             # Find near object
             obj = self.get_near_object(tag, player)
@@ -82,17 +60,38 @@ class GOTONearItem(Action):
         return goto_state.request.status
 
 
-class CollectBranches(Action):
-    effects = {"has_firewood": True}
-    preconditions = {"near_item": "sticks"}
-    cost = 7
-
-    def evaluate(self, blackboard, world_state):
-        return EvaluationState.success
+class Attack(Action):
+    effects = {"target_is_dead": True}
+    preconditions = {"weapon_is_loaded": True}
 
 
-class GetFirewoodGoal(Goal):
-    state = {"has_firewood": True}
+class ReloadWeapon(Action):
+    """Reload weapon if we have ammo"""
+    effects = {"weapon_is_loaded": True}
+    preconditions = {"has_ammo": True}
+
+
+class GetNearestAmmoPickup(Action):
+    """GOTO nearest ammo pickup in level"""
+    effects = {"has_ammo": True}
+
+
+class KillEnemyGoal(Goal):
+    """Kill enemy if target exists"""
+    state = {"target_is_dead": True}
+
+    def get_relevance(self, blackboard):
+        if blackboard["has_target"]:
+            return 0.7
+
+        return 0.0
+
+
+class ReloadWeaponGoal(Goal):
+    """Reload weapon if not loaded"""
+
+    priority = 0.45
+    state = {"weapon_is_loaded": True}
 
 
 class GameObjBlackboard:
@@ -158,7 +157,7 @@ class GOTOState(State):
         if request.status != EvaluationState.running:
             return
 
-        player = self.blackboard["player"]
+        player = self.blackboard.player
         to_target = request.target.worldPosition - player.worldPosition
 
         if to_target.length_squared < 1:
@@ -189,9 +188,8 @@ def init(cont):
     fsm.add_state(goto_state)
     fsm.add_state(animate_state)
 
-    blackboard["player"] = own
-    blackboard["fsm"] = fsm
-    blackboard["at_location"] = None
+    blackboard.player = own
+    blackboard.fsm = fsm
 
     actions = Action.__subclasses__()
     goals = [GetFirewoodGoal()]
