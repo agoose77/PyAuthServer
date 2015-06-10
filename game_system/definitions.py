@@ -52,11 +52,13 @@ class ComponentLoaderResult:
 
     def __init__(self, components):
         self.components = components
-        self.on_unloaded = None
+
+    def on_unloaded(self):
+        """Callback on unloaded"""
 
     def unload(self):
+        """Unload loaded components from ComponentLoader"""
         for component in self.components.values():
             component.destroy()
 
-        if callable(self.on_unloaded):
-            self.on_unloaded()
+        self.on_unloaded()

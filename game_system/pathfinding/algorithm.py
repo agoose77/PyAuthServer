@@ -1,9 +1,11 @@
-from collections import deque, namedtuple
-from heapq import heappop, heappush
+from collections import namedtuple
+from operator import attrgetter
 
 from ..geometry.utilities import triangle_area_squared
 from ..coordinates import Vector
 from ..iterators import BidirectionalIterator
+
+from .priority_queue import PriorityQueue
 
 from network.iterators import look_ahead
 
@@ -91,7 +93,8 @@ class AStarNode:
 
     g_score = 0
     f_score = 0
-    h_score = 0
+
+    parent = None
 
     def get_g_score_from(self, other):
         raise NotImplementedError
@@ -108,51 +111,55 @@ class AStarAlgorithm:
     def __init__(self):
         pass
 
-    def is_finished(self, goal, current, path):
+    def is_finished(self, goal, current):
         raise NotImplementedError
 
     @staticmethod
-    def reconstruct_path(node, goal, path):
-        result = deque()
+    def reconstruct_path(node, goal):
+        result = []
         while node:
-            result.appendleft(node)
-            node = path.get(node)
+            result.append(node)
+            node = node.parent
 
+        result.reverse()
         return result
 
     def find_path(self, goal, start=None):
         if start is None:
             start = goal
 
-        open_set = {start}
+        open_set = PriorityQueue(start, key=attrgetter("f_score"))
         closed_set = set()
-        path = {}
-        f_scored = [(0, start)]
 
         is_complete = self.is_finished
+        get_heuristic = goal.get_h_score_from
 
         while open_set:
-            current = heappop(f_scored)[1]
-
-            open_set.remove(current)
+            current = open_set.pop()
             closed_set.add(current)
 
-            if is_complete(current, goal, path):
-                return self.reconstruct_path(current, goal, path)
+            if is_complete(current, goal):
+                return self.reconstruct_path(current, goal)
 
-            for neighbour in current.neighbours:
-                if neighbour in closed_set:
-                    continue
+            for neighbor in current.neighbours:
+                tentative_g_score = current.g_score + neighbor.get_g_score_from(current)
 
-                tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
+                tentative_is_better = tentative_g_score < neighbor.g_score
+                in_open = neighbor in open_set
+                in_closed = neighbor in closed_set
 
-                if neighbour not in open_set or tentative_g_score < neighbour.g_score:
-                    path[neighbour] = current
-                    neighbour.g_score = tentative_g_score
-                    heappush(f_scored, (tentative_g_score + goal.get_h_score_from(neighbour), neighbour))
+                if in_open and tentative_is_better:
+                    open_set.remove(neighbor)
 
-                    if neighbour not in open_set:
-                        open_set.add(neighbour)
+                if in_closed and tentative_is_better:
+                    closed_set.remove(neighbor)
+
+                if not in_open and not in_closed:
+                    neighbor.parent = current
+                    neighbor.g_score = tentative_g_score
+                    neighbor.f_score = tentative_g_score + get_heuristic(neighbor)
+
+                    open_set.add(neighbor)
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 
@@ -184,7 +191,7 @@ class PathfinderAlgorithm:
         self.high_resolution = high_fidelity
         self.spatial_lookup = spatial_lookup
 
-    def find_path(self, source, destination, nodes, low_resolution=False):
+    def find_path(self, source, destination, low_resolution=False):
         source_node = self.spatial_lookup(source)
         destination_node = self.spatial_lookup(destination)
 
@@ -194,7 +201,7 @@ class PathfinderAlgorithm:
         except AttributeError:
             raise AlgorithmNotImplementedException("Couldn't find low resolution finder algorithm")
 
-        low_resolution_path = path_finder(source_node, destination_node, nodes)
+        low_resolution_path = path_finder(start=source_node, goal=destination_node)
         if low_resolution:
             return low_resolution_path
 
