@@ -72,12 +72,15 @@ class ReloadWeapon(Action):
     effects = {"weapon_is_loaded": True}
     preconditions = {"has_ammo": True}
 
+    def on_exit(self, blackboard, goal_state):
+        self.apply_effects(blackboard, goal_state)
+
 
 class GetNearestAmmoPickup(Action):
     """GOTO nearest ammo pickup in level"""
     effects = {"has_ammo": True}
 
-    def on_enter(self, blackboard, world_state):
+    def on_enter(self, blackboard, goal_state):
         goto_state = blackboard.fsm.states['GOTO']
 
         player = blackboard.player
@@ -86,9 +89,12 @@ class GetNearestAmmoPickup(Action):
 
         goto_state.request = GOTORequest(nearest_pickup)
 
-    def on_exit(self, blackboard, world_state):
+    def on_exit(self, blackboard, goal_state):
         goto_state = blackboard.fsm.states['GOTO']
         blackboard["ammo"] += goto_state.request.target["ammo"]
+
+        # Apply to world state
+        self.apply_effects(blackboard, goal_state)
 
     def get_status(self, blackboard):
         goto_state = blackboard.fsm.states['GOTO']
@@ -245,8 +251,10 @@ class TargetManager:
 
     def get_closest_enemy(self):
         enemies = [o for o in self.player.scene.objects if "enemy" in o]
+
         if not enemies:
             return None
+
         return min(enemies, key=self.player.getDistanceTo)
 
     def update(self):
