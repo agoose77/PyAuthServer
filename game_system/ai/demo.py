@@ -1,4 +1,4 @@
-from game_system.ai.planning.goap import Action, Goal, GOAPAIManager, Variable
+from game_system.ai.planning.goap import Action, Goal, GOAPAIPlanManager
 from game_system.ai.state_machine.fsm import FiniteStateMachine
 from game_system.ai.state_machine.state import State
 from game_system.enums import EvaluationState
@@ -11,55 +11,10 @@ class GOTORequest:
     def __init__(self, target):
         self.target = target
         self.status = EvaluationState.running
+        self.distance_to_target = -1.0
 
     def on_completed(self):
         self.status = EvaluationState.success
-
-
-# class GOTONearItem(Action):
-#     effects = {"near_item": Variable("near_item")}
-#
-#     max_distance = 30
-#
-#     def get_near_object(self, tag, player):
-#         for obj in player.scene.objects:
-#             if tag not in obj:
-#                 continue
-#
-#             if obj.getDistanceTo(player) > self.max_distance:
-#                 continue
-#
-#             if player.rayCastTo(obj) is not obj:
-#                 continue
-#
-#             return obj
-#
-#         return None
-#
-#     def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
-#         tag = world_state["near_item"]
-#         player = blackboard["player"]
-#         return self.get_near_object(tag, player) is not None
-#
-#     def evaluate(self, blackboard, world_state):
-#         tag = world_state["near_item"]
-#         fsm = blackboard.fsm
-#         goto_state = fsm.states["GOTO"]
-#
-#         # If no request exists or belongs elsewhere (shouldn't happen, might)
-#         if goto_state.request is None or goto_state.request.name is not tag:
-#             player = blackboard.player
-#
-#             # Find near object
-#             obj = self.get_near_object(tag, player)
-#
-#             if obj is None:
-#                 return EvaluationState.failure
-#
-#             goto_state.request = GOTORequest(tag, obj)
-#
-#         return goto_state.request.status
-#
 
 
 class ChaseTarget(Action):
@@ -72,6 +27,17 @@ class ChaseTarget(Action):
         target = blackboard['target']
         blackboard.fsm.states['GOTO'].request = GOTORequest(target)
 
+    def get_status(self, blackboard):
+        goto_state = blackboard.fsm.states['GOTO']
+        distance = goto_state.request.distance_to_target
+
+        if distance < 0.0 or distance > blackboard['min_weapons_range']:
+            return EvaluationState.running
+
+        # XXX Stop GOTO (hack, instead make goto do this logic (goto point))
+        goto_state.request = None
+        return EvaluationState.success
+
 
 class Attack(Action):
     effects = {"target_is_dead": True}
@@ -80,8 +46,10 @@ class Attack(Action):
     def on_enter(self, blackboard, world_state):
         blackboard['fire_weapon'] = True
 
-    def on_exit(self, blackboard):
+    def on_exit(self, blackboard, world_state):
         blackboard['fire_weapon'] = False
+        blackboard['in_weapons_range'] = False
+        blackboard['target'] = None
 
     def get_status(self, blackboard):
         if not blackboard['weapon_is_loaded']:
@@ -96,7 +64,7 @@ class Attack(Action):
             return EvaluationState.success
 
         else:
-            return EvaluationState.failure
+            return EvaluationState.running
 
 
 class ReloadWeapon(Action):
@@ -118,7 +86,7 @@ class GetNearestAmmoPickup(Action):
 
         goto_state.request = GOTORequest(nearest_pickup)
 
-    def on_exit(self, blackboard):
+    def on_exit(self, blackboard, world_state):
         goto_state = blackboard.fsm.states['GOTO']
         blackboard["ammo"] += goto_state.request.target["ammo"]
 
@@ -211,7 +179,11 @@ class GOTOState(State):
         player = self.blackboard.player
         to_target = request.target.worldPosition - player.worldPosition
 
-        if to_target.length_squared < 1:
+        # Update request
+        distance = to_target.length
+        request.distance_to_target = distance
+
+        if distance < 0.5:
             request.status = EvaluationState.success
 
         else:
@@ -242,7 +214,7 @@ class WeaponFireManager:
         self.blackboard = blackboard
         blackboard['fire_weapon'] = False
 
-        self.shoot_time = 0.1
+        self.shoot_time = 0.5
         self.last_fired_time = 0
 
     def update(self):
@@ -306,7 +278,7 @@ def init(cont):
     actions = Action.__subclasses__()
     goals = [c() for c in Goal.__subclasses__()]
 
-    goap_ai_manager = GOAPAIManager(blackboard, goals, actions)
+    goap_ai_manager = GOAPAIPlanManager(blackboard, goals, actions)
 
     own['ai'] = goap_ai_manager
     own['fsm'] = fsm

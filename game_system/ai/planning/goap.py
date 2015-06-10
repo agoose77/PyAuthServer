@@ -91,17 +91,18 @@ class Action:
     def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
         return True
 
-    def on_enter(self, blackboard, world_state):
-        pass
-
-    def on_exit(self, blackboard):
-        pass
-
     def get_status(self, blackboard):
         return EvaluationState.success
 
     def get_cost(self):
         return self.cost
+
+    def on_enter(self, blackboard, world_state):
+        pass
+
+    def on_exit(self, blackboard, world_state):
+        for key, value in self.effects.items():
+            blackboard[key] = value
 
 
 class IGOAPAStarNode:
@@ -123,31 +124,33 @@ class IGOAPAStarNode:
         return self.planner.get_neighbour_nodes_for(self)
 
     @property
-    def unsatisfied_state(self):
+    def unsatisfied_keys(self):
         """Return the keys of the unsatisfied state symbols between the goal and current state"""
         current_state = self.current_state
         return [k for k, v in self.goal_state.items() if not current_state[k] == v]
 
-    def satisfies_goal_state(self, current_state):
+    def satisfies_goal_state(self, state):
+        """Determine if provided state satisfies required goal state
+
+        :param state: state to test
+        """
         goal_state = self.goal_state
-        for key, current_value in current_state.items():
+        for key, current_value in state.items():
             if key not in goal_state:
                 continue
 
             if current_value != goal_state[key]:
+                print(key, current_value, goal_state[key])
                 return False
 
         return True
 
 
-class GOAPAStarNode(IGOAPAStarNode, AStarNode):
-    pass
-
-
-class GOAPGoalNode(IGOAPAStarNode, AStarGoalNode):
+class GOAPAStarGoalNode(IGOAPAStarNode, AStarGoalNode):
+    """GOAP A* Goal Node"""
 
     def __repr__(self):
-        return "<GOAPGoalNode: {}>".format(self.goal_state)
+        return "<GOAPAStarGoalNode: {}>".format(self.goal_state)
 
     def get_h_score_from(self, node):
         """Rough estimate of cost of node, based upon satisfaction of goal state
@@ -155,11 +158,11 @@ class GOAPGoalNode(IGOAPAStarNode, AStarGoalNode):
         :param node: node to evaluate heuristic
         """
         node.update_internal_states()
-        return len(node.unsatisfied_state)
+        return len(node.unsatisfied_keys)
 
 
 @total_ordering
-class ActionAStarNode(GOAPAStarNode):
+class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
     """A* Node with associated GOAP action"""
 
     def __init__(self, planner, action):
@@ -171,7 +174,7 @@ class ActionAStarNode(GOAPAStarNode):
         return self.action.precedence < other.action.precedence
 
     def __repr__(self):
-        return "<ActionNode {}>".format(self.action)
+        return "<GOAPAStarActionNode {}>".format(self.action)
 
     def apply_effects(self, destination, resolve_source):
         """Apply action effects to GOAP state, resolving any variables
@@ -256,7 +259,7 @@ class Planner(AStarAlgorithm):
         """
         blackboard = self.blackboard
 
-        goal_node = GOAPGoalNode(self)
+        goal_node = GOAPAStarGoalNode(self)
 
         goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
         goal_node.goal_state = goal_state
@@ -323,7 +326,7 @@ class Planner(AStarAlgorithm):
         neighbours = []
 
         node_action = getattr(node, "action", None)
-        for effect in node.unsatisfied_state:
+        for effect in node.unsatisfied_keys:
             try:
                 actions = effects_to_actions[effect]
 
@@ -331,7 +334,7 @@ class Planner(AStarAlgorithm):
                 continue
 
             # Create new node instances for every node
-            effect_neighbours = [ActionAStarNode(self, a) for a in actions
+            effect_neighbours = [GOAPAStarActionNode(self, a) for a in actions
                                  # Ensure action can be included at this stage
                                  if a.check_procedural_precondition(blackboard, world_state, is_planning=True)
                                  # Ensure we don't get recursive neighbours!
@@ -386,6 +389,10 @@ class Planner(AStarAlgorithm):
             node = parent
 
         if parent and parent.satisfies_goal_state(world_state):
+            ns = node.goal_state.copy()
+            cs = self.blackboard
+            ns.update(cs)
+            print(node.unsatisfied_keys, node.satisfies_goal_state(ns), "ON FIN")
             return True
 
     @staticmethod
@@ -413,7 +420,7 @@ class GOAPAIPlanStep:
         self.action.on_enter(blackboard, self.state)
 
     def on_exit(self, blackboard):
-        self.action.on_exit(blackboard)
+        self.action.on_exit(blackboard, self.state)
 
     def get_status(self, blackboard):
         return self.action.get_status(blackboard)
@@ -435,6 +442,8 @@ class GOAPAIPlan:
 
     def update(self, blackboard):
         finished_state = EvaluationState.success
+        running_state = EvaluationState.running
+
         current_step = self.current_plan_step
 
         # Initialise if not currently running
@@ -444,14 +453,17 @@ class GOAPAIPlan:
 
         while True:
             plan_state = current_step.get_status(blackboard)
+
             # If the plan isn't finished, return its state (failure / running)
-            if plan_state != finished_state:
-                return plan_state
+            if plan_state == running_state:
+                return running_state
 
             # Leave previous step
             current_step.on_exit(blackboard)
 
-            blackboard.update(current_step.action.effects)
+            # Return if not finished
+            if plan_state != finished_state:
+                return plan_state
 
             # Get next step
             try:
@@ -466,7 +478,8 @@ class GOAPAIPlan:
         return finished_state
 
 
-class GOAPAIManager:
+class GOAPAIPlanManager:
+    """Determine and update GOAP plans for AI"""
 
     def __init__(self, blackboard, goals, actions):
         self.actions = actions
