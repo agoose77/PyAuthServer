@@ -50,6 +50,24 @@ class PandaComponent(FindByTag):
         pass
 
 
+@with_tag("animation")
+class PandaAnimationInterface(PandaComponent):
+
+    def __init__(self, config_section, entity, nodepath):
+        self._nodepath = nodepath
+        self._entity = entity
+
+        # Set transform relationship
+
+        self._actor = nodepath.get_python_tag("actor")
+
+    def play(self, name, loop=False):
+        if loop:
+            self._actor.loop(name)
+        else:
+            self._actor.play(name)
+
+
 @with_tag("physics")
 class PandaPhysicsInterface(PandaComponent):
 

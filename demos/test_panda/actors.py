@@ -1,4 +1,4 @@
-from game_system.entities import Actor
+from game_system.entities import Actor, Pawn
 from game_system.enums import Axis, CollisionState
 from game_system.signals import LogicUpdateSignal, CollisionSignal
 
@@ -190,3 +190,26 @@ class RocketBomb(Actor):
         to_target = self.pawn.transform.world_position - self.transform.world_position
         velocity = to_target.normalized() * 20
         self.physics.world_velocity = velocity
+
+
+class Zombie(Pawn):
+
+    def create_object(self):
+        from panda3d.core import Filename, NodePath
+        from direct.actor.Actor import Actor
+        from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
+
+        from game_system.resources import ResourceManager
+        f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["Zombie"]["Zombie.egg"]))
+        model = Actor(f)
+
+        bullet_node = BulletRigidBodyNode("BulletPlane")
+        bullet_nodepath = NodePath(bullet_node)
+
+        shape = BulletBoxShape((1, 1, 1))
+        bullet_node.addShape(shape)
+        bullet_node.setMass(1.0)
+
+        model.reparentTo(bullet_nodepath)
+        bullet_nodepath.set_python_tag("actor", model)
+        return bullet_nodepath
