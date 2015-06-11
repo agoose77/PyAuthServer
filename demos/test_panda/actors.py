@@ -229,6 +229,7 @@ class AmmoPickup(Actor):
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
     replicate_physics_to_owner = False
+    ammo = 5
 
     @property
     def on_ground(self):

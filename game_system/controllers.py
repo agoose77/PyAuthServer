@@ -123,15 +123,17 @@ class GOTOState(State):
         to_target = target_position - pawn_position
 
         # Update request
-        distance = to_target.length
+        distance = to_target.xy.length
         request.distance_to_target = distance
 
-        if distance < 0.5:
+        if distance < 5:
             request.status = EvaluationState.success
+            pawn.physics.world_velocity = to_target * 0
 
         else:
-            pawn.transform.align_to(to_target)
+            #pawn.transform.align_to(to_target)
             pawn.physics.world_velocity = to_target.normalized() * 50
+            #pawn.transform.world_position += to_target.normalized() * 0.1
 
 
 class AIPawnController(PawnController):

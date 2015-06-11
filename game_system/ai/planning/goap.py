@@ -301,7 +301,7 @@ class Planner(AStarAlgorithm):
                 h_score = goal.get_h_score_from(neighbour)
                 f_score = tentative_g_score + h_score
 
-                if f_score >= neighbour.f_score * 0.99:
+                if f_score >= neighbour.f_score:
                     continue
 
                 neighbour.g_score = tentative_g_score
@@ -475,10 +475,12 @@ class GOAPAIPlan:
 
             # Get next step
             try:
-                action, goal_state = self.current_step = next(self._plan_steps_it)
+                current_step = self.current_step = next(self._plan_steps_it)
 
             except StopIteration:
                 return EvaluationState.success
+
+            action, goal_state = current_step
 
             # Check preconditions
             if not action.check_procedural_precondition(controller, goal_state, is_planning=False):

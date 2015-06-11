@@ -59,7 +59,7 @@ def init_game():
         base.cam.set_pos((0, -60, 0))
 
         floor = Plane()
-        floor.transform.world_position = [0, 0, -5]
+        floor.transform.world_position = [0, 0, -1]
         floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
         floor.transform._nodepath.set_scale(10)
         floor.physics.mass = 0.0
@@ -67,9 +67,11 @@ def init_game():
 
         pickup = AmmoPickup()
         pickup.transform.world_position = [0, 40, 0]
+        pickup.physics.mass = 0.0
 
         cont = ZombCont()
         cont.blackboard['has_ammo'] = False
+        cont.blackboard['ammo'] = 0
         cont.possess(Zombie())
 
         pass
