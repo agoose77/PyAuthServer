@@ -6,26 +6,16 @@ from game_system.enums import EvaluationState
 from time import monotonic
 
 
-class GOTORequest:
-
-    def __init__(self, target):
-        self.target = target
-        self.status = EvaluationState.running
-        self.distance_to_target = -1.0
-
-    def on_completed(self):
-        self.status = EvaluationState.success
-
-
 class ChaseTarget(Action):
     effects = {"in_weapons_range": True}
 
-    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
+    def check_procedural_precondition(blackboard, world_state, is_planning=True):
         return blackboard['target'] is not None
 
-    def on_enter(self, blackboard, world_state):
+    def on_enter(self, controller, world_state):
+        blackboard = controller.blackboard
         target = blackboard['target']
-        blackboard.fsm.states['GOTO'].request = GOTORequest(target)
+        controller.fsm.states['GOTO'].request = GOTORequest(target)
 
     def get_status(self, blackboard):
         goto_state = blackboard.fsm.states['GOTO']

@@ -13,7 +13,7 @@ from network.world_info import WorldInfo
 from network.rules import ReplicationRulesBase
 from network.enums import Netmodes
 
-from game_system.controllers import PawnController
+from game_system.controllers import PawnController, AIPawnController
 from game_system.clock import Clock
 from game_system.entities import Actor
 from game_system.replication_info import ReplicationInfo
@@ -48,6 +48,11 @@ class Rules(ReplicationRulesBase):
         elif replicable.always_relevant:
             return True
 
+from .planner import *
+class ZombCont(AIPawnController):
+    actions = [GetNearestAmmoPickup()]
+    goals = [FindAmmoGoal()]
+
 
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
@@ -56,8 +61,17 @@ def init_game():
         floor = Plane()
         floor.transform.world_position = [0, 0, -5]
         floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
+        floor.transform._nodepath.set_scale(10)
         floor.physics.mass = 0.0
         floor.mass = 0.0
+
+        pickup = AmmoPickup()
+        pickup.transform.world_position = [0, 40, 0]
+
+        cont = ZombCont()
+        cont.blackboard['has_ammo'] = False
+        cont.possess(Zombie())
+
         pass
 
     else:
@@ -80,5 +94,16 @@ def run(mode):
 
     game_loop = cls()
     init_game()
+
+    # model = loader.loadModel(f)
+    # model.reparentTo(base.render)
+    #
+    # from panda3d.core import PointLight
+    # plight = PointLight('plight')
+    # plight.setColor((1, 1, 1, 1))
+    # plnp = render.attachNewNode(plight)
+    # plnp.setPos(10, 20, 0)
+    # render.setLight(plnp)
+
     game_loop.delegate()
     del game_loop

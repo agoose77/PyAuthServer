@@ -88,10 +88,10 @@ class Action:
     def __repr__(self):
         return self.__class__.__name__
 
-    def check_procedural_precondition(self, blackboard, world_state, is_planning=True):
+    def check_procedural_precondition(self, controller, world_state, is_planning=True):
         return True
 
-    def get_status(self, blackboard):
+    def get_status(self, controller):
         return EvaluationState.success
 
     def get_cost(self):
@@ -109,10 +109,10 @@ class Action:
 
             destination_state[key] = value
 
-    def on_enter(self, blackboard, goal_state):
+    def on_enter(self, controller, goal_state):
         pass
 
-    def on_exit(self, blackboard, goal_state):
+    def on_exit(self, controller, goal_state):
         pass
 
     def validate_preconditions(self, current_state, goal_state):
@@ -173,7 +173,7 @@ class IGOAPAStarNode:
 
 
 class GOAPAStarGoalNode(IGOAPAStarNode, AStarGoalNode):
-    """GOAP A* Goal Node"""
+    """A* Node associated with GOAP Goal"""
 
     def __repr__(self):
         return "<GOAPAStarGoalNode: {}>".format(self.goal_state)
@@ -220,7 +220,7 @@ class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
         """
         # Get state of preconditions
         action_preconditions = self.action.preconditions
-        blackboard = self.planner.blackboard
+        blackboard = self.planner.controller.blackboard
         goal_state = self.goal_state
 
         # 1 Update current state from effects, resolve variables
@@ -249,34 +249,28 @@ class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
 
 class Planner(AStarAlgorithm):
 
-    def __init__(self, action_classes, blackboard):
-        self.action_classes = action_classes
-        self.blackboard = blackboard
+    def __init__(self, controller):
+        self.controller = controller
 
-        self.effects_to_actions = self.get_actions_by_effects(action_classes)
+        self.effects_to_actions = self.get_actions_by_effects(controller.actions)
 
     def find_plan_for_goal(self, goal_state):
         """Find shortest plan to produce goal state
 
         :param goal_state: state of goal
         """
-        blackboard = self.blackboard
+        controller = self.controller
+        blackboard = controller.blackboard
 
         goal_node = GOAPAStarGoalNode(self)
 
         goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
         goal_node.goal_state = goal_state
 
-        node_path = list(self.find_path(goal_node))[1:]
+        a_star_path = self.find_path(goal_node)[:-1]
+        plan_steps = [(node.action, node.parent.goal_state) for node in a_star_path]
 
-        plan_steps = []
-        for node in node_path:
-            plan_step = GOAPAIPlanStep(node.action, node.parent.goal_state)
-            plan_steps.append(plan_step)
-
-        plan_steps.reverse()
-
-        return GOAPAIPlan(plan_steps)
+        return GOAPAIPlan(controller, plan_steps)
 
     def find_path(self, goal, start=None):
         """Find shortest path from goal to start
@@ -291,7 +285,6 @@ class Planner(AStarAlgorithm):
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
 
         is_finished = self.is_finished
-
         while open_set:
             current = open_set.pop()
 
@@ -325,8 +318,8 @@ class Planner(AStarAlgorithm):
 
         :param node: node performing request
         """
+        controller = self.controller
         effects_to_actions = self.effects_to_actions
-        blackboard = self.blackboard
         world_state = node.goal_state
 
         neighbours = []
@@ -342,7 +335,7 @@ class Planner(AStarAlgorithm):
             # Create new node instances for every node
             effect_neighbours = [GOAPAStarActionNode(self, a) for a in actions
                                  # Ensure action can be included at this stage
-                                 if a.check_procedural_precondition(blackboard, world_state, is_planning=True)
+                                 if a.check_procedural_precondition(controller, world_state, is_planning=True)
                                  # Ensure we don't get recursive neighbours!
                                  and a is not node_action]
             neighbours.extend(effect_neighbours)
@@ -351,15 +344,14 @@ class Planner(AStarAlgorithm):
         return neighbours
 
     @staticmethod
-    def get_actions_by_effects(action_classes):
+    def get_actions_by_effects(actions):
         """Associate effects with appropriate actions
 
-        :param action_classes: valid action classes
+        :param actions: valid action instances
         """
         mapping = {}
 
-        for cls in action_classes:
-            action = cls()
+        for action in actions:
 
             for effect in action.effects:
                 try:
@@ -379,10 +371,13 @@ class Planner(AStarAlgorithm):
         :param goal: goal node
         """
         # Get world state
-        world_state = {key: self.blackboard[key] for key in node.current_state}
+        controller = self.controller
+        blackboard = controller.blackboard
+
+        # Get world state values of node final state
+        world_state = {key: blackboard[key] for key in node.current_state}
 
         parent = None
-
         while node is not goal:
             action = node.action
             parent = node.parent
@@ -392,7 +387,7 @@ class Planner(AStarAlgorithm):
                 return False
 
             # May be able to remove this, should already be checked?
-            if not action.check_procedural_precondition(self.blackboard, parent_goal_state):
+            if not action.check_procedural_precondition(controller, parent_goal_state):
                 return False
 
             # Apply effects to world state
@@ -414,7 +409,6 @@ class Planner(AStarAlgorithm):
             result.append(node)
             node = node.parent
 
-        result.reverse()
         return result
 
 
@@ -422,29 +416,33 @@ class GOAPPlannerFailedException(Exception):
     pass
 
 
-class GOAPAIPlanStep:
-    """Container object for bound action and its goal state"""
-
-    def __init__(self, action, state):
-        self.action = action
-        self.state = state
-
-    def __repr__(self):
-        return repr(self.action)
-
-
 class GOAPAIPlan:
     """Manager of a series of Actions which fulfil a goal state"""
 
-    def __init__(self, plan_steps):
-        self._plan_steps_it = iter(plan_steps)
+    def __init__(self, controller, plan_steps):
         self._plan_steps = plan_steps
-        self.current_plan_step = None
+        self._plan_steps_it = iter(plan_steps)
+
+        self.controller = controller
+        self.current_step = None
 
     def __repr__(self):
-        return "[{}]".format(" -> ".join(["{}{}".format("*" if x is self.current_plan_step else "", repr(x)) for x in self._plan_steps]))
+        action_names = []
 
-    def update(self, blackboard):
+        current_step = self.current_step
+        for step in self._plan_steps:
+            action, state = step
+            name = repr(action)
+
+            # Indicate current action with a * symbol
+            if step is current_step:
+                name = "*" + name
+
+            action_names.append(name)
+
+        return "[{}]".format(" -> ".join(action_names))
+
+    def update(self):
         """Update the plan, ensuring it is valid
 
         :param blackboard: blackboard object
@@ -452,22 +450,24 @@ class GOAPAIPlan:
         finished_state = EvaluationState.success
         running_state = EvaluationState.running
 
-        current_step = self.current_plan_step
+        # Get current step
+        current_step = self.current_step
+        controller = self.controller
 
         while True:
             # Before initialisation
             if current_step is not None:
-                action = current_step.action
-                state = current_step.state
+                action, goal_state = current_step
 
-                plan_state = action.get_status(blackboard)
+                # Check if the plan is done?
+                plan_state = action.get_status(controller)
 
                 # If the plan isn't finished, return its state (failure / running)
                 if plan_state == running_state:
                     return running_state
 
-                # Leave previous step
-                action.on_exit(blackboard, state)
+                # Leave previous steps
+                action.on_exit(controller, goal_state)
 
                 # Return if not finished
                 if plan_state != finished_state:
@@ -475,20 +475,17 @@ class GOAPAIPlan:
 
             # Get next step
             try:
-                current_step = self.current_plan_step = next(self._plan_steps_it)
+                action, goal_state = self.current_step = next(self._plan_steps_it)
 
             except StopIteration:
                 return EvaluationState.success
 
-            action = current_step.action
-            state = current_step.state
-
             # Check preconditions
-            if not action.check_procedural_precondition(blackboard, state, is_planning=False):
+            if not action.check_procedural_precondition(controller, goal_state, is_planning=False):
                 return EvaluationState.failure
 
             # Enter step
-            action.on_enter(blackboard, state)
+            action.on_enter(controller, goal_state)
 
         return finished_state
 
@@ -496,24 +493,20 @@ class GOAPAIPlan:
 class GOAPAIPlanManager:
     """Determine and update GOAP plans for AI"""
 
-    def __init__(self, blackboard, goals, actions):
-        self.actions = actions
+    def __init__(self, controller):
+        self.controller = controller
+        self.planner = Planner(controller)
 
-        self.blackboard = blackboard
-        self.planner = Planner(self.actions, self.blackboard)
-
-        self.goals = goals
-
-        self._plan = None
+        self.current_plan = None
 
     @property
     def sorted_goals(self):
         """Return sorted list of goals, if relevant"""
         # Update goals with sorted list
-        blackboard = self.blackboard
+        blackboard = self.controller.blackboard
 
         goal_pairs = []
-        for goal in self.goals:
+        for goal in self.controller.goals:
             relevance = goal.get_relevance(blackboard)
             if relevance <= 0.0:
                 continue
@@ -527,11 +520,12 @@ class GOAPAIPlanManager:
     def find_best_plan(self):
         """Find best plan to satisfy most relevant, valid goal"""
         build_plan = self.planner.find_plan_for_goal
+        blackboard = self.controller.blackboard
 
         # Try all goals to see if we can satisfy them
         for goal in self.sorted_goals:
             # Check the goal isn't satisfied already
-            if goal.is_satisfied(self.blackboard):
+            if goal.is_satisfied(blackboard):
                 continue
 
             try:
@@ -544,28 +538,22 @@ class GOAPAIPlanManager:
 
     def update(self):
         """Update current plan, or find new plan"""
-        blackboard = self.blackboard
-
         # Rebuild plan
-        if self._plan is None:
+        if self.current_plan is None:
             try:
-                self._plan = self.find_best_plan()
-                print(self._plan)
+                self.current_plan = self.find_best_plan()
 
             except GOAPPlannerFailedException as err:
                 print(err)
 
         else:
-            plan_state = self._plan.update(blackboard)
+            plan_state = self.current_plan.update()
 
             if plan_state == EvaluationState.failure:
-                print("Plan failed during exection of {}".format(self._plan.current_plan_step))
-                self._plan = None
+                print("Plan failed during execution".format(self.current_plan))
+                self.current_plan = None
                 self.update()
 
             elif plan_state == EvaluationState.success:
-                self._plan = None
+                self.current_plan = None
                 self.update()
-
-
-

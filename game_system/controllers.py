@@ -8,11 +8,13 @@ from network.signals import Signal, LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
-from .ai.behaviour.behaviour import Node
+from .ai.planning.goap import GOAPAIPlanManager
+from .ai.state_machine.fsm import FiniteStateMachine
+from .ai.state_machine.state import State
 from .configobj import ConfigObj
 from .clock import Clock
 from .coordinates import Vector, Euler
-from .enums import InputButtons
+from .enums import EvaluationState, InputButtons
 from .inputs import InputContext
 from .latency_compensation import JitterBuffer
 from .resources import ResourceManager
@@ -73,21 +75,83 @@ class PawnController(Replicable):
         self.pawn = None
 
 
+def action_set(*actions):
+    return [c() for c in actions]
+
+
+class GOTORequest:
+    """Request to perform GOTO action"""
+
+    def __init__(self, target):
+        self.target = target
+        self.status = EvaluationState.running
+        self.distance_to_target = -1.0
+
+    def on_completed(self):
+        self.status = EvaluationState.success
+
+
+class GOTOState(State):
+    """FSM State
+
+    Handles GOTO requests
+    """
+
+    def __init__(self, controller):
+        super().__init__("GOTO")
+
+        self.controller = controller
+        self.request = None
+
+    def update(self):
+        request = self.request
+
+        if request is None:
+            return
+
+        if request.status != EvaluationState.running:
+            return
+
+        # We need a pawn to perform GOTO action
+        pawn = self.controller.pawn
+        if pawn is None:
+            return
+
+        pawn_position = pawn.transform.world_position
+        target_position = request.target.transform.world_position
+
+        to_target = target_position - pawn_position
+
+        # Update request
+        distance = to_target.length
+        request.distance_to_target = distance
+
+        if distance < 0.5:
+            request.status = EvaluationState.success
+
+        else:
+            pawn.transform.align_to(to_target)
+            pawn.physics.world_velocity = to_target.normalized() * 50
+
+
 class AIPawnController(PawnController):
     """Base class for AI pawn controllers"""
 
+    goals = []
+    actions = []
+
     def on_initialised(self):
         self.blackboard = {}
-        self.intelligence = Node()
 
+        self.plan_manager = GOAPAIPlanManager(self)
+        self.fsm = FiniteStateMachine()
+        self.fsm.add_state(GOTOState(self))
+
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
-        blackboard = self.blackboard
-
-        blackboard['delta_time'] = delta_time
-        blackboard['pawn'] = self.pawn
-        blackboard['controller'] = self
-
-        self.intelligence.evaluate(blackboard)
+        # self.sensor_manager.update()
+        self.plan_manager.update()
+        self.fsm.state.update()
 
 
 class PlayerPawnController(PawnController):
