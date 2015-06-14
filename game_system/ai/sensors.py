@@ -1,4 +1,8 @@
-from .entities import Actor
+from game_system.coordinates import Vector
+from game_system.entities import Actor
+from game_system.enums import Axis
+
+from math import radians, tan
 
 
 class SphericalBounds:
@@ -84,11 +88,46 @@ class Sensor:
             self.sample()
 
 
+class ViewCone:
+
+    def __init__(self, fov, length):
+        self._depth_to_radius = 0.0
+        self._fov = 0.0
+
+        self.fov = fov
+        self.length = length
+
+        self.origin = Vector()
+        self.direction = Vector((0, 1, 0))
+
+    @property
+    def fov(self):
+        return self._fov
+
+    @fov.setter
+    def fov(self, fov):
+        self._fov = fov
+        self._depth_to_radius = tan(self._fov)
+
+    def __contains__(self, point):
+        to_point = point - self.origin
+        depth = to_point.dot(self.direction)
+
+        if depth > self.length:
+            return False
+
+        radius_at_depth = depth * self._depth_to_radius
+        return (to_point - depth * self.direction).length > radius_at_depth
+
+
 class ViewSensor(Sensor):
 
-    def sample(self):
-        distances = {}
+    def __init__(self):
+        super().__init__()
 
+        self.view_cone = ViewCone(radians(30), 50)
+
+    def sample(self):
         controller = self.controller
         pawn = controller.pawn
 
@@ -96,5 +135,23 @@ class ViewSensor(Sensor):
             return
 
         pawn_position = pawn.transform.world_position
+
+        # Update view cone
+        view_cone = self.view_cone
+        view_cone.origin = pawn_position
+        view_cone.direction = pawn.transform.get_direction_vector(Axis.y)
+
+        visible_actors = []
         for actor in Actor.subclass_of_type(Actor):
-            distances[actor] = (actor.transform.world_position - pawn_position).length
+            actor_position = actor.transform.world_position
+            if actor_position not in view_cone:
+                continue
+
+            result = actor.physics.ray_test(actor_position, pawn_position)
+            if result is None:
+                continue
+
+            if result.entity is not actor:
+                continue
+
+            visible_actors.append(actor)

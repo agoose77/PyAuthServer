@@ -16,6 +16,7 @@ from network.enums import Netmodes
 from game_system.controllers import PawnController, AIPawnController
 from game_system.clock import Clock
 from game_system.entities import Actor
+from game_system.ai.sensors import ViewSensor
 from game_system.replication_info import ReplicationInfo
 
 from .actors import *
@@ -51,9 +52,19 @@ class Rules(ReplicationRulesBase):
 
 from .planner import *
 
+
 class ZombCont(AIPawnController):
     actions = [GetNearestAmmoPickup()]
     goals = [FindAmmoGoal()]
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.blackboard['has_ammo'] = False
+        self.blackboard['ammo'] = 0
+
+        view_sensor = ViewSensor()
+        self.sensor_manager.add_sensor(view_sensor)
 
 
 def init_game():
@@ -73,8 +84,7 @@ def init_game():
         floor.transform._nodepath.set_color(1, 0.0, 0.0)
         #
         cont = ZombCont()
-        cont.blackboard['has_ammo'] = False
-        cont.blackboard['ammo'] = 0
+
         omb = TestActor()
         omb.transform.world_position = [0, 0, 1]
         cont.possess(omb)

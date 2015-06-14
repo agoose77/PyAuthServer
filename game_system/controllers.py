@@ -10,6 +10,7 @@ from network.world_info import WorldInfo
 from .ai.planning.goap import GOAPActionPlanManager
 from .ai.state_machine.fsm import FiniteStateMachine
 from .ai.state_machine.state import State
+from .ai.sensors import SensorManager
 from .configobj import ConfigObj
 from .clock import Clock
 from .coordinates import Vector, Euler
@@ -151,13 +152,14 @@ class AIPawnController(PawnController):
 
         self.blackboard = {}
 
+        self.sensor_manager = SensorManager(self)
         self.plan_manager = GOAPActionPlanManager(self, logger=self.logger.getChild("GOAP"))
         self.fsm = FiniteStateMachine()
         self.fsm.add_state(GOTOState(self))
 
     @LogicUpdateSignal.on_global
     def update(self, delta_time):
-        # self.sensor_manager.update()
+        self.sensor_manager.update(delta_time)
         self.plan_manager.update()
         self.fsm.state.update()
 

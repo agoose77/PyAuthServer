@@ -126,7 +126,7 @@ class PandaPhysicsInterface(PandaComponent):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
 
-    def ray_test(self, target, source=None, distance=0.0):
+    def ray_test(self, target, source=None, distance=None):
         """Perform a ray trace to a target
 
         :param target: target to trace towards
@@ -137,9 +137,12 @@ class PandaPhysicsInterface(PandaComponent):
         if source is None:
             source = Vector(self._nodepath.getPos(base.render))
 
+        # Move target to appropriate position, if explicit distance
         if distance:
             direction = target - source
             direction.length = distance
+
+            target = source + direction
 
         world = self._node.get_python_tag("world")
 
