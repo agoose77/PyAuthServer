@@ -1,5 +1,6 @@
 from operator import attrgetter
 from sys import float_info
+from logging import getLogger
 
 from game_system.enums import EvaluationState
 from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode, AStarGoalNode
@@ -515,10 +516,14 @@ class GOAPActionPlan:
 class GOAPActionPlanManager:
     """Determine and update GOAP plans for AI"""
 
-    def __init__(self, controller):
+    def __init__(self, controller, logger=None):
         self.controller = controller
         self.planner = GOAPPlanner(controller)
 
+        if logger is None:
+            logger = getLogger("<GOAP>")
+
+        self.logger = logger
         self._current_plan = None
 
     @property
@@ -570,17 +575,18 @@ class GOAPActionPlanManager:
                 self._current_plan = self.find_best_plan()
 
             except GOAPPlannerFailedException as err:
-                pass#print(err)
+                self.logger.info(err)
 
         else:
             # Update plan naturally
             plan_state = self._current_plan.update()
 
             if plan_state == EvaluationState.failure:
-                print("Plan failed during execution".format(self._current_plan))
+                self.logger.info("Plan failed during execution: {}".format(self._current_plan))
                 self._current_plan = None
                 self.update()
 
             elif plan_state == EvaluationState.success:
+                self.logger.info("Plan succeeded: {}".format(self._current_plan))
                 self._current_plan = None
                 self.update()

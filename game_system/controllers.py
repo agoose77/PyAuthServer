@@ -1,7 +1,6 @@
 from network.descriptors import Attribute
 from network.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
-from network.logger import logger
 from network.replicable import Replicable
 from network.rpc import Pointer
 from network.signals import Signal, LatencyUpdatedSignal
@@ -24,6 +23,7 @@ from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, Ph
 
 
 from collections import OrderedDict, deque
+from logging import getLogger
 from math import radians, pi
 
 
@@ -43,6 +43,9 @@ class PawnController(Replicable):
         if is_complaint:
             yield "pawn"
             yield "info"
+
+    def on_initialised(self):
+        self.logger = getLogger(repr(self))
 
     def on_notify(self, name):
         if name == "pawn":
@@ -144,9 +147,11 @@ class AIPawnController(PawnController):
     actions = []
 
     def on_initialised(self):
+        super().on_initialised()
+
         self.blackboard = {}
 
-        self.plan_manager = GOAPActionPlanManager(self)
+        self.plan_manager = GOAPActionPlanManager(self, logger=self.logger.getChild("GOAP"))
         self.fsm = FiniteStateMachine()
         self.fsm.add_state(GOTOState(self))
 
@@ -176,6 +181,8 @@ class PlayerPawnController(PawnController):
 
     def on_initialised(self):
         """Initialisation method"""
+        super().on_initialised()
+
         self.initialise_client()
         self.initialise_server()
 
