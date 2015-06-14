@@ -48,7 +48,9 @@ class Rules(ReplicationRulesBase):
         elif replicable.always_relevant:
             return True
 
+
 from .planner import *
+
 class ZombCont(AIPawnController):
     actions = [GetNearestAmmoPickup()]
     goals = [FindAmmoGoal()]
@@ -58,21 +60,24 @@ def init_game():
     if WorldInfo.netmode == Netmodes.server:
         base.cam.set_pos((0, -60, 0))
 
-        floor = Plane()
-        floor.transform.world_position = [0, 0, -1]
+        floor = TestActor()
+        floor.transform.world_position = [0, 0, -11]
         floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
         floor.transform._nodepath.set_scale(10)
         floor.physics.mass = 0.0
         floor.mass = 0.0
 
         pickup = AmmoPickup()
-        pickup.transform.world_position = [0, 40, 0]
+        pickup.transform.world_position = [5, 12, 1]
         pickup.physics.mass = 0.0
-
+        floor.transform._nodepath.set_color(1, 0.0, 0.0)
+        #
         cont = ZombCont()
         cont.blackboard['has_ammo'] = False
         cont.blackboard['ammo'] = 0
-        cont.possess(Zombie())
+        omb = TestActor()
+        omb.transform.world_position = [0, 0, 1]
+        cont.possess(omb)
 
         pass
 

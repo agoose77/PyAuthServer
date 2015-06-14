@@ -1,4 +1,4 @@
-from game_system.ai.planning.goap import Action, Goal, GOAPAIPlanManager
+from game_system.ai.planning.goap import Action, Goal, GOAPActionPlanManager
 from game_system.ai.state_machine.fsm import FiniteStateMachine
 from game_system.ai.state_machine.state import State
 from game_system.enums import EvaluationState
@@ -9,8 +9,8 @@ from time import monotonic
 class ChaseTarget(Action):
     effects = {"in_weapons_range": True}
 
-    def check_procedural_precondition(blackboard, world_state, is_planning=True):
-        return blackboard['target'] is not None
+    def check_procedural_precondition(self, controller, world_state, is_planning=True):
+        return controller.blackboard['target'] is not None
 
     def on_enter(self, controller, world_state):
         blackboard = controller.blackboard
@@ -109,52 +109,6 @@ class ReloadWeaponGoal(Goal):
     state = {"weapon_is_loaded": True}
 
 
-class GameObjBlackboard:
-
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __getitem__(self, name):
-        return self._obj[name]
-
-    def __setitem__(self, name, value):
-        self._obj[name] = value
-
-    def copy(self):
-        return dict(self.items())
-
-    def get(self, name, default=None):
-        try:
-            return self[name]
-
-        except KeyError:
-            return default
-
-    def setdefault(self, name, value):
-        try:
-            return self[name]
-
-        except KeyError:
-            self[name] = value
-            return value
-
-    def keys(self):
-        return iter(self._obj.getPropertyNames())
-
-    def update(self, other):
-        for key, value in other.items():
-            self._obj[key] = value
-
-    def values(self):
-        return (self._obj[x] for x in self.keys())
-
-    def items(self):
-        return ((x, y) for x, y in zip(self.keys(), self.values()))
-
-    def __repr__(self):
-        return repr(dict(self.items()))
-
-
 class GOTOState(State):
 
     def __init__(self, blackboard):
@@ -230,33 +184,39 @@ class WeaponFireManager:
                     self.blackboard['fire_weapon'] = False
                     self.blackboard['weapon_is_loaded'] = False
 
+#
+# class TargetManager:
+#
+#     def __init__(self, controller):
+#         self.controller = controller
+#         self.player = blackboard.player
+#
+#         blackboard['target'] = None
+#
+#     def get_closest_enemy(self):
+#         enemies = [o for o in self.player.scene.objects if "enemy" in o]
+#
+#         if not enemies:
+#             return None
+#
+#         return min(enemies, key=self.player.getDistanceTo)
+#
+#     def update(self):
+#         blackboard = self.blackboard
+#         if blackboard['target'] is None:
+#             blackboard['target'] = self.get_closest_enemy()
 
-class TargetManager:
-
-    def __init__(self, blackboard):
-        self.blackboard = blackboard
-        self.player = blackboard.player
-
-        blackboard['target'] = None
-
-    def get_closest_enemy(self):
-        enemies = [o for o in self.player.scene.objects if "enemy" in o]
-
-        if not enemies:
-            return None
-
-        return min(enemies, key=self.player.getDistanceTo)
-
-    def update(self):
-        blackboard = self.blackboard
-        if blackboard['target'] is None:
-            blackboard['target'] = self.get_closest_enemy()
 
 
-def init(cont):
-    own = cont.owner
+class Controller:
+    blackboard = {'target': "some tar", 'weapon_is_loaded': False, 'has_ammo': False}
 
-    blackboard = GameObjBlackboard(own)
+    actions = [c() for c in Action.__subclasses__()]
+    goals = [c() for c in Goal.__subclasses__()]
+
+
+def init():
+    blackboard = Controller.blackboard
 
     fsm = FiniteStateMachine()
 
@@ -266,21 +226,15 @@ def init(cont):
     fsm.add_state(goto_state)
     fsm.add_state(animate_state)
 
-    blackboard.player = own
-    blackboard.fsm = fsm
+    #blackboard.player = own
+    Controller.fsm = fsm
 
-    sys_man = SystemManager()
-    sys_man.systems.append(TargetManager(blackboard))
-    sys_man.systems.append(WeaponFireManager(blackboard))
+    # sys_man = SystemManager()
+    # sys_man.systems.append(TargetManager(blackboard))
+    # sys_man.systems.append(WeaponFireManager(blackboard))
 
-    actions = Action.__subclasses__()
-    goals = [c() for c in Goal.__subclasses__()]
-
-    goap_ai_manager = GOAPAIPlanManager(blackboard, goals, actions)
-
-    own['ai'] = goap_ai_manager
-    own['fsm'] = fsm
-    own['system_manager'] = sys_man
+    goap_ai_manager = GOAPActionPlanManager(Controller)
+    goap_ai_manager.update()
 
 
 def main(cont):

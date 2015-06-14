@@ -6,7 +6,7 @@ from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundExcept
 from game_system.pathfinding.priority_queue import PriorityQueue
 
 
-__all__ = "Goal", "Action", "Planner", "GOAPAIPlanManager", "GOAPAStarActionNode", "GOAPAStarGoalNode", "Goal"
+__all__ = "Goal", "Action", "GOAPPlanner", "GOAPActionPlanManager", "GOAPAStarActionNode", "GOAPAStarGoalNode", "Goal"
 
 
 MAX_FLOAT = float_info.max
@@ -91,11 +91,11 @@ class Action:
     def check_procedural_precondition(self, controller, world_state, is_planning=True):
         return True
 
+    def is_interruptible(self, controller):
+        return True     
+
     def get_status(self, controller):
         return EvaluationState.success
-
-    def get_cost(self):
-        return self.cost
 
     def apply_effects(self, destination_state, goal_state):
         """Apply action effects to state, resolving any variables
@@ -132,7 +132,7 @@ class Action:
         return True
 
 
-class IGOAPAStarNode:
+class GOAPAStarNode:
 
     f_score = MAX_FLOAT
 
@@ -172,7 +172,7 @@ class IGOAPAStarNode:
         return True
 
 
-class GOAPAStarGoalNode(IGOAPAStarNode, AStarGoalNode):
+class GOAPAStarGoalNode(GOAPAStarNode, AStarGoalNode):
     """A* Node associated with GOAP Goal"""
 
     def __repr__(self):
@@ -188,7 +188,7 @@ class GOAPAStarGoalNode(IGOAPAStarNode, AStarGoalNode):
 
 
 @total_ordering
-class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
+class GOAPAStarActionNode(GOAPAStarNode, AStarNode):
     """A* Node with associated GOAP action"""
 
     def __init__(self, planner, action):
@@ -211,7 +211,7 @@ class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
         self.current_state.update(node.current_state)
         self.goal_state.update(node.goal_state)
 
-        return self.action.get_cost()
+        return self.action.cost
 
     def update_internal_states(self):
         """Update internal current and goal states, according to action effects and preconditions
@@ -247,7 +247,7 @@ class GOAPAStarActionNode(IGOAPAStarNode, AStarNode):
         self.current_state.update({k: blackboard.get(k) for k in action_preconditions if k not in self.current_state})
 
 
-class Planner(AStarAlgorithm):
+class GOAPPlanner(AStarAlgorithm):
 
     def __init__(self, controller):
         self.controller = controller
@@ -270,7 +270,7 @@ class Planner(AStarAlgorithm):
         a_star_path = self.find_path(goal_node)[:-1]
         plan_steps = [(node.action, node.parent.goal_state) for node in a_star_path]
 
-        return GOAPAIPlan(controller, plan_steps)
+        return GOAPActionPlan(controller, plan_steps)
 
     def find_path(self, goal, start=None):
         """Find shortest path from goal to start
@@ -416,7 +416,7 @@ class GOAPPlannerFailedException(Exception):
     pass
 
 
-class GOAPAIPlan:
+class GOAPActionPlan:
     """Manager of a series of Actions which fulfil a goal state"""
 
     def __init__(self, controller, plan_steps):
@@ -425,6 +425,8 @@ class GOAPAIPlan:
 
         self.controller = controller
         self.current_step = None
+
+        self._invalidated = False
 
     def __repr__(self):
         action_names = []
@@ -442,11 +444,29 @@ class GOAPAIPlan:
 
         return "[{}]".format(" -> ".join(action_names))
 
+    def invalidate(self):
+        if self._invalidated:
+            return
+
+        self._invalidated = True
+
+        current_step = self.current_step
+        if current_step is None:
+            return
+
+        # Exit plan
+        action, goal_state = current_step
+        action.on_exit(self.controller, goal_state)
+
     def update(self):
         """Update the plan, ensuring it is valid
 
         :param blackboard: blackboard object
         """
+        # If plan invalidated, don't update
+        if self._invalidated:
+            return EvaluationState.failure
+
         finished_state = EvaluationState.success
         running_state = EvaluationState.running
 
@@ -492,14 +512,18 @@ class GOAPAIPlan:
         return finished_state
 
 
-class GOAPAIPlanManager:
+class GOAPActionPlanManager:
     """Determine and update GOAP plans for AI"""
 
     def __init__(self, controller):
         self.controller = controller
-        self.planner = Planner(controller)
+        self.planner = GOAPPlanner(controller)
 
-        self.current_plan = None
+        self._current_plan = None
+
+    @property
+    def current_plan(self):
+        return self._current_plan
 
     @property
     def sorted_goals(self):
@@ -541,21 +565,22 @@ class GOAPAIPlanManager:
     def update(self):
         """Update current plan, or find new plan"""
         # Rebuild plan
-        if self.current_plan is None:
+        if self._current_plan is None:
             try:
-                self.current_plan = self.find_best_plan()
+                self._current_plan = self.find_best_plan()
 
             except GOAPPlannerFailedException as err:
-                print(err)
+                pass#print(err)
 
         else:
-            plan_state = self.current_plan.update()
+            # Update plan naturally
+            plan_state = self._current_plan.update()
 
             if plan_state == EvaluationState.failure:
-                print("Plan failed during execution".format(self.current_plan))
-                self.current_plan = None
+                print("Plan failed during execution".format(self._current_plan))
+                self._current_plan = None
                 self.update()
 
             elif plan_state == EvaluationState.success:
-                self.current_plan = None
+                self._current_plan = None
                 self.update()

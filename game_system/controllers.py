@@ -8,7 +8,7 @@ from network.signals import Signal, LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
-from .ai.planning.goap import GOAPAIPlanManager
+from .ai.planning.goap import GOAPActionPlanManager
 from .ai.state_machine.fsm import FiniteStateMachine
 from .ai.state_machine.state import State
 from .configobj import ConfigObj
@@ -126,13 +126,14 @@ class GOTOState(State):
         distance = to_target.xy.length
         request.distance_to_target = distance
 
-        if distance < 5:
+        if distance < 4:
             request.status = EvaluationState.success
             pawn.physics.world_velocity = to_target * 0
 
         else:
             #pawn.transform.align_to(to_target)
-            pawn.physics.world_velocity = to_target.normalized() * 50
+            pawn.physics.world_velocity = to_target.normalized() * 5
+
             #pawn.transform.world_position += to_target.normalized() * 0.1
 
 
@@ -145,7 +146,7 @@ class AIPawnController(PawnController):
     def on_initialised(self):
         self.blackboard = {}
 
-        self.plan_manager = GOAPAIPlanManager(self)
+        self.plan_manager = GOAPActionPlanManager(self)
         self.fsm = FiniteStateMachine()
         self.fsm.add_state(GOTOState(self))
 
