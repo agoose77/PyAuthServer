@@ -139,18 +139,15 @@ class SpatialEvent:
         self.distance = distance
         self.data = data
         self.lifespan = lifespan
-        self.age = 0.0
+        self.time_since_updated = 0.0
+        self.is_new = True
 
     @property
     def expired(self):
-        return self.age > self.lifespan
-
-    @property
-    def is_new(self):
-        return not self.age
+        return self.time_since_updated > self.lifespan
 
     def __repr__(self):
-        return "<SpatialEvent ({}) @ {}> : {}".format(SpatialEventType[self.type], self.distance, self.data)
+        return "<{} Event @ {}> : {}".format(SpatialEventType[self.type].capitalize(), self.distance, self.data)
 
 
 class SoundSensor(Sensor, SignalListener):
@@ -158,21 +155,29 @@ class SoundSensor(Sensor, SignalListener):
     def __init__(self):
         super().__init__()
 
-        self.origin = Vector()
         self.distance = 50
 
         self._heard_sounds = []
 
     @HearSoundSignal.on_global
     def hear_sound(self, sound):
-        intensity = sound.bounds.get_linear_intensity(self.origin, self.distance)
+        pawn = self.controller.pawn
+        if pawn is None:
+            return
 
+        pawn_position = pawn.transform.world_position
+
+        intensity = sound.bounds.get_linear_intensity(pawn_position, self.distance)
         if not intensity:
             return
 
-        self._heard_sounds.append(sound)
+        distance = (sound.bounds.origin - pawn_position).length
+
+        event = SpatialEvent(SpatialEventType.sound, sound.bounds.origin, distance, sound)
+        self._heard_sounds.append(event)
 
     def update(self, dt):
+        self.controller.fact_manager.facts.extend(self._heard_sounds)
         self._heard_sounds.clear()
 
 
@@ -224,7 +229,7 @@ class ViewSensor(Sensor):
                 event = seen_events[actor]
                 event.position = actor_position
                 event.distance = distance
-                event.age = 0.0
+                event.time_since_updated = 0.0
 
                 # Remove event
                 not_updated_actors.remove(actor)
@@ -253,3 +258,6 @@ class SpatialFactManager:
     def update(self):
         self.facts[:] = [f for f in self.facts if not f.expired]
         self.facts.sort(key=self._key_func)
+
+        for fact in self.facts:
+            fact.is_new = False
