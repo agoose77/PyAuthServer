@@ -87,3 +87,7 @@ class UIUpdateSignal(Signal):
 
 class UIRenderSignal(Signal):
     pass
+
+
+class HearSoundSignal(Signal):
+    pass

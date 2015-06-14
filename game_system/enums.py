@@ -6,50 +6,50 @@ __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode', 'MovementState', 'AIS
 
 
 class PhysicsType(Enumeration):
-    """Enumeration of Physics Types"""
-    values = ("static", "dynamic", "rigid_body", "soft_body", "occluder",
-              "sensor", "navigation_mesh", "character", "no_collision")
+    '''Enumeration of Physics Types'''
+    values = ('static', 'dynamic', 'rigid_body', 'soft_body', 'occluder',
+              'sensor', 'navigation_mesh', 'character', 'no_collision')
 
 
 class EvaluationState(Enumeration):
-    values = "success", "failure", "running", "ready"
+    values = 'success', 'failure', 'running', 'ready'
 
 
 class CameraMode(Enumeration):
-    values = ("first_person", "third_person")
+    values = ('first_person', 'third_person')
 
 
 class MovementState(Enumeration):
-    values = ("run", "walk", "static")
+    values = ('run', 'walk', 'static')
 
 
 class AIState(Enumeration):
-    values = ("idle", "alert", "engage")
+    values = ('idle', 'alert', 'engage')
 
 
 class Axis(Enumeration):
-    values = ("x", "y", "z")
+    values = ('x', 'y', 'z')
 
 
 class CollisionGroups(Enumeration):
     use_bits = True
-    values = ("geometry", "pawn", "projectile")
+    values = ('geometry', 'pawn', 'projectile')
 
 
 class CollisionState(Enumeration):
-    values = ("started", "ended")
+    values = ('started', 'ended')
 
 
 class AnimationMode(Enumeration):
-    values = ("play", "loop", "ping_pong", "stop")
+    values = ('play', 'loop', 'ping_pong', 'stop')
 
 
 class AnimationBlend(Enumeration):
-    values = ("interpolate", "add")
+    values = ('interpolate', 'add')
 
 
 class ListenerType(Enumeration):
-    values = ("action_in", "action_out", "state")
+    values = ('action_in', 'action_out', 'state')
 
 
 class InputButtons(Enumeration):
@@ -81,4 +81,8 @@ class ButtonState(Enumeration):
 
 
 class AudioDistanceModel(Enumeration):
-    values = ("linear",)
+    values = ('linear',)
+    
+    
+class SpatialEventType(Enumeration):
+    values = ('sound', 'sight')

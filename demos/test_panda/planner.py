@@ -36,4 +36,5 @@ class GetNearestAmmoPickup(Action):
 
     def get_status(self, controller):
         goto_state = controller.fsm.states['GOTO']
+        print(controller.fact_manager.facts)
         return goto_state.request.status
