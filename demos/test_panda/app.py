@@ -16,7 +16,8 @@ from network.enums import Netmodes
 from game_system.controllers import PawnController, AIPawnController
 from game_system.clock import Clock
 from game_system.entities import Actor
-from game_system.ai.sensors import SightSensor, WMFact
+from game_system.ai.sensors import SightSensor
+from game_system.ai.working_memory import WMFact
 from game_system.replication_info import ReplicationInfo
 
 from .actors import *
