@@ -1,18 +1,21 @@
 from network.descriptors import Attribute
 from network.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
-from network.logger import logger
 from network.replicable import Replicable
 from network.rpc import Pointer
 from network.signals import Signal, LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
 
-from .ai.behaviour.behaviour import Node
+from .ai.planning.goap import GOAPActionPlanManager
+from .ai.state_machine.fsm import FiniteStateMachine
+from .ai.state_machine.state import State
+from .ai.sensors import SensorManager
+from .ai.working_memory import WorkingMemory
 from .configobj import ConfigObj
 from .clock import Clock
 from .coordinates import Vector, Euler
-from .enums import InputButtons
+from .enums import EvaluationState, InputButtons
 from .inputs import InputContext
 from .latency_compensation import JitterBuffer
 from .resources import ResourceManager
@@ -22,6 +25,7 @@ from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, Ph
 
 
 from collections import OrderedDict, deque
+from logging import getLogger
 from math import radians, pi
 
 
@@ -41,6 +45,9 @@ class PawnController(Replicable):
         if is_complaint:
             yield "pawn"
             yield "info"
+
+    def on_initialised(self):
+        self.logger = getLogger(repr(self))
 
     def on_notify(self, name):
         if name == "pawn":
@@ -73,21 +80,92 @@ class PawnController(Replicable):
         self.pawn = None
 
 
+def action_set(*actions):
+    return [c() for c in actions]
+
+
+class GOTORequest:
+    """Request to perform GOTO action"""
+
+    def __init__(self, target):
+        self.target = target
+        self.status = EvaluationState.running
+        self.distance_to_target = -1.0
+
+    def on_completed(self):
+        self.status = EvaluationState.success
+
+
+class GOTOState(State):
+    """FSM State
+
+    Handles GOTO requests
+    """
+
+    def __init__(self, controller):
+        super().__init__("GOTO")
+
+        self.controller = controller
+        self.request = None
+
+    def update(self):
+        request = self.request
+
+        if request is None:
+            return
+
+        if request.status != EvaluationState.running:
+            return
+
+        # We need a pawn to perform GOTO action
+        pawn = self.controller.pawn
+        if pawn is None:
+            return
+
+        pawn_position = pawn.transform.world_position
+        target_position = request.target.transform.world_position
+
+        to_target = target_position - pawn_position
+
+        # Update request
+        distance = to_target.xy.length
+        request.distance_to_target = distance
+
+        if distance < 4:
+            request.status = EvaluationState.success
+            pawn.physics.world_velocity = to_target * 0
+
+        else:
+            #pawn.transform.align_to(to_target)
+            pawn.physics.world_velocity = to_target.normalized() * 5
+
+            #pawn.transform.world_position += to_target.normalized() * 0.1
+
+
 class AIPawnController(PawnController):
     """Base class for AI pawn controllers"""
 
+    goals = []
+    actions = []
+
     def on_initialised(self):
+        super().on_initialised()
+
         self.blackboard = {}
-        self.intelligence = Node()
+        self.working_memory = WorkingMemory()
+        self.sensor_manager = SensorManager(self)
+        self.plan_manager = GOAPActionPlanManager(self, logger=self.logger.getChild("GOAP"))
+        self.fsm = FiniteStateMachine()
 
+        # Add states
+        self.fsm.add_state(GOTOState(self))
+
+    @LogicUpdateSignal.on_global
     def update(self, delta_time):
-        blackboard = self.blackboard
-
-        blackboard['delta_time'] = delta_time
-        blackboard['pawn'] = self.pawn
-        blackboard['controller'] = self
-
-        self.intelligence.evaluate(blackboard)
+        self.working_memory.update(delta_time)
+        self.sensor_manager.update(delta_time)
+        self.plan_manager.update()
+        self.fsm.state.update()
 
 
 class PlayerPawnController(PawnController):
@@ -109,6 +187,8 @@ class PlayerPawnController(PawnController):
 
     def on_initialised(self):
         """Initialisation method"""
+        super().on_initialised()
+
         self.initialise_client()
         self.initialise_server()
 

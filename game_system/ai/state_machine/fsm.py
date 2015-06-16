@@ -10,6 +10,9 @@ class FiniteStateMachine:
 
     @state.setter
     def state(self, state):
+        if state is self._state:
+            return
+
         if self._state is not None:
             self._state.on_exit()
 

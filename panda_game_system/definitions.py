@@ -64,8 +64,11 @@ class PandaAnimationInterface(PandaComponent):
     def play(self, name, loop=False):
         if loop:
             self._actor.loop(name)
+
         else:
             self._actor.play(name)
+
+        return self._actor.getAnimControl(name)
 
 
 @with_tag("physics")
@@ -123,7 +126,7 @@ class PandaPhysicsInterface(PandaComponent):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
 
-    def ray_test(self, target, source=None, distance=0.0):
+    def ray_test(self, target, source=None, distance=None):
         """Perform a ray trace to a target
 
         :param target: target to trace towards
@@ -134,9 +137,12 @@ class PandaPhysicsInterface(PandaComponent):
         if source is None:
             source = Vector(self._nodepath.getPos(base.render))
 
+        # Move target to appropriate position, if explicit distance
         if distance:
             direction = target - source
             direction.length = distance
+
+            target = source + direction
 
         world = self._node.get_python_tag("world")
 
@@ -318,6 +324,22 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
     def world_orientation(self, orientation):
         p, r, h = orientation
         self._nodepath.setHpr(base.render, degrees(h), degrees(p), degrees(r))
+
+    def align_to(self, vector, factor=1, axis=Axis.y):
+        """Align object to vector
+
+        :param vector: direction vector
+        :param factor: slerp factor
+        :param axis: alignment direction
+        """
+        if not vector.length_squared:
+            return
+
+        forward_axis = Axis[axis].upper()
+
+        rotation_quaternion = vector.to_track_quat(forward_axis, "Z")
+        current_rotation = self.world_orientation.to_quaternion()
+        self.world_orientation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
 
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space
