@@ -4,6 +4,7 @@ from game_system.enums import EvaluationState
 from network.replicable import Replicable
 
 from .actors import AmmoPickup
+from operator import attrgetter
 
 
 class FindAmmoGoal(Goal):
@@ -15,26 +16,41 @@ class FindAmmoGoal(Goal):
 class GetNearestAmmoPickup(Action):
     effects = {"has_ammo": True}
 
+    def find_nearest_ammo_pickup(self, controller):
+        return controller.working_memory.find_single_fact('nearest_ammo').data
+
     def on_enter(self, controller, goal_state):
         goto_state = controller.fsm.states['GOTO']
 
-        pawn_position = controller.pawn.transform.world_position
+        try:
+            pickup = self.find_nearest_ammo_pickup(controller)
 
-        def get_distance_to_squared(actor):
-            return (actor.transform.world_position - pawn_position).length_squared
+        except LookupError:
+            request = None
 
-        nearest_pickup = min(Replicable.subclass_of_type(AmmoPickup), key=get_distance_to_squared)
-        goto_state.request = GOTORequest(nearest_pickup)
+        else:
+            request = GOTORequest(pickup)
+
+        goto_state.request = request
 
     def on_exit(self, controller, goal_state):
         goto_state = controller.fsm.states['GOTO']
-        controller.blackboard["ammo"] += goto_state.request.target.ammo
-        goto_state.request.target.deregister()
+
+        request = goto_state.request
+        if request is None:
+            return
+
+        controller.blackboard["ammo"] += request.target.ammo
+        request.target.deregister()
 
         # Apply to world state
         self.apply_effects(controller.blackboard, goal_state)
 
     def get_status(self, controller):
         goto_state = controller.fsm.states['GOTO']
-        print(controller.fact_manager.facts)
+
+        # We failed to set a target
+        if goto_state.request is None:
+            return EvaluationState.failure
+
         return goto_state.request.status

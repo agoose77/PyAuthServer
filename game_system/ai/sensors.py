@@ -1,10 +1,11 @@
 from game_system.coordinates import Vector
 from game_system.entities import Actor
-from game_system.enums import Axis, SpatialEventType
+from game_system.enums import Axis
 from game_system.signals import HearSoundSignal
 
 from network.signals import SignalListener
 
+from collections import defaultdict
 from math import radians, tan
 from operator import attrgetter
 
@@ -69,6 +70,7 @@ class SensorManager:
 
         :param dt: time since last call to update
         """
+        # Update sensors
         for sensor in self._sensors:
             sensor.update(dt)
 
@@ -128,13 +130,16 @@ class ViewCone:
             return False
 
         radius_at_depth = depth * self._depth_to_radius
-        return (to_point - depth * self.direction).length > radius_at_depth
+        width = (to_point - depth * self.direction).length
+
+        return width < radius_at_depth
 
 
-class SpatialEvent:
+class SensoryLink:
 
-    def __init__(self, event_type, position, distance, data, lifespan=1):
-        self.type = event_type
+    __slots__ = "position", "distance", "lifespan", "time_since_updated", "data", "is_new"
+
+    def __init__(self, position, distance, data, lifespan=1):
         self.position = position
         self.distance = distance
         self.data = data
@@ -147,7 +152,13 @@ class SpatialEvent:
         return self.time_since_updated > self.lifespan
 
     def __repr__(self):
-        return "<{} Event @ {}> : {}".format(SpatialEventType[self.type].capitalize(), self.distance, self.data)
+        return "<SensoryLink ({:.1f}m)> to {}".format(self.distance, self.data)
+
+
+class SightInterpreter:
+
+    def handle_visible_actors(self, actors):
+        pass
 
 
 class SoundSensor(Sensor, SignalListener):
@@ -157,7 +168,7 @@ class SoundSensor(Sensor, SignalListener):
 
         self.distance = 50
 
-        self._heard_sounds = []
+        self._pending_links = []
 
     @HearSoundSignal.on_global
     def hear_sound(self, sound):
@@ -173,22 +184,30 @@ class SoundSensor(Sensor, SignalListener):
 
         distance = (sound.bounds.origin - pawn_position).length
 
-        event = SpatialEvent(SpatialEventType.sound, sound.bounds.origin, distance, sound)
-        self._heard_sounds.append(event)
+        fact = SensoryLink(sound.bounds.origin, distance, sound)
+        self._pending_links.append(fact)
 
     def update(self, dt):
-        self.controller.fact_manager.facts.extend(self._heard_sounds)
-        self._heard_sounds.clear()
+        self.links.extend(self._pending_links)
+        self._pending_links.clear()
 
 
-class ViewSensor(Sensor):
+class SightSensor(Sensor):
 
     def __init__(self):
         super().__init__()
 
         self.view_cone = ViewCone(radians(30), 50)
 
-        self._seen_actors_to_events = {}
+        self._interpreters = set()
+
+    def add_interpreter(self, interpreter):
+        interpreter.sensor = self
+        self._interpreters.add(interpreter)
+
+    def remove_interpreter(self, interpreter):
+        interpreter.sensor = None
+        self._interpreters.remove(interpreter)
 
     def sample(self):
         controller = self.controller
@@ -204,14 +223,10 @@ class ViewSensor(Sensor):
         view_cone.origin = pawn_position
         view_cone.direction = pawn.transform.get_direction_vector(Axis.y)
 
-        seen_event = SpatialEventType.sight
-        seen_events = self._seen_actors_to_events
-        facts = self.controller.fact_manager.facts
-
-        not_updated_actors = set(seen_events)
-
+        visible_actors = []
         for actor in Actor.subclass_of_type(Actor):
             actor_position = actor.transform.world_position
+
             if actor_position not in view_cone:
                 continue
 
@@ -222,42 +237,65 @@ class ViewSensor(Sensor):
             if result.entity is not actor:
                 continue
 
-            distance = (actor_position - pawn_position).length
+            visible_actors.append(actor)
 
-            # Recall continuous events
-            try:
-                event = seen_events[actor]
-                event.position = actor_position
-                event.distance = distance
-                event.time_since_updated = 0.0
-
-                # Remove event
-                not_updated_actors.remove(actor)
-
-            except KeyError:
-                event = SpatialEvent(seen_event, actor_position, distance, actor)
-
-                # Add fact
-                facts.append(event)
-                seen_events[actor] = event
-
-        # Check for expired events
-        for actor in not_updated_actors:
-            event = seen_events[actor]
-
-            if event.expired:
-                del seen_events[actor]
+        for interpreter in self._interpreters:
+            interpreter.handle_visible_actors(visible_actors)
 
 
-class SpatialFactManager:
+class WMFact:
+    __slots__ = 'type', 'data', '_uncertainty_accumulator', 'confidence_period'
+
+    def __init__(self, fact_type):
+        self._uncertainty_accumulator = 0.0
+        self.confidence_period = 1.0
+        self.data = None
+        self.type = fact_type
+
+    @property
+    def confidence(self):
+        confidence = 1 - self._uncertainty_accumulator / self.confidence_period
+        return confidence if confidence > 0 else 0
+
+    def __repr__(self):
+        return "WMFact<{}>(confidence: {}, data: {})".format(self.type, self.confidence, self.data)
+
+
+class WorkingMemory:
 
     def __init__(self):
-        self.facts = []
-        self._key_func = attrgetter("distance")
+        self.facts = {}
+        self._key = attrgetter("confidence")
 
-    def update(self):
-        self.facts[:] = [f for f in self.facts if not f.expired]
-        self.facts.sort(key=self._key_func)
+    def add_fact(self, fact):
+        try:
+            facts = self.facts[fact.type]
 
-        for fact in self.facts:
-            fact.is_new = False
+        except KeyError:
+            facts = self.facts[fact.type] = set()
+
+        facts.add(fact)
+
+    def find_single_fact(self, fact_type):
+        facts = self.facts[fact_type]
+        return max(facts, key=self._key)
+
+    def remove_fact(self, fact):
+        facts = self.facts[fact.type]
+        facts.remove(fact)
+
+        if not facts:
+            del self.facts[fact.type]
+
+    def update(self, delta_time):
+        to_remove = []
+
+        for fact_type, facts in self.facts.items():
+            for fact in facts:
+                # Update confidence of fact
+                fact._uncertainty_accumulator += delta_time
+                if fact._uncertainty_accumulator > fact.confidence_period:
+                    to_remove.append(fact)
+
+        for fact in to_remove:
+            self.remove_fact(fact)

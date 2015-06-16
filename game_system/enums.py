@@ -2,7 +2,7 @@ from network.enums import Enumeration
 
 
 __all__ = ['PhysicsType', 'EvaluationState', 'CameraMode', 'MovementState', 'AIState', 'Axis', 'CollisionGroups',
-           'AnimationMode', 'AnimationBlend', 'CollisionState', 'InputButtons', 'AudioDistanceModel', 'ButtonState']
+           'AnimationMode', 'AnimationBlend', 'CollisionState', 'InputButtons', 'AudioDistanceModel', 'ButtonState',]
 
 
 class PhysicsType(Enumeration):
@@ -82,7 +82,3 @@ class ButtonState(Enumeration):
 
 class AudioDistanceModel(Enumeration):
     values = ('linear',)
-    
-    
-class SpatialEventType(Enumeration):
-    values = ('sound', 'sight')
