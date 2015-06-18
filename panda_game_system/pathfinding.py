@@ -1,4 +1,4 @@
-from game_system.pathfinding.algorithm import AStarNode, AStarAlgorithm
+from game_system.pathfinding.algorithm import AStarAlgorithm
 from game_system.geometry.utilities import quad_area
 from network.utilities import mean
 
@@ -38,16 +38,10 @@ class PandaNodePortal:
         return left, right
 
 
-class PandaNavmeshNode(AStarNode, PandaPolygon):
+class PandaNavmeshNode(PandaPolygon):
 
     def __init__(self, vertices):
         super().__init__(vertices)
-
-    def get_g_score_from(self, other):
-        return (other.position - self.position).length
-
-    def get_h_score_from(self, other):
-        return (other.position - self.position).length
 
     #@lru_cache()
     def get_portal_to(self, other):

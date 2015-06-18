@@ -224,17 +224,15 @@ class SightSensor(Sensor):
         view_cone.direction = pawn.transform.get_direction_vector(Axis.y)
 
         visible_actors = []
+        ray_test = pawn.physics.ray_test
         for actor in Actor.subclass_of_type(Actor):
             actor_position = actor.transform.world_position
 
             if actor_position not in view_cone:
                 continue
 
-            result = actor.physics.ray_test(actor_position, pawn_position)
+            result = ray_test(actor_position)
             if result is None:
-                continue
-
-            if result.entity is not actor:
                 continue
 
             visible_actors.append(actor)

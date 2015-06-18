@@ -3,7 +3,7 @@ from sys import float_info
 from logging import getLogger
 
 from game_system.enums import EvaluationState
-from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode
+from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
 from game_system.pathfinding.priority_queue import PriorityQueue
 
 
@@ -133,7 +133,7 @@ class Action:
         return True
 
 
-class GOAPAStarNode(AStarNode):
+class GOAPAStarNode:
 
     f_score = MAX_FLOAT
 
@@ -142,14 +142,6 @@ class GOAPAStarNode(AStarNode):
         self.goal_state = {}
 
         self.planner = planner
-
-    @property
-    def neighbours(self):
-        """Find neighbours of node, which fulfil unsatisfied state
-
-        :param node: node to evaluate
-        """
-        return self.planner.get_neighbour_nodes_for(self)
 
     @property
     def unsatisfied_keys(self):
@@ -179,13 +171,6 @@ class GOAPAStarGoalNode(GOAPAStarNode):
     def __repr__(self):
         return "<GOAPAStarGoalNode: {}>".format(self.goal_state)
 
-    def get_h_score_from(self, node):
-        """Rough estimate of cost of node, based upon satisfaction of goal state
-
-        :param node: node to evaluate heuristic
-        """
-        node.update_internal_states()
-        return len(node.unsatisfied_keys)
 
 
 @total_ordering
@@ -202,17 +187,6 @@ class GOAPAStarActionNode(GOAPAStarNode):
 
     def __repr__(self):
         return "<GOAPAStarActionNode {}>".format(self.action)
-
-    def get_g_score_from(self, node):
-        """Determine procedural (or static) cost of this action
-
-        :param node: node to move from (unused)
-        """
-        # Update world states
-        self.current_state.update(node.current_state)
-        self.goal_state.update(node.goal_state)
-
-        return self.action.cost
 
     def update_internal_states(self):
         """Update internal current and goal states, according to action effects and preconditions
@@ -264,8 +238,11 @@ class GOAPPlanner(AStarAlgorithm):
         goal_node.current_state = {k: blackboard.get(k) for k in goal_state}
         goal_node.goal_state = goal_state
 
-        a_star_path = self.find_path(goal_node)[:-1]
-        plan_steps = [(node.action, node.parent.goal_state) for node in a_star_path]
+        a_star_nodes = self.find_path(goal_node)
+        a_star_parents = iter(a_star_nodes)
+        next(a_star_parents)
+
+        plan_steps = [(node.action, parent.goal_state) for node, parent in zip(a_star_nodes, a_star_parents)]
 
         return GOAPActionPlan(controller, plan_steps)
 
@@ -278,39 +255,56 @@ class GOAPPlanner(AStarAlgorithm):
         if start is None:
             start = goal
 
-        start.f_score = 0
-        open_set = PriorityQueue(start, key=attrgetter("f_score"))
+        open_set = PriorityQueue()
+        open_set.add(start, 0)
 
-        is_finished = self.is_finished
+        is_complete = self.is_finished
+
+        get_g_score = self.get_g_score
+        get_h_score = self.get_h_score
+
+        f_scores = {start: 0}
+        g_scores = {start: 0}
+        path = {}
+
         while open_set:
             current = open_set.pop()
 
-            if is_finished(current, goal):
-                return self.reconstruct_path(current, goal)
+            if is_complete(current, goal, path):
+                return self.reconstruct_path(current, path, reverse_path=False)
 
-            current_parent = current.parent
-
-            for neighbour in current.neighbours:
-                if current_parent is neighbour:
-                    continue
-
-                tentative_g_score = current.g_score + neighbour.get_g_score_from(current)
-                h_score = goal.get_h_score_from(neighbour)
+            for neighbour in self.get_neighbours(current):
+                tentative_g_score = g_scores[current] + get_g_score(current, neighbour)
+                h_score = get_h_score(neighbour, goal)
                 f_score = tentative_g_score + h_score
 
-                if f_score >= neighbour.f_score:
+                if neighbour in f_scores and f_score >= f_scores[neighbour]:
                     continue
 
-                neighbour.g_score = tentative_g_score
-                neighbour.f_score = f_score
-                neighbour.h_score = h_score
+                g_scores[neighbour] = tentative_g_score
+                f_scores[neighbour] = f_score
 
-                open_set.add(neighbour)
-                neighbour.parent = current
+                open_set.add(neighbour, f_score)
+                path[neighbour] = current
 
         raise PathNotFoundException("Couldn't find path for given nodes")
 
-    def get_neighbour_nodes_for(self, node):
+    def get_g_score(self, node, neighbour):
+        """Determine procedural (or static) cost of this action
+
+        :param node: node to move from (unused)
+        """
+        # Update world states
+        neighbour.current_state.update(node.current_state)
+        neighbour.goal_state.update(node.goal_state)
+
+        return neighbour.action.cost
+
+    def get_h_score(self, node, goal):
+        node.update_internal_states()
+        return len(node.unsatisfied_keys)
+
+    def get_neighbours(self, node):
         """Return new nodes for given node which satisfy missing state
 
         :param node: node performing request
@@ -362,7 +356,7 @@ class GOAPPlanner(AStarAlgorithm):
 
         return mapping
 
-    def is_finished(self, node, goal):
+    def is_finished(self, node, goal, path):
         """Determine if the algorithm has completed
 
         :param node: current node
@@ -378,7 +372,8 @@ class GOAPPlanner(AStarAlgorithm):
         parent = None
         while node is not goal:
             action = node.action
-            parent = node.parent
+
+            parent = path[node]
             parent_goal_state = parent.goal_state
 
             if not action.validate_preconditions(world_state, parent_goal_state):
@@ -394,20 +389,6 @@ class GOAPPlanner(AStarAlgorithm):
 
         if parent and parent.satisfies_goal_state(world_state):
             return True
-
-    @staticmethod
-    def reconstruct_path(node, goal):
-        """Reconstruct path from parent tree
-
-        :param node: final node
-        :param goal: goal node
-        """
-        result = []
-        while node:
-            result.append(node)
-            node = node.parent
-
-        return result
 
 
 class GOAPPlannerFailedException(Exception):

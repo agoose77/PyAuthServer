@@ -4,10 +4,11 @@ from contextlib import contextmanager
 from network.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
+from network.tagged_delegate import FindByTag
 from network.logger import logger
 
 from game_system.animation import Animation
-from game_system.pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm, PathfinderAlgorithm
+from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, PathfinderAlgorithm
 from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.geometry.kdtree import KDTree
@@ -129,7 +130,7 @@ class PandaPhysicsInterface(PandaComponent):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
 
-    def ray_test(self, target, source=None, distance=None):
+    def ray_test(self, target, source=None, distance=None, ignore_self=True):
         """Perform a ray trace to a target
 
         :param target: target to trace towards
@@ -149,17 +150,22 @@ class PandaPhysicsInterface(PandaComponent):
 
         world = self._node.get_python_tag("world")
 
-        result = world.rayTestAll(tuple(source), tuple(target))
-        for result in result.get_hits():
-            hit_node = result.get_node()
+        query_result = world.rayTestAll(tuple(source), tuple(target))
+        sorted_hits = sorted(query_result.get_hits(), key=lambda h: h.get_hit_fraction())
 
-            if hit_node is not self._node:
-                hit_position = Vector(result.get_hit_pos())
-                hit_entity = self.entity_from_nodepath(hit_node)
-                hit_distance = (hit_position - source).length
-                hit_normal = Vector(result.get_hit_normal())
+        for hit_result in sorted_hits:
+            hit_node = hit_result.get_node()
 
-                return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
+            hit_entity = self.entity_from_nodepath(hit_node)
+
+            if ignore_self and hit_entity is self._entity:
+                continue
+
+            hit_position = Vector(hit_result.get_hit_pos())
+            hit_distance = (hit_position - source).length
+            hit_normal = Vector(hit_result.get_hit_normal())
+
+            return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
 
     @property
     def type(self):
@@ -354,7 +360,7 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
         direction[axis] = 1
 
         rotation = self._nodepath.getQuat()
-        rotation.xform(direction)
+        direction = rotation.xform(direction)
 
         return Vector(direction)
 
@@ -386,7 +392,7 @@ class PandaNavmeshInterface(PandaComponent):
 
         self.kd_tree = KDTree(node_positions, 2)
 
-        self._astar = AStarAlgorithm()
+        self._astar = NavmeshAStarAlgorithm()
         self._funnel = FunnelAlgorithm()
         self.path_finder = PathfinderAlgorithm(self._astar, self._funnel, self._find_node_from_point)
 
@@ -469,6 +475,7 @@ class PandaNavmeshInterface(PandaComponent):
             triangle_neighbours[triangle] = neighbours
 
         return triangle_neighbours
+
 
 @with_tag("Panda")
 class PandaComponentLoader(ComponentLoader):

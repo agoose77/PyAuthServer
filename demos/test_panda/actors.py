@@ -129,13 +129,13 @@ class Map(Actor):
 
     def create_object(self):
         from panda3d.core import Filename, NodePath
-        from panda3d.bullet import BulletRigidBodyNode, BulletPlaneShape, BulletTriangleMesh, BulletTriangleMeshShape
+        from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMesh, BulletTriangleMeshShape
 
         from game_system.resources import ResourceManager
         f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["Map"]["map.egg"]))
         model = loader.loadModel(f)
 
-        bullet_node = BulletRigidBodyNode("BulletPlane")
+        bullet_node = BulletRigidBodyNode("MapCollision")
         bullet_nodepath = NodePath(bullet_node)
         mesh = BulletTriangleMesh()
 
@@ -304,7 +304,7 @@ class AmmoPickup(Actor):
         f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["AmmoPickup"]["Cube.egg"]))
         model = loader.loadModel(f)
 
-        bullet_node = BulletRigidBodyNode("BulletPlane")
+        bullet_node = BulletRigidBodyNode("AmmoPickup")
         bullet_nodepath = NodePath(bullet_node)
 
         shape = BulletBoxShape((1, 1, 1))
@@ -371,6 +371,7 @@ class Zombie(Pawn):
         self.animation_fsm.add_state(ZombieIdleState(self))
         self.animation_fsm.add_state(ZombieWalkState(self))
 
+
     @LogicUpdateSignal.on_global
     def on_update(self, dt):
         if self.physics.world_velocity.xy.length > 0.1:
@@ -417,7 +418,7 @@ class TestAI(Pawn):
     def create_object(self):
         from panda3d.core import Filename, NodePath
         from direct.actor.Actor import Actor
-        from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape, BulletCapsuleShape
+        from panda3d.bullet import BulletRigidBodyNode, BulletCapsuleShape
 
         from game_system.resources import ResourceManager
         f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["TestAI"]["lp_char_bs.egg"]))
@@ -428,15 +429,16 @@ class TestAI(Pawn):
 
         bullet_node.set_angular_factor((0, 0, 1))
 
-        #shape = BulletBoxShape((0.3, 0.3, 1))
-        shape = BulletCapsuleShape(0.3, 1, 2)
+        shape = BulletCapsuleShape(0.3, 1.4, 2)
         bullet_node.addShape(shape)
         bullet_node.setMass(1.0)
 
         model.reparentTo(bullet_nodepath)
         model.set_hpr(180, 0, 0)
         model.set_pos(0, 0, -1)
+
         bullet_nodepath.set_python_tag("actor", model)
+
         return bullet_nodepath
 
     def on_initialised(self):
@@ -445,6 +447,8 @@ class TestAI(Pawn):
         self.animation_fsm = FiniteStateMachine()
         self.animation_fsm.add_state(AIIdleState(self))
         self.animation_fsm.add_state(AIWalkState(self))
+
+        self.walk_speed = 2
 
     @LogicUpdateSignal.on_global
     def on_update(self, dt):

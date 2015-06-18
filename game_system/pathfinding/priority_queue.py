@@ -14,17 +14,9 @@ class PriorityElement:
 
 class PriorityQueue:
 
-    def __init__(self, *items, key=None):
+    def __init__(self):
         self._dict = {}
         self._heap = []
-
-        if key is None:
-            key = lambda x: x
-
-        self._key = key
-
-        for item in items:
-            self.add(item)
 
     def __bool__(self):
         return bool(self._dict)
@@ -35,11 +27,11 @@ class PriorityQueue:
     def __iter__(self):
         return iter(self._dict)
 
-    def add(self, item):
+    def add(self, item, score):
         if item in self._dict:
             raise ValueError("{} already in queue".format(item))
 
-        element = PriorityElement(item, self._key(item))
+        element = PriorityElement(item, score)
         self._dict[item] = element
         heappush(self._heap, element)
 

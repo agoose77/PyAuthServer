@@ -10,7 +10,7 @@ from .priority_queue import PriorityQueue
 from network.iterators import look_ahead
 
 __all__ = "Funnel", "PathNotFoundException", "AlgorithmNotImplementedException", "AStarAlgorithm", "FunnelAlgorithm", \
-          "PathfinderAlgorithm"
+          "PathfinderAlgorithm", "NavmeshAStarAlgorithm"
 
 
 forward_vector = Vector((0, 1, 0))
@@ -89,36 +89,34 @@ class AlgorithmNotImplementedException(Exception):
     pass
 
 
-class AStarNode:
-
-    g_score = 0
-    f_score = 0
-
-    parent = None
-
-    def get_g_score_from(self, other):
-        raise NotImplementedError
-
-    def get_h_score_from(self, other):
-        raise NotImplementedError
-
-
 class AStarAlgorithm:
 
     def __init__(self):
         self.is_admissible = True
 
-    def is_finished(self, goal, current):
+    def is_finished(self, goal, current, path):
         return current is goal
 
     @staticmethod
-    def reconstruct_path(node, goal):
-        result = []
-        while node:
-            result.append(node)
-            node = node.parent
+    def reconstruct_path(node, path, reverse_path=True):
+        """Reconstruct path from parent tree
 
-        result.reverse()
+        :param node: final node
+        :param goal: goal node
+        """
+        result = []
+
+        try:
+            while True:
+                result.append(node)
+                node = path[node]
+
+        except KeyError:
+            pass
+
+        if reverse_path:
+            result.reverse()
+
         return result
 
     def find_path(self, goal, start=None):
@@ -130,70 +128,113 @@ class AStarAlgorithm:
 
         return self.inadmissible_find_path(start, goal)
 
+    def get_neighbours(self, node):
+        raise NotImplementedError
+
+    def get_g_score(self, node, neighbour):
+        raise NotImplementedError
+
+    def get_h_score(self, node, goal):
+        raise NotImplementedError
+
     def admissible_find_path(self, start, goal):
-        open_set = PriorityQueue(start, key=attrgetter("f_score"))
+        open_set = PriorityQueue()
+        open_set.add(start, 0)
+
         closed_set = set()
 
         is_complete = self.is_finished
-        get_heuristic = goal.get_h_score_from
+
+        get_g_score = self.get_g_score
+        get_h_score = self.get_h_score
+
+        f_scores = {start: 0}
+        g_scores = {start: 0}
+        path = {}
+
         while open_set:
             current = open_set.pop()
             closed_set.add(current)
 
-            if is_complete(current, goal):
-                return self.reconstruct_path(current, goal)
+            if is_complete(current, goal, path):
+                reverse_path = start is not goal
+                return self.reconstruct_path(current, path, reverse_path)
 
-            for neighbor in current.neighbours:
-                tentative_g_score = current.g_score + neighbor.get_g_score_from(current)
+            for neighbour in self.get_neighbours(current):
+                if neighbour in closed_set:
+                    continue
 
-                tentative_is_better = tentative_g_score < neighbor.g_score
-                in_open = neighbor in open_set
-                in_closed = neighbor in closed_set
+                tentative_g_score = g_scores[current] + get_g_score(current, neighbour)
 
-                if in_open and tentative_is_better:
-                    open_set.remove(neighbor)
+                if neighbour in open_set and tentative_g_score < g_scores[neighbour]:
+                    open_set.remove(neighbour)
 
-                if not in_open and not in_closed:
-                    neighbor.parent = current
-                    neighbor.g_score = tentative_g_score
-                    neighbor.f_score = tentative_g_score + get_heuristic(neighbor)
+                if neighbour not in open_set:
+                    path[neighbour] = current
 
-                    open_set.add(neighbor)
+                    f_score = tentative_g_score + get_h_score(neighbour, goal)
+
+                    g_scores[neighbour] = tentative_g_score
+                    f_scores[neighbour] = f_score
+
+                    open_set.add(neighbour, f_score)
 
     def inadmissible_find_path(self, start, goal):
-        open_set = PriorityQueue(start, key=attrgetter("f_score"))
+        open_set = PriorityQueue()
+        open_set.add(start, 0)
+
         closed_set = set()
 
         is_complete = self.is_finished
-        get_heuristic = goal.get_h_score_from
+
+        get_g_score = self.get_g_score
+        get_h_score = self.get_h_score
+
+        f_scores = {start: 0}
+        g_scores = {start: 0}
+        path = {}
+
         while open_set:
             current = open_set.pop()
             closed_set.add(current)
 
             if is_complete(current, goal):
-                return self.reconstruct_path(current, goal)
+                reverse_path = start is not goal
+                return self.reconstruct_path(current, path, reverse_path)
 
-            for neighbor in current.neighbours:
-                tentative_g_score = current.g_score + neighbor.get_g_score_from(current)
+            for neighbour in self.get_neighbours(current):
+                tentative_g_score = g_scores[current] + get_g_score(current, neighbour)
 
-                tentative_is_better = tentative_g_score < neighbor.g_score
-                in_open = neighbor in open_set
-                in_closed = neighbor in closed_set
+                if neighbour in g_scores and tentative_g_score < g_scores[neighbour]:
+                    if neighbour in open_set:
+                        open_set.remove(neighbour)
 
-                if in_open and tentative_is_better:
-                    open_set.remove(neighbor)
+                    if neighbour in closed_set:
+                        closed_set.remove(neighbour)
 
-                if in_closed and tentative_is_better:
-                    closed_set.remove(neighbor)
+                if not (neighbour in closed_set or neighbour in open_set):
+                    path[neighbour] = current
 
-                if not in_open and not in_closed:
-                    neighbor.parent = current
-                    neighbor.g_score = tentative_g_score
-                    neighbor.f_score = tentative_g_score + get_heuristic(neighbor)
+                    f_score = tentative_g_score + get_h_score(neighbour, goal)
 
-                    open_set.add(neighbor)
+                    g_scores[neighbour] = tentative_g_score
+                    f_scores[neighbour] = f_score
+
+                    open_set.add(neighbour, f_score)
 
         raise PathNotFoundException("Couldn't find path for given nodes")
+
+
+class NavmeshAStarAlgorithm(AStarAlgorithm):
+
+    def get_neighbours(self, node):
+        return node.neighbours
+
+    def get_g_score(self, node, neighbour):
+        return (neighbour.position - node.position).length
+
+    def get_h_score(self, node, goal):
+        return (goal.position - node.position).length
 
 
 class FunnelAlgorithm:
