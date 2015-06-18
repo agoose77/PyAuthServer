@@ -38,7 +38,7 @@ class TestPandaPlayerController(PlayerPawnController):
         pawn = self.pawn
         if pawn is None:
             return
-
+        print("PRC")
         y_speed = 15
         x_speed = 8
         turn_speed = 3
@@ -86,7 +86,7 @@ class GOTOState(State):
         self.request = None
 
         self.waypoint_margin = 0.5
-        self.target_margin = 2
+        self.target_margin = 1.5
 
         self._path_node = None
 
@@ -111,6 +111,17 @@ class GOTOState(State):
 
         node = segments.create()
         self._path_node = render.attach_new_node(node)
+        self._replan_timer = Timer(1.5)
+        self._replan_timer.on_target = self._replan
+
+    def _replan(self):
+        if self.request is None:
+            return
+
+        try:
+            del self.request._path
+        except AttributeError:
+            return
 
     def update(self):
         request = self.request
@@ -137,21 +148,24 @@ class GOTOState(State):
 
         self.draw_path(pawn_position[:], path)
 
-        target_distance = (target_position - pawn_position).length
+        target_distance = (target_position.xy - pawn_position.xy).length
 
         while path:
             waypoint_position = path[0]
-            to_waypoint = waypoint_position - pawn_position
+
+            to_waypoint = (waypoint_position - pawn_position)
+            to_waypoint.z = 0.0
 
             # Update request
-            distance = to_waypoint.xy.length
+            distance = to_waypoint.length
             request.distance_to_target = distance
-
+            print(distance)
             if distance < self.waypoint_margin:
                 path[:] = path[1:]
 
             else:
                 pawn.physics.world_velocity = to_waypoint.normalized() * pawn.walk_speed
+                pawn.physics.world_angular = Vector()
 
                 if target_distance > self.target_margin:
                     return

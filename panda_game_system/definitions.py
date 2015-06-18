@@ -377,7 +377,8 @@ class PandaNavmeshInterface(PandaComponent):
         super().__init__()
 
         self._entity = entity
-        nodepath.hide()
+      #  nodepath.hide()
+        nodepath.set_render_mode_wireframe()
 
         geom_nodepath = nodepath.find('**/+GeomNode')
         geom = geom_nodepath.node().get_geom(0)
@@ -397,6 +398,11 @@ class PandaNavmeshInterface(PandaComponent):
         self.path_finder = PathfinderAlgorithm(self._astar, self._funnel, self._find_node_from_point)
 
     def _find_node_from_point(self, point):
+        for node in self.nodes:
+            if point in node:
+                return node
+
+        # Fallback
         nearest_kdnode = self.kd_tree.nn_search(point, 1)[1]
         return nearest_kdnode.position.data
 

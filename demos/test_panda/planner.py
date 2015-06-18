@@ -43,7 +43,7 @@ class GetNearestAmmoPickup(Action):
             return
 
         controller.blackboard["ammo"] += request.target.ammo
-        request.target.deregister()
+        #request.target.deregister()
 
         # Apply to world state
         self.apply_effects(controller.blackboard, goal_state)

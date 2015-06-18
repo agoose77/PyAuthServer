@@ -23,7 +23,7 @@ def total_ordering(cls):
                    ('__lt__', lambda self, other: not other <= self),
                    ('__gt__', lambda self, other: not self <= other)],
         '__gt__': [('__lt__', lambda self, other: other > self),
-                   ('__ge__', lambda self, other: not  other > self),
+                   ('__ge__', lambda self, other: not other > self),
                    ('__le__', lambda self, other: not self > other)],
         '__ge__': [('__le__', lambda self, other: other >= self),
                    ('__gt__', lambda self, other: not other >= self),
@@ -31,6 +31,7 @@ def total_ordering(cls):
     }
     if hasattr(object, '__lt__'):
         roots = [op for op in convert if getattr(cls, op) is not getattr(object, op)]
+
     else:
         roots = set(dir(cls)) & set(convert)
 
@@ -170,7 +171,6 @@ class GOAPAStarGoalNode(GOAPAStarNode):
 
     def __repr__(self):
         return "<GOAPAStarGoalNode: {}>".format(self.goal_state)
-
 
 
 @total_ordering

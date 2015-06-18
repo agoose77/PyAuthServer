@@ -246,7 +246,7 @@ class Pawn(Actor):
 
         # These will be explicitly set
         if is_complaint:
-            yield "weapon_attachment_class"
+            #yield "weapon_attachment_class"
             yield "alive"
             yield "info"
 

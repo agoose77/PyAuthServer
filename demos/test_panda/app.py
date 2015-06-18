@@ -36,8 +36,11 @@ class Rules(ReplicationRulesBase):
         replicable.deregister()
 
     def post_initialise(self, replication_stream):
+        pawn = TestActor()
+        pawn.transform.world_position = [-3, -10, 1]
+
         cont = TestPandaPlayerController()
-        cont.possess(TestActor())
+        cont.possess(pawn)
         return cont
 
     def is_relevant(self, connection, replicable):
@@ -53,8 +56,6 @@ class Rules(ReplicationRulesBase):
 
 def setup_map():
     floor = Map()
-    floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
-    #floor.transform._nodepath.set_scale(10)
     floor.physics.mass = 0.0
     floor.mass = 0.0
 
@@ -63,14 +64,15 @@ def setup_map():
     pickup = AmmoPickup()
     pickup.transform.world_position = [4, 5, 1]
     pickup.physics.mass = 0.0
+    #
+    # pawn = TestAI()
+    # pawn.transform.world_position = [-3, -10, 1]
+    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
+    #
+    # cont = TestAIController()
+    # cont.possess(pawn)
 
-    pawn = TestAI()
-    pawn.transform.world_position = [-3, -10, 1]
-    pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
-
-    cont = TestAIController()
-    cont.possess(pawn)
-
+    # AI 2
     pawn = TestAI()
     pawn.transform.world_position = [3, -11, 1]
     pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
@@ -79,6 +81,12 @@ def setup_map():
     cont.possess(pawn)
 
 
+def setup_camera():
+    base.cam.set_pos((0, -45, 10))
+    base.cam.set_hpr(0, -10, 0)
+
+
+def setup_lighting():
     from panda3d.core import DirectionalLight, Vec4
     # Directional light 01
     directionalLight = DirectionalLight('directionalLight')
@@ -88,16 +96,45 @@ def setup_map():
     directionalLightNP.setHpr(180, -20, 0)
     render.setLight(directionalLightNP)
 
-
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
-        base.cam.set_pos((0, -45, 10))
-        base.cam.set_hpr(0, -10, 0)
         setup_map()
 
     else:
         Connection.create_connection("localhost", 1200)
 
+    setup_camera()
+    setup_lighting()
+
+    from direct.showbase import DirectObject
+    class Obj(DirectObject.DirectObject) :
+
+        def __init__(self):
+            super().__init__()
+
+            self.accept("mouse1",self.pick)
+
+        def pick(self):
+            from network.replicable import Replicable
+            from game_system.coordinates import Vector
+
+            pickup = Replicable.subclass_of_type(AmmoPickup).copy().pop()
+
+            from panda3d.core import Point3
+            pMouse = base.mouseWatcherNode.getMouse()
+            pFrom = Point3()
+            pTo = Point3()
+            base.camLens.extrude(pMouse, pFrom, pTo)
+
+            # Transform to global coordinates
+            source = render.getRelativePoint(base.cam, pFrom)
+            dest = render.getRelativePoint(base.cam, pTo)
+
+            position = Vector(base.physics_system.world.rayTestClosest(source, dest).get_hit_pos())
+
+            pickup.transform.world_position = position
+
+    Obj()
 
 def run(mode):
     try:
@@ -115,16 +152,6 @@ def run(mode):
 
     game_loop = cls()
     init_game()
-
-    # model = loader.loadModel(f)
-    # model.reparentTo(base.render)
-    #
-    # from panda3d.core import PointLight
-    # plight = PointLight('plight')
-    # plight.setColor((1, 1, 1, 1))
-    # plnp = render.attachNewNode(plight)
-    # plnp.setPos(10, 20, 0)
-    # render.setLight(plnp)
 
     game_loop.delegate()
     del game_loop
