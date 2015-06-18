@@ -1,7 +1,7 @@
 from collections import namedtuple
 from operator import attrgetter
 
-from ..geometry.utilities import triangle_area_squared
+from ..geometry.utilities import quad_area
 from ..coordinates import Vector
 from ..iterators import BidirectionalIterator
 
@@ -47,10 +47,10 @@ class Funnel:
         # Increment index and then return entry at index
         for portal in portals:
             # Check if left is inside of left margin
-            if triangle_area_squared(self.apex, self.left, portal.left) >= 0.0:
+            if quad_area(self.apex, self.left, portal.left) >= 0.0:
                 # Check if left is inside of right margin or
                 # we haven't got a proper funnel
-                if self.apex == self.left or (triangle_area_squared(self.apex, self.right, portal.left) < 0.0):
+                if self.apex == self.left or (quad_area(self.apex, self.right, portal.left) < 0.0):
                     # Narrow funnel
                     self.left = portal.left
                     left_index = portals.index
@@ -64,10 +64,10 @@ class Funnel:
                     continue
 
             # Check if right is inside of right margin
-            if triangle_area_squared(self.apex, self.right, portal.right) <= 0.0:
+            if quad_area(self.apex, self.right, portal.right) <= 0.0:
                 # Check if right is inside of left margin or
                 # we haven't got a proper funnel
-                if self.apex == self.right or (triangle_area_squared(self.apex, self.left, portal.right) > 0.0):
+                if self.apex == self.right or (quad_area(self.apex, self.left, portal.right) > 0.0):
                     # Narrow funnel
                     self.right = portal.right
                     right_index = portals.index
@@ -99,9 +99,6 @@ class AStarNode:
     def get_g_score_from(self, other):
         raise NotImplementedError
 
-
-class AStarGoalNode(AStarNode):
-
     def get_h_score_from(self, other):
         raise NotImplementedError
 
@@ -109,10 +106,10 @@ class AStarGoalNode(AStarNode):
 class AStarAlgorithm:
 
     def __init__(self):
-        pass
+        self.is_admissible = True
 
     def is_finished(self, goal, current):
-        raise NotImplementedError
+        return current is goal
 
     @staticmethod
     def reconstruct_path(node, goal):
@@ -128,12 +125,47 @@ class AStarAlgorithm:
         if start is None:
             start = goal
 
+        if self.is_admissible:
+            return self.admissible_find_path(start, goal)
+
+        return self.inadmissible_find_path(start, goal)
+
+    def admissible_find_path(self, start, goal):
         open_set = PriorityQueue(start, key=attrgetter("f_score"))
         closed_set = set()
 
         is_complete = self.is_finished
         get_heuristic = goal.get_h_score_from
+        while open_set:
+            current = open_set.pop()
+            closed_set.add(current)
 
+            if is_complete(current, goal):
+                return self.reconstruct_path(current, goal)
+
+            for neighbor in current.neighbours:
+                tentative_g_score = current.g_score + neighbor.get_g_score_from(current)
+
+                tentative_is_better = tentative_g_score < neighbor.g_score
+                in_open = neighbor in open_set
+                in_closed = neighbor in closed_set
+
+                if in_open and tentative_is_better:
+                    open_set.remove(neighbor)
+
+                if not in_open and not in_closed:
+                    neighbor.parent = current
+                    neighbor.g_score = tentative_g_score
+                    neighbor.f_score = tentative_g_score + get_heuristic(neighbor)
+
+                    open_set.add(neighbor)
+
+    def inadmissible_find_path(self, start, goal):
+        open_set = PriorityQueue(start, key=attrgetter("f_score"))
+        closed_set = set()
+
+        is_complete = self.is_finished
+        get_heuristic = goal.get_h_score_from
         while open_set:
             current = open_set.pop()
             closed_set.add(current)

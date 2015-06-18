@@ -131,7 +131,7 @@ class GOTOState(State):
         distance = to_target.xy.length
         request.distance_to_target = distance
 
-        if distance < 4:
+        if distance < 2:
             request.status = EvaluationState.success
             pawn.physics.world_velocity = to_target * 0
 

@@ -199,18 +199,20 @@ class Camera(Actor):
         return self.camera.is_sphere_in_frustum(actor.world_position, radius)
 
 
-class Navmesh(Actor):
+class Navmesh(ComponentEntity, Replicable):
 
-    component_tags = Actor.component_tags + ("navmesh",)
+    component_tags = "transform", "navmesh"
 
     roles = Attribute(Roles(Roles.authority, Roles.none))
 
     def on_initialised(self):
         super().on_initialised()
 
-        self.find_node = self.navmesh.find_node
-        self.find_low_resolution_path = AStarAlgorithm().find_path
-        self.find_high_resolution_path = partial(FunnelAlgorithm().find_path, nodes=self.navmesh.nodes)
+        self.load_components()
+
+        #self.find_node = self.navmesh.find_node
+        # self.find_low_resolution_path = AStarAlgorithm().find_path
+        # self.find_high_resolution_path = partial(FunnelAlgorithm().find_path, nodes=self.navmesh.nodes)
 
 
 class Pawn(Actor):

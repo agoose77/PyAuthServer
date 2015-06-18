@@ -90,23 +90,23 @@ class GetNearestAmmoPickup(Action):
         goto_state = blackboard.fsm.states['GOTO']
         return goto_state.request.status
 
-
-class KillEnemyGoal(Goal):
-    """Kill enemy if target exists"""
-    state = {"target_is_dead": True}
-
-    def get_relevance(self, blackboard):
-        if blackboard["target"] is not None:
-            return 0.7
-
-        return 0.0
-
-
-class ReloadWeaponGoal(Goal):
-    """Reload weapon if not loaded"""
-
-    priority = 0.45
-    state = {"weapon_is_loaded": True}
+#
+# class KillEnemyGoal(Goal):
+#     """Kill enemy if target exists"""
+#     state = {"target_is_dead": True}
+#
+#     def get_relevance(self, blackboard):
+#         if blackboard["target"] is not None:
+#             return 0.7
+#
+#         return 0.0
+#
+#
+# class ReloadWeaponGoal(Goal):
+#     """Reload weapon if not loaded"""
+#
+#     priority = 0.45
+#     state = {"weapon_is_loaded": True}
 
 
 class GOTOState(State):
@@ -207,9 +207,35 @@ class WeaponFireManager:
 #             blackboard['target'] = self.get_closest_enemy()
 
 
+class GetWood(Action):
+    effects = {"has_firewood": True}
+    preconditions = {"near_item": "woods", "has_axe": True}
+
+
+class GetAxe(Action):
+    effects = {"has_axe": True}
+    preconditions = {"near_item": "axe"}
+
+
+from game_system.ai.planning.goap import Variable
+class GOTONearItem(Action):
+    effects = {"near_item": Variable("near_item")}
+
+
+class CollectBranches(Action):
+    effects = {"has_firewood": True}
+    preconditions = {"near_item": "sticks"}
+    cost = 7
+
+
+class GetFirewoodGoal(Goal):
+    state = {"has_firewood": True}
+    priority = 0.5
+
 
 class Controller:
     blackboard = {'target': "some tar", 'weapon_is_loaded': False, 'has_ammo': False}
+    blackboard.update(dict(has_axe=False, has_firewood=False, near_item=None))
 
     actions = [c() for c in Action.__subclasses__()]
     goals = [c() for c in Goal.__subclasses__()]

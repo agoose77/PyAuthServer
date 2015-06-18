@@ -7,18 +7,21 @@ from network.tagged_delegate import FindByTag
 from network.logger import logger
 
 from game_system.animation import Animation
+from game_system.pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm, PathfinderAlgorithm
 from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
+from game_system.geometry.kdtree import KDTree
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.level_manager import LevelManager
 from game_system.physics import CollisionResult, CollisionContact, RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 from game_system.resources import ResourceManager
 
+from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 
 from panda3d.bullet import BulletRigidBodyNode
-from panda3d.core import Filename, Vec3
+from panda3d.core import Filename, Vec3, GeomVertexReader
 from os import path
 from math import radians, degrees
 
@@ -355,6 +358,117 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
 
         return Vector(direction)
 
+
+class BoundVector(Vector):
+
+    data = None
+
+
+@with_tag("navmesh")
+class PandaNavmeshInterface(PandaComponent):
+
+    def __init__(self, config_section, entity, nodepath):
+        super().__init__()
+
+        self._entity = entity
+        nodepath.hide()
+
+        geom_nodepath = nodepath.find('**/+GeomNode')
+        geom = geom_nodepath.node().get_geom(0)
+
+        self.nodes = self.parse_geom(geom)
+        self.node_positions = node_positions = []
+
+        for node in self.nodes:
+            bound_vector = BoundVector(node.position)
+            bound_vector.data = node
+            node_positions.append(bound_vector)
+
+        self.kd_tree = KDTree(node_positions, 2)
+
+        self._astar = AStarAlgorithm()
+        self._funnel = FunnelAlgorithm()
+        self.path_finder = PathfinderAlgorithm(self._astar, self._funnel, self._find_node_from_point)
+
+    def _find_node_from_point(self, point):
+        nearest_kdnode = self.kd_tree.nn_search(point, 1)[1]
+        return nearest_kdnode.position.data
+
+    def find_path(self, from_point, to_point):
+        return self.path_finder.find_path(from_point, to_point)
+
+    @classmethod
+    def parse_geom(cls, geom):
+        primitive = geom.get_primitives()[0]
+        vertex_data = geom.get_vertex_data()
+
+        vertex_reader = GeomVertexReader(vertex_data, 'vertex')
+        triangle_count = primitive.get_num_primitives()
+
+        triangles = []
+        vertex_positions = {}
+
+        # Get triangles and vertex positions
+        for triangle_index in range(triangle_count):
+            start_index = primitive.get_primitive_start(triangle_index)
+            end_index = primitive.get_primitive_end(triangle_index)
+
+            vertex_indices = []
+            for i in range(start_index, end_index):
+                vertex_index = primitive.get_vertex(i)
+
+                vertex_reader.set_row(vertex_index)
+                vertex_position = Vector(vertex_reader.getData3f())
+
+                vertex_positions[vertex_index] = vertex_position
+                vertex_indices.append(vertex_index)
+
+            triangles.append(tuple(vertex_indices))
+
+        triangles_to_neighbours = cls.build_neighbours(triangles)
+        return cls.build_nodes(triangles_to_neighbours, vertex_positions)
+
+    @staticmethod
+    def build_nodes(triangles_to_neighbours, vertex_positions):
+        triangles_to_polygons = {triangle: PandaNavmeshNode([vertex_positions[i] for i in triangle])
+                                 for triangle in triangles_to_neighbours}
+        polygons = []
+
+        for triangle, polygon in triangles_to_polygons.items():
+            # Get neighbours
+            for neighbour in triangles_to_neighbours[triangle]:
+                # Add neighbour to neighbour list
+                neighbour_polygon = triangles_to_polygons[neighbour]
+                polygon.neighbours.add(neighbour_polygon)
+
+            polygons.append(polygon)
+
+        return polygons
+
+    @staticmethod
+    def slice_triangles(vertices):
+        triangles = []
+        for i in range(0, len(vertices), 3):
+            try:
+                triangle = tuple(vertices[i: i + 3])
+
+            except IndexError:
+                break
+
+            triangles.append(triangle)
+
+        return triangles
+
+    @staticmethod
+    def build_neighbours(triangles):
+        triangle_sets = [set(t) for t in triangles]
+        triangle_neighbours = {}
+
+        for triangle, triangle_set in zip(triangles, triangle_sets):
+            neighbours = [t for t, t_set in zip(triangles, triangle_sets) if len(t_set & triangle_set) == 2]
+            triangle_neighbours[triangle] = neighbours
+
+        return triangle_neighbours
 
 @with_tag("Panda")
 class PandaComponentLoader(ComponentLoader):

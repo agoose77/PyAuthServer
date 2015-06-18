@@ -121,6 +121,64 @@ class Plane(Actor):
         return
 
 
+class Map(Actor):
+    mass = Attribute(1.0, notify=True)
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+
+    replicate_physics_to_owner = False
+
+    def create_object(self):
+        from panda3d.core import Filename, NodePath
+        from panda3d.bullet import BulletRigidBodyNode, BulletPlaneShape, BulletTriangleMesh, BulletTriangleMeshShape
+
+        from game_system.resources import ResourceManager
+        f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["Map"]["map.egg"]))
+        model = loader.loadModel(f)
+
+        bullet_node = BulletRigidBodyNode("BulletPlane")
+        bullet_nodepath = NodePath(bullet_node)
+        mesh = BulletTriangleMesh()
+
+        for geomNP in model.findAllMatches('**/+GeomNode'):
+            geomNode = geomNP.node()
+            ts = geomNode.getTransform()
+            for geom in geomNode.getGeoms():
+                mesh.addGeom(geom, True, ts)
+
+        shape = BulletTriangleMeshShape(mesh, dynamic=False)
+        bullet_node.addShape(shape)
+
+        model.reparentTo(bullet_nodepath)
+        return bullet_nodepath
+
+    def on_initialised(self):
+        super().on_initialised()
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        yield "mass"
+
+    def on_notify(self, name):
+        if name == "mass":
+            self.physics.mass = self.mass
+        else:
+            super().on_notify(name)
+
+    @simulated
+    @CollisionSignal.on_context
+    def on_collided(self, collision_result):
+        pass
+
+    @LogicUpdateSignal.on_global
+    def on_update(self, delta_time):
+
+        # new_pos = self.transform.world_position
+        # new_pos.z -= 1 / 200
+        # self.transform.world_position = new_pos
+        return
+
+
 class RocketBomb(Actor):
     mass = Attribute(1.0, notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
@@ -313,6 +371,80 @@ class Zombie(Pawn):
         self.animation_fsm.add_state(ZombieIdleState(self))
         self.animation_fsm.add_state(ZombieWalkState(self))
 
+    @LogicUpdateSignal.on_global
+    def on_update(self, dt):
+        if self.physics.world_velocity.xy.length > 0.1:
+            self.animation_fsm.state = self.animation_fsm.states["Walk"]
+
+        else:
+            self.animation_fsm.state = self.animation_fsm.states["Idle"]
+
+        self.animation_fsm.state.update(dt)
+
+
+class AIWalkState(State):
+
+    def __init__(self, pawn):
+        super().__init__("Walk")
+
+        self.pawn = pawn
+
+        self._animation_handle = None
+
+    def on_enter(self):
+        self._animation_handle = self.pawn.animation.play("walk_patrol", loop=True)
+
+    def on_exit(self):
+        self._animation_handle.stop()
+
+    def update(self, dt):
+        pass
+
+
+class AIIdleState(State):
+
+    def __init__(self, pawn):
+        super().__init__("Idle")
+
+        self.pawn = pawn
+
+    def update(self, dt):
+        pass
+
+
+class TestAI(Pawn):
+
+    def create_object(self):
+        from panda3d.core import Filename, NodePath
+        from direct.actor.Actor import Actor
+        from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape, BulletCapsuleShape
+
+        from game_system.resources import ResourceManager
+        f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["TestAI"]["lp_char_bs.egg"]))
+        model = Actor(f)
+
+        bullet_node = BulletRigidBodyNode("TestAIBulletNode")
+        bullet_nodepath = NodePath(bullet_node)
+
+        bullet_node.set_angular_factor((0, 0, 1))
+
+        #shape = BulletBoxShape((0.3, 0.3, 1))
+        shape = BulletCapsuleShape(0.3, 1, 2)
+        bullet_node.addShape(shape)
+        bullet_node.setMass(1.0)
+
+        model.reparentTo(bullet_nodepath)
+        model.set_hpr(180, 0, 0)
+        model.set_pos(0, 0, -1)
+        bullet_nodepath.set_python_tag("actor", model)
+        return bullet_nodepath
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.animation_fsm = FiniteStateMachine()
+        self.animation_fsm.add_state(AIIdleState(self))
+        self.animation_fsm.add_state(AIWalkState(self))
 
     @LogicUpdateSignal.on_global
     def on_update(self, dt):
@@ -323,3 +455,10 @@ class Zombie(Pawn):
             self.animation_fsm.state = self.animation_fsm.states["Idle"]
 
         self.animation_fsm.state.update(dt)
+
+
+from game_system.entities import Navmesh
+
+
+class TestNavmesh(Navmesh):
+    pass

@@ -3,7 +3,7 @@ from sys import float_info
 from logging import getLogger
 
 from game_system.enums import EvaluationState
-from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode, AStarGoalNode
+from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException, AStarNode
 from game_system.pathfinding.priority_queue import PriorityQueue
 
 
@@ -133,7 +133,7 @@ class Action:
         return True
 
 
-class GOAPAStarNode:
+class GOAPAStarNode(AStarNode):
 
     f_score = MAX_FLOAT
 
@@ -173,7 +173,7 @@ class GOAPAStarNode:
         return True
 
 
-class GOAPAStarGoalNode(GOAPAStarNode, AStarGoalNode):
+class GOAPAStarGoalNode(GOAPAStarNode):
     """A* Node associated with GOAP Goal"""
 
     def __repr__(self):
@@ -189,7 +189,7 @@ class GOAPAStarGoalNode(GOAPAStarNode, AStarGoalNode):
 
 
 @total_ordering
-class GOAPAStarActionNode(GOAPAStarNode, AStarNode):
+class GOAPAStarActionNode(GOAPAStarNode):
     """A* Node with associated GOAP action"""
 
     def __init__(self, planner, action):
@@ -225,11 +225,7 @@ class GOAPAStarActionNode(GOAPAStarNode, AStarNode):
         goal_state = self.goal_state
 
         # 1 Update current state from effects, resolve variables
-        for key in self.action.effects:
-            try:
-                value = self.goal_state[key]
-            except KeyError:
-                continue
+        for key, value in self.action.effects.items():
 
             if isinstance(value, Variable):
                 value = value.resolve(self.goal_state)
@@ -342,6 +338,7 @@ class GOAPPlanner(AStarAlgorithm):
             neighbours.extend(effect_neighbours)
 
         neighbours.sort(key=attrgetter("action.precedence"))
+
         return neighbours
 
     @staticmethod
@@ -375,7 +372,7 @@ class GOAPPlanner(AStarAlgorithm):
         controller = self.controller
         blackboard = controller.blackboard
 
-        # Get world state values of node final state
+        # Get world state values of node final state, goal
         world_state = {key: blackboard[key] for key in node.current_state}
 
         parent = None
@@ -573,7 +570,7 @@ class GOAPActionPlanManager:
         if self._current_plan is None:
             try:
                 self._current_plan = self.find_best_plan()
-
+                print(self._current_plan)
             except GOAPPlannerFailedException as err:
                 self.logger.info(err)
 
