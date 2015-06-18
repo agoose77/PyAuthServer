@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from game_system.geometry.utilities import triangle_area_squared
+from game_system.geometry.utilities import quad_area
 
 from .static import BGEMeshStatic, BGEPolygonStatic
 
@@ -19,8 +19,8 @@ class BGENodePortal:
         destination_position = self.destination.position
         first, second = [v for v in self.source.vertices if v in self.destination.vertices]
 
-        side_first = triangle_area_squared(source_position, destination_position, first)
-        side_second = triangle_area_squared(source_position, destination_position, second)
+        side_first = quad_area(source_position, destination_position, first)
+        side_second = quad_area(source_position, destination_position, second)
 
         mapping = {side_first: first, side_second: second}
 

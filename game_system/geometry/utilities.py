@@ -1,6 +1,6 @@
 from itertools import cycle
 
-__all__ = ["triangle_area_squared", "point_in_polygon"]
+__all__ = ["quad_area", "point_in_polygon"]
 
 
 def point_in_polygon(point, vertex_positions):
@@ -29,8 +29,8 @@ def point_in_polygon(point, vertex_positions):
     return odd_nodes
 
 
-def triangle_area_squared(a, b, c):
-    """Determine the area occupied by a three vertex triangle
+def quad_area(a, b, c):
+    """Determine the double of the area occupied by a three vertex triangle
 
     :param a: named container x, y
     :param c: named container x, y
@@ -39,4 +39,4 @@ def triangle_area_squared(a, b, c):
     side_a = b - a
     side_b = c - a
 
-    return (side_b.x * side_a.y) * (side_a.x - side_b.y)
+    return (side_b.x * side_a.y) - (side_a.x * side_b.y)
