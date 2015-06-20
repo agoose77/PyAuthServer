@@ -1,8 +1,7 @@
 from collections import defaultdict
 
 from game_system.coordinates import Vector
-
-from .. import point_in_polygon
+from game_system.geometry.utilities import point_in_polygon
 
 
 class BGEPolygonStatic:

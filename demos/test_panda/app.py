@@ -3,7 +3,6 @@ try:
 
 except ImportError:
     from panda_game_system.game_loop import Client, Server
-    from .ui import UI; UI()
 
 else:
     from bge_game_system.game_loop import Client, Server
@@ -13,15 +12,16 @@ from network.world_info import WorldInfo
 from network.rules import ReplicationRulesBase
 from network.enums import Netmodes
 
-from game_system.controllers import PawnController, AIPawnController
+from game_system.controllers import PawnController
 from game_system.clock import Clock
 from game_system.entities import Actor
-from game_system.ai.sensors import SightSensor
-from game_system.ai.working_memory import WMFact
 from game_system.replication_info import ReplicationInfo
 
 from .actors import *
-from .controllers import TestPandaPlayerController
+from .controllers import TestPandaPlayerController, TestAIController
+
+from math import radians
+from game_system.coordinates import Euler
 
 
 classes = dict(server=Server, client=Client)
@@ -36,8 +36,11 @@ class Rules(ReplicationRulesBase):
         replicable.deregister()
 
     def post_initialise(self, replication_stream):
+        pawn = TestActor()
+        pawn.transform.world_position = [-3, -10, 1]
+
         cont = TestPandaPlayerController()
-        cont.possess(TestActor())
+        cont.possess(pawn)
         return cont
 
     def is_relevant(self, connection, replicable):
@@ -51,92 +54,87 @@ class Rules(ReplicationRulesBase):
             return True
 
 
-from .planner import *
-from game_system.ai.sensors import SightInterpreter
+def setup_map():
+    floor = Map()
+    floor.physics.mass = 0.0
+    floor.mass = 0.0
+
+    navmesh = TestNavmesh()
+
+    pickup = AmmoPickup()
+    pickup.transform.world_position = [4, 5, 1]
+    pickup.physics.mass = 0.0
+    #
+    # pawn = TestAI()
+    # pawn.transform.world_position = [-3, -10, 1]
+    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
+    #
+    # cont = TestAIController()
+    # cont.possess(pawn)
+
+    # AI 2
+    pawn = TestAI()
+    pawn.transform.world_position = [3, -11, 1]
+    pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
+
+    cont = TestAIController()
+    cont.possess(pawn)
 
 
-class PickupInterpreter(SightInterpreter):
-
-    def __init__(self):
-        self.sensor = None
-
-    def handle_visible_actors(self, actors):
-        if not actors:
-            return
-
-        pawn = self.sensor.controller.pawn
-        if pawn is None:
-            return
-
-        pawn_position = pawn.transform.world_position
-        distance_key = lambda a: (a.transform.world_position - pawn_position).length_squared
-
-        closest_pickup = min(actors, key=distance_key)
-        working_memory = self.sensor.controller.working_memory
-
-        try:
-            fact = working_memory.find_single_fact('nearest_ammo')
-
-        except KeyError:
-            fact = WMFact('nearest_ammo')
-            working_memory.add_fact(fact)
-
-        fact.data = closest_pickup
-        fact._uncertainty_accumulator = 0.0
-
-        print(fact)
+def setup_camera():
+    base.cam.set_pos((0, -45, 10))
+    base.cam.set_hpr(0, -10, 0)
 
 
-class ZombCont(AIPawnController):
-    actions = [GetNearestAmmoPickup()]
-    goals = [FindAmmoGoal()]
-
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.blackboard['has_ammo'] = False
-        self.blackboard['ammo'] = 0
-
-        view_sensor = SightSensor()
-        self.sensor_manager.add_sensor(view_sensor)
-
-        interpreter = PickupInterpreter()
-        view_sensor.add_interpreter(interpreter)
-
+def setup_lighting():
+    from panda3d.core import DirectionalLight, Vec4
+    # Directional light 01
+    directionalLight = DirectionalLight('directionalLight')
+    directionalLight.setColor(Vec4(0.2, 0.2, 0.5, 1))
+    directionalLightNP = render.attachNewNode(directionalLight)
+    # This light is facing backwards, towards the camera.
+    directionalLightNP.setHpr(180, -20, 0)
+    render.setLight(directionalLightNP)
 
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
-        base.cam.set_pos((0, -60, 0))
-
-        floor = TestActor()
-        floor.transform.world_position = [0, 0, -11]
-        floor.transform._nodepath.set_color(0.3, 0.3, 0.0)
-        floor.transform._nodepath.set_scale(10)
-        floor.physics.mass = 0.0
-        floor.mass = 0.0
-
-        pickup = AmmoPickup()
-        pickup.transform.world_position = [0, 12, 1]
-        pickup.physics.mass = 0.0
-        floor.transform._nodepath.set_color(1, 0.0, 0.0)
-        #
-        cont = ZombCont()
-
-        from game_system.timer import Timer
-
-        timer = Timer(0.1)
-        view = next(s for s in cont.sensor_manager._sensors if isinstance(s, SightSensor))
-        timer.on_target = lambda: cont.sensor_manager.remove_sensor(view)
-
-        omb = TestActor()
-        omb.transform.world_position = [0, 0, 1]
-        cont.possess(omb)
-
-        pass
+        setup_map()
 
     else:
         Connection.create_connection("localhost", 1200)
 
+    setup_camera()
+    setup_lighting()
+
+    from direct.showbase import DirectObject
+    class Obj(DirectObject.DirectObject) :
+
+        def __init__(self):
+            super().__init__()
+
+            self.accept("mouse1",self.pick)
+
+        def pick(self):
+            from network.replicable import Replicable
+            from game_system.coordinates import Vector
+
+            pickup = Replicable.subclass_of_type(AmmoPickup).copy().pop()
+
+            from panda3d.core import Point3
+            pMouse = base.mouseWatcherNode.getMouse()
+            pFrom = Point3()
+            pTo = Point3()
+            base.camLens.extrude(pMouse, pFrom, pTo)
+
+            # Transform to global coordinates
+            source = render.getRelativePoint(base.cam, pFrom)
+            dest = render.getRelativePoint(base.cam, pTo)
+
+            position = Vector(base.physics_system.world.rayTestClosest(source, dest).get_hit_pos())
+
+            pickup.transform.world_position = position
+
+    Obj()
 
 def run(mode):
     try:
@@ -154,16 +152,6 @@ def run(mode):
 
     game_loop = cls()
     init_game()
-
-    # model = loader.loadModel(f)
-    # model.reparentTo(base.render)
-    #
-    # from panda3d.core import PointLight
-    # plight = PointLight('plight')
-    # plight.setColor((1, 1, 1, 1))
-    # plnp = render.attachNewNode(plight)
-    # plnp.setPos(10, 20, 0)
-    # render.setLight(plnp)
 
     game_loop.delegate()
     del game_loop

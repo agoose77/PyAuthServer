@@ -17,6 +17,7 @@ from .clock import Clock
 from .coordinates import Vector, Euler
 from .enums import EvaluationState, InputButtons
 from .inputs import InputContext
+from .pathfinding.navigation_manager import NavigationManager
 from .latency_compensation import JitterBuffer
 from .resources import ResourceManager
 from .replication_info import PlayerReplicationInfo
@@ -131,7 +132,7 @@ class GOTOState(State):
         distance = to_target.xy.length
         request.distance_to_target = distance
 
-        if distance < 4:
+        if distance < 2:
             request.status = EvaluationState.success
             pawn.physics.world_velocity = to_target * 0
 
@@ -154,6 +155,7 @@ class AIPawnController(PawnController):
         self.blackboard = {}
         self.working_memory = WorkingMemory()
         self.sensor_manager = SensorManager(self)
+        self.navigation_manager = NavigationManager(self)
         self.plan_manager = GOAPActionPlanManager(self, logger=self.logger.getChild("GOAP"))
         self.fsm = FiniteStateMachine()
 
@@ -166,6 +168,7 @@ class AIPawnController(PawnController):
         self.sensor_manager.update(delta_time)
         self.plan_manager.update()
         self.fsm.state.update()
+        self.navigation_manager.update()
 
 
 class PlayerPawnController(PawnController):

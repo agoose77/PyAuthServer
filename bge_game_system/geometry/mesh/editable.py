@@ -1,12 +1,11 @@
 from collections import Counter
 from functools import lru_cache
-from mathutils import geometry
 
+from mathutils import geometry
 from game_system.coordinates import Vector
 from game_system.geometry.mesh import IVertex, IPolygon
 from network.utilities import mean
-
-from ..kdtree import KDTree
+from game_system.geometry.kdtree import KDTree
 
 
 __all__ = ['BGEPolygonEditable', 'BGEVertexTreeEditable', 'BGEVertexGroupEditable', 'BoundVector',

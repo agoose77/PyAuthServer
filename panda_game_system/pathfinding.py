@@ -1,11 +1,24 @@
+from game_system.geometry.utilities import quad_area, point_in_polygon
+
+from network.utilities import mean
+
 from functools import lru_cache
 
-from game_system.geometry.utilities import quad_area
 
-from .static import BGEMeshStatic, BGEPolygonStatic
+class PandaPolygon:
+
+    def __init__(self, vertices):
+        self.neighbours = set()
+
+        self.position = None
+        self.vertices = vertices
+        self.position = mean(vertices)
+
+    def __contains__(self, point):
+        return point_in_polygon(point, self.vertices)
 
 
-class BGENodePortal:
+class PandaNodePortal:
     __slots__ = "source", "destination", "left", "right"
 
     def __init__(self, source, destination):
@@ -30,20 +43,8 @@ class BGENodePortal:
         return left, right
 
 
-class BGENavmeshNode(BGEPolygonStatic):
+class PandaNavmeshNode(PandaPolygon):
 
     @lru_cache()
     def get_portal_to(self, other):
-        return BGENodePortal(self, other)
-
-
-class BGENavmesh(BGEMeshStatic):
-
-    def find_node(self, point):
-        for polygon in self.polygons:
-            if point in polygon:
-                return polygon
-
-    @staticmethod
-    def create_polygon(*vertices):
-        return BGENavmeshNode(*vertices)
+        return PandaNodePortal(self, other)

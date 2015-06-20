@@ -33,7 +33,7 @@ class Axis(Enumeration):
 
 class CollisionGroups(Enumeration):
     use_bits = True
-    values = ('geometry', 'pawn', 'projectile')
+    values = ('geometry', 'pawn', 'projectile', 'navmesh')
 
 
 class CollisionState(Enumeration):

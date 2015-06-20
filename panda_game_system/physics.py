@@ -14,15 +14,15 @@ from game_system.signals import *
 
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 
-from panda3d.bullet import BulletWorld
+from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import loadPrcFileData
 from direct.showbase.DirectObject import DirectObject
 
 from contextlib import contextmanager
 
-#from panda3d.core import PythonCallbackObject
-
 loadPrcFileData('', 'bullet-enable-contact-events true')
+
+#from panda3d.core import PythonCallbackObject
 #loadPrcFileData('', 'bullet-filter-algorithm callback')
 
 
@@ -45,6 +45,17 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
         self.listener = DirectObject()
         self.listener.accept('bullet-contact-added', self._on_contact_added)
         self.listener.accept('bullet-contact-destroyed', self._on_contact_removed)
+
+        debug_node = BulletDebugNode('Debug')
+        debug_node.showWireframe(True)
+        debug_node.showConstraints(True)
+        debug_node.showBoundingBoxes(False)
+        debug_node.showNormals(False)
+
+        self.debug_nodepath = render.attachNewNode(debug_node)
+        self.world.set_debug_node(debug_node)
+
+        self.debug_nodepath.show()
 
     def _get_contacts(self, node):
         test = self.world.contact_test(node)
