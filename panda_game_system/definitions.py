@@ -1,11 +1,6 @@
-from collections import namedtuple
-from contextlib import contextmanager
-
 from network.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
-from network.tagged_delegate import FindByTag
-from network.logger import logger
 
 from game_system.animation import Animation
 from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, NavigationPath
@@ -32,6 +27,15 @@ def entity_from_nodepath(nodepath):
         return None
 
     return nodepath.get_python_tag("entity")
+
+
+class BoundVector(Vector):
+    """Vector subclass with data member.
+
+    Used in KDTree to associate node with position
+    """
+
+    data = None
 
 
 class PandaParentableBase:
@@ -370,11 +374,6 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
         return Vector(direction)
 
 
-class BoundVector(Vector):
-
-    data = None
-
-
 @with_tag("navmesh")
 class PandaNavmeshInterface(PandaComponent):
 
@@ -391,17 +390,21 @@ class PandaNavmeshInterface(PandaComponent):
         geom_node = geom_nodepath.node()
         geom = geom_node.get_geom(0)
 
-        self._setup_collision(entity, geom_node, geom)
-
         self.nodes = self._parse_geom(geom)
         self.node_positions = self.get_kd_nodes(self.nodes)
         self.kd_tree = KDTree(self.node_positions, 2)
 
+        self._bullet_nodepath = self._create_bullet_nodepath(geom, geom_node, entity)
+        RegisterPhysicsNode.invoke(self._bullet_nodepath.node())
+
         self._astar = NavmeshAStarAlgorithm()
         self._funnel = FunnelAlgorithm()
 
+    def destroy(self):
+        DeregisterPhysicsNode.invoke(self._bullet_node.node())
+
     @staticmethod
-    def _setup_collision(entity, geom_node, geom):
+    def _create_bullet_nodepath(geom, geom_node, entity):
         bullet_node = BulletRigidBodyNode("NavmeshCollision")
 
         transform = geom_node.getTransform()
@@ -417,10 +420,10 @@ class PandaNavmeshInterface(PandaComponent):
         bullet_node.set_into_collide_mask(mask)
 
         # Associate with entity
-        nodepath = base.render.attachNewNode(bullet_node)
-        nodepath.set_python_tag("entity", entity)
+        bullet_nodepath = base.render.attachNewNode(bullet_node)
+        bullet_nodepath.set_python_tag("entity", entity)
 
-        RegisterPhysicsNode.invoke(bullet_node)
+        return bullet_nodepath
 
     @staticmethod
     def get_kd_nodes(nodes):
