@@ -231,6 +231,7 @@ class Pawn(Actor):
 
     @property
     def on_ground(self):
+        """Return grounded status"""
         downwards = -self.transform.get_direction_vector(Axis.z)
         target = self.transform.world_position + downwards
         trace = self.physics.ray_test(target, distance=self.__class__.FLOOR_OFFSET + 0.5)
@@ -238,6 +239,7 @@ class Pawn(Actor):
 
     @property
     def current_navmesh(self):
+        """Return navmesh for current area"""
         source = self.transform.world_position.copy()
         source.z += 1
 
@@ -261,7 +263,6 @@ class Pawn(Actor):
 
         # These will be explicitly set
         if is_complaint:
-            #yield "weapon_attachment_class"
             yield "alive"
             yield "info"
 

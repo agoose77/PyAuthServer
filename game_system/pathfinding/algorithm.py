@@ -1,5 +1,4 @@
 from collections import namedtuple
-from operator import attrgetter
 
 from ..geometry.utilities import quad_area
 from ..coordinates import Vector
