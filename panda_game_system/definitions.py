@@ -8,11 +8,11 @@ from network.tagged_delegate import FindByTag
 from network.logger import logger
 
 from game_system.animation import Animation
-from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, PathfinderAlgorithm
+from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, NavigationPath
 from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.geometry.kdtree import KDTree
-from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
+from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, CollisionGroups, PhysicsType
 from game_system.level_manager import LevelManager
 from game_system.physics import CollisionResult, CollisionContact, RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
@@ -21,10 +21,17 @@ from game_system.resources import ResourceManager
 from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 
-from panda3d.bullet import BulletRigidBodyNode
-from panda3d.core import Filename, Vec3, GeomVertexReader
+from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMeshShape, BulletTriangleMesh
+from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, NodePath
 from os import path
 from math import radians, degrees
+
+
+def entity_from_nodepath(nodepath):
+    if not nodepath.has_python_tag("entity"):
+        return None
+
+    return nodepath.get_python_tag("entity")
 
 
 class PandaParentableBase:
@@ -99,29 +106,20 @@ class PandaPhysicsInterface(PandaComponent):
         # Setup callbacks
         self._nodepath.set_python_tag("on_contact_added", lambda n, c: self._level_manager.add(n, c))
         self._nodepath.set_python_tag("on_contact_removed", self._level_manager.remove)
-        self._nodepath.set_python_tag("physics_component", self)
 
         self._node.notify_collisions(True)
         self._node.set_deactivation_enabled(False)
 
         self._suspended_mass = None
 
-    @staticmethod
-    def entity_from_nodepath(nodepath):
-        if not nodepath.has_python_tag("physics_component"):
-            return None
-
-        component = nodepath.get_python_tag("physics_component")
-        return component._entity
-
     def _on_enter_collision(self, other, contacts):
-        hit_entity = self.entity_from_nodepath(other)
+        hit_entity = entity_from_nodepath(other)
 
         result = CollisionResult(hit_entity, CollisionState.started, contacts)
         CollisionSignal.invoke(result, target=self._entity)
 
     def _on_exit_collision(self, other):
-        hit_entity = self.entity_from_nodepath(other)
+        hit_entity = entity_from_nodepath(other)
 
         result = CollisionResult(hit_entity, CollisionState.ended, None)
         CollisionSignal.invoke(result, target=self._entity)
@@ -130,7 +128,7 @@ class PandaPhysicsInterface(PandaComponent):
         for child in self._registered_nodes:
             DeregisterPhysicsNode.invoke(child)
 
-    def ray_test(self, target, source=None, distance=None, ignore_self=True):
+    def ray_test(self, target, source=None, distance=None, ignore_self=True, mask=None):
         """Perform a ray trace to a target
 
         :param target: target to trace towards
@@ -148,15 +146,22 @@ class PandaPhysicsInterface(PandaComponent):
 
             target = source + direction
 
+        if mask is None:
+            collision_mask = BitMask32.all_on()
+
+        else:
+            collision_mask = BitMask32()
+            collision_mask.set_word(mask)
+
         world = self._node.get_python_tag("world")
 
-        query_result = world.rayTestAll(tuple(source), tuple(target))
+        query_result = world.rayTestAll(tuple(source), tuple(target), collision_mask)
         sorted_hits = sorted(query_result.get_hits(), key=lambda h: h.get_hit_fraction())
 
         for hit_result in sorted_hits:
             hit_node = hit_result.get_node()
 
-            hit_entity = self.entity_from_nodepath(hit_node)
+            hit_entity = entity_from_nodepath(hit_node)
 
             if ignore_self and hit_entity is self._entity:
                 continue
@@ -377,27 +382,58 @@ class PandaNavmeshInterface(PandaComponent):
         super().__init__()
 
         self._entity = entity
-      #  nodepath.hide()
+
+        nodepath.hide()
         nodepath.set_render_mode_wireframe()
 
+        # Get navmesh data
         geom_nodepath = nodepath.find('**/+GeomNode')
-        geom = geom_nodepath.node().get_geom(0)
+        geom_node = geom_nodepath.node()
+        geom = geom_node.get_geom(0)
 
-        self.nodes = self.parse_geom(geom)
-        self.node_positions = node_positions = []
+        self._setup_collision(entity, geom_node, geom)
 
-        for node in self.nodes:
+        self.nodes = self._parse_geom(geom)
+        self.node_positions = self.get_kd_nodes(self.nodes)
+        self.kd_tree = KDTree(self.node_positions, 2)
+
+        self._astar = NavmeshAStarAlgorithm()
+        self._funnel = FunnelAlgorithm()
+
+    @staticmethod
+    def _setup_collision(entity, geom_node, geom):
+        bullet_node = BulletRigidBodyNode("NavmeshCollision")
+
+        transform = geom_node.getTransform()
+        mesh = BulletTriangleMesh()
+        mesh.addGeom(geom, True, transform)
+
+        shape = BulletTriangleMeshShape(mesh, dynamic=False)
+        bullet_node.addShape(shape)
+
+        mask = BitMask32()
+        mask.set_word(CollisionGroups.navmesh)
+
+        bullet_node.set_into_collide_mask(mask)
+
+        # Associate with entity
+        nodepath = base.render.attachNewNode(bullet_node)
+        nodepath.set_python_tag("entity", entity)
+
+        RegisterPhysicsNode.invoke(bullet_node)
+
+    @staticmethod
+    def get_kd_nodes(nodes):
+        node_positions = []
+
+        for node in nodes:
             bound_vector = BoundVector(node.position)
             bound_vector.data = node
             node_positions.append(bound_vector)
 
-        self.kd_tree = KDTree(node_positions, 2)
+        return node_positions
 
-        self._astar = NavmeshAStarAlgorithm()
-        self._funnel = FunnelAlgorithm()
-        self.path_finder = PathfinderAlgorithm(self._astar, self._funnel, self._find_node_from_point)
-
-    def _find_node_from_point(self, point):
+    def find_nearest_node(self, point):
         for node in self.nodes:
             if point in node:
                 return node
@@ -406,11 +442,20 @@ class PandaNavmeshInterface(PandaComponent):
         nearest_kdnode = self.kd_tree.nn_search(point, 1)[1]
         return nearest_kdnode.position.data
 
-    def find_path(self, from_point, to_point):
-        return self.path_finder.find_path(from_point, to_point)
+    def find_path(self, from_point, to_point, from_node=None, to_node=None):
+        if from_node is None:
+            from_node = self.find_nearest_node(from_point)
+
+        if to_node is None:
+            to_node = self.find_nearest_node(to_point)
+
+        nodes = self._astar.find_path(goal=to_node, start=from_node)
+        points = self._funnel.find_path(source=from_point, destination=to_point, nodes=nodes)
+
+        return NavigationPath(points=points, nodes=nodes)
 
     @classmethod
-    def parse_geom(cls, geom):
+    def _parse_geom(cls, geom):
         primitive = geom.get_primitives()[0]
         vertex_data = geom.get_vertex_data()
 
@@ -437,11 +482,11 @@ class PandaNavmeshInterface(PandaComponent):
 
             triangles.append(tuple(vertex_indices))
 
-        triangles_to_neighbours = cls.build_neighbours(triangles)
-        return cls.build_nodes(triangles_to_neighbours, vertex_positions)
+        triangles_to_neighbours = cls._build_neighbours(triangles)
+        return cls._build_nodes(triangles_to_neighbours, vertex_positions)
 
     @staticmethod
-    def build_nodes(triangles_to_neighbours, vertex_positions):
+    def _build_nodes(triangles_to_neighbours, vertex_positions):
         triangles_to_polygons = {triangle: PandaNavmeshNode([vertex_positions[i] for i in triangle])
                                  for triangle in triangles_to_neighbours}
         polygons = []
@@ -458,7 +503,7 @@ class PandaNavmeshInterface(PandaComponent):
         return polygons
 
     @staticmethod
-    def slice_triangles(vertices):
+    def _slice_triangles(vertices):
         triangles = []
         for i in range(0, len(vertices), 3):
             try:
@@ -472,7 +517,7 @@ class PandaNavmeshInterface(PandaComponent):
         return triangles
 
     @staticmethod
-    def build_neighbours(triangles):
+    def _build_neighbours(triangles):
         triangle_sets = [set(t) for t in triangles]
         triangle_neighbours = {}
 
@@ -525,6 +570,8 @@ class PandaComponentLoader(ComponentLoader):
 
     def load(self, entity, config_parser):
         nodepath = self.find_or_create_object(entity, config_parser)
+        nodepath.set_python_tag("entity", entity)
+
         components = self._load_components(config_parser, entity, nodepath)
 
         def on_unloaded():

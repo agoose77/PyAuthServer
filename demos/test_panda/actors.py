@@ -23,7 +23,7 @@ class TestActor(Actor):
         return bool(trace)
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 
         from game_system.resources import ResourceManager
@@ -36,6 +36,8 @@ class TestActor(Actor):
         shape = BulletBoxShape((1, 1, 1))
         bullet_node.addShape(shape)
         bullet_node.setMass(1.0)
+
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
 
         model.reparentTo(bullet_nodepath)
         return bullet_nodepath
@@ -76,7 +78,7 @@ class Plane(Actor):
     replicate_physics_to_owner = False
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from panda3d.bullet import BulletRigidBodyNode, BulletPlaneShape
 
         from game_system.resources import ResourceManager
@@ -90,6 +92,7 @@ class Plane(Actor):
         bullet_node.addShape(shape)
         bullet_node.setMass(1.0)
 
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
         model.reparentTo(bullet_nodepath)
         return bullet_nodepath
 
@@ -128,7 +131,7 @@ class Map(Actor):
     replicate_physics_to_owner = False
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMesh, BulletTriangleMeshShape
 
         from game_system.resources import ResourceManager
@@ -147,7 +150,7 @@ class Map(Actor):
 
         shape = BulletTriangleMeshShape(mesh, dynamic=False)
         bullet_node.addShape(shape)
-
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
         model.reparentTo(bullet_nodepath)
         return bullet_nodepath
 
@@ -179,109 +182,6 @@ class Map(Actor):
         return
 
 
-class RocketBomb(Actor):
-    mass = Attribute(1.0, notify=True)
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
-
-    replicate_physics_to_owner = False
-
-    def create_object(self):
-        from panda3d.core import Filename, NodePath
-        from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
-
-        from game_system.resources import ResourceManager
-        f = Filename.fromOsSpecific(ResourceManager.get_absolute_path(ResourceManager["RocketBomb"]["Cube.egg"]))
-        model = loader.loadModel(f)
-
-        bullet_node = BulletRigidBodyNode("BulletPlane")
-        bullet_nodepath = NodePath(bullet_node)
-
-        shape = BulletBoxShape((1, 1, 1))
-        bullet_node.addShape(shape)
-        bullet_node.setMass(1.0)
-
-        model.reparentTo(bullet_nodepath)
-        return bullet_nodepath
-
-    def on_initialised(self):
-        super().on_initialised()
-        from game_system.timer import Timer
-
-        self.timer = Timer(0.3, active=False)
-        self.pawn = None
-
-    def launch_from(self, owner):
-        self.possessed_by(owner)
-
-        from network.replicable import Replicable
-        from game_system.controllers import PlayerPawnController
-        for cont in Replicable.subclass_of_type(PlayerPawnController):
-            if cont is owner:
-                continue
-
-            pawn = cont.pawn
-            self.pawn = pawn
-
-        self.timer.reset()
-
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
-
-        yield "mass"
-
-    def on_notify(self, name):
-        if name == "mass":
-            self.physics.mass = self.mass
-        else:
-            super().on_notify(name)
-
-    @CollisionSignal.on_context
-    def on_collided(self, collision_result):
-        if self.timer.active:
-            return
-
-        self.deregister()
-
-    @LogicUpdateSignal.on_global
-    def on_update(self, delta_time):
-        if not self.pawn:
-            return
-
-        to_target = self.pawn.transform.world_position - self.transform.world_position
-        velocity = to_target.normalized() * 20
-        self.physics.world_velocity = velocity
-
-
-class ZombieWalkState(State):
-
-    def __init__(self, pawn):
-        super().__init__("Walk")
-
-        self.pawn = pawn
-
-        self._animation_handle = None
-
-    def on_enter(self):
-        self._animation_handle = self.pawn.animation.play("walk_limp", loop=True)
-
-    def on_exit(self):
-        self._animation_handle.stop()
-
-    def update(self, dt):
-        pass
-
-
-class ZombieIdleState(State):
-
-    def __init__(self, pawn):
-        super().__init__("Idle")
-
-        self.pawn = pawn
-
-    def update(self, dt):
-        pass
-
-
 class AmmoPickup(Actor):
     mass = Attribute(1.0, notify=True)
     roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
@@ -297,7 +197,7 @@ class AmmoPickup(Actor):
         return bool(trace)
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 
         from game_system.resources import ResourceManager
@@ -311,6 +211,7 @@ class AmmoPickup(Actor):
         bullet_node.addShape(shape)
         bullet_node.setMass(1.0)
 
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
         model.reparentTo(bullet_nodepath)
         return bullet_nodepath
 
@@ -345,7 +246,7 @@ class AmmoPickup(Actor):
 class Zombie(Pawn):
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from direct.actor.Actor import Actor
         from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 
@@ -362,6 +263,7 @@ class Zombie(Pawn):
 
         model.reparentTo(bullet_nodepath)
         bullet_nodepath.set_python_tag("actor", model)
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
         return bullet_nodepath
 
     def on_initialised(self):
@@ -416,7 +318,7 @@ class AIIdleState(State):
 class TestAI(Pawn):
 
     def create_object(self):
-        from panda3d.core import Filename, NodePath
+        from panda3d.core import Filename, NodePath, BitMask32
         from direct.actor.Actor import Actor
         from panda3d.bullet import BulletRigidBodyNode, BulletCapsuleShape
 
@@ -437,6 +339,7 @@ class TestAI(Pawn):
         model.set_hpr(180, 0, 0)
         model.set_pos(0, 0, -1)
 
+        bullet_nodepath.set_collide_mask(BitMask32.bit(0))
         bullet_nodepath.set_python_tag("actor", model)
 
         return bullet_nodepath

@@ -90,10 +90,6 @@ class GOTOState(State):
 
         self._path_node = None
 
-    def find_path_to(self, source, target):
-        navmesh = next(iter(Replicable.subclass_of_type(Navmesh)))
-        return navmesh.navmesh.find_path(source, target)
-
     def draw_path(self, current_position, path):
         from panda3d.core import LineSegs, Vec4, Vec3
         path = [Vec3(*v) for v in path]
@@ -141,17 +137,26 @@ class GOTOState(State):
         target_position = request.target.transform.world_position
 
         try:
-            path = request._path
+            query = request._query
 
         except AttributeError:
-            request._path = path = self.find_path_to(pawn_position, target_position)
+            query = self.controller.navigation_manager.create_query(request.target)
+            query.replan_if_invalid = True
 
-        self.draw_path(pawn_position[:], path)
+            request._query = query
 
+        #print(query.is_valid)
+        path = query.path
+        if path is None:
+            return
+
+        points = path.points
+
+        self.draw_path(pawn_position[:], points)
         target_distance = (target_position.xy - pawn_position.xy).length
 
-        while path:
-            waypoint_position = path[0]
+        while points:
+            waypoint_position = points[0]
 
             to_waypoint = (waypoint_position - pawn_position)
             to_waypoint.z = 0.0
@@ -159,9 +164,10 @@ class GOTOState(State):
             # Update request
             distance = to_waypoint.length
             request.distance_to_target = distance
-            print(distance)
+
+            # If we have nearly reached the waypoint
             if distance < self.waypoint_margin:
-                path[:] = path[1:]
+                points[:] = points[1:]
 
             else:
                 pawn.physics.world_velocity = to_waypoint.normalized() * pawn.walk_speed
@@ -169,6 +175,7 @@ class GOTOState(State):
 
                 if target_distance > self.target_margin:
                     return
+
                 break
 
         request.status = EvaluationState.success

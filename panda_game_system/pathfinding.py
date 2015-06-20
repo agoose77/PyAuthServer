@@ -1,4 +1,3 @@
-from game_system.pathfinding.algorithm import AStarAlgorithm
 from game_system.geometry.utilities import quad_area, point_in_polygon
 
 from network.utilities import mean
@@ -45,9 +44,6 @@ class PandaNodePortal:
 
 
 class PandaNavmeshNode(PandaPolygon):
-
-    def __init__(self, vertices):
-        super().__init__(vertices)
 
     @lru_cache()
     def get_portal_to(self, other):

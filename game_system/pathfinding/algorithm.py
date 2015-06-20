@@ -10,7 +10,7 @@ from .priority_queue import PriorityQueue
 from network.iterators import look_ahead
 
 __all__ = "Funnel", "PathNotFoundException", "AlgorithmNotImplementedException", "AStarAlgorithm", "FunnelAlgorithm", \
-          "PathfinderAlgorithm", "NavmeshAStarAlgorithm"
+          "NavmeshAStarAlgorithm"
 
 
 forward_vector = Vector((0, 1, 0))
@@ -179,6 +179,8 @@ class AStarAlgorithm:
 
                     open_set.add(neighbour, f_score)
 
+        raise PathNotFoundException("Couldn't find path for given nodes")
+
     def inadmissible_find_path(self, start, goal):
         open_set = PriorityQueue()
         open_set.add(start, 0)
@@ -257,32 +259,8 @@ class FunnelAlgorithm:
         return path
 
 
-class PathfinderAlgorithm:
+class NavigationPath:
 
-    def __init__(self, low_fidelity, high_fidelity, spatial_lookup):
-        self.low_resolution = low_fidelity
-        self.high_resolution = high_fidelity
-        self.spatial_lookup = spatial_lookup
-
-    def find_path(self, source, destination, low_resolution=False):
-        source_node = self.spatial_lookup(source)
-        destination_node = self.spatial_lookup(destination)
-
-        try:
-            path_finder = self.low_resolution.find_path
-
-        except AttributeError:
-            raise AlgorithmNotImplementedException("Couldn't find low resolution finder algorithm")
-
-        low_resolution_path = path_finder(start=source_node, goal=destination_node)
-        if low_resolution:
-            return low_resolution_path
-
-        try:
-            path_finder = self.high_resolution.find_path
-
-        except AttributeError:
-            raise AlgorithmNotImplementedException("Couldn't find high resolution finder algorithm")
-
-        high_resolution_path = path_finder(source, destination, low_resolution_path)
-        return high_resolution_path
+    def __init__(self, points, nodes):
+        self.points = points
+        self.nodes = nodes

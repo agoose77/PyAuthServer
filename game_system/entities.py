@@ -236,6 +236,21 @@ class Pawn(Actor):
         trace = self.physics.ray_test(target, distance=self.__class__.FLOOR_OFFSET + 0.5)
         return trace is not None
 
+    @property
+    def current_navmesh(self):
+        source = self.transform.world_position.copy()
+        source.z += 1
+
+        target = source.copy()
+        target.z -= 2
+
+        result = self.physics.ray_test(target=target, source=source, mask=CollisionGroups.navmesh)
+
+        if result is None:
+            return None
+
+        return result.entity
+
     def conditions(self, is_owner, is_complaint, is_initial):
         yield from super().conditions(is_owner, is_complaint, is_initial)
 
