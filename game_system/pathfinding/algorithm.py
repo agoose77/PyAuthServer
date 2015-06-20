@@ -9,8 +9,7 @@ from .priority_queue import PriorityQueue
 
 from network.iterators import look_ahead
 
-__all__ = "Funnel", "PathNotFoundException", "AlgorithmNotImplementedException", "AStarAlgorithm", "FunnelAlgorithm", \
-          "NavmeshAStarAlgorithm"
+__all__ = "Funnel", "PathNotFoundException", "AStarAlgorithm", "FunnelAlgorithm", "NavmeshAStarAlgorithm"
 
 
 forward_vector = Vector((0, 1, 0))
@@ -82,10 +81,6 @@ class Funnel:
 
 
 class PathNotFoundException(Exception):
-    pass
-
-
-class AlgorithmNotImplementedException(Exception):
     pass
 
 
