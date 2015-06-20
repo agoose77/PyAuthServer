@@ -14,11 +14,6 @@ __all__ = "Funnel", "PathNotFoundException", "AStarAlgorithm", "FunnelAlgorithm"
 
 forward_vector = Vector((0, 1, 0))
 EndPortal = namedtuple("EndPortal", ["left", "right"])
-BoundVector = type("BoundVector", (Vector,), {"__slots__": "data"})
-
-
-def manhattan_distance_heuristic(a, b):
-    return (b.position - a.position).length_squared
 
 
 class Funnel:
