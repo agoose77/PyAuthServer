@@ -381,9 +381,9 @@ class PandaNavmeshInterface(PandaComponent):
         super().__init__()
 
         self._entity = entity
-
         nodepath.hide()
-        nodepath.set_render_mode_wireframe()
+
+        #nodepath.set_render_mode_wireframe()
 
         # Get navmesh data
         geom_nodepath = nodepath.find('**/+GeomNode')
@@ -422,6 +422,8 @@ class PandaNavmeshInterface(PandaComponent):
         # Associate with entity
         bullet_nodepath = base.render.attachNewNode(bullet_node)
         bullet_nodepath.set_python_tag("entity", entity)
+
+        bullet_nodepath.hide()
 
         return bullet_nodepath
 

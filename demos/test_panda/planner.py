@@ -43,16 +43,17 @@ class GetNearestAmmoPickup(Action):
             return
 
         controller.blackboard["ammo"] += request.target.ammo
-        #request.target.deregister()
+        request.target.deregister()
 
         # Apply to world state
-        self.apply_effects(controller.blackboard, goal_state)
+       # self.apply_effects(controller.blackboard, goal_state)
 
     def get_status(self, controller):
         goto_state = controller.fsm.states['GOTO']
 
         # We failed to set a target
-        if goto_state.request is None:
+        request = goto_state.request
+        if request is None:
             return EvaluationState.failure
 
         return goto_state.request.status

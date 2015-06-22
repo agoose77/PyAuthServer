@@ -6,63 +6,118 @@ from ..entities import Actor
 class NavigationQuery:
     """Navigation query to destination"""
 
-    def __init__(self, manager, pawn, destination):
+    def __init__(self, manager, pawn):
         self.manager = manager
         self.pawn = pawn
 
-        self._destination = destination
-        self._is_actor = isinstance(destination, Actor)
-        self._is_valid = False
-
         self.replan_if_invalid = False
-        self.path = self._find_path()
+
+        self._path = None
+
+        self.replan()
 
     @property
-    def origin(self):
-        return self.pawn.transform.world_position
+    def needs_replan(self):
+        return self._path is None
 
     @property
-    def destination(self):
-        """Return destination point"""
-        if self._is_actor:
-            return self._destination.transform.world_position
+    def path(self):
+        return self._path
 
-        return self._destination
+    def check_plan_is_valid(self):
+        """Check if current path is valid"""
+        raise NotImplementedError
 
-    @property
-    def is_valid(self):
-        """Return path state"""
-        return self._is_valid
+    def replan(self):
+        """Re-plan current path"""
+        raise NotImplementedError
 
-    def _find_path(self):
-        """Find new path from pawn position to destination"""
-        source = self.origin
+    def update(self):
+        # Update path state
+        if not self.check_plan_is_valid():
+            self._path = None
+
+        if self.needs_replan and self.replan_if_invalid:
+            self.replan()
+
+
+class PointNavigationQuery(NavigationQuery):
+
+    def __init__(self, manager, pawn, target):
+        self._target = target
+
+        super().__init__(manager, pawn)
+
+        self.replan()
+
+    def check_plan_is_valid(self):
+        """Return integrity of current plan"""
+        path = self._path
+
+        # If we have no path
+        if path is None:
+            return False
+
+        # Get current navmesh
+        navmesh = self.pawn.current_navmesh
+        if navmesh is not None:
+            return True
+
+        return False
+
+    def replan(self):
+        """Re-plan current path"""
+        path = None
+
+        source = self.pawn.transform.world_position
         source_node = self.manager.current_node
 
-        destination = self.destination
+        destination = self._target
 
         navmesh = self.pawn.current_navmesh
-        if navmesh is None:
-            return None
+        if navmesh is not None:
+            try:
+                path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
 
-        try:
-            return navmesh.navmesh.find_path(source, destination, from_node=source_node)
+            except PathNotFoundException:
+                pass
 
-        except PathNotFoundException:
-            return None
+        self._path = path
 
-    def _get_is_valid(self):
-        """Check if current path is valid"""
+
+class ActorNavigationQuery(NavigationQuery):
+
+    def __init__(self, manager, pawn, target):
+        self._target = target
+
+        super().__init__(manager, pawn)
+
+        self.replan()
+
+    @property
+    def needs_replan(self):
+        return self._path is None and self.target_is_valid
+
+    @property
+    def target_is_valid(self):
+        return self._target.registered
+
+    def check_plan_is_valid(self):
+        """Return integrity of current plan"""
         path = self.path
 
         # If we have no path
         if path is None:
             return False
 
-        destination = self.destination
+        # Get targe position
+        if not self.target_is_valid:
+            return False
+
+        destination = self._target.transform.world_position
 
         # If target hasn't moved
-        *_, end_point = path.points
+        end_point = path.points[-1]
         if destination == end_point:
             return True
 
@@ -72,7 +127,7 @@ class NavigationQuery:
             return False
 
         # If the target is in the same final node
-        *_, end_node = path.nodes
+        end_node = path.nodes[-1]
         if navmesh.navmesh.find_nearest_node(destination) is end_node:
             return True
 
@@ -80,17 +135,23 @@ class NavigationQuery:
 
     def replan(self):
         """Re-plan current path"""
-        self.path = self._find_path()
+        path = None
 
-        if self.path:
-            self._is_valid = True
+        if self.target_is_valid:
+            source = self.pawn.transform.world_position
+            source_node = self.manager.current_node
 
-    def update(self):
-        # Update path state
-        self._is_valid = self._get_is_valid()
+            destination = self._target.transform.world_position
 
-        if not self._is_valid and self.replan_if_invalid:
-            self.replan()
+            navmesh = self.pawn.current_navmesh
+            if navmesh is not None:
+                try:
+                    path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
+
+                except PathNotFoundException:
+                    pass
+
+        self._path = path
 
 
 class NavigationManager:
@@ -110,7 +171,12 @@ class NavigationManager:
         if not pawn:
             raise ValueError("{} does not have valid pawn")
 
-        query = NavigationQuery(self, pawn, destination)
+        if isinstance(destination, Actor):
+            query = ActorNavigationQuery(self, pawn, destination)
+
+        else:
+            query = PointNavigationQuery(self, pawn, destination)
+
         self._queries.add(query)
 
         return query

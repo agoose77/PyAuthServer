@@ -55,7 +55,7 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
         self.debug_nodepath = render.attachNewNode(debug_node)
         self.world.set_debug_node(debug_node)
 
-        self.debug_nodepath.show()
+#        self.debug_nodepath.show()
 
     def _get_contacts(self, node):
         test = self.world.contact_test(node)

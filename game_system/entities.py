@@ -241,10 +241,10 @@ class Pawn(Actor):
     def current_navmesh(self):
         """Return navmesh for current area"""
         source = self.transform.world_position.copy()
-        source.z += 1
+        source.z += 2
 
         target = source.copy()
-        target.z -= 2
+        target.z -= 3
 
         result = self.physics.ray_test(target=target, source=source, mask=CollisionGroups.navmesh)
 

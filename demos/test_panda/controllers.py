@@ -85,8 +85,8 @@ class GOTOState(State):
         self.controller = controller
         self.request = None
 
-        self.waypoint_margin = 0.5
-        self.target_margin = 1.5
+        self.waypoint_margin = 1
+        self.target_margin = 2.5
 
         self._path_node = None
 
@@ -121,7 +121,6 @@ class GOTOState(State):
 
     def update(self):
         request = self.request
-
         if request is None:
             return
 
@@ -133,6 +132,16 @@ class GOTOState(State):
         if pawn is None:
             return
 
+        # If target is invalid
+        target = request.target
+        if not target:
+            if hasattr(request, "_query"):
+                query = request._query
+                self.controller.navigation_manager.remove_query(query)
+
+            self.request = None
+            return
+
         pawn_position = pawn.transform.world_position
         target_position = request.target.transform.world_position
 
@@ -142,10 +151,8 @@ class GOTOState(State):
         except AttributeError:
             query = self.controller.navigation_manager.create_query(request.target)
             query.replan_if_invalid = True
-
             request._query = query
 
-        #print(query.is_valid)
         path = query.path
         if path is None:
             return
@@ -172,6 +179,7 @@ class GOTOState(State):
             else:
                 pawn.physics.world_velocity = to_waypoint.normalized() * pawn.walk_speed
                 pawn.physics.world_angular = Vector()
+                pawn.transform.align_to(to_waypoint)
 
                 if target_distance > self.target_margin:
                     return

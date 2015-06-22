@@ -262,17 +262,22 @@ class Zombie(Pawn):
         bullet_node.setMass(1.0)
 
         model.reparentTo(bullet_nodepath)
+        model.set_scale(0.12)
+        model.set_pos(0, 0, -1)
+
         bullet_nodepath.set_python_tag("actor", model)
         bullet_nodepath.set_collide_mask(BitMask32.bit(0))
+
         return bullet_nodepath
 
     def on_initialised(self):
         super().on_initialised()
 
         self.animation_fsm = FiniteStateMachine()
-        self.animation_fsm.add_state(ZombieIdleState(self))
-        self.animation_fsm.add_state(ZombieWalkState(self))
+        self.animation_fsm.add_state(IdleState(self))
+        self.animation_fsm.add_state(WalkState(self, "walk_limp"))
 
+        self.walk_speed = 2
 
     @LogicUpdateSignal.on_global
     def on_update(self, dt):
@@ -285,17 +290,18 @@ class Zombie(Pawn):
         self.animation_fsm.state.update(dt)
 
 
-class AIWalkState(State):
+class WalkState(State):
 
-    def __init__(self, pawn):
+    def __init__(self, pawn, animation_name):
         super().__init__("Walk")
 
         self.pawn = pawn
+        self.animation_name = animation_name
 
         self._animation_handle = None
 
     def on_enter(self):
-        self._animation_handle = self.pawn.animation.play("walk_patrol", loop=True)
+        self._animation_handle = self.pawn.animation.play(self.animation_name, loop=True)
 
     def on_exit(self):
         self._animation_handle.stop()
@@ -304,7 +310,7 @@ class AIWalkState(State):
         pass
 
 
-class AIIdleState(State):
+class IdleState(State):
 
     def __init__(self, pawn):
         super().__init__("Idle")
@@ -348,8 +354,8 @@ class TestAI(Pawn):
         super().on_initialised()
 
         self.animation_fsm = FiniteStateMachine()
-        self.animation_fsm.add_state(AIIdleState(self))
-        self.animation_fsm.add_state(AIWalkState(self))
+        self.animation_fsm.add_state(IdleState(self))
+        self.animation_fsm.add_state(WalkState(self, "walk_patrol"))
 
         self.walk_speed = 2
 

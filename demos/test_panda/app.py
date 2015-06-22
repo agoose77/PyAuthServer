@@ -64,21 +64,21 @@ def setup_map():
     pickup = AmmoPickup()
     pickup.transform.world_position = [4, 5, 1]
     pickup.physics.mass = 0.0
-    #
-    # pawn = TestAI()
-    # pawn.transform.world_position = [-3, -10, 1]
-    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
-    #
-    # cont = TestAIController()
-    # cont.possess(pawn)
 
-    # AI 2
     pawn = TestAI()
-    pawn.transform.world_position = [3, -11, 1]
+    pawn.transform.world_position = [-3, -10, 1]
     pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
 
     cont = TestAIController()
     cont.possess(pawn)
+    #
+    # # AI 2
+    # pawn = Zombie()
+    # pawn.transform.world_position = [3, -11, 1]
+    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
+    #
+    # cont = TestAIController()
+    # cont.possess(pawn)
 
 
 def setup_camera():
@@ -118,7 +118,12 @@ def init_game():
             from network.replicable import Replicable
             from game_system.coordinates import Vector
 
-            pickup = Replicable.subclass_of_type(AmmoPickup).copy().pop()
+            try:
+                pickup = next(iter(Replicable.subclass_of_type(AmmoPickup)))
+
+            except StopIteration:
+                pickup = AmmoPickup()
+                pickup.physics.mass = 0
 
             from panda3d.core import Point3
             pMouse = base.mouseWatcherNode.getMouse()
