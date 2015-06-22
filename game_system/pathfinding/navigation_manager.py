@@ -18,10 +18,12 @@ class NavigationQuery:
 
     @property
     def needs_replan(self):
+        """Whether path needs replanning"""
         return self._path is None
 
     @property
     def path(self):
+        """Current planned path"""
         return self._path
 
     def check_plan_is_valid(self):
@@ -33,6 +35,7 @@ class NavigationQuery:
         raise NotImplementedError
 
     def update(self):
+        """Verify or replan existing path"""
         # Update path state
         if not self.check_plan_is_valid():
             self._path = None
@@ -96,10 +99,12 @@ class ActorNavigationQuery(NavigationQuery):
 
     @property
     def needs_replan(self):
+        """Whether current path needs replanning"""
         return self._path is None and self.target_is_valid
 
     @property
     def target_is_valid(self):
+        """Whether target actor is valid (registered)"""
         return self._target.registered
 
     def check_plan_is_valid(self):
@@ -155,6 +160,7 @@ class ActorNavigationQuery(NavigationQuery):
 
 
 class NavigationManager:
+    """Handles updating of navigation queries"""
 
     def __init__(self, controller):
         self.controller = controller
@@ -212,6 +218,7 @@ class NavigationManager:
         self.current_node = navmesh.navmesh.find_nearest_node(pawn_position)
 
     def update(self):
+        """Update navigation queries"""
         pawn = self.controller.pawn
 
         if pawn is None:
