@@ -1,7 +1,9 @@
-from collections import defaultdict
-
 from game_system.coordinates import Vector
-from game_system.geometry.utilities import point_in_polygon
+from game_system.geometry.utilities import point_in_polygon, quad_area
+
+from collections import defaultdict
+from math import sqrt
+from random import random
 
 
 class BGEPolygonStatic:
@@ -10,6 +12,48 @@ class BGEPolygonStatic:
         self.vertices = vertices
         self.position = sum(vertices, Vector()) / len(vertices)
         self.neighbours = neighbours or []
+
+        # Store area
+        if len(vertices) == 3:
+            self.area = abs(quad_area(*vertices)) / 2
+
+        # Store area and area of individual triangles
+        else:
+            area_a = abs(quad_area(*vertices[:3]) / 2)
+            area_b = abs(quad_area(*vertices[1:]) / 2)
+            self.area = area_a + area_b
+            self._areas = area_a, area_b
+
+    @property
+    def random_point(self):
+        s = random()
+        t = random()
+
+        s_area = s * self.area
+
+        if len(self.vertices) == 3:
+            p, q, r = self.vertices
+            u = s_area / self.area
+
+        else:
+            area_sum = 0
+            for i, area in enumerate(self._areas):
+                if area_sum >= s_area:
+                    u = (s_area - area_sum) / area
+                    p = self.vertices[0]
+                    q, r = self.vertices[i+1: i+3]
+                    break
+
+                area_sum += area
+
+        # Find barycentric position
+        v = sqrt(t)
+
+        a = 1 - v
+        b = (1 - u) * v
+        c = u * v
+
+        return a * p + b * q + c * r
 
     def get_neighbours(self):
         return self.neighbours

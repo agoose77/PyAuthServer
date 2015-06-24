@@ -11,6 +11,7 @@ from game_system.animation import Animation
 from game_system.coordinates import Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
+from game_system.geometry.utilities import get_random_point, get_random_polygon
 from game_system.physics import CollisionContact, CollisionResult, RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
@@ -483,11 +484,17 @@ class BGELampInterface(BGEComponent):
 class BGENavmeshInterface(BGEComponent):
 
     def __init__(self, config_section, entity, obj):
-        self._navmesh = BGENavmesh(obj)
-        self._game_object = obj
+        # self._navmesh = BGENavmesh(obj)
+        # self._game_object = obj
+        #
+        # self.find_node = self._navmesh.find_node
+        # self.nodes = self._navmesh.polygons
+        raise NotImplementedError
 
-        self.find_node = self._navmesh.find_node
-        self.nodes = self._navmesh.polygons
+    # @property
+    # def random_point(self):
+    #     node = get_random_polygon(self.nodes)
+    #     return get_random_point(node)
 
 
 @with_tag("BGE")

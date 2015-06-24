@@ -7,6 +7,7 @@ from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgor
 from game_system.coordinates import Euler, Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.geometry.kdtree import KDTree
+from game_system.geometry.utilities import get_random_point, get_random_polygon
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, CollisionGroups, PhysicsType
 from game_system.level_manager import LevelManager
 from game_system.physics import CollisionResult, CollisionContact, RayTestResult
@@ -15,11 +16,10 @@ from game_system.resources import ResourceManager
 
 from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
-
+from math import radians, degrees
+from os import path
 from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMeshShape, BulletTriangleMesh
 from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, NodePath
-from os import path
-from math import radians, degrees
 
 
 def entity_from_nodepath(nodepath):
@@ -381,9 +381,9 @@ class PandaNavmeshInterface(PandaComponent):
         super().__init__()
 
         self._entity = entity
-        nodepath.hide()
+        #nodepath.hide()
 
-        #nodepath.set_render_mode_wireframe()
+        nodepath.set_render_mode_wireframe()
 
         # Get navmesh data
         geom_nodepath = nodepath.find('**/+GeomNode')
@@ -399,6 +399,11 @@ class PandaNavmeshInterface(PandaComponent):
 
         self._astar = NavmeshAStarAlgorithm()
         self._funnel = FunnelAlgorithm()
+
+    @property
+    def random_point(self):
+        node = get_random_polygon(self.nodes)
+        return get_random_point(node)
 
     def destroy(self):
         DeregisterPhysicsNode.invoke(self._bullet_node.node())
@@ -543,7 +548,7 @@ class PandaComponentLoader(ComponentLoader):
     @staticmethod
     def create_object(config_parser, entity):
         file_name = config_parser['model_name']
-        print("SPAWN", entity)
+
         if "bam" not in file_name:
             entity_data = ResourceManager[entity.__class__.type_name]
             model_path = path.join(entity_data.absolute_path, file_name)

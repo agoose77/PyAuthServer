@@ -14,6 +14,16 @@ class PandaPolygon:
         self.vertices = vertices
         self.position = mean(vertices)
 
+        # Store area
+        if len(vertices) == 3:
+            self.area = abs(quad_area(*vertices)) / 2
+
+        # Store area and area of individual triangles
+        else:
+            area_a = quad_area(*vertices[:3])
+            area_b = quad_area(*vertices[1:])
+            self.area = abs(area_a + area_b) / 2
+
     def __contains__(self, point):
         return point_in_polygon(point, self.vertices)
 

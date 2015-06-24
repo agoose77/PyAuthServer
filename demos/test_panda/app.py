@@ -60,17 +60,17 @@ def setup_map():
     floor.mass = 0.0
 
     navmesh = TestNavmesh()
-
-    pickup = AmmoPickup()
-    pickup.transform.world_position = [4, 5, 1]
-    pickup.physics.mass = 0.0
-
-    pawn = TestAI()
-    pawn.transform.world_position = [-3, -10, 1]
-    pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
-
-    cont = TestAIController()
-    cont.possess(pawn)
+    #
+    # pickup = AmmoPickup()
+    # pickup.transform.world_position = [4, 5, 1]
+    # pickup.physics.mass = 0.0
+    #
+    # pawn = TestAI()
+    # pawn.transform.world_position = [-3, -10, 1]
+    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
+    #
+    # cont = TestAIController()
+    # cont.possess(pawn)
     #
     # # AI 2
     # pawn = Zombie()
@@ -79,6 +79,12 @@ def setup_map():
     #
     # cont = TestAIController()
     # cont.possess(pawn)
+
+    for i in range(500):
+        pickup = AmmoPickup()
+        pickup.transform._nodepath.set_scale(0.1)
+        pickup.transform.world_position = navmesh.navmesh.random_point
+        pickup.physics.mass = 0.0
 
 
 def setup_camera():
@@ -93,7 +99,7 @@ def setup_lighting():
     directionalLight.setColor(Vec4(0.2, 0.2, 0.5, 1))
     directionalLightNP = render.attachNewNode(directionalLight)
     # This light is facing backwards, towards the camera.
-    directionalLightNP.setHpr(180, -20, 0)
+    directionalLightNP.setHpr(180, -60, 0)
     render.setLight(directionalLightNP)
 
 def init_game():
