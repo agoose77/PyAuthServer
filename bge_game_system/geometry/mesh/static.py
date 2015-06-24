@@ -1,6 +1,8 @@
 from game_system.coordinates import Vector
 from game_system.geometry.utilities import point_in_polygon, quad_area
 
+from network.utilities import mean
+
 from collections import defaultdict
 from math import sqrt
 from random import random
@@ -10,7 +12,7 @@ class BGEPolygonStatic:
 
     def __init__(self, *vertices, neighbours=None):
         self.vertices = vertices
-        self.position = sum(vertices, Vector()) / len(vertices)
+        self.position = mean(vertices)
         self.neighbours = neighbours or []
 
         # Store area
@@ -65,11 +67,23 @@ class BGEPolygonStatic:
         return (v for v in self.vertices if v in other.vertices)
 
 
+def sort_vertices(points):
+    a = points[0]
+    center = mean(points)
+    ca = (a - center).normalized()
+
+    def key(point):
+        cp = (point - center).normalized()
+        return ca.dot(cp)
+
+    return sorted(points, key=key)
+
+
 class BGEMeshStatic:
 
     def __init__(self, obj):
         self._obj = obj
-        self.polygons = self.build_nodes(obj.meshes[0])
+        self.polygons = self.build_polygons(obj.meshes[0])
 
     def build_polygons(self, mesh):
         points = self.get_approximate_points(mesh)
@@ -85,7 +99,7 @@ class BGEMeshStatic:
                 point = points[material_index][vertex_index]
                 positions.append(point)
 
-            polygon = self.create_polygon(*positions)
+            polygon = self.create_polygon(*sort_vertices(positions))
             polygons.append(polygon)
 
         for polygon in polygons:

@@ -9,6 +9,7 @@ class NavigationQuery:
     def __init__(self, manager, pawn):
         self.manager = manager
         self.pawn = pawn
+        self.navmesh = None
 
         self.replan_if_invalid = False
 
@@ -61,31 +62,20 @@ class PointNavigationQuery(NavigationQuery):
         if path is None:
             return False
 
-        # Get current navmesh
-        navmesh = self.pawn.current_navmesh
-        if navmesh is not None:
-            return True
-
-        return False
+        return True
 
     def replan(self):
         """Re-plan current path"""
-        path = None
-
         source = self.pawn.transform.world_position
         source_node = self.manager.current_node
 
         destination = self._target
 
-        navmesh = self.pawn.current_navmesh
-        if navmesh is not None:
-            try:
-                path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
+        try:
+            self._path = self.navmesh.navmesh.find_path(source, destination, from_node=source_node)
 
-            except PathNotFoundException:
-                pass
-
-        self._path = path
+        except PathNotFoundException:
+            self._path = None
 
 
 class ActorNavigationQuery(NavigationQuery):
@@ -123,18 +113,8 @@ class ActorNavigationQuery(NavigationQuery):
 
         # If target hasn't moved
         end_point = path.points[-1]
-        if destination == end_point:
-            return True
-
-        # Get current navmesh
-        navmesh = self.pawn.current_navmesh
-        if navmesh is None:
+        if destination != end_point:
             return False
-
-        # If the target is in the same final node
-        end_node = path.nodes[-1]
-        if navmesh.navmesh.find_nearest_node(destination) is end_node:
-            return True
 
         return False
 
@@ -148,7 +128,12 @@ class ActorNavigationQuery(NavigationQuery):
 
             destination = self._target.transform.world_position
 
-            navmesh = self.pawn.current_navmesh
+            # Update navmesh
+            navmesh = self.navmesh
+            if navmesh is None:
+                navmesh = self.navmesh = self.pawn.current_navmesh
+
+            # Check that this succeeded
             if navmesh is not None:
                 try:
                     path = navmesh.navmesh.find_path(source, destination, from_node=source_node)

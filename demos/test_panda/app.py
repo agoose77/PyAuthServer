@@ -56,15 +56,18 @@ class Rules(ReplicationRulesBase):
 
 def setup_map():
     floor = Map()
+
     floor.physics.mass = 0.0
     floor.mass = 0.0
 
     navmesh = TestNavmesh()
     #
-    # pickup = AmmoPickup()
-    # pickup.transform.world_position = [4, 5, 1]
-    # pickup.physics.mass = 0.0
-    #
+    pickup = AmmoPickup()
+    pickup.transform.world_position = [4, 5, 1]
+
+    pickup.physics.mass = 0.0
+    pickup.mass = 0.0
+
     # pawn = TestAI()
     # pawn.transform.world_position = [-3, -10, 1]
     # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
@@ -72,19 +75,16 @@ def setup_map():
     # cont = TestAIController()
     # cont.possess(pawn)
     #
-    # # AI 2
-    # pawn = Zombie()
-    # pawn.transform.world_position = [3, -11, 1]
-    # pawn.transform.world_orientation = Euler((0, 0, radians(-50)))
-    #
-    # cont = TestAIController()
-    # cont.possess(pawn)
+    # AI 2
 
-    for i in range(500):
-        pickup = AmmoPickup()
-        pickup.transform._nodepath.set_scale(0.1)
-        pickup.transform.world_position = navmesh.navmesh.random_point
-        pickup.physics.mass = 0.0
+    for i in range(3):
+        pawn = TestAI()
+        point = navmesh.navmesh.random_point
+        point.z = 1
+        pawn.transform.world_position = point
+
+        cont = TestAIController()
+        cont.possess(pawn)
 
 
 def setup_camera():
@@ -102,6 +102,7 @@ def setup_lighting():
     directionalLightNP.setHpr(180, -60, 0)
     render.setLight(directionalLightNP)
 
+
 def init_game():
     if WorldInfo.netmode == Netmodes.server:
         setup_map()
@@ -113,7 +114,7 @@ def init_game():
     setup_lighting()
 
     from direct.showbase import DirectObject
-    class Obj(DirectObject.DirectObject) :
+    class Obj(DirectObject.DirectObject):
 
         def __init__(self):
             super().__init__()
@@ -147,22 +148,22 @@ def init_game():
 
     Obj()
 
+
 def run(mode):
     try:
-        cls = classes[mode]
+        from network.network import NonBlockingSocketUDP
+        _s = NonBlockingSocketUDP("", 1200)
 
-    except KeyError:
-        print("Unable to start {}".format(mode))
-        return
-
-    if mode == "server":
-        WorldInfo.rules = Rules()
+    except OSError:
+        cls = Client
+        WorldInfo.netmode = Netmodes.client
 
     else:
-        WorldInfo.netmode = Netmodes.client
+        _s.close()
+        cls = Server
+        WorldInfo.rules = Rules()
 
     game_loop = cls()
     init_game()
-
     game_loop.delegate()
     del game_loop

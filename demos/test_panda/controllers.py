@@ -38,7 +38,7 @@ class TestPandaPlayerController(PlayerPawnController):
         pawn = self.pawn
         if pawn is None:
             return
-        print("PRC")
+
         y_speed = 15
         x_speed = 8
         turn_speed = 3
@@ -85,12 +85,12 @@ class GOTOState(State):
         self.controller = controller
         self.request = None
 
-        self.waypoint_margin = 1
+        self.waypoint_margin = 0.5
         self.target_margin = 2.5
 
         self._path_node = None
 
-    def draw_path(self, current_position, path):
+    def _draw_path(self, current_position, path):
         from panda3d.core import LineSegs, Vec4, Vec3
         path = [Vec3(*v) for v in path]
 
@@ -107,17 +107,6 @@ class GOTOState(State):
 
         node = segments.create()
         self._path_node = render.attach_new_node(node)
-        self._replan_timer = Timer(1.5)
-        self._replan_timer.on_target = self._replan
-
-    def _replan(self):
-        if self.request is None:
-            return
-
-        try:
-            del self.request._path
-        except AttributeError:
-            return
 
     def update(self):
         request = self.request
@@ -135,6 +124,7 @@ class GOTOState(State):
         # If target is invalid
         target = request.target
         if not target:
+            # Cleanup any navigation queries
             if hasattr(request, "_query"):
                 query = request._query
                 self.controller.navigation_manager.remove_query(query)
@@ -158,9 +148,10 @@ class GOTOState(State):
             return
 
         points = path.points
-
-        self.draw_path(pawn_position[:], points)
         target_distance = (target_position.xy - pawn_position.xy).length
+
+        # Render the path
+        self._draw_path(pawn_position[:], points)
 
         while points:
             waypoint_position = points[0]
@@ -181,13 +172,12 @@ class GOTOState(State):
                 pawn.physics.world_angular = Vector()
                 pawn.transform.align_to(to_waypoint)
 
-                if target_distance > self.target_margin:
-                    return
+                # We're done!
+                if target_distance < self.target_margin:
+                    request.status = EvaluationState.success
+                    pawn.physics.world_velocity = to_waypoint * 0
 
-                break
-
-        request.status = EvaluationState.success
-        pawn.physics.world_velocity = to_waypoint * 0
+                return
 
 
 class TestAIController(AIPawnController):

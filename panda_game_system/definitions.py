@@ -391,8 +391,7 @@ class PandaNavmeshInterface(PandaComponent):
         geom = geom_node.get_geom(0)
 
         self.nodes = self._parse_geom(geom)
-        self.node_positions = self.get_kd_nodes(self.nodes)
-        self.kd_tree = KDTree(self.node_positions, 2)
+        self.kd_tree = self._create_kd_tree(self.nodes)
 
         self._bullet_nodepath = self._create_bullet_nodepath(geom, geom_node, entity)
         RegisterPhysicsNode.invoke(self._bullet_nodepath.node())
@@ -433,24 +432,55 @@ class PandaNavmeshInterface(PandaComponent):
         return bullet_nodepath
 
     @staticmethod
-    def get_kd_nodes(nodes):
+    def _create_kd_tree(nodes):
         node_positions = []
 
-        for node in nodes:
-            bound_vector = BoundVector(node.position)
-            bound_vector.data = node
-            node_positions.append(bound_vector)
+        vertex_positions_to_nodes = {}
 
-        return node_positions
+        for node in nodes:
+            for vertex_position in node.vertices:
+                try:
+                    nodes = vertex_positions_to_nodes[vertex_position]
+
+                except KeyError:
+                    nodes = vertex_positions_to_nodes[vertex_position] = []
+
+                    # If it doesn't exist yet, add to node positions
+                    bound_vector = BoundVector(vertex_position)
+                    bound_vector.data = nodes
+                    node_positions.append(bound_vector)
+
+                nodes.append(node)
+
+        return KDTree(node_positions, 2)
 
     def find_nearest_node(self, point):
-        for node in self.nodes:
+        """Find the nearest A* node to a given point
+
+        If the point is not inside of any A* node, the nearest node by vertex is selected
+
+        :param point: point to test
+        """
+        nearest_kdnode = self.kd_tree.nn_search(point, 1)[1]
+        nearest_vertex_position = nearest_kdnode.position
+        nearest_vertex_nodes = nearest_vertex_position.data
+
+        # First test if inside nodes
+        for node in nearest_vertex_nodes:
             if point in node:
                 return node
 
-        # Fallback
-        nearest_kdnode = self.kd_tree.nn_search(point, 1)[1]
-        return nearest_kdnode.position.data
+        # Else, fallback with closest by origin
+        closest_distance_squared = 1e32
+        closest_node = None
+
+        for node in nearest_vertex_nodes:
+            distance_squared = (node.position - nearest_vertex_position).length_squared
+            if distance_squared < closest_distance_squared:
+                closest_distance_squared = distance_squared
+                closest_node = node
+
+        return closest_node
 
     def find_path(self, from_point, to_point, from_node=None, to_node=None):
         if from_node is None:
@@ -487,7 +517,7 @@ class PandaNavmeshInterface(PandaComponent):
                 vertex_reader.set_row(vertex_index)
                 vertex_position = Vector(vertex_reader.getData3f())
 
-                vertex_positions[vertex_index] = vertex_position
+                vertex_positions[vertex_index] = vertex_position.freeze()
                 vertex_indices.append(vertex_index)
 
             triangles.append(tuple(vertex_indices))

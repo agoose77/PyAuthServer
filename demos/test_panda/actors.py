@@ -245,6 +245,7 @@ class AmmoPickup(Actor):
 
 class Zombie(Pawn):
 
+    @simulated
     def create_object(self):
         from panda3d.core import Filename, NodePath, BitMask32
         from direct.actor.Actor import Actor
@@ -262,7 +263,7 @@ class Zombie(Pawn):
         bullet_node.setMass(1.0)
 
         model.reparentTo(bullet_nodepath)
-        model.set_scale(0.12)
+        #model.set_scale(0.12)
         model.set_pos(0, 0, -1)
 
         bullet_nodepath.set_python_tag("actor", model)
@@ -359,6 +360,7 @@ class TestAI(Pawn):
 
         self.walk_speed = 2
 
+    @simulated
     @LogicUpdateSignal.on_global
     def on_update(self, dt):
         if self.physics.world_velocity.xy.length > 0.1:
