@@ -124,9 +124,9 @@ class ActorNavigationQuery(NavigationQuery):
 
         if self.target_is_valid:
             source = self.pawn.transform.world_position
-            source_node = self.manager.current_node
-
             destination = self._target.transform.world_position
+
+            source_node = self.manager.current_node
 
             # Update navmesh
             navmesh = self.navmesh

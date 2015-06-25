@@ -30,10 +30,10 @@ class BGEParentableBase:
 class BGESocket(BGEParentableBase):
     """Attachment socket interface"""
 
-    def __init__(self, name, parent, obj):
-        super().__init__(obj)
+    def __init__(self, socket, parent):
+        super().__init__(socket)
 
-        self.name = name
+        self.name = socket.name
         self._parent = parent
 
 
@@ -311,16 +311,7 @@ class BGETransformInterface(BGEComponent, SignalListener, BGEParentableBase):
         self.world_orientation = current_rotation.slerp(rotation_quaternion, factor).to_euler()
 
     def create_sockets(self, obj):
-        sockets = set()
-        for obj in obj.childrenRecursive:
-            socket_name = obj.get("socket")
-            if not socket_name:
-                continue
-
-            socket = BGESocket(socket_name, self, obj)
-            sockets.add(socket)
-
-        return sockets
+        return {BGESocket(c, self) for c in obj.childrenRecursive if "socket" in c}
 
     def get_direction_vector(self, axis):
         """Get the axis vector of this object in world space
