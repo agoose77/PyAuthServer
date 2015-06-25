@@ -135,26 +135,6 @@ class ViewCone:
         return width < radius_at_depth
 
 
-class SensoryLink:
-
-    __slots__ = "position", "distance", "lifespan", "time_since_updated", "data", "is_new"
-
-    def __init__(self, position, distance, data, lifespan=1):
-        self.position = position
-        self.distance = distance
-        self.data = data
-        self.lifespan = lifespan
-        self.time_since_updated = 0.0
-        self.is_new = True
-
-    @property
-    def expired(self):
-        return self.time_since_updated > self.lifespan
-
-    def __repr__(self):
-        return "<SensoryLink ({:.1f}m)> to {}".format(self.distance, self.data)
-
-
 class SightInterpreter:
 
     def handle_visible_actors(self, actors):
@@ -197,8 +177,8 @@ class SightSensor(Sensor):
     def __init__(self):
         super().__init__()
 
-        self.view_cone = ViewCone(radians(30), 50)
-
+        self.view_cone = ViewCone(radians(67.5), 50)
+        self.sample_frequency = 8
         self._interpreters = set()
 
     def add_interpreter(self, interpreter):

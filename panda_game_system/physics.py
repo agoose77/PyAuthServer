@@ -7,11 +7,12 @@ from network.world_info import WorldInfo
 
 from game_system.controllers import PlayerPawnController
 from game_system.entities import Actor
-from game_system.enums import PhysicsType
+from game_system.enums import CollisionState, PhysicsType
 from game_system.latency_compensation import PhysicsExtrapolator
-from game_system.physics import CollisionContact
+from game_system.physics import CollisionContact, LazyCollisionResult
 from game_system.signals import *
 
+from .definitions import entity_from_nodepath
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 
 from panda3d.bullet import BulletWorld, BulletDebugNode
@@ -19,6 +20,7 @@ from panda3d.core import loadPrcFileData
 from direct.showbase.DirectObject import DirectObject
 
 from contextlib import contextmanager
+from collections import defaultdict
 
 loadPrcFileData('', 'bullet-enable-contact-events true')
 
@@ -55,27 +57,25 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
         self.debug_nodepath = render.attachNewNode(debug_node)
         self.world.set_debug_node(debug_node)
 
-#        self.debug_nodepath.show()
+        self.tracked_contacts = defaultdict(int)
+        self.existing_collisions = set()
 
-    def _get_contacts(self, node):
-        test = self.world.contact_test(node)
+    def _create_contacts_from_result(self, requesting_node, contact_result):
+        """Return collision contacts between two nodes"""
         contacts = []
 
-        for contact in test.get_contacts():
-            if contact.get_node0() == node:
+        for contact in contact_result.get_contacts():
+            if contact.get_node0() == requesting_node:
                 manifold = contact.get_manifold_point()
 
                 position = manifold.get_position_world_on_a()
-                normal = None
+                normal = -manifold.get_normal_world_on_b()
 
-            elif contact.get_node1() == node:
+            elif contact.get_node1() == requesting_node:
                 manifold = contact.get_manifold_point()
 
                 position = manifold.get_position_world_on_b()
-                normal = None
-
-            else:
-                continue
+                normal = manifold.get_normal_world_on_b()
 
             impulse = manifold.get_applied_impulse()
             contact_ = CollisionContact(position, normal, impulse)
@@ -83,27 +83,11 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
 
         return contacts
 
-    def _on_contact_added(self, node_a, node_b):
-        if node_a.has_python_tag("on_contact_added"):
-            callback = node_a.get_python_tag("on_contact_added")
-
-            contacts = self._get_contacts(node_a)
-            callback(node_b, contacts)
-
-        if node_b.has_python_tag("on_contact_added"):
-            callback = node_b.get_python_tag("on_contact_added")
-
-            contacts = self._get_contacts(node_b)
-            callback(node_a, contacts)
-
     def _on_contact_removed(self, node_a, node_b):
-        if node_a.has_python_tag("on_contact_removed"):
-            callback = node_a.get_python_tag("on_contact_removed")
-            callback(node_b)
+        self.tracked_contacts[(node_a, node_b)] -= 1
 
-        if node_b.has_python_tag("on_contact_removed"):
-            callback = node_b.get_python_tag("on_contact_removed")
-            callback(node_a)
+    def _on_contact_added(self, node_a, node_b):
+        self.tracked_contacts[(node_a, node_b)] += 1
 
     def _filter_collision(self, filter_data):
         filter_data.set_collide(True)
@@ -118,9 +102,66 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
         self.world.removeRigidBody(node)
         node.clear_python_tag("world")
 
+    def dispatch_collisions(self):
+        # Dispatch collisions
+        existing_collisions = self.existing_collisions
+        for pair, contact_count in self.tracked_contacts.items():
+            if contact_count > 0 and pair not in existing_collisions:
+                existing_collisions.add(pair)
+
+                # Dispatch collision
+                node_a, node_b = pair
+
+                entity_a = entity_from_nodepath(node_a)
+                entity_b = entity_from_nodepath(node_b)
+
+                contact_result = None
+
+                if entity_a is not None:
+                    def contact_getter():
+                        nonlocal contact_result
+                        if contact_result is None:
+                            contact_result = self.world.contact_test_pair(node_a, node_b)
+
+                        return self._create_contacts_from_result(node_a, contact_result)
+
+                    collision_result = LazyCollisionResult(entity_b, CollisionState.started, contact_getter)
+                    CollisionSignal.invoke(collision_result, target=entity_a)
+
+                if entity_b is not None:
+                    def contact_getter():
+                        nonlocal contact_result
+                        if contact_result is None:
+                            contact_result = self.world.contact_test_pair(node_a, node_b)
+
+                        return self._create_contacts_from_result(node_b, contact_result)
+
+                    collision_result = LazyCollisionResult(entity_a, CollisionState.started, contact_getter)
+                    CollisionSignal.invoke(collision_result, target=entity_b)
+
+            elif contact_count == 0 and pair in existing_collisions:
+                existing_collisions.remove(pair)
+
+                # Dispatch collision
+                node_a, node_b = pair
+
+                entity_a = entity_from_nodepath(node_a)
+                entity_b = entity_from_nodepath(node_b)
+
+                # Don't send contacts for ended collisions
+                contact_getter = lambda: None
+
+                if entity_a is not None:
+                    collision_result = LazyCollisionResult(entity_b, CollisionState.ended, contact_getter)
+                    CollisionSignal.invoke(collision_result, target=entity_a)
+
+                if entity_b is not None:
+                    collision_result = LazyCollisionResult(entity_a, CollisionState.ended, contact_getter)
+                    CollisionSignal.invoke(collision_result, target=entity_b)
+
     def update(self, delta_time):
         self.world.doPhysics(delta_time)
-
+        self.dispatch_collisions()
 
 @with_tag(Netmodes.server)
 class PandaServerPhysicsSystem(PandaPhysicsSystem):
@@ -148,7 +189,6 @@ class PandaClientPhysicsSystem(PandaPhysicsSystem):
 
     def __init__(self):
         super().__init__()
-
 
         self._extrapolators = {}
 

@@ -10,7 +10,7 @@ from game_system.geometry.kdtree import KDTree
 from game_system.geometry.utilities import get_random_point, get_random_polygon
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, CollisionGroups, PhysicsType
 from game_system.level_manager import LevelManager
-from game_system.physics import CollisionResult, CollisionContact, RayTestResult
+from game_system.physics import RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 from game_system.resources import ResourceManager
 
@@ -18,6 +18,7 @@ from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 from math import radians, degrees
 from os import path
+from operator import methodcaller
 from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMeshShape, BulletTriangleMesh
 from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, NodePath
 
@@ -27,6 +28,9 @@ def entity_from_nodepath(nodepath):
         return None
 
     return nodepath.get_python_tag("entity")
+
+
+get_hit_fraction = methodcaller("get_hit_fraction")
 
 
 class BoundVector(Vector):
@@ -103,30 +107,10 @@ class PandaPhysicsInterface(PandaComponent):
         for node in self._registered_nodes:
             RegisterPhysicsNode.invoke(node)
 
-        self._level_manager = LevelManager()
-        self._level_manager.on_enter = self._on_enter_collision
-        self._level_manager.on_exit = self._on_exit_collision
-
-        # Setup callbacks
-        self._nodepath.set_python_tag("on_contact_added", lambda n, c: self._level_manager.add(n, c))
-        self._nodepath.set_python_tag("on_contact_removed", self._level_manager.remove)
-
         self._node.notify_collisions(True)
         self._node.set_deactivation_enabled(False)
 
         self._suspended_mass = None
-
-    def _on_enter_collision(self, other, contacts):
-        hit_entity = entity_from_nodepath(other)
-
-        result = CollisionResult(hit_entity, CollisionState.started, contacts)
-        CollisionSignal.invoke(result, target=self._entity)
-
-    def _on_exit_collision(self, other):
-        hit_entity = entity_from_nodepath(other)
-
-        result = CollisionResult(hit_entity, CollisionState.ended, None)
-        CollisionSignal.invoke(result, target=self._entity)
 
     def destroy(self):
         for child in self._registered_nodes:
@@ -160,7 +144,7 @@ class PandaPhysicsInterface(PandaComponent):
         world = self._node.get_python_tag("world")
 
         query_result = world.rayTestAll(tuple(source), tuple(target), collision_mask)
-        sorted_hits = sorted(query_result.get_hits(), key=lambda h: h.get_hit_fraction())
+        sorted_hits = sorted(query_result.get_hits(), key=get_hit_fraction)
 
         for hit_result in sorted_hits:
             hit_node = hit_result.get_node()

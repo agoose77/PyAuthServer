@@ -12,7 +12,7 @@ from game_system.coordinates import Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.geometry.utilities import get_random_point, get_random_polygon
-from game_system.physics import CollisionContact, CollisionResult, RayTestResult
+from game_system.physics import RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
 from functools import partial

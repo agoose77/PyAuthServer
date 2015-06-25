@@ -116,7 +116,7 @@ class ActorNavigationQuery(NavigationQuery):
         if destination != end_point:
             return False
 
-        return False
+        return True
 
     def replan(self):
         """Re-plan current path"""
@@ -139,6 +139,7 @@ class ActorNavigationQuery(NavigationQuery):
                     path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
 
                 except PathNotFoundException:
+                    print("No valid path!", source_node, navmesh.navmesh.find_nearest_node(destination))
                     pass
 
         self._path = path

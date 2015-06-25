@@ -551,7 +551,7 @@ class GOAPActionPlanManager:
         if self._current_plan is None:
             try:
                 self._current_plan = self.find_best_plan()
-                print(self._current_plan)
+
             except GOAPPlannerFailedException as err:
                 self.logger.info(err)
 

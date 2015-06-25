@@ -123,6 +123,10 @@ class GOTOState(State):
         if pawn is None:
             return
 
+        if not request.target:
+            self.request = None
+            return
+
         pawn_position = pawn.transform.world_position
         target_position = request.target.transform.world_position
 
@@ -137,10 +141,8 @@ class GOTOState(State):
             pawn.physics.world_velocity = to_target * 0
 
         else:
-            #pawn.transform.align_to(to_target)
+            pawn.transform.align_to(to_target)
             pawn.physics.world_velocity = to_target.normalized() * 5
-
-            #pawn.transform.world_position += to_target.normalized() * 0.1
 
 
 class AIPawnController(PawnController):
