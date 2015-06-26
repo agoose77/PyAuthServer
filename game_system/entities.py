@@ -150,8 +150,6 @@ class Actor(ReplicableComponentEntity):
     def on_initialised(self):
         super().on_initialised()
 
-        self.load_components()
-
         self.camera_radius = 1.0
         self.indestructible = False
 
@@ -178,34 +176,34 @@ class Actor(ReplicableComponentEntity):
 class Camera(ReplicableComponentEntity):
     component_tags = ("transform", "camera")
 
-    @property
-    def mode(self):
-        return self._mode
+    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
 
-    @mode.setter
-    def mode(self, mode):
-        if mode == self._mode:
-            return
-
-        self._mode = mode
-
-        if mode == CameraMode.first_person:
-            self.local_position = Vector()
-
-        elif mode == CameraMode.third_person:
-            self.local_position = Vector((0, -self.gimbal_offset, 0))
-
-        self.local_orientation = Euler()
+    # @property
+    # def mode(self):
+    #     return self._mode
+    #
+    # @mode.setter
+    # def mode(self, mode):
+    #     if mode == self._mode:
+    #         return
+    #
+    #     self._mode = mode
+    #
+    #     if mode == CameraMode.first_person:
+    #         self.local_position = Vector()
+    #
+    #     elif mode == CameraMode.third_person:
+    #         self.local_position = Vector((0, -self.gimbal_offset, 0))
+    #
+    #     self.local_orientation = Euler()
 
     def on_initialised(self):
         super().on_initialised()
-
-        self.load_components()
-
-        self._mode = None
-
-        self.gimbal_offset = 2.0
-        self.mode = CameraMode.first_person
+        #
+        # self._mode = None
+        #
+        # self.gimbal_offset = 2.0
+        # self.mode = CameraMode.first_person
 
     def sees_actor(self, actor):
         """Determine if actor is visible to camera
@@ -226,17 +224,13 @@ class Navmesh(ReplicableComponentEntity):
 
     roles = Attribute(Roles(Roles.authority, Roles.none))
 
-    def on_initialised(self):
-        super().on_initialised()
-
-        self.load_components()
-
 
 class Pawn(Actor):
     component_tags = Actor.component_tags + ("animation",)
 
     # Network Attributes
     alive = Attribute(True, notify=True, complain=True)
+    camera = Attribute(data_type=Replicable, complain=True, notify=True)
     flash_count = Attribute(0)
     health = Attribute(100, notify=True, complain=True)
     info = Attribute(data_type=Replicable, complain=True)
@@ -281,6 +275,7 @@ class Pawn(Actor):
         if is_complaint:
             yield "alive"
             yield "info"
+            yield "camera"
 
             # Prevent cheating
             if is_owner:
@@ -303,6 +298,26 @@ class Pawn(Actor):
         # self.behaviours.blackboard['pawn'] = self
 
         self.playing_animations = {}
+
+    def on_notify(self, name):
+        if name == "camera":
+            self.on_possessed_camera()
+
+        else:
+            super().on_notify(name)
+
+    def on_possessed_camera(self):
+        # Owner should be replicated first, so fine.
+        # This will only be run on autonomous proxies
+        camera = self.camera
+
+        self.owner.on_pawn_possessed_camera(camera)
+
+    def possess_camera(self, camera):
+        self.camera = camera
+        camera.possessed_by(self)
+
+        self.on_possessed_camera()
 
     @ActorDamagedSignal.on_context
     def take_damage(self, damage, instigator, hit_position, momentum):
@@ -329,10 +344,11 @@ class Particle(ComponentEntity, SignalListener):
 
     def __init__(self):
         self.register_signals()
-        self.on_initialised()
+        self.load_components()
 
     def delete(self):
         self.unregister_signals()
+        self.unload_components()
 
 
 class Projectile(Actor):

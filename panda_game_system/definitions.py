@@ -61,6 +61,15 @@ class PandaSocket(PandaParentableBase):
         self.name = name
         self._parent = parent
 
+    @property
+    def world_position(self):
+        return Vector(self._nodepath.getPos(base.render))
+
+    @property
+    def world_orientation(self):
+        h, p, r = self._nodepath.getHpr(base.render)
+        return Euler((radians(p), radians(r), radians(h)))
+
 
 class PandaComponent(FindByTag):
     """Base class for Panda component"""
@@ -306,7 +315,8 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
         if parent is current_parent:
             return
 
-        current_parent.children.remove(self._nodepath)
+        if current_parent is not None:
+            current_parent.children.remove(self._nodepath)
 
         if parent is None:
             self._nodepath.wrtReparentTo(base.render)
@@ -315,17 +325,18 @@ class PandaTransformInterface(PandaComponent, SignalListener, PandaParentableBas
         if not isinstance(parent, PandaParentableBase):
             raise TypeError("Invalid parent type {}".format(parent.__class__.__name__))
 
-        self._game_object.wrtReparentTo(parent._nodepath)
+        self._nodepath.wrtReparentTo(parent._nodepath)
 
         parent.children.add(self._nodepath)
         self._parent = parent
 
     def create_sockets(self, nodepath):
-        sockets = set()
+        sockets = {}
+
         for child_nodepath in nodepath.find_all_matches("**/=socket"):
-            socket_name = child_nodepath.get_python_tag("socket")
+            socket_name = child_nodepath.get_name()
             socket = PandaSocket(socket_name, self, nodepath)
-            sockets.add(socket)
+            sockets[socket_name] = socket
 
         return sockets
 
@@ -581,6 +592,7 @@ class PandaCameraInterface(PandaComponent):
         self._node = nodepath.node()
 
         self._display_region = self._get_display_region()
+        self._node.showFrustum()
 
     @property
     def active(self):

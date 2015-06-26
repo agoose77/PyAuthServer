@@ -52,7 +52,7 @@ class PawnController(Replicable):
 
     def on_notify(self, name):
         if name == "pawn":
-            self.possess(self.pawn)
+            self.on_possessed_pawn()
 
     def on_deregistered(self):
         self.pawn.deregister()
@@ -65,10 +65,17 @@ class PawnController(Replicable):
         :param pawn: Pawn instance
         """
         self.pawn = pawn
+        self.on_possessed_pawn()
+
+    def on_possessed_pawn(self):
+        pawn = self.pawn
         pawn.possessed_by(self)
 
         # Set pawn as parent for signals
         pawn.register_child(self, greedy=True)
+
+    def on_pawn_possessed_camera(self, camera):
+        pass
 
     def unpossess(self):
         """Release control of possessed pawn"""
@@ -179,16 +186,16 @@ class PlayerPawnController(PawnController):
     MAX_POSITION_ERROR_SQUARED = 0.5
     MAX_ORIENTATION_ANGLE_ERROR_SQUARED = radians(5) ** 2
 
-    input_context = InputContext()
-
     clock = Attribute(data_type=Replicable, complain=True)
 
+    input_context = InputContext()
     info_cls = PlayerReplicationInfo
 
-    @classmethod
-    def get_local_controller(cls):
-        """Return the local player controller instance, or None if not found"""
-        return next(iter(Replicable.subclass_of_type(PlayerPawnController)), None)
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield from super().conditions(is_owner, is_complaint, is_initial)
+
+        if is_complaint:
+            yield "clock"
 
     def on_initialised(self):
         """Initialisation method"""
@@ -197,11 +204,90 @@ class PlayerPawnController(PawnController):
         self.initialise_client()
         self.initialise_server()
 
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
+    @requires_netmode(Netmodes.client)
+    def on_pawn_possessed_camera(self, camera):
+        """Callback from pawn to set camera"""
+        camera.camera.set_active()
 
-        if is_complaint:
-            yield "clock"
+    @reliable
+    def client_correct_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK), position: TypeFlag(Vector),
+                            yaw: TypeFlag(float), velocity: TypeFlag(Vector),
+                            angular_yaw: TypeFlag(float)) -> Netmodes.client:
+        """Correct previous move which was mis-predicted
+
+        :param move_id: ID of move to correct
+        :param position: corrected position
+        :param yaw: corrected yaw
+        :param velocity: corrected velocity
+        :param angular_yaw: corrected angular yaw
+        """
+        pawn = self.pawn
+        if not pawn:
+            return
+
+        # Restore pawn state
+        pawn.transform.world_position = position
+        pawn.physics.world_velocity = velocity
+
+        # Recreate Z rotation
+        orientation = pawn.transform.world_orientation
+        orientation.z = yaw
+        pawn.transform.world_orientation = orientation
+
+        # Recreate Z angular rotation
+        angular = pawn.physics.world_angular
+        angular.z = angular_yaw
+        pawn.physics.world_angular = angular
+
+        process_inputs = self.process_inputs
+        sent_states = self.sent_states
+        delta_time = 1 / WorldInfo.tick_rate
+
+        # Correcting move
+        print("Correcting an invalid move: {}".format(move_id))
+
+        for move_id in range(move_id, self.move_id + 1):
+            state = sent_states[move_id]
+            buttons, ranges = state.read()
+
+            process_inputs(buttons, ranges)
+            PhysicsSingleUpdateSignal.invoke(delta_time, target=pawn)
+
+        # Remember this correction, so that older moves are not corrected
+        self.latest_correction_id = move_id
+
+    @PlayerInputSignal.on_global
+    def client_handle_inputs(self, delta_time, input_manager):
+        """Handle local inputs from client
+
+        :param input_manager: input system
+        """
+        remapped_state = self.input_context.remap_state(input_manager, self.input_map)
+        packed_state = self.input_context.network.struct_cls()
+        packed_state.write(remapped_state)
+
+        self.move_id += 1
+        self.sent_states[self.move_id] = packed_state
+        self.recent_states.appendleft(packed_state)
+
+        self.process_inputs(*remapped_state)
+
+    @requires_netmode(Netmodes.client)
+    def client_send_move(self):
+        """Send inputs, alongside results of applied inputs, to the server"""
+        pawn = self.pawn
+        if not pawn:
+            return
+
+        position = pawn.transform.world_position
+        yaw = pawn.transform.world_orientation.z
+
+        self.server_receive_move(self.move_id, self.latest_correction_id, self.recent_states, position, yaw)
+
+    @classmethod
+    def get_local_controller(cls):
+        """Return the local player controller instance, or None if not found"""
+        return next(iter(Replicable.subclass_of_type(PlayerPawnController)), None)
 
     @classmethod
     def get_input_map(cls):
@@ -294,67 +380,13 @@ class PlayerPawnController(PawnController):
         # Save physics state for this move for later validation
         self.client_moves_states[move_id] = position, yaw, latest_correction_id
 
-    @reliable
-    def client_correct_move(self, move_id: TypeFlag(int, max_value=WorldInfo.MAXIMUM_TICK), position: TypeFlag(Vector),
-                            yaw: TypeFlag(float), velocity: TypeFlag(Vector),
-                            angular_yaw: TypeFlag(float)) -> Netmodes.client:
-        """Correct previous move which was mis-predicted
-
-        :param move_id: ID of move to correct
-        :param position: corrected position
-        :param yaw: corrected yaw
-        :param velocity: corrected velocity
-        :param angular_yaw: corrected angular yaw
-        """
-        pawn = self.pawn
-        if not pawn:
-            return
-
-        # Restore pawn state
-        pawn.transform.world_position = position
-        pawn.physics.world_velocity = velocity
-
-        # Recreate Z rotation
-        orientation = pawn.transform.world_orientation
-        orientation.z = yaw
-        pawn.transform.world_orientation = orientation
-
-        # Recreate Z angular rotation
-        angular = pawn.physics.world_angular
-        angular.z = angular_yaw
-        pawn.physics.world_angular = angular
-
-        process_inputs = self.process_inputs
-        sent_states = self.sent_states
-        delta_time = 1 / WorldInfo.tick_rate
-
-        # Correcting move
-        print("Correcting an invalid move: {}".format(move_id))
-
-        for move_id in range(move_id, self.move_id + 1):
-            state = sent_states[move_id]
-            buttons, ranges = state.read()
-
-            process_inputs(buttons, ranges)
-            PhysicsSingleUpdateSignal.invoke(delta_time, target=pawn)
-
-        # Remember this correction, so that older moves are not corrected
-        self.latest_correction_id = move_id
+    @PostPhysicsSignal.on_global
+    def post_physics(self):
+        self.client_send_move()
+        self.server_validate_last_move()
 
     def process_inputs(self, buttons, ranges):
         pass
-
-    @requires_netmode(Netmodes.client)
-    def client_send_move(self):
-        """Send inputs, alongside results of applied inputs, to the server"""
-        pawn = self.pawn
-        if not pawn:
-            return
-
-        position = pawn.transform.world_position
-        yaw = pawn.transform.world_orientation.z
-
-        self.server_receive_move(self.move_id, self.latest_correction_id, self.recent_states, position, yaw)
 
     @requires_netmode(Netmodes.server)
     def server_validate_last_move(self):
@@ -403,28 +435,6 @@ class PlayerPawnController(PawnController):
             self.client_correct_move(move_id, position, yaw, velocity, angular_yaw)
             self.last_corrected_move_id = move_id
 
-
-    @PlayerInputSignal.on_global
-    def client_handle_inputs(self, delta_time, input_manager):
-        """Handle local inputs from client
-
-        :param input_manager: input system
-        """
-        remapped_state = self.input_context.remap_state(input_manager, self.input_map)
-        packed_state = self.input_context.network.struct_cls()
-        packed_state.write(remapped_state)
-
-        self.move_id += 1
-        self.sent_states[self.move_id] = packed_state
-        self.recent_states.appendleft(packed_state)
-
-        self.process_inputs(*remapped_state)
-
-    @PostPhysicsSignal.on_global
-    def post_physics(self):
-        self.client_send_move()
-        self.server_validate_last_move()
-
     @LogicUpdateSignal.on_global
     @requires_netmode(Netmodes.server)
     def server_update(self, delta_time):
@@ -432,6 +442,10 @@ class PlayerPawnController(PawnController):
             input_state, move_id = next(self.buffer)
 
         except StopIteration:
+            return
+
+        except ValueError as err:
+            print(err)
             return
 
         if not self.pawn:
