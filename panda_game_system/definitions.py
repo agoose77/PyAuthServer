@@ -16,11 +16,14 @@ from game_system.resources import ResourceManager
 
 from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
+
+from contextlib import contextmanager
 from math import radians, degrees
 from os import path
 from operator import methodcaller
+
 from panda3d.bullet import BulletRigidBodyNode, BulletTriangleMeshShape, BulletTriangleMesh
-from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, NodePath
+from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, NodePath, Point3, BoundingSphere
 
 
 def entity_from_nodepath(nodepath):
@@ -425,7 +428,7 @@ class PandaNavmeshInterface(PandaComponent):
         bullet_node.set_into_collide_mask(mask)
 
         # Associate with entity
-        bullet_nodepath = base.render.attachNewNode(bullet_node)
+        bullet_nodepath = base.render.attach_new_node(bullet_node)
         bullet_nodepath.set_python_tag("entity", entity)
 
         bullet_nodepath.hide()
@@ -569,6 +572,84 @@ class PandaNavmeshInterface(PandaComponent):
         return triangle_neighbours
 
 
+@with_tag("camera")
+class PandaCameraInterface(PandaComponent):
+
+    def __init__(self, config_section, entity, nodepath):
+        self._entity = entity
+        self._nodepath = nodepath
+        self._node = nodepath.node()
+
+        self._display_region = self._get_display_region()
+
+    @property
+    def active(self):
+        # Check if the active camera is this camera
+        return self._display_region.get_camera() == self._nodepath
+
+    def set_active(self):
+        if self.active:
+            return
+
+        region = self._get_display_region()
+        region.set_camera(self._nodepath)
+
+    @staticmethod
+    def _get_display_region():
+        scene_root_node = base.render.node()
+
+        for region in base.win.get_display_regions():
+            camera = region.get_camera()
+            nodes = camera.get_nodes()
+            if not nodes:
+                continue
+
+            root = nodes[-1]
+            if root == scene_root_node:
+                return region
+
+    @contextmanager
+    def active_context(self):
+        region = self._display_region
+        active_camera = region.get_camera()
+
+        region.set_camera(self._nodepath)
+        yield
+        region.set_camera(active_camera)
+
+    def is_point_in_frustum(self, point):
+        """Determine if a point resides in the camera frustum
+
+        :param point: :py:class:`mathutils.Vector`
+        :rtype: bool
+        """
+        camera = self._nodepath
+        relative_point = camera.get_relative_point(base.render, point)
+        return camera.is_in_view(relative_point)
+
+    def is_sphere_in_frustum(self, point, radius):
+        """Determine if a sphere resides in the camera frustum
+
+        :param point: :py:class:`mathutils.Vector`
+        :param radius: radius of sphere
+        :rtype: bool
+        """
+        relative_point = self._nodepath.get_relative_point(base.render, point)
+        bounds = BoundingSphere(relative_point, radius)
+        return self._node.get_bounds().contains(bounds) in {BoundingSphere.IF_some, BoundingSphere.IF_all}
+
+    def get_screen_direction(self, x=0.5, y=0.5):
+        """Find direction along screen vector
+
+        :param x: screen space x coordinate
+        :param y: screen space y coordinate
+        """
+        mouse_pos = (2 * x - 1, 2 * y - 1)
+        from_point = Point3()
+        to_point = Point3()
+        return self._node.lens().extrude(mouse_pos, from_point, to_point)
+
+
 @with_tag("Panda")
 class PandaComponentLoader(ComponentLoader):
 
@@ -622,4 +703,3 @@ class PandaComponentLoader(ComponentLoader):
         result.on_unloaded = on_unloaded
 
         return result
-

@@ -409,6 +409,15 @@ class BGECameraInterface(BGEComponent):
     def __init__(self, config_section, entity, obj):
         self._game_object = obj
 
+    @property
+    def is_active(self):
+        camera = self._game_object
+        return camera.scene.active_camera is camera
+
+    def set_active(self):
+        camera = self._game_object
+        camera.scene.active_camera = camera
+
     @contextmanager
     def active_context(self):
         camera = self._game_object

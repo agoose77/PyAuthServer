@@ -88,7 +88,15 @@ class ComponentEntity:
         self._component_result = component_result
 
 
-class Actor(ComponentEntity, Replicable):
+class ReplicableComponentEntity(ComponentEntity, Replicable):
+
+    def on_initialised(self):
+        super().on_initialised()
+
+        self.load_components()
+
+
+class Actor(ReplicableComponentEntity):
     """Physics enabled network object"""
 
     component_tags = ("physics", "transform")
@@ -167,9 +175,8 @@ class Actor(ComponentEntity, Replicable):
             super().on_notify(name)
 
 
-class Camera(Actor):
-
-    component_tags = Actor.component_tags + ("camera",)
+class Camera(ReplicableComponentEntity):
+    component_tags = ("transform", "camera")
 
     @property
     def mode(self):
@@ -193,6 +200,8 @@ class Camera(Actor):
     def on_initialised(self):
         super().on_initialised()
 
+        self.load_components()
+
         self._mode = None
 
         self.gimbal_offset = 2.0
@@ -212,8 +221,7 @@ class Camera(Actor):
         return self.camera.is_sphere_in_frustum(actor.world_position, radius)
 
 
-class Navmesh(ComponentEntity, Replicable):
-
+class Navmesh(ReplicableComponentEntity):
     component_tags = "transform", "navmesh"
 
     roles = Attribute(Roles(Roles.authority, Roles.none))
@@ -223,13 +231,8 @@ class Navmesh(ComponentEntity, Replicable):
 
         self.load_components()
 
-        #self.find_node = self.navmesh.find_node
-        # self.find_low_resolution_path = AStarAlgorithm().find_path
-        # self.find_high_resolution_path = partial(FunnelAlgorithm().find_path, nodes=self.navmesh.nodes)
-
 
 class Pawn(Actor):
-
     component_tags = Actor.component_tags + ("animation",)
 
     # Network Attributes
