@@ -14,7 +14,7 @@ from .definitions import ComponentLoader
 from .enums import Axis, CameraMode, CollisionGroups, CollisionState
 from .pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm
 from .resources import ResourceManager
-from .structs import RigidBodyState
+from .structs import RigidBodyState, RigidBodyInfo
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal
 
 
@@ -95,6 +95,7 @@ class Actor(ComponentEntity, Replicable):
 
     # Network data
     rigid_body_state = Attribute(RigidBodyState())
+    rigid_body_info = Attribute(RigidBodyInfo(), notify=True)
     rigid_body_time = Attribute(data_type=float, notify=True)
 
     roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
@@ -119,18 +120,23 @@ class Actor(ComponentEntity, Replicable):
                            and not self.transform.parent)
         if (valid_role and allowed_physics) or is_initial:
             yield "rigid_body_state"
+            yield "rigid_body_info"
             yield "rigid_body_time"
 
     def copy_state_to_network(self):
         """Copies Physics State to network attributes"""
-        state = self.rigid_body_state
+        transforms_state = self.rigid_body_state
 
-        state.position = self.transform.world_position.copy()
-        state.orientation = self.transform.world_orientation.copy()
-        state.angular = self.physics.world_angular.copy()
-        state.velocity = self.physics.world_velocity.copy()
-        # state.collision_group = self.physics.collision_group
-        # state.collision_mask = self.physics.collision_mask
+        transforms_state.position = self.transform.world_position.copy()
+        transforms_state.orientation = self.transform.world_orientation.copy()
+        transforms_state.angular = self.physics.world_angular.copy()
+        transforms_state.velocity = self.physics.world_velocity.copy()
+
+        info_state = self.rigid_body_info
+        info_state.collision_group = self.physics.collision_group
+        info_state.collision_mask = self.physics.collision_mask
+        info_state.mass = self.physics.mass
+
         self.rigid_body_time = WorldInfo.elapsed
 
     def on_initialised(self):
@@ -149,6 +155,13 @@ class Actor(ComponentEntity, Replicable):
     def on_notify(self, name):
         if name == "rigid_body_time":
             PhysicsReplicatedSignal.invoke(self.rigid_body_time, target=self)
+
+        elif name == "rigid_body_info":
+            info = self.rigid_body_info
+
+            self.physics.mass = info.mass
+            self.physics.collision_group = info.collision_group
+            self.physics.collision_mask = info.collision_mask
 
         else:
             super().on_notify(name)

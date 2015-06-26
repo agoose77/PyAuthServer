@@ -111,6 +111,7 @@ class PandaPhysicsInterface(PandaComponent):
         self._node.set_deactivation_enabled(False)
 
         self._suspended_mass = None
+        self._collision_group = CollisionGroups.geometry
 
     def destroy(self):
         for child in self._registered_nodes:
@@ -159,6 +160,22 @@ class PandaPhysicsInterface(PandaComponent):
             hit_normal = Vector(hit_result.get_hit_normal())
 
             return RayTestResult(hit_position, hit_normal, hit_entity, hit_distance)
+
+    @property
+    def collision_group(self):
+        return self._collision_group
+
+    @collision_group.setter
+    def collision_group(self, group):
+        self._collision_group = group
+
+    @property
+    def collision_mask(self):
+        return self._collision_group
+
+    @collision_mask.setter
+    def collision_mask(self, group):
+        self._collision_group = group
 
     @property
     def type(self):

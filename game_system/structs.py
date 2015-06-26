@@ -11,9 +11,6 @@ class RigidBodyState(Struct):
     angular = Attribute(data_type=Vector)
     orientation = Attribute(data_type=Euler)
 
-    collision_group = Attribute(data_type=int)
-    collision_mask = Attribute(data_type=int)
-
     def lerp(self, other, factor):
         self.position += (other.position - self.position) * factor
         self.velocity += (other.velocity - self.velocity) * factor
@@ -24,6 +21,13 @@ class RigidBodyState(Struct):
 
         orientation.slerp(target_rotation, factor)
         self.orientation = orientation.to_euler()
+
+
+class RigidBodyInfo(Struct):
+    """Struct for Rigid Body Physics information"""
+    mass = Attribute(data_type=float)
+    collision_group = Attribute(data_type=int)
+    collision_mask = Attribute(data_type=int)
 
 
 class AnimationState(Struct):
