@@ -1,5 +1,5 @@
 from .bitfield import BitField
-from .handlers import get_handler
+from .handlers import get_handler, LOGGER
 from .type_flag import TypeFlag
 
 __all__ = ["FlagSerialiser"]
@@ -14,11 +14,12 @@ class FlagSerialiser:
     NONE_CONTENT_INDEX = -1
     BOOL_CONTENT_INDEX = -2
 
-    def __init__(self, arguments):
+    def __init__(self, arguments, logger=LOGGER):
         """Accepts ordered dict as argument"""
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
         self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
-        self.non_bool_handlers = [(key, get_handler(flag)) for key, flag in self.non_bool_args]
+        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(key)))
+                                  for key, flag in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
         self.enumerated_bool_args = list(enumerate(self.bool_args))

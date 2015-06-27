@@ -4,7 +4,6 @@ from .decorators import with_tag
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handlers import static_description, get_handler
-from .logger import logger
 from .tagged_delegate import DelegateByNetmode
 from .replicable import Replicable
 
@@ -35,8 +34,9 @@ class Channel(DelegateByNetmode):
         self.rpc_storage = replicable._rpc_container
 
         # Create a serialiser instance
-        self.serialiser = FlagSerialiser(self.attribute_storage._ordered_mapping)
         self.logger = stream.logger.getChild("<Channel: {}>".format(repr(replicable)))
+        self.serialiser = FlagSerialiser(self.attribute_storage._ordered_mapping,
+                                         logger=self.logger.getChild("<FlagSerialiser>"))
 
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))

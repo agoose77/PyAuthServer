@@ -111,7 +111,6 @@ class IterableHandler(IHandler):
         self.count_packer = get_handler(count_flag)
         self.bitfield_packer = get_handler(variable_bitfield_flag)
 
-        print(element_flag, self.element_packer)
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
         compression_type = flag.data.get("compression", IterableCompressionType.auto)

@@ -49,7 +49,7 @@ class Stream:
 
     def __init__(self, dispatcher):
         self.dispatcher = dispatcher
-        self.logger = dispatcher.logger.getChild(self.__class__.__name__)
+        self.logger = dispatcher.logger.getChild("<Stream: {}>".format(self.__class__.__name__))
 
 
 class InjectorStream(Stream):

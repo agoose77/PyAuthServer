@@ -108,10 +108,7 @@ def get_handler(type_flag, logger=LOGGER):
             # Remember this for later call
             handler = handlers[value_type] = handlers[handled_type]
 
-    # Get logger for type
-    logger_name = "<{} ({})>".format(handler.__class__.__name__, type_flag)
-    handler_logger = logger.getChild(logger_name)
-    return handler(type_flag, logger=handler_logger)
+    return handler(type_flag, logger=logger)
 
 
 class IHandler:

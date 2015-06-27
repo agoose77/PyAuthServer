@@ -4,9 +4,7 @@ from struct import Struct, pack, unpack_from
 from ..type_flag import TypeFlag
 from ..handlers import register_handler, IHandler
 
-__all__ = ['UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes', '_handler_from_bit_length',
-           '_handler_from_int', '_handler_from_byte_length',
-           'next_or_equal_power_of_two', '_BoolHandler', 'Int8', 'Int16', 'Int32', 'Int64']
+__all__ = ['bits_to_bytes', 'next_or_equal_power_of_two']
 
 
 def execute_and_return_pair(function_string, locals_dict):
@@ -208,13 +206,12 @@ class _BytesHandler:
                """length, length_size = unpacker(bytes_string)\n\treturn length + length_size""",
                """def pack(bytes_string, packer=packer.pack):\n\treturn packer(len(bytes_string)) + bytes_string""")
 
-            register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
-                                 .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
-
             cls_dict = {}
+            locals_ = locals()
             for method_string in methods:
-                wrapped_string = register_string.format(method_string)
-                exec(wrapped_string)
+                value_name, value = execute_and_return_pair(method_string, locals_)
+
+                cls_dict[value_name] = value
 
             new_cls = type("BytesHandler", (), cls_dict)
             cls.classes[header_max_value] = new_cls
@@ -250,13 +247,12 @@ class _StringHandler:
                 """data.append(bytes_string[offset: offset+length].decode())\n\t\toffset += length\n\t"""
                 """return data, offset - _offset""",)
 
-            register_string = """local_dict = dict();local_dict=locals().copy()\n{}\nfunc_name = next(iter(set(locals())
-                                 .difference(local_dict)));cls_dict[func_name] = locals()[func_name]"""
-
             cls_dict = {}
+            locals_ = locals()
             for method_string in methods:
-                wrapped_string = register_string.format(method_string)
-                exec(wrapped_string)
+                value_name, value = execute_and_return_pair(method_string, locals_)
+
+                cls_dict[value_name] = value
 
             new_cls = type("StringHandler", (), cls_dict)
             cls.classes[header_max_value] = new_cls
