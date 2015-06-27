@@ -1,8 +1,23 @@
+from contextlib import contextmanager
+from logging import getLogger
+
 handlers = {}
 descriptions = {}
 
 __all__ = ['static_description', 'register_handler', 'register_description',
-           'get_handler']
+           'get_handler', 'default_logger_as', 'IHandler']
+
+# Default loggers for handlers, handlers can be a class or an instance, so don't force user to set the logger
+_DEFAULT_LOGGER = getLogger("<Default Handler Logger>")
+LOGGER = _DEFAULT_LOGGER
+
+
+@contextmanager
+def default_logger_as(logger):
+    global LOGGER
+    LOGGER = logger
+    yield
+    LOGGER = _DEFAULT_LOGGER
 
 
 def static_description(value):
@@ -41,7 +56,7 @@ def static_description(value):
     return description_func(value)
 
 
-def register_handler(value_type, handler, is_callable=False):
+def register_handler(value_type, handler):
     """Registers new handler for custom serialisers
 
     :param value_type: type of object
@@ -49,7 +64,7 @@ def register_handler(value_type, handler, is_callable=False):
     :param is_callable: whether handler should be called with the TypeFlag that
     requests it
     """
-    handlers[value_type] = handler, is_callable
+    handlers[value_type] = handler
 
 
 def register_description(value_type, callback):
@@ -63,7 +78,7 @@ def register_description(value_type, callback):
     descriptions[value_type] = callback
 
 
-def get_handler(type_flag):
+def get_handler(type_flag, logger=LOGGER):
     """Takes a TypeFlag (or subclass thereof) and return handler.
 
     If a handler cannot be found for the provided type, look for a handled
@@ -76,7 +91,7 @@ def get_handler(type_flag):
     value_type = type_flag.data_type
 
     try:
-        handler, is_callable = handlers[value_type]
+        handler = handlers[value_type]
 
     except KeyError:
         try:
@@ -91,6 +106,30 @@ def get_handler(type_flag):
 
         else:
             # Remember this for later call
-            handler, is_callable = handlers[value_type] = handlers[handled_type]
+            handler = handlers[value_type] = handlers[handled_type]
 
-    return handler(type_flag) if is_callable else handler
+    # Get logger for type
+    logger_name = "<{} ({})>".format(handler.__class__.__name__, type_flag)
+    handler_logger = logger.getChild(logger_name)
+    return handler(type_flag, logger=handler_logger)
+
+
+class IHandler:
+
+    def __init__(self, flag, logger=None):
+        pass
+
+    def pack(self, value):
+        raise NotImplementedError
+
+    def pack_multiple(self, values, count):
+        raise NotImplementedError
+
+    def unpack_from(self, bytes_string, offset=0):
+        raise NotImplementedError
+
+    def unpack_multiple(self, bytes_string, count, offset=0):
+        raise NotImplementedError
+
+    def size(self, bytes_string):
+        raise NotImplementedError

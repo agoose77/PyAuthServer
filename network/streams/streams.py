@@ -15,22 +15,27 @@ send_state = set_annotation("send_for")
 class Dispatcher:
     """Dispatches packets to subscriber streams, and requests new packets from them"""
 
-    def __init__(self):
-        self.streams = []
+    def __init__(self, logger):
+        self.streams = {}
+        self.logger = logger
 
     def create_stream(self, stream_cls):
+        if stream_cls in self.streams:
+            raise ValueError("Stream class already exists for this dispatcher")
+
         stream = stream_cls(self)
-        self.streams.append(stream)
+        self.streams[stream_cls] = stream
+
         return stream
 
     def handle_packets(self, packet_collection):
-        for stream in self.streams:
+        for stream in list(self.streams.values()):
             stream.handle_packets(packet_collection)
 
     def pull_packets(self, network_tick, bandwidth):
         packet_collection = PacketCollection()
 
-        for stream in self.streams:
+        for stream in list(self.streams.values()):
             packets = stream.pull_packets(network_tick, bandwidth)
             if packets is None:
                 continue
@@ -40,10 +45,19 @@ class Dispatcher:
         return packet_collection
 
 
-class InjectorStream:
+class Stream:
+
+    def __init__(self, dispatcher):
+        self.dispatcher = dispatcher
+        self.logger = dispatcher.logger.getChild(self.__class__.__name__)
+
+
+class InjectorStream(Stream):
     """Interface to inject packets into the packet stream"""
 
     def __init__(self, dispatcher):
+        super().__init__(dispatcher)
+
         self.queue = []
 
     @staticmethod

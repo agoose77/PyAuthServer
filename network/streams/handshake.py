@@ -1,11 +1,10 @@
-from .streams import ProtocolHandler, response_protocol, send_state, StatusDispatcher
+from .streams import ProtocolHandler, response_protocol, send_state, StatusDispatcher, Stream
 from .replication import ReplicationStream
 
 from ..decorators import with_tag
 from ..errors import NetworkError
 from ..enums import ConnectionState, ConnectionProtocols, Netmodes
 from ..handlers import get_handler
-from ..logger import logger
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal
 from ..tagged_delegate import DelegateByNetmode
@@ -18,10 +17,13 @@ __all__ = 'HandshakeStream', 'ServerHandshakeStream', 'ClientHandshakeStream'
 
 
 # Handshake Streams
-class HandshakeStream(ProtocolHandler, StatusDispatcher, DelegateByNetmode):
+class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmode):
     subclasses = {}
 
     def __init__(self, dispatcher):
+        Stream.__init__(self, dispatcher)
+        StatusDispatcher.__init__(self)
+
         self.state = ConnectionState.pending
 
         self.dispatcher = dispatcher
@@ -101,7 +103,7 @@ class ServerHandshakeStream(HandshakeStream):
             WorldInfo.rules.pre_initialise(connection_info, netmode)
 
         except NetworkError as err:
-            logger.exception("Connection was refused")
+            self.logger.exception("Connection was refused")
             self.handshake_error = err
 
         else:
@@ -181,7 +183,7 @@ class ClientHandshakeStream(HandshakeStream):
         error_class = NetworkError.from_type_name(error_type)
         raised_error = error_class(error_message)
 
-        logger.error(raised_error)
+        self.logger.error(raised_error)
         self.state = ConnectionState.failed
 
         ConnectionErrorSignal.invoke(raised_error, target=self)

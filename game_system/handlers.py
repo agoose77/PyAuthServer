@@ -1,93 +1,148 @@
 from network.type_flag import TypeFlag
-from network.handlers import get_handler, register_description, register_handler
+from network.handlers import get_handler, register_description, register_handler, IHandler
 
 from functools import partial
 from itertools import chain
 
 from .coordinates import Vector, Euler, Quaternion, Matrix
 
-__all__ = ["Euler4", "Euler8", "Vector4", "Vector8", "Quaternion4",
-           "Quaternion8", "Matrix4", "Matrix8"]
+__all__ = ["EulerHandler", "VectorHandler", "QuaternionHandler", "MatrixHandler"]
 
 
-class Euler8:
+def unpack_handler(handler):
+    return handler.pack, handler.unpack_from, handler.size()
 
-    packer = get_handler(TypeFlag(float, max_precision=True))
 
-    item_pack = packer.pack
-    item_unpack = packer.unpack_from
-    item_size = packer.size()
+class PrecisionSwitcher:
+    precision = None
 
-    wrapper = Euler
+    def __new__(cls, flag, logger):
+        # If the class being instantiated is a subclass
+        if cls.precision is not None:
+            new_cls = cls
+
+        else:
+            requires_high_precision = flag.data.get("max_precision")
+            for new_cls in cls.__subclasses__():
+                if requires_high_precision and new_cls.precision == "high":
+                    break
+
+                elif not requires_high_precision and new_cls.precision == "low":
+                    break
+
+        return object.__new__(new_cls)
+
+
+class MathutilsHandler(PrecisionSwitcher, IHandler):
+
+    wrapper = None
     wrapper_length = 3
 
-    @classmethod
-    def pack(cls, euler):
-        pack = cls.item_pack
-        return b''.join(pack(c) for c in euler)
+    item_pack = None
+    item_size = None
+    item_unpack = None
 
-    @classmethod
-    def unpack_from(cls, bytes_string, offset=0):
-        item_size = cls.item_size
-        unpack = cls.item_unpack
-        wrapper_length = cls.wrapper_length
-        iterable = [unpack(bytes_string, offset + (i * item_size))[0] for i in range(wrapper_length)]
+    flag = None
 
-        return cls.wrapper(iterable), item_size * wrapper_length
+    def __init__(self, flag, logger):
+        self.packer = packer = get_handler(self.flag)
+        self.item_pack = packer.pack
+        self.item_unpack = packer.unpack_from
+        self.item_size = packer.size()
 
-    @classmethod
-    def unpack_merge(cls, euler, bytes_string, offset=0):
-        item_size = cls.item_size
-        unpack = cls.item_unpack
-        wrapper_length = cls.wrapper_length
+    def pack(self, obj):
+        pack = self.item_pack
+        return b''.join(pack(c) for c in obj)
+
+    def unpack_from(self, bytes_string, offset=0):
+        item_size = self.item_size
+        unpack = self.item_unpack
+        wrapper_length = self.wrapper_length
+        iterable = [unpack(bytes_string, offset + (i * item_size))[0]
+                    for i in range(wrapper_length)]
+
+        return self.wrapper(iterable), item_size * wrapper_length
+
+    def unpack_merge(self, euler, bytes_string, offset=0):
+        item_size = self.item_size
+        unpack = self.item_unpack
+        wrapper_length = self.wrapper_length
 
         euler[:] = [unpack(bytes_string, offset + (i * item_size))[0] for i in range(wrapper_length)]
         return item_size * wrapper_length
 
-    @classmethod
-    def size(cls, bytes_string=None):
-        return cls.item_size * cls.wrapper_length
+    def size(self, bytes_string=None):
+        return self.item_size * self.wrapper_length
 
 
-class Euler4(Euler8):
+class EulerHandler(MathutilsHandler):
 
-    packer = get_handler(TypeFlag(float, max_precision=False))
-
-    item_pack = packer.pack
-    item_unpack = packer.unpack_from
-    item_size = packer.size()
+    wrapper = Euler
 
 
-class Vector8(Euler8):
+class Euler8Handler(EulerHandler):
+
+    flag = TypeFlag(float, max_precision=True)
+    precision = "high"
+
+
+class Euler4Handler(EulerHandler):
+
+    flag = TypeFlag(float, max_precision=False)
+    precision = "low"
+
+
+class VectorHandler(MathutilsHandler):
+
     wrapper = Vector
 
 
-class Vector4(Euler4):
-    wrapper = Vector
+class Vector8Handler(VectorHandler):
+
+    flag = TypeFlag(float, max_precision=True)
+    precision = "high"
 
 
-class Quaternion4(Euler4):
+class Vector4Handler(VectorHandler):
+
+    flag = TypeFlag(float, max_precision=False)
+    precision = "low"
+
+
+class QuaternionHandler(MathutilsHandler):
+
     wrapper = Quaternion
     wrapper_length = 4
 
 
-class Quaternion8(Euler8):
-    wrapper = Quaternion
-    wrapper_length = 4
+class Quaternion8Handler(QuaternionHandler):
+
+    flag = TypeFlag(float, max_precision=True)
+    precision = "high"
 
 
-class Matrix4(Euler4):
-    item_pack = Vector4.pack
-    item_unpack = Vector4.unpack_from
-    item_size = Vector4.size()
-    wrapper_length = 3
+class Quaternion4Handler(QuaternionHandler):
+
+    flag = TypeFlag(float, max_precision=False)
+    precision = "low"
+
+
+class MatrixHandler(MathutilsHandler):
+
     wrapper = Matrix
+    wrapper_length = 9
 
 
-class Matrix8(Matrix4):
-    item_pack = Vector8.pack
-    item_unpack = Vector8.unpack_from
-    item_size = Vector8.size()
+class Matrix8Handler(MatrixHandler):
+
+    flag = TypeFlag(Vector, max_precision=True)
+    precision = "high"
+
+
+class Matrix4Handler(MatrixHandler):
+
+    flag = TypeFlag(Vector, max_precision=False)
+    precision = "low"
 
 
 def matrix_description(obj):
@@ -98,15 +153,11 @@ def vector_description(obj):
     return hash(tuple(obj))
 
 
-def precision_switch(low, high, type_flag):
-    return high if type_flag.data.get("max_precision") else low
-
-
-# Register packers
-register_handler(Vector, partial(precision_switch, Vector4, Vector8), is_callable=True)
-register_handler(Euler, partial(precision_switch, Euler4, Euler8), is_callable=True)
-register_handler(Quaternion, partial(precision_switch, Quaternion4, Quaternion8), is_callable=True)
-register_handler(Matrix, partial(precision_switch, Matrix4, Matrix8), is_callable=True)
+# Register handlers
+register_handler(Vector, VectorHandler)
+register_handler(Euler, EulerHandler)
+register_handler(Quaternion, QuaternionHandler)
+register_handler(Matrix, MatrixHandler)
 
 # Register custom hash-like descriptions
 register_description(Vector, vector_description)

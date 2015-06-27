@@ -1,5 +1,5 @@
 from collections import deque
-from time import clock
+from logging import getLogger
 from socket import gethostbyname
 
 from .bitfield import BitField
@@ -36,6 +36,12 @@ class Connection(metaclass=InstanceRegister):
 
         except KeyError:
             return cls(ip_info)
+
+    def __repr__(self):
+        if self.registered:
+            return "<Connection: <{}>>".format(self.instance_id)
+
+        return "<Connection>"
 
     def on_initialised(self):
         # Maximum sequence number value
@@ -74,8 +80,11 @@ class Connection(metaclass=InstanceRegister):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
+        # Support logging
+        self.logger = getLogger(repr(self))
+
         # Internal packet data
-        self.dispatcher = Dispatcher()
+        self.dispatcher = Dispatcher(logger=self.logger)
         self.injector = self.dispatcher.create_stream(InjectorStream)
 
         self.handshake = self.dispatcher.create_stream(HandshakeStream)

@@ -3,17 +3,15 @@ from .type_flag import TypeFlag
 from .enums import IterableCompressionType, Roles
 from .handlers import *
 from .iterators import partition_iterable
-from .logger import logger
 from .replicable import Replicable
 from .encoding import RunLengthCodec
 from .serialiser import *
-from .world_info import WorldInfo
 
 from inspect import signature
 from itertools import chain
 
 
-__all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableBaseHandler', 'StructHandler', 'BitFieldHandler',
+__all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableHandler', 'StructHandler', 'BitFieldHandler',
            'class_type_description', 'iterable_description', 'is_variable_sized']
 
 
@@ -33,40 +31,34 @@ def is_variable_sized(packer):
     return bytes_arg.default is bytes_arg.empty
 
 
-class ReplicableTypeHandler:
+class ReplicableTypeHandler(IHandler):
 
     string_packer = get_handler(TypeFlag(str))
 
-    @classmethod
-    def pack(cls, cls_):
-        return cls.string_packer.pack(cls_.type_name)
+    def pack(self, cls_):
+        return self.string_packer.pack(cls_.type_name)
 
-    @classmethod
-    def pack_multiple(cls, values, count):
+    def pack_multiple(self, values, count):
         names = [c.type_name for c in values]
-        return cls.string_packer.pack_multiple(names, count)
+        return self.string_packer.pack_multiple(names, count)
 
-    @classmethod
-    def unpack_from(cls, bytes_string, offset=0):
-        name, name_length = cls.string_packer.unpack_from(bytes_string, offset)
+    def unpack_from(self, bytes_string, offset=0):
+        name, name_length = self.string_packer.unpack_from(bytes_string, offset)
         return Replicable.from_type_name(name), name_length
 
-    @classmethod
-    def unpack_multiple(cls, bytes_string, count, offset=0):
-        names, names_length = cls.string_packer.unpack_multiple(bytes_string, count, offset)
+    def unpack_multiple(self, bytes_string, count, offset=0):
+        names, names_length = self.string_packer.unpack_multiple(bytes_string, count, offset)
         get_class = Replicable.from_type_name
         return [get_class(n) for n in names], names_length
 
-    @classmethod
-    def size(cls, bytes_string):
-        return cls.string_packer.size(bytes_string)
+    def size(self, bytes_string):
+        return self.string_packer.size(bytes_string)
 
 
-class RolesHandler:
+class RolesHandler(IHandler):
     packer = get_handler(TypeFlag(int))
 
-    @classmethod
-    def pack(cls, roles):
+    def pack(self, roles):
         """Pack roles for client.
 
         Switches remote and local roles.
@@ -74,47 +66,43 @@ class RolesHandler:
         :param roles: role enum
         :returns: packed roles (bytes)
         """
-        pack = cls.packer.pack
+        pack = self.packer.pack
         return pack(roles.remote) + pack(roles.local)
 
-    @classmethod
-    def pack_multiple(cls, roles, count):
-        pack = cls.packer.pack
+    def pack_multiple(self, roles, count):
+        pack = self.packer.pack
         packed_roles = [(pack(roles_.remote), pack(roles_.local)) for roles_ in roles]
         return b''.join(chain.from_iterable(packed_roles))
 
-    @classmethod
-    def unpack_from(cls, bytes_string, offset=0):
-        packer = cls.packer
+    def unpack_from(self, bytes_string, offset=0):
+        packer = self.packer
         local_role, local_size = packer.unpack_from(bytes_string, offset)
         remote_role, remote_size = packer.unpack_from(bytes_string, offset + local_size)
         return Roles(local_role, remote_role), remote_size + local_size
 
-    @classmethod
-    def unpack_multiple(cls, bytes_string, count, offset=0):
-        role_values, size = cls.packer.unpack_multiple(bytes_string, count, offset)
+    def unpack_multiple(self, bytes_string, count, offset=0):
+        role_values, size = self.packer.unpack_multiple(bytes_string, count, offset)
         roles = [Roles(role_values[i], role_values[(i + 1)]) for i in range(count)]
         return roles, size
 
-    @classmethod
-    def size(cls, bytes_string=None):
-        return 2 * cls.packer.size()
+    def size(self, bytes_string=None):
+        return 2 * self.packer.size()
 
 
-class IterableHandler:
+class IterableHandler(IHandler):
     iterable_cls = None
     iterable_add = None
     iterable_update = None
     unique_members = False
 
-    def __init__(self, static_value):
+    def __init__(self, flag, logger):
         try:
-            element_flag = static_value.data['element_flag']
+            element_flag = flag.data['element_flag']
 
         except KeyError as err:
             raise TypeError("Unable to pack iterable without full type information") from err
 
-        max_count = static_value.data.get("max_length", 255)
+        max_count = flag.data.get("max_length", 255)
         count_flag = TypeFlag(int, max_value=max_count)
         variable_bitfield_flag = TypeFlag(BitField)
 
@@ -123,9 +111,10 @@ class IterableHandler:
         self.count_packer = get_handler(count_flag)
         self.bitfield_packer = get_handler(variable_bitfield_flag)
 
+        print(element_flag, self.element_packer)
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
-        compression_type = static_value.data.get("compression", IterableCompressionType.auto)
+        compression_type = flag.data.get("compression", IterableCompressionType.auto)
         supports_compression = not self.__class__.unique_members
 
         # Select best compression method
@@ -406,14 +395,15 @@ class SetHandler(IterableHandler):
         set_.update(data)
 
 
-class ReplicableBaseHandler:
+class ReplicableHandler(IHandler):
     """Handler for packing replicable proxy
     Packs replicable references and unpacks to reference
     """
 
-    def __init__(self):
+    def __init__(self, flag, logger):
         id_flag = TypeFlag(int, max_value=Replicable.MAXIMUM_REPLICABLES)
         self._packer = get_handler(id_flag)
+        self._logger = logger
 
     def pack(self, replicable):
         """Pack replicable using its instance ID
@@ -453,7 +443,7 @@ class ReplicableBaseHandler:
             return replicable, id_size
 
         except KeyError:
-            logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
+            self._logger.exception("Couldn't find replicable with ID '{}'".format(instance_id))
             return None, id_size
 
     def unpack_multiple(self, bytes_string, count, offset=0):
@@ -466,7 +456,7 @@ class ReplicableBaseHandler:
 
             except KeyError:
                 replicable = None
-                logger.exception("ReplicableBaseHandler: Couldn't find replicable with ID '{}'".format(instance_id))
+                self._logger.exception("Couldn't find replicable with ID '{}'".format(instance_id))
 
             replicables.append(replicable)
 
@@ -476,13 +466,15 @@ class ReplicableBaseHandler:
         return self._packer.size()
 
 
-class StructHandler:
+class StructHandler(IHandler):
 
-    def __init__(self, static_value):
-        self.struct_cls = static_value.data_type
+    def __init__(self, flag, logger):
+        self.struct_cls = flag.data_type
 
         if self.struct_cls is Struct:
-            print("Warning: A Handler has been requested for a Struct type, cannot populate deserialised members")
+            raise TypeError("A Handler has been requested for the Struct base type, not enough information to \
+            deserialise")
+
         self.size_packer = get_handler(TypeFlag(int, max_value=1000))
 
     def pack(self, struct):
@@ -519,10 +511,10 @@ class StructHandler:
         return struct_size + length_size
 
 
-class BitFieldHandler:
+class BitFieldHandler(IHandler):
     """Bitfield packer for a TypeFlag which indicates the number of fields"""
 
-    def __init__(self, type_flag):
+    def __init__(self, type_flag, logger):
         fields = type_flag.data.get("fields")
         self.field_cls = type_flag.data_type
 
@@ -532,7 +524,9 @@ class BitFieldHandler:
             self.unpack_from = self.variable_unpack_from
             self.unpack_multiple = self.variable_unpack_multiple
             self.size = self.variable_size
-            self._packer = handler_from_byte_length(1)
+
+            # packer used to pack the length of the fields, not the field values themselves
+            self._packer = get_handler(TypeFlag(int, max_bits=8))
 
         else:
             self.pack = self.fixed_pack
@@ -541,7 +535,7 @@ class BitFieldHandler:
             self.unpack_multiple = self.fixed_pack_multiple
             self.size = self.fixed_size
             self._size = fields
-            self._packer = handler_from_bit_length(fields)
+            self._packer = get_handler(TypeFlag(int, max_bits=fields))
             self._packed_size = BitField.calculate_footprint(fields)
 
     def fixed_pack(self, field):
@@ -565,7 +559,8 @@ class BitFieldHandler:
         packed_size = self._packer.pack(len(field))
 
         # Only pack data if we can
-        if len(field):
+        assert bool(field) == bool(len(field))
+        if field:
             return packed_size + field.to_bytes()
 
         else:
@@ -605,17 +600,17 @@ class BitFieldHandler:
 
 
 # Define this before Struct
-register_handler(BitField, BitFieldHandler, True)
+register_handler(BitField, BitFieldHandler)
 
 # Handle circular dependancy
 from .struct import Struct
-register_handler(Struct, StructHandler, True)
+register_handler(Struct, StructHandler)
 
 register_handler(Roles, RolesHandler)
-register_handler(list, ListHandler, True)
-register_handler(set, SetHandler, True)
+register_handler(list, ListHandler)
+register_handler(set, SetHandler)
 
-ReplicableHandler = ReplicableBaseHandler()
+# Below need fixing
 register_handler(Replicable, ReplicableHandler)
 register_handler(type(Replicable), ReplicableTypeHandler)
 

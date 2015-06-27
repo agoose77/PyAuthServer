@@ -16,9 +16,9 @@ class FlagSerialiser:
 
     def __init__(self, arguments):
         """Accepts ordered dict as argument"""
-        self.bool_args = [(key, value) for key, value in arguments.items() if value.data_type is bool]
-        self.non_bool_args = [(key, value) for key, value in arguments.items() if value.data_type is not bool]
-        self.non_bool_handlers = [(key, get_handler(value)) for key, value in self.non_bool_args]
+        self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
+        self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
+        self.non_bool_handlers = [(key, get_handler(flag)) for key, flag in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
         self.enumerated_bool_args = list(enumerate(self.bool_args))
