@@ -155,10 +155,12 @@ class AStarAlgorithm:
 
                 tentative_g_score = g_scores[current] + get_g_score(current, neighbour)
 
-                if neighbour in open_set and tentative_g_score < g_scores[neighbour]:
+                in_open_set = neighbour in open_set
+                if in_open_set and tentative_g_score < g_scores[neighbour]:
                     open_set.remove(neighbour)
+                    in_open_set = False
 
-                if neighbour not in open_set:
+                if not in_open_set:
                     path[neighbour] = current
 
                     f_score = tentative_g_score + get_h_score(neighbour, goal)
@@ -249,6 +251,8 @@ class FunnelAlgorithm:
 
 
 class NavigationPath:
+
+    __slots__ = "points", "nodes"
 
     def __init__(self, points, nodes):
         self.points = points
