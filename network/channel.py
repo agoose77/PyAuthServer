@@ -4,7 +4,6 @@ from .decorators import with_tag
 from .enums import Netmodes
 from .flag_serialiser import FlagSerialiser
 from .handlers import static_description, get_handler
-from .logger import logger
 from .tagged_delegate import DelegateByNetmode
 from .replicable import Replicable
 
@@ -22,10 +21,10 @@ class Channel(DelegateByNetmode):
 
     subclasses = {}
 
-    def __init__(self, connection, replicable):
+    def __init__(self, stream, replicable):
         # Store important info
         self.replicable = replicable
-        self.connection = connection
+        self.stream = stream
         # Set initial (replication status) to True
         self.last_replication_time = 0.0
         self.is_initial = True
@@ -35,7 +34,9 @@ class Channel(DelegateByNetmode):
         self.rpc_storage = replicable._rpc_container
 
         # Create a serialiser instance
-        self.serialiser = FlagSerialiser(self.attribute_storage._ordered_mapping)
+        self.logger = stream.logger.getChild("<Channel: {}>".format(repr(replicable)))
+        self.serialiser = FlagSerialiser(self.attribute_storage._ordered_mapping,
+                                         logger=self.logger.getChild("<FlagSerialiser>"))
 
         self.rpc_id_packer = get_handler(TypeFlag(int))
         self.replicable_id_packer = get_handler(TypeFlag(Replicable))
@@ -47,7 +48,7 @@ class Channel(DelegateByNetmode):
         parent = self.replicable.uppermost
 
         try:
-            return parent == self.connection.replicable
+            return parent == self.stream.replicable
 
         except AttributeError:
             return False
@@ -78,7 +79,7 @@ class Channel(DelegateByNetmode):
             method = self.rpc_storage.functions[rpc_id]
 
         except IndexError:
-            logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+            self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
 
         else:
             method.execute(rpc_call[rpc_header_size:])

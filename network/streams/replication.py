@@ -1,14 +1,13 @@
-from .streams import response_protocol, ProtocolHandler
+from .streams import response_protocol, ProtocolHandler, Stream
 from .latency_calculator import LatencyCalculator
 
 from ..channel import Channel
 from ..decorators import with_tag
 from ..enums import ConnectionProtocols, Netmodes, Roles
 from ..handlers import get_handler
-from ..logger import logger
 from ..packet import Packet, PacketCollection
 from ..replicable import Replicable
-from ..signals import (Signal, SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
+from ..signals import (SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
                        LatencyUpdatedSignal)
 from ..tagged_delegate import DelegateByNetmode
 from ..type_flag import TypeFlag
@@ -21,10 +20,12 @@ __all__ = "ReplicationStream", "ServerReplicationStream", "ClientReplicationStre
 
 
 # Replication Streams
-class ReplicationStream(SignalListener, ProtocolHandler, DelegateByNetmode):
+class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmode):
     subclasses = {}
 
     def __init__(self, dispatcher):
+        super().__init__(dispatcher)
+
         self.channels = {}
         self.replicable = None
 
@@ -288,7 +289,7 @@ class ClientReplicationStream(ReplicationStream):
             channel = self.channels[instance_id]
 
         except KeyError:
-            logger.exception("Unable to find channel for network object with id {}".format(instance_id))
+            self.logger.exception("Unable to find channel for network object with id {}".format(instance_id))
 
         else:
             # Apply attributes and retrieve notify callback

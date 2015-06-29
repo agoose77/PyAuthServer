@@ -17,6 +17,10 @@ class NavigationQuery:
 
         self.replan()
 
+        # Frequency updates
+        self.update_frequency = 15
+        self._accumulator = 0.0
+
     @property
     def needs_replan(self):
         """Whether path needs replanning"""
@@ -35,14 +39,20 @@ class NavigationQuery:
         """Re-plan current path"""
         raise NotImplementedError
 
-    def update(self):
+    def update(self, dt):
         """Verify or replan existing path"""
         # Update path state
         if not self.check_plan_is_valid():
             self._path = None
 
-        if self.needs_replan and self.replan_if_invalid:
-            self.replan()
+        self._accumulator += dt
+
+        sample_step = 1 / self.update_frequency
+        if self._accumulator > sample_step:
+            self._accumulator -= sample_step
+
+            if self.needs_replan and self.replan_if_invalid:
+                self.replan()
 
 
 class PointNavigationQuery(NavigationQuery):
@@ -76,6 +86,8 @@ class PointNavigationQuery(NavigationQuery):
 
         except PathNotFoundException:
             self._path = None
+
+        self._accumulator = 0.0
 
 
 class ActorNavigationQuery(NavigationQuery):
@@ -142,6 +154,7 @@ class ActorNavigationQuery(NavigationQuery):
                     print("No valid path!", source_node, navmesh.navmesh.find_nearest_node(destination))
                     pass
 
+        self._accumulator = 0.0
         self._path = path
 
 
@@ -203,7 +216,7 @@ class NavigationManager:
 
         self.current_node = navmesh.navmesh.find_nearest_node(pawn_position)
 
-    def update(self):
+    def update(self, dt):
         """Update navigation queries"""
         pawn = self.controller.pawn
 
@@ -214,4 +227,4 @@ class NavigationManager:
         self._update_current_node(pawn)
 
         for query in self._queries:
-            query.update()
+            query.update(dt)

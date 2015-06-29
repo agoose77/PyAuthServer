@@ -1,6 +1,7 @@
 from collections import deque
-from time import clock
+from logging import getLogger, Formatter, StreamHandler
 from socket import gethostbyname
+from time import strftime
 
 from .bitfield import BitField
 from .conversions import conversion
@@ -12,6 +13,12 @@ from .streams import Dispatcher, InjectorStream, HandshakeStream
 
 
 __all__ = "Connection",
+
+
+class ConnectionLoggerFormatter(Formatter):
+
+    def formatTime(self, record, datefmt):
+        return strftime("%H:%M:%S")
 
 
 class Connection(metaclass=InstanceRegister):
@@ -36,6 +43,12 @@ class Connection(metaclass=InstanceRegister):
 
         except KeyError:
             return cls(ip_info)
+
+    def __repr__(self):
+        if self.registered:
+            return "<Connection: <{}>>".format(self.instance_id)
+
+        return "<Connection>"
 
     def on_initialised(self):
         # Maximum sequence number value
@@ -74,13 +87,26 @@ class Connection(metaclass=InstanceRegister):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
+        # Support logging
+        self.logger = self.create_logger()
+
         # Internal packet data
-        self.dispatcher = Dispatcher()
+        self.dispatcher = Dispatcher(logger=self.logger)
         self.injector = self.dispatcher.create_stream(InjectorStream)
 
         self.handshake = self.dispatcher.create_stream(HandshakeStream)
         self.handshake.connection_info = self.instance_id
         self.handshake.remove_connection = self.deregister
+
+    def create_logger(self):
+        logger = getLogger(repr(self))
+        handler = StreamHandler()
+
+        formatter = ConnectionLoggerFormatter('%(levelname)s - [%(asctime)s - %(name)s] {%(message)s\}')
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+        return logger
 
     def get_reliable_information(self, remote_sequence):
         """Update stored information for remote peer reliability feedback

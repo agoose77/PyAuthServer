@@ -177,7 +177,7 @@ class AIPawnController(PawnController):
         self.sensor_manager.update(delta_time)
         self.plan_manager.update()
         self.fsm.state.update()
-        self.navigation_manager.update()
+        self.navigation_manager.update(delta_time)
 
 
 class PlayerPawnController(PawnController):
@@ -244,7 +244,7 @@ class PlayerPawnController(PawnController):
         delta_time = 1 / WorldInfo.tick_rate
 
         # Correcting move
-        print("Correcting an invalid move: {}".format(move_id))
+        self.logger.info("Correcting an invalid move: {}".format(move_id))
 
         for move_id in range(move_id, self.move_id + 1):
             state = sent_states[move_id]
@@ -445,7 +445,7 @@ class PlayerPawnController(PawnController):
             return
 
         except ValueError as err:
-            print(err)
+            self.logger.error(err)
             return
 
         if not self.pawn:

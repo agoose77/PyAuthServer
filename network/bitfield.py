@@ -64,6 +64,8 @@ if USE_BITARRAY:
         to_bytes = array_field.tobytes
 
 else:
+    _cached_handlers = {}
+
     class BitField:
 
         """BitField data type which supports slicing operations"""
@@ -172,7 +174,12 @@ else:
             """
             #TODO cache the handler
             self._size = size
-            self._handler = get_handler(TypeFlag(int, max_bits=size))
+
+            try:
+                self._handler = _cached_handlers[size]
+
+            except KeyError:
+                self._handler = _cached_handlers[size] = get_handler(TypeFlag(int, max_bits=size))
 
         def to_bytes(self):
             """Represent bitfield as bytes"""

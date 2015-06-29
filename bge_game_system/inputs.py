@@ -60,6 +60,6 @@ class BGEMouseManager:
 
     def update(self):
         """Process new mouse state"""
-        position = Vector(logic.mouse.position)
+        position = (Vector(logic.mouse.position) - Vector((0.5, 0.5))) * 2
 
         self._last_position, self.position = self.position, position
