@@ -3,18 +3,18 @@ PyAuthServer
 
 Introduction
 --------------
-There is no substantial networking engine in Python for Blender that allows any kind of multiplayer game project to be realised without writing the underlying network mechanism itself.
-Faced with such a challenge, most users would prefer to use another own engine, or remove the feature from the design document. 
+There is no substantial authoritative networking library in Python that allows any kind of multiplayer game project to be realised without writing the underlying network mechanism itself.
+Faced with such a challenge, most developers would choose to use another engine (with built-in multiplayer), or remove the feature from the design document. 
 
-This project intends to provide a useful Python framework for creating multiplayer games which eliminates the headache in writing and maintaining a networked game. It does not require the Blender Game Engine, but certain parts of the system must be realised by writing a new engine interface. Anything in the network library is pure python, and the `bge_game_system` is for BGE code. With the exception of mathutils (which is used in `game_system`, but aliased in the coordinates module for easy replacement), there should not be any BGE specific code in `game_system`.
-The `example_game` module should only make use of generic interfaces from `game_system`, meaning that _no BGE code should be defined in `game_system` or `example_game`_
-
-Based upon the Unreal Architecture, this library is statically typed and offers reliable and unreliable (all unordered) transmission of UDP packets. The Serialiser is based upon struct; everything is fixed type that is sent across the network. (In the event that this is undesirable, you could use JSON with a string variable, but this would be inefficient).
+This project intends to provide a useful Python framework which eliminates the headache in writing and maintaining a networked game. It is designed to be supported by different game engines, with an abstract game layer for gameplay code. Anything in the network library is pure python, and the `XXX_game_system` is for engine-specific bindings code. There should not be any engine-specific code in `game_system`.
 
 User Documentation is currently in development, (see the [ReadTheDocs page](http://pyauthserver.readthedocs.org/en/latest/) for code-specific documentation, or the WIKI for higher level concepts and user guides).
 
 Existing features
 --------------
+
+Based upon the Unreal Architecture, this library is statically typed and offers reliable and unreliable (all unordered) transmission of UDP packets. The Serialiser is based upon struct; everything is fixed type that is sent across the network. (In the event that this is undesirable, you could use JSON with a string variable, but this would be inefficient).
+
   1. Automatic "replication" of network attributes from client to server
   2. Primitive support for game rules which determine the higher lever game logic.
   3. Automatic "replication" of RPC calls (Function replication for Unreal)
