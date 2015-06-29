@@ -164,7 +164,7 @@ class FlagSerialiser:
         content_bits = self.content_bits
         none_bits = self.none_bits
 
-        # Reset NoneType and contents Bitmasks
+        # Reset NoneType and contents bitfields
         none_bits.clear()
         content_bits.clear()
 
@@ -174,7 +174,7 @@ class FlagSerialiser:
 
         # Iterate over non booleans
         for index, (key, handler) in self.enumerated_non_bool_handlers:
-            if not key in data:
+            if key not in data:
                 continue
 
             value = data[key]
@@ -199,7 +199,7 @@ class FlagSerialiser:
 
             index_shift = total_none_booleans
             for index, (key, _) in self.enumerated_bool_args:
-                if not key in data:
+                if key not in data:
                     continue
 
                 # Account for shift due to previous data
