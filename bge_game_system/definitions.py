@@ -12,7 +12,7 @@ from game_system.coordinates import Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
 from game_system.geometry.utilities import get_random_point, get_random_polygon
-from game_system.physics import RayTestResult
+from game_system.physics import RayTestResult, CollisionContact, LazyCollisionResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 
 from functools import partial
@@ -90,6 +90,14 @@ class BGEPhysicsInterface(BGEComponent):
         return component._entity
 
     @property
+    def mass(self):
+        return self._game_object.mass
+
+    @mass.setter
+    def mass(self, mass):
+        self._game_object.mass = mass
+
+    @property
     def collision_group(self):
         return 0
 
@@ -118,7 +126,6 @@ class BGEPhysicsInterface(BGEComponent):
             obj.suspendDynamics()
         else:
             obj.restoreDynamics()
-
 
     @property
     def type(self):
@@ -193,14 +200,15 @@ class BGEPhysicsInterface(BGEComponent):
         if hit_entity:
             self._dispatched_entities.add(hit_entity)
 
-        if not data:
-            hit_contacts = []
+        def get_contacts():
+            if not data:
+                hit_contacts = []
 
-        else:
-            hit_position, hit_normal = data
-            hit_contacts = [CollisionContact(hit_position, hit_normal, Vector())]
+            else:
+                hit_position, hit_normal = data
+                hit_contacts = [CollisionContact(hit_position, hit_normal, Vector())]
 
-        result = CollisionResult(hit_entity, CollisionState.started, hit_contacts)
+        result = LazyCollisionResult(hit_entity, CollisionState.started, get_contacts)
 
         CollisionSignal.invoke(result, target=self._entity)
 
