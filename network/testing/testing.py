@@ -6,7 +6,7 @@ from ..type_flag import TypeFlag
 from ..handlers import get_handler
 from ..native_handlers import *
 from ..struct import Struct
-from ..serialiser import *
+from ..serialiser.serialiser import UInt8, UInt16, UInt32, UInt64, Float32, Float64, BoolHandler
 
 
 __all__ = ["SerialiserTest", "run_tests"]
@@ -107,7 +107,7 @@ class SerialiserTest(unittest.TestCase):
 
     def test_pack_struct(self):
         struct = self.create_struct()
-        handler = StructHandler(TypeFlag(type(struct)))
+        handler = StructHandler(TypeFlag(type(struct)), None)
 
         if not USE_BITARRAY:
             struct_bytes = self.py_struct_bytes
@@ -119,7 +119,7 @@ class SerialiserTest(unittest.TestCase):
 
     def test_unpack_struct(self):
         struct = self.create_struct()
-        handler = StructHandler(TypeFlag(type(struct)))
+        handler = StructHandler(TypeFlag(type(struct)), None)
 
         if not USE_BITARRAY:
             struct_bytes = self.py_struct_bytes

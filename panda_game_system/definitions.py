@@ -9,7 +9,6 @@ from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.geometry.kdtree import KDTree
 from game_system.geometry.utilities import get_random_point, get_random_polygon
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, CollisionGroups, PhysicsType
-from game_system.level_manager import LevelManager
 from game_system.physics import RayTestResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
 from game_system.resources import ResourceManager

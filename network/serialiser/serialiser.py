@@ -132,30 +132,6 @@ def _handler_from_int(value):
     return _handler_from_bit_length(value.bit_length())
 
 
-class _FloatHandler:
-    """Instantiate the correct float handler using meta information from a given type_flag"""
-
-    def __new__(cls, flag, logger):
-        new_cls = Float64 if flag.data.get("max_precision") else Float32
-        return new_cls
-
-
-class _IntHandler:
-    """Instantiate the correct integer handler using meta information from a given type_flag
-
-    :param type_flag: type flag for integer value
-    """
-
-    def __new__(cls, flag, logger):
-        if "max_value" in flag.data:
-            new_cls = _handler_from_int(flag.data["max_value"])
-
-        else:
-            new_cls = _handler_from_bit_length(flag.data.get('max_bits', 8))
-
-        return new_cls
-
-
 class BoolHandler(UInt8):
     """Handler for boolean type"""
 
@@ -168,12 +144,6 @@ class BoolHandler(UInt8):
     def unpack_multiple(self, bytes_string, count, offset=0, unpack_multiple=UInt8.unpack_multiple):
         value, size = self.unpack_multiple(bytes_string, count, offset)
         return [bool(x) for x in value], size
-
-
-class _BoolHandler:
-
-    def __new__(cls, flag, logger):
-        return BoolHandler
 
 
 class _BytesHandler:
@@ -260,10 +230,30 @@ class _StringHandler:
         return new_cls
 
 
+def _float_handler(flag, logger):
+    """Return  the correct float handler using meta information from a given type_flag"""
+    return Float64 if flag.data.get("max_precision") else Float32
+
+
+def _int_handler(flag, logger):
+    """Return the correct int handler using meta information from a given type_flag"""
+    if "max_value" in flag.data:
+        new_cls = _handler_from_int(flag.data["max_value"])
+
+    else:
+        new_cls = _handler_from_bit_length(flag.data.get('max_bits', 8))
+
+    return new_cls
+
+
+def _bool_handler(flag, logger):
+    return BoolHandler
+
+
 
 # Register handlers for native types
-register_handler(bool, _BoolHandler)
 register_handler(str, _StringHandler)
 register_handler(bytes, _BytesHandler)
-register_handler(int, _IntHandler)
-register_handler(float, _FloatHandler)
+register_handler(int, _int_handler)
+register_handler(bool, _bool_handler)
+register_handler(float, _float_handler)
