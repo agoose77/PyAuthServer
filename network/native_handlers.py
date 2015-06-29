@@ -10,7 +10,6 @@ from .serialiser import *
 from inspect import signature
 from itertools import chain
 
-
 __all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableHandler', 'StructHandler', 'BitFieldHandler',
            'class_type_description', 'iterable_description', 'is_variable_sized']
 
@@ -442,7 +441,7 @@ class ReplicableHandler(IHandler):
             return replicable, id_size
 
         except KeyError:
-            self._logger.exception("Couldn't find replicable with ID '{}'".format(instance_id))
+            self._logger.error("Couldn't find replicable with ID '{}'".format(instance_id))
             return None, id_size
 
     def unpack_multiple(self, bytes_string, count, offset=0):
@@ -455,7 +454,7 @@ class ReplicableHandler(IHandler):
 
             except KeyError:
                 replicable = None
-                self._logger.exception("Couldn't find replicable with ID '{}'".format(instance_id))
+                self._logger.error("Couldn't find replicable with ID '{}'".format(instance_id))
 
             replicables.append(replicable)
 

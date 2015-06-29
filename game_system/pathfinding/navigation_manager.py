@@ -112,7 +112,6 @@ class ActorNavigationQuery(NavigationQuery):
     def check_plan_is_valid(self):
         """Return integrity of current plan"""
         path = self.path
-        return False
 
         # If we have no path
         if path is None:

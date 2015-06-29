@@ -522,7 +522,7 @@ class GOAPActionPlanManager:
 
             goal_pairs.append((relevance, goal))
 
-        goal_pairs.sort()
+        goal_pairs.sort(reverse=True)
 
         return [g for r, g in goal_pairs]
 

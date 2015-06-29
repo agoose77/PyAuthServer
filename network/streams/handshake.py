@@ -53,8 +53,8 @@ class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmo
 
     def on_timeout(self):
         self._cleanup()
-        print("TIMED OUT")
 
+        self.logger.info("Timed out after {} seconds".format(self.timeout_duration))
         ConnectionTimeoutSignal.invoke(target=self)
 
     def handle_packets(self, packet_collection):
@@ -103,11 +103,10 @@ class ServerHandshakeStream(HandshakeStream):
             WorldInfo.rules.pre_initialise(connection_info, netmode)
 
         except NetworkError as err:
-            self.logger.exception("Connection was refused")
+            self.logger.error("Connection was refused: {}".format(err))
             self.handshake_error = err
 
-        else:
-            self.state = ConnectionState.handshake
+        self.state = ConnectionState.handshake
 
     @send_state(ConnectionState.handshake)
     def send_handshake_result(self, network_tick, bandwidth):
@@ -115,9 +114,9 @@ class ServerHandshakeStream(HandshakeStream):
 
         if connection_failed:
             pack_string = self.string_packer.pack
-            error_type = type(self._auth_error).type_name
-            error_body = self._auth_error.args[0]
-            error_data = pack_string(error_type + error_body)
+            error_type = type(self.handshake_error).type_name
+            error_body = self.handshake_error.args[0]
+            error_data = pack_string(error_type) + pack_string(error_body)
 
             # Set failed state
             self.state = ConnectionState.failed
@@ -177,13 +176,12 @@ class ClientHandshakeStream(HandshakeStream):
     @response_protocol(ConnectionProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
         error_type, type_size = self.string_packer.unpack_from(data)
-
         error_message, message_size = self.string_packer.unpack_from(data, type_size)
 
         error_class = NetworkError.from_type_name(error_type)
         raised_error = error_class(error_message)
 
-        self.logger.error(raised_error)
+        self.logger.error("Authentication failed: {}".format(raised_error))
         self.state = ConnectionState.failed
 
         ConnectionErrorSignal.invoke(raised_error, target=self)

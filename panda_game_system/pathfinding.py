@@ -6,11 +6,11 @@ from functools import lru_cache
 
 
 class PandaPolygon:
+    __slots__ = "position", "neighbours", "vertices", "area"
 
     def __init__(self, vertices):
         self.neighbours = set()
 
-        self.position = None
         self.vertices = vertices
         self.position = mean(vertices)
 
@@ -40,15 +40,19 @@ class PandaNodePortal:
     def _generate_nodes(self):
         source_position = self.source.position
         destination_position = self.destination.position
+
         first, second = [v for v in self.source.vertices if v in self.destination.vertices]
 
         side_first = quad_area(source_position, destination_position, first)
         side_second = quad_area(source_position, destination_position, second)
 
-        mapping = {side_first: first, side_second: second}
+        if side_first < side_second:
+            left = first
+            right = second
 
-        right = mapping[max(side_first, side_second)]
-        left = mapping[min(side_first, side_second)]
+        else:
+            left = second
+            right = first
 
         return left, right
 

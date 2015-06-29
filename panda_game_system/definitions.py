@@ -656,10 +656,14 @@ class PandaCameraInterface(PandaComponent):
         :param x: screen space x coordinate
         :param y: screen space y coordinate
         """
-        mouse_pos = (2 * x - 1, 2 * y - 1)
+        mouse_pos = x, y
         from_point = Point3()
         to_point = Point3()
-        return self._node.lens().extrude(mouse_pos, from_point, to_point)
+
+        self._node.get_lens().extrude(mouse_pos, from_point, to_point)
+        relative_direction = to_point - from_point
+        direction = base.render.get_relative_vector(self._nodepath, relative_direction)
+        return Vector(direction)
 
 
 @with_tag("Panda")

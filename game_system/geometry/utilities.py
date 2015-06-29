@@ -1,3 +1,5 @@
+from network.iterators import look_ahead
+
 from itertools import cycle
 from math import sqrt
 from random import random
@@ -13,13 +15,10 @@ def point_in_polygon(point, vertex_positions):
     """
     odd_nodes = False
 
-    positions_ = cycle(vertex_positions)
-    next(positions_)
-
     x_pos = point.x
     y_pos = point.y
 
-    for i_pos, j_pos in zip(vertex_positions, positions_):
+    for i_pos, j_pos in look_ahead(vertex_positions):
         i_y = i_pos.y
         i_x = i_pos.x
         j_y = j_pos.y
