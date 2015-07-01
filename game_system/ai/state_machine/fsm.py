@@ -29,13 +29,13 @@ class FiniteStateMachine:
 
             current_state.on_exit()
 
+        self._state = state
+
         if state is not None:
             if self._logger:
                 self._logger.info("Entering {}".format(state))
 
             state.on_enter()
-
-        self._state = state
 
     def add_transition(self, transition):
         if self._logger:
