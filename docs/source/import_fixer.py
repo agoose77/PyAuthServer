@@ -295,7 +295,8 @@ ge_logic = dict(types=ge_types, events=ge_events)
 mathutils = dict(Vector=MockBase.factory("Vector"),
                  Euler=MockBase.factory("Euler"),
                  Quaternion=MockBase.factory("Quaternion"),
-                 geometry=Mock(name="Geometry"))
+				 Matrix=MockBase.factory("Matrix"),
+                 geometry=MockBase.factory(name="Geometry"))
 
 modules = [("bge", ge_logic), ("mathutils", mathutils),
             "aud", ("bgl", {x: Mock() for x in bgl}), "blf",

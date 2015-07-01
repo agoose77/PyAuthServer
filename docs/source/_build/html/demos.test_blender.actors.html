@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>demos.test_blender.actors module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-demos.test_blender.actors">
+<span id="demos-test-blender-actors-module"></span><h1>demos.test_blender.actors module<a class="headerlink" href="#module-demos.test_blender.actors" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="demos.test_blender.actors.TestActor">
+<em class="property">class </em><tt class="descclassname">demos.test_blender.actors.</tt><tt class="descname">TestActor</tt><big>(</big><em>instance_id=None</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="game_system.entities.html#game_system.entities.Actor" title="game_system.entities.Actor"><tt class="xref py py-class docutils literal"><span class="pre">game_system.entities.Actor</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.instance_register._ManagedInstanceBase</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="demos.test_blender.actors.TestActor.mass">
+<tt class="descname">mass</tt><a class="headerlink" href="#demos.test_blender.actors.TestActor.mass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="demos.test_blender.actors.TestActor.roles">
+<tt class="descname">roles</tt><a class="headerlink" href="#demos.test_blender.actors.TestActor.roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="demos.test_blender.actors.TestActor.replicate_physics_to_owner">
+<tt class="descname">replicate_physics_to_owner</tt><em class="property"> = False</em><a class="headerlink" href="#demos.test_blender.actors.TestActor.replicate_physics_to_owner" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.test_blender.actors.TestActor.on_initialised">
+<tt class="descname">on_initialised</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor.on_initialised"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor.on_initialised" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.test_blender.actors.TestActor.conditions">
+<tt class="descname">conditions</tt><big>(</big><em>is_owner</em>, <em>is_complaint</em>, <em>is_initial</em><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor.conditions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor.conditions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.test_blender.actors.TestActor.on_notify">
+<tt class="descname">on_notify</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor.on_notify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor.on_notify" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.test_blender.actors.TestActor.on_collided">
+<tt class="descname">on_collided</tt><big>(</big><em>collision_result</em><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor.on_collided"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor.on_collided" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.test_blender.actors.TestActor.on_update">
+<tt class="descname">on_update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/demos/test_blender/actors.html#TestActor.on_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#demos.test_blender.actors.TestActor.on_update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/demos.test_blender.actors.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

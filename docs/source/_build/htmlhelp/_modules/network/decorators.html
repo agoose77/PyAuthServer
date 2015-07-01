@@ -1,0 +1,276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.decorators</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <h1>Source code for network.decorators</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span><span class="p">,</span> <span class="n">update_wrapper</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span>
+
+<span class="kn">from</span> <span class="nn">.conditions</span> <span class="kn">import</span> <span class="n">is_simulated</span><span class="p">,</span> <span class="n">is_annotatable</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">Roles</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;reliable&#39;</span><span class="p">,</span> <span class="s">&#39;simulated&#39;</span><span class="p">,</span> <span class="s">&#39;signal_listener&#39;</span><span class="p">,</span> <span class="s">&#39;requires_netmode&#39;</span><span class="p">,</span> <span class="s">&#39;with_tag&#39;</span><span class="p">,</span> <span class="s">&#39;ignore_arguments&#39;</span><span class="p">,</span>
+           <span class="s">&#39;set_annotation&#39;</span><span class="p">,</span> <span class="s">&#39;set_annotation&#39;</span><span class="p">,</span> <span class="s">&#39;get_annotation&#39;</span><span class="p">,</span> <span class="s">&#39;IgnoredArgumentsDescriptor&#39;</span><span class="p">,</span> <span class="s">&#39;simulate_methods&#39;</span><span class="p">]</span>
+
+
+<span class="sd">&quot;&quot;&quot;API functions to modify function behaviour&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="set_annotation"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.set_annotation">[docs]</a><span class="k">def</span> <span class="nf">set_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create annotation decorator that assigns a value to a function&#39;s annotations</span>
+
+<span class="sd">    :param name: name of annotation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">outer</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">annotations</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__annotations__</span>
+
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">annotations</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__annotations__</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="n">annotations</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+            <span class="k">return</span> <span class="n">func</span>
+
+        <span class="k">return</span> <span class="n">inner</span>
+
+    <span class="k">return</span> <span class="n">outer</span>
+
+</div>
+<span class="k">def</span> <span class="nf">has_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create annotation decorator that looks for a value in a function&#39;s annotations</span>
+
+<span class="sd">    :param name: name of annotation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">annotations</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__annotations__</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">return</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">annotations</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<div class="viewcode-block" id="get_annotation"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.get_annotation">[docs]</a><span class="k">def</span> <span class="nf">get_annotation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">modify</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create annotation decorator that returns a value from a function&#39;s annotations</span>
+
+<span class="sd">    :param name: name of annotation</span>
+<span class="sd">    :param default: default value if not found</span>
+<span class="sd">    :param modify: create value if not found</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">annotations</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="n">__annotations__</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">modify</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">annotations</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">annotations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+</div>
+<div class="viewcode-block" id="with_tag"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.with_tag">[docs]</a><span class="k">def</span> <span class="nf">with_tag</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">_tag</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">update_cache</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+</div>
+<span class="n">has_tag</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">func</span><span class="p">:</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s">&#39;_tag&#39;</span><span class="p">)</span>
+<span class="n">get_tag</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">func</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">_tag</span>
+
+
+<div class="viewcode-block" id="reliable"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.reliable">[docs]</a><span class="k">def</span> <span class="nf">reliable</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Mark a function to be reliably replicated</span>
+
+<span class="sd">    :param func: function to be marked</span>
+<span class="sd">    :returns: function that was passed as func</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">set_annotation</span><span class="p">(</span><span class="s">&quot;reliable&quot;</span><span class="p">)(</span><span class="bp">True</span><span class="p">)(</span><span class="n">func</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="simulated"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.simulated">[docs]</a><span class="k">def</span> <span class="nf">simulated</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Mark a function to be a simulated function</span>
+
+<span class="sd">    :param func: function to be marked</span>
+<span class="sd">    :returns: function that was passed as func</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">set_annotation</span><span class="p">(</span><span class="s">&quot;simulated&quot;</span><span class="p">)(</span><span class="bp">True</span><span class="p">)(</span><span class="n">func</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="signal_listener"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.signal_listener">[docs]</a><span class="k">def</span> <span class="nf">signal_listener</span><span class="p">(</span><span class="n">signal_type</span><span class="p">,</span> <span class="n">global_listener</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a closure decorator that marks the function as a signal on_context</span>
+
+<span class="sd">    :param signal_type: signal class</span>
+<span class="sd">    :param global_listener: flag that allows global invocation</span>
+<span class="sd">    :returns: decorator function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="n">signals</span> <span class="o">=</span> <span class="n">get_annotation</span><span class="p">(</span><span class="s">&#39;signals&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span> <span class="n">modify</span><span class="o">=</span><span class="bp">True</span><span class="p">)(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">signals</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">signal_type</span><span class="p">,</span> <span class="ow">not</span> <span class="n">global_listener</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+</div>
+<div class="viewcode-block" id="requires_netmode"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.requires_netmode">[docs]</a><span class="k">def</span> <span class="nf">requires_netmode</span><span class="p">(</span><span class="n">netmode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a decorator that marks a class as requiring the provided netmode context before execution</span>
+
+<span class="sd">    :param netmode: netmode required to execute function</span>
+<span class="sd">    :requires: provided :py:attr:`network.world_info._WorldInfo.netmode` context</span>
+<span class="sd">    :returns: decorator that prohibits function execution for incorrect netmode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.world_info</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">netmode</span> <span class="o">!=</span> <span class="n">netmode</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_wrapper</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+</div>
+<span class="k">def</span> <span class="nf">requires_permission</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a closure decorator that marks a class as requiring the provided netmode context before execution</span>
+
+<span class="sd">    :requires: provided :py:attr:`network.replicable.Replicable` class defines a valid :py:attr:`network.enums.Roles`</span>
+<span class="sd">    network Role</span>
+<span class="sd">    :returns: decorator that prohibits function execution for incorrect role</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">simulated_proxy</span> <span class="o">=</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span>
+    <span class="n">func_is_simulated</span> <span class="o">=</span> <span class="n">is_simulated</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">func_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Check that the assumed instance/class has roles</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arg_roles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roles</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Class instance must define roles attribute&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">err</span>
+
+        <span class="c"># Check that the roles are of an instance</span>
+        <span class="n">local_role</span> <span class="o">=</span> <span class="n">arg_roles</span><span class="o">.</span><span class="n">local</span>
+
+        <span class="c"># Permission checks</span>
+        <span class="k">if</span> <span class="n">local_role</span> <span class="o">&gt;</span> <span class="n">simulated_proxy</span> <span class="ow">or</span> <span class="p">(</span><span class="n">func_is_simulated</span> <span class="ow">and</span> <span class="n">local_role</span> <span class="o">==</span> <span class="n">simulated_proxy</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">func_wrapper</span>
+
+
+<div class="viewcode-block" id="IgnoredArgumentsDescriptor"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.IgnoredArgumentsDescriptor">[docs]</a><span class="k">class</span> <span class="nc">IgnoredArgumentsDescriptor</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Descriptor for stripping arguments from function call&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="n">update_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_descriptor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">,</span> <span class="p">(</span><span class="nb">staticmethod</span><span class="p">,</span> <span class="nb">classmethod</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">owner</span><span class="p">):</span>
+        <span class="n">bound_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="o">.</span><span class="n">__get__</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">owner</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">bound_func</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">wrapper</span>
+
+</div>
+<div class="viewcode-block" id="ignore_arguments"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.ignore_arguments">[docs]</a><span class="k">def</span> <span class="nf">ignore_arguments</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a closure decorator that calls decorated function without arguments</span>
+
+<span class="sd">    :param func: function to decorate</span>
+<span class="sd">    :returns: decorated function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">IgnoredArgumentsDescriptor</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="simulate_methods"><a class="viewcode-back" href="../../network.decorators.html#network.decorators.simulate_methods">[docs]</a><span class="k">def</span> <span class="nf">simulate_methods</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Mark all member methods as simulated</span>
+
+<span class="sd">    :param cls: class to decorate</span>
+<span class="sd">    :returns: cls</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_annotatable</span><span class="p">(</span><span class="n">member</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">simulated</span><span class="p">(</span><span class="n">member</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">cls</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

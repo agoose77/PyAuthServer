@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.bitfield module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.bitfield">
+<span id="network-bitfield-module"></span><h1>network.bitfield module</h1>
+<dl class="class">
+<dt id="network.bitfield.BitField">
+<em class="property">class </em><tt class="descclassname">network.bitfield.</tt><tt class="descname">BitField</tt><big>(</big><em>size=8</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>BitField data type which supports slicing operations</p>
+<dl class="staticmethod">
+<dt id="network.bitfield.BitField.calculate_footprint">
+<em class="property">static </em><tt class="descname">calculate_footprint</tt><big>(</big><em>bits</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.calculate_footprint"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return minimum number of bytes required to encode a number of bits</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>bits</strong> &#8211; number of bits to be encoded</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.bitfield.BitField.from_bytes">
+<em class="property">classmethod </em><tt class="descname">from_bytes</tt><big>(</big><em>length</em>, <em>bytes_string</em>, <em>offset=0</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.from_bytes"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Factory function to create a BitField object of a known length from a string of bytes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>length</strong> &#8211; number of bits in field</li>
+<li><strong>bytes_string</strong> &#8211; encoded data from <a class="reference internal" href="#network.bitfield.BitField.to_bytes" title="network.bitfield.BitField.to_bytes"><tt class="xref py py-meth docutils literal"><span class="pre">BitField.to_bytes()</span></tt></a></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.bitfield.BitField.from_iterable">
+<em class="property">classmethod </em><tt class="descname">from_iterable</tt><big>(</big><em>iterable</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.from_iterable"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Factory function to create a BitField from an iterable object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>iterable</strong> &#8211; source iterable</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Requires:</th><td class="field-body">fixed length iterable object</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">BitField instance of length equal to <tt class="docutils literal"><span class="pre">len(iterable)</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.bitfield.BitField.clear">
+<tt class="descname">clear</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.clear"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Clear the BitField values to zero</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.bitfield.BitField.resize">
+<tt class="descname">resize</tt><big>(</big><em>size</em><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.resize"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Resize the BitField</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>size</strong> &#8211; new size of BitField instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.bitfield.BitField.to_bytes">
+<tt class="descname">to_bytes</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/bitfield.html#BitField.to_bytes"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Represent bitfield as bytes</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.bitfield.NamedBitField">
+<em class="property">class </em><tt class="descclassname">network.bitfield.</tt><tt class="descname">NamedBitField</tt><a class="reference internal" href="_modules/network/bitfield.html#NamedBitField"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>BitField class with support for named fields</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

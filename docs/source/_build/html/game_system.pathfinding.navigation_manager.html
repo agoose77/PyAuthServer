@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.pathfinding.navigation_manager module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system.pathfinding package" href="game_system.pathfinding.html" />
+    <link rel="next" title="game_system.pathfinding.priority_queue module" href="game_system.pathfinding.priority_queue.html" />
+    <link rel="prev" title="game_system.pathfinding.algorithm module" href="game_system.pathfinding.algorithm.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.pathfinding.priority_queue.html" title="game_system.pathfinding.priority_queue module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.pathfinding.algorithm.html" title="game_system.pathfinding.algorithm module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.pathfinding.html" accesskey="U">game_system.pathfinding package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.pathfinding.navigation_manager">
+<span id="game-system-pathfinding-navigation-manager-module"></span><h1>game_system.pathfinding.navigation_manager module<a class="headerlink" href="#module-game_system.pathfinding.navigation_manager" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery">
+<em class="property">class </em><tt class="descclassname">game_system.pathfinding.navigation_manager.</tt><tt class="descname">NavigationQuery</tt><big>(</big><em>manager</em>, <em>pawn</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Navigation query to destination</p>
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery.needs_replan">
+<tt class="descname">needs_replan</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery.needs_replan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery.needs_replan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether path needs replanning</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery.path">
+<tt class="descname">path</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery.path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery.path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Current planned path</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery.is_path_valid">
+<tt class="descname">is_path_valid</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery.is_path_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery.is_path_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if current path is valid</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery.replan">
+<tt class="descname">replan</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery.replan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery.replan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Re-plan current path</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.NavigationQuery.update">
+<tt class="descname">update</tt><big>(</big><em>dt</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationQuery.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationQuery.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify or replan existing path</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.pathfinding.navigation_manager.PointNavigationQuery">
+<em class="property">class </em><tt class="descclassname">game_system.pathfinding.navigation_manager.</tt><tt class="descname">PointNavigationQuery</tt><big>(</big><em>manager</em>, <em>pawn</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#PointNavigationQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.PointNavigationQuery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.pathfinding.navigation_manager.NavigationQuery" title="game_system.pathfinding.navigation_manager.NavigationQuery"><tt class="xref py py-class docutils literal"><span class="pre">game_system.pathfinding.navigation_manager.NavigationQuery</span></tt></a></p>
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.PointNavigationQuery.target">
+<tt class="descname">target</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#PointNavigationQuery.target"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.PointNavigationQuery.target" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.PointNavigationQuery.is_path_valid">
+<tt class="descname">is_path_valid</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#PointNavigationQuery.is_path_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.PointNavigationQuery.is_path_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return integrity of current plan</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.PointNavigationQuery.replan">
+<tt class="descname">replan</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#PointNavigationQuery.replan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.PointNavigationQuery.replan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Re-plan current path</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery">
+<em class="property">class </em><tt class="descclassname">game_system.pathfinding.navigation_manager.</tt><tt class="descname">ActorNavigationQuery</tt><big>(</big><em>manager</em>, <em>pawn</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.pathfinding.navigation_manager.NavigationQuery" title="game_system.pathfinding.navigation_manager.NavigationQuery"><tt class="xref py py-class docutils literal"><span class="pre">game_system.pathfinding.navigation_manager.NavigationQuery</span></tt></a></p>
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.paths">
+<tt class="descname">paths</tt><em class="property"> = 0</em><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.paths" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.target">
+<tt class="descname">target</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery.target"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.target" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.needs_replan">
+<tt class="descname">needs_replan</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery.needs_replan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.needs_replan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether current path needs replanning</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.target_is_valid">
+<tt class="descname">target_is_valid</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery.target_is_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.target_is_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether target actor is valid (registered)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.is_path_valid">
+<tt class="descname">is_path_valid</tt><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery.is_path_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.is_path_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return integrity of current plan</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.ActorNavigationQuery.replan">
+<tt class="descname">replan</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#ActorNavigationQuery.replan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.ActorNavigationQuery.replan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Re-plan current path</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.pathfinding.navigation_manager.NavigationManager">
+<em class="property">class </em><tt class="descclassname">game_system.pathfinding.navigation_manager.</tt><tt class="descname">NavigationManager</tt><big>(</big><em>controller</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Handles updating of navigation queries</p>
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.NavigationManager.create_query">
+<tt class="descname">create_query</tt><big>(</big><em>destination</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationManager.create_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationManager.create_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create navigation plan query</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>destination</strong> &#8211; destination actor / point</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.NavigationManager.remove_query">
+<tt class="descname">remove_query</tt><big>(</big><em>query</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationManager.remove_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationManager.remove_query" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.pathfinding.navigation_manager.NavigationManager.update">
+<tt class="descname">update</tt><big>(</big><em>dt</em><big>)</big><a class="reference internal" href="_modules/game_system/pathfinding/navigation_manager.html#NavigationManager.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.pathfinding.navigation_manager.NavigationManager.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update navigation queries</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.pathfinding.algorithm.html"
+                        title="previous chapter">game_system.pathfinding.algorithm module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.pathfinding.priority_queue.html"
+                        title="next chapter">game_system.pathfinding.priority_queue module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.pathfinding.navigation_manager.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.pathfinding.priority_queue.html" title="game_system.pathfinding.priority_queue module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.pathfinding.algorithm.html" title="game_system.pathfinding.algorithm module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.pathfinding.html" >game_system.pathfinding package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

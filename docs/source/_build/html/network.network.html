@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.network module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.packet module" href="network.packet.html" />
+    <link rel="prev" title="network.native_handlers module" href="network.native_handlers.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.packet.html" title="network.packet module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.native_handlers.html" title="network.native_handlers module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.network">
+<span id="network-network-module"></span><h1>network.network module<a class="headerlink" href="#module-network.network" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.network.NonBlockingSocketUDP">
+<em class="property">class </em><tt class="descclassname">network.network.</tt><tt class="descname">NonBlockingSocketUDP</tt><big>(</big><em>addr</em>, <em>port</em><big>)</big><a class="reference internal" href="_modules/network/network.html#NonBlockingSocketUDP"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NonBlockingSocketUDP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">socket.socket</span></tt></p>
+<p>Non blocking socket class</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="network.network.UnreliableSocketWrapper">
+<em class="property">class </em><tt class="descclassname">network.network.</tt><tt class="descname">UnreliableSocketWrapper</tt><big>(</big><em>socket_</em><big>)</big><a class="reference internal" href="_modules/network/network.html#UnreliableSocketWrapper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.UnreliableSocketWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Non blocking socket class.</p>
+<p>A SignalListener which applies artificial latency
+to outgoing packets</p>
+<dl class="method">
+<dt id="network.network.UnreliableSocketWrapper.update">
+<tt class="descname">update</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/network.html#UnreliableSocketWrapper.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.UnreliableSocketWrapper.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.network.UnreliableSocketWrapper.sendto">
+<tt class="descname">sendto</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/network.html#UnreliableSocketWrapper.sendto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.UnreliableSocketWrapper.sendto" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.network.NetworkMetrics">
+<em class="property">class </em><tt class="descclassname">network.network.</tt><tt class="descname">NetworkMetrics</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Metrics object for network transfers</p>
+<dl class="attribute">
+<dt id="network.network.NetworkMetrics.sent_bytes">
+<tt class="descname">sent_bytes</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.sent_bytes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.sent_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.network.NetworkMetrics.received_bytes">
+<tt class="descname">received_bytes</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.received_bytes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.received_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.network.NetworkMetrics.send_rate">
+<tt class="descname">send_rate</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.send_rate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.send_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.network.NetworkMetrics.receive_rate">
+<tt class="descname">receive_rate</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.receive_rate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.receive_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.network.NetworkMetrics.sample_age">
+<tt class="descname">sample_age</tt><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.sample_age"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.sample_age" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.network.NetworkMetrics.on_sent_bytes">
+<tt class="descname">on_sent_bytes</tt><big>(</big><em>sent_bytes</em><big>)</big><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.on_sent_bytes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.on_sent_bytes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update internal sent bytes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.NetworkMetrics.on_received_bytes">
+<tt class="descname">on_received_bytes</tt><big>(</big><em>received_bytes</em><big>)</big><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.on_received_bytes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.on_received_bytes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update internal received bytes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.NetworkMetrics.reset_sample_window">
+<tt class="descname">reset_sample_window</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/network.html#NetworkMetrics.reset_sample_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.NetworkMetrics.reset_sample_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset data used to calculate metrics</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.network.Network">
+<em class="property">class </em><tt class="descclassname">network.network.</tt><tt class="descname">Network</tt><big>(</big><em>socket</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Network management class</p>
+<dl class="classmethod">
+<dt id="network.network.Network.from_address_info">
+<em class="property">classmethod </em><tt class="descname">from_address_info</tt><big>(</big><em>address='localhost'</em>, <em>port=0</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.from_address_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.from_address_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create Network object from address and port</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>address</strong> &#8211; address for socket</li>
+<li><strong>port</strong> &#8211; port to bind to, 0 for any</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.network.Network.received_data">
+<tt class="descname">received_data</tt><a class="reference internal" href="_modules/network/network.html#Network.received_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.received_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return iterator over received data</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="network.network.Network.connect_to">
+<em class="property">static </em><tt class="descname">connect_to</tt><big>(</big><em>address</em>, <em>port</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.connect_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.connect_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return connection interface to remote peer.</p>
+<p>If connection does not exist, create a new ConnectionInterface.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>address</strong> &#8211; address of remote peer</li>
+<li><strong>port</strong> &#8211; port of remote peer</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.Network.receive">
+<tt class="descname">receive</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.receive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.receive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive all data from socket</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.Network.send">
+<tt class="descname">send</tt><big>(</big><em>full_update</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.send"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.send" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send all connection data and update timeouts</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>full_update</strong> &#8211; whether this is a full send call</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.Network.send_to">
+<tt class="descname">send_to</tt><big>(</big><em>data</em>, <em>address</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.send_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.send_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send data to remote peer</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> &#8211; data to send</li>
+<li><strong>address</strong> &#8211; address of remote peer</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.Network.ping_multicast">
+<tt class="descname">ping_multicast</tt><big>(</big><em>multicast_host=None</em><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.ping_multicast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.ping_multicast" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a ping to a multicast group</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>multicast_host</strong> &#8211; (address, port) of multicast group</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.network.Network.stop">
+<tt class="descname">stop</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/network.html#Network.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.network.Network.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close network socket</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.native_handlers.html"
+                        title="previous chapter">network.native_handlers module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.packet.html"
+                        title="next chapter">network.packet module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.network.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.packet.html" title="network.packet module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.native_handlers.html" title="network.native_handlers module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

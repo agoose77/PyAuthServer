@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>panda_game_system.game_loop module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-panda_game_system.game_loop">
+<span id="panda-game-system-game-loop-module"></span><h1>panda_game_system.game_loop module<a class="headerlink" href="#module-panda_game_system.game_loop" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="panda_game_system.game_loop.GameLoop">
+<em class="property">class </em><tt class="descclassname">panda_game_system.game_loop.</tt><tt class="descname">GameLoop</tt><a class="reference internal" href="_modules/panda_game_system/game_loop.html#GameLoop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.GameLoop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a>, <a class="reference internal" href="game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager" title="game_system.game_loop.FixedTimeStepManager"><tt class="xref py py-class docutils literal"><span class="pre">game_system.game_loop.FixedTimeStepManager</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">direct.showbase.ShowBase.ShowBase</span></tt></p>
+<dl class="method">
+<dt id="panda_game_system.game_loop.GameLoop.cleanup">
+<tt class="descname">cleanup</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#GameLoop.cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.GameLoop.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.game_loop.GameLoop.invoke_exit">
+<tt class="descname">invoke_exit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#GameLoop.invoke_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.GameLoop.invoke_exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.game_loop.GameLoop.on_step">
+<tt class="descname">on_step</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#GameLoop.on_step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.GameLoop.on_step" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="panda_game_system.game_loop.Server">
+<em class="property">class </em><tt class="descclassname">panda_game_system.game_loop.</tt><tt class="descname">Server</tt><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#panda_game_system.game_loop.GameLoop" title="panda_game_system.game_loop.GameLoop"><tt class="xref py py-class docutils literal"><span class="pre">panda_game_system.game_loop.GameLoop</span></tt></a></p>
+<dl class="staticmethod">
+<dt id="panda_game_system.game_loop.Server.create_network">
+<em class="property">static </em><tt class="descname">create_network</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Server.create_network"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Server.create_network" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="panda_game_system.game_loop.Client">
+<em class="property">class </em><tt class="descclassname">panda_game_system.game_loop.</tt><tt class="descname">Client</tt><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#panda_game_system.game_loop.GameLoop" title="panda_game_system.game_loop.GameLoop"><tt class="xref py py-class docutils literal"><span class="pre">panda_game_system.game_loop.GameLoop</span></tt></a></p>
+<dl class="attribute">
+<dt id="panda_game_system.game_loop.Client.graceful_exit_time_out">
+<tt class="descname">graceful_exit_time_out</tt><em class="property"> = 0.6</em><a class="headerlink" href="#panda_game_system.game_loop.Client.graceful_exit_time_out" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.game_loop.Client.invoke_exit">
+<tt class="descname">invoke_exit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Client.invoke_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Client.invoke_exit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gracefully quit server</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="panda_game_system.game_loop.Client.create_network">
+<em class="property">static </em><tt class="descname">create_network</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Client.create_network"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Client.create_network" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.game_loop.Client.new_connection">
+<tt class="descname">new_connection</tt><big>(</big><em>address</em>, <em>port</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/game_loop.html#Client.new_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.game_loop.Client.new_connection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/panda_game_system.game_loop.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

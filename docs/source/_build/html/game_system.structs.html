@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.structs module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system package" href="game_system.html" />
+    <link rel="next" title="game_system.tagged_delegate module" href="game_system.tagged_delegate.html" />
+    <link rel="prev" title="game_system.stream module" href="game_system.stream.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.tagged_delegate.html" title="game_system.tagged_delegate module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.stream.html" title="game_system.stream module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" accesskey="U">game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.structs">
+<span id="game-system-structs-module"></span><h1>game_system.structs module<a class="headerlink" href="#module-game_system.structs" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.structs.RigidBodyState">
+<em class="property">class </em><tt class="descclassname">game_system.structs.</tt><tt class="descname">RigidBodyState</tt><a class="reference internal" href="_modules/game_system/structs.html#RigidBodyState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.structs.RigidBodyState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.struct.html#network.struct.Struct" title="network.struct.Struct"><tt class="xref py py-class docutils literal"><span class="pre">network.struct.Struct</span></tt></a></p>
+<p>Struct for Rigid Body Physics information</p>
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyState.position">
+<tt class="descname">position</tt><a class="headerlink" href="#game_system.structs.RigidBodyState.position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyState.velocity">
+<tt class="descname">velocity</tt><a class="headerlink" href="#game_system.structs.RigidBodyState.velocity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyState.angular">
+<tt class="descname">angular</tt><a class="headerlink" href="#game_system.structs.RigidBodyState.angular" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyState.orientation">
+<tt class="descname">orientation</tt><a class="headerlink" href="#game_system.structs.RigidBodyState.orientation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.structs.RigidBodyState.lerp">
+<tt class="descname">lerp</tt><big>(</big><em>other</em>, <em>factor</em><big>)</big><a class="reference internal" href="_modules/game_system/structs.html#RigidBodyState.lerp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.structs.RigidBodyState.lerp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.structs.RigidBodyInfo">
+<em class="property">class </em><tt class="descclassname">game_system.structs.</tt><tt class="descname">RigidBodyInfo</tt><a class="reference internal" href="_modules/game_system/structs.html#RigidBodyInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.structs.RigidBodyInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.struct.html#network.struct.Struct" title="network.struct.Struct"><tt class="xref py py-class docutils literal"><span class="pre">network.struct.Struct</span></tt></a></p>
+<p>Struct for Rigid Body Physics information</p>
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyInfo.mass">
+<tt class="descname">mass</tt><a class="headerlink" href="#game_system.structs.RigidBodyInfo.mass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyInfo.collision_group">
+<tt class="descname">collision_group</tt><a class="headerlink" href="#game_system.structs.RigidBodyInfo.collision_group" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.RigidBodyInfo.collision_mask">
+<tt class="descname">collision_mask</tt><a class="headerlink" href="#game_system.structs.RigidBodyInfo.collision_mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.structs.AnimationState">
+<em class="property">class </em><tt class="descclassname">game_system.structs.</tt><tt class="descname">AnimationState</tt><a class="reference internal" href="_modules/game_system/structs.html#AnimationState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.structs.AnimationState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.struct.html#network.struct.Struct" title="network.struct.Struct"><tt class="xref py py-class docutils literal"><span class="pre">network.struct.Struct</span></tt></a></p>
+<p>Struct for Animation information</p>
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.layer">
+<tt class="descname">layer</tt><a class="headerlink" href="#game_system.structs.AnimationState.layer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.start">
+<tt class="descname">start</tt><a class="headerlink" href="#game_system.structs.AnimationState.start" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.end">
+<tt class="descname">end</tt><a class="headerlink" href="#game_system.structs.AnimationState.end" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.blend">
+<tt class="descname">blend</tt><a class="headerlink" href="#game_system.structs.AnimationState.blend" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.name">
+<tt class="descname">name</tt><a class="headerlink" href="#game_system.structs.AnimationState.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.speed">
+<tt class="descname">speed</tt><a class="headerlink" href="#game_system.structs.AnimationState.speed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.mode">
+<tt class="descname">mode</tt><a class="headerlink" href="#game_system.structs.AnimationState.mode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.structs.AnimationState.timestamp">
+<tt class="descname">timestamp</tt><a class="headerlink" href="#game_system.structs.AnimationState.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.stream.html"
+                        title="previous chapter">game_system.stream module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.tagged_delegate.html"
+                        title="next chapter">game_system.tagged_delegate module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.structs.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.tagged_delegate.html" title="game_system.tagged_delegate module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.stream.html" title="game_system.stream module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

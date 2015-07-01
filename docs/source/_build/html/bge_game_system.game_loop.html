@@ -1,0 +1,295 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.game_loop module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="bge_game_system package" href="bge_game_system.html" />
+    <link rel="next" title="bge_game_system.inputs module" href="bge_game_system.inputs.html" />
+    <link rel="prev" title="bge_game_system.draw_tools module" href="bge_game_system.draw_tools.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.inputs.html" title="bge_game_system.inputs module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.draw_tools.html" title="bge_game_system.draw_tools module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" accesskey="U">bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-bge_game_system.game_loop">
+<span id="bge-game-system-game-loop-module"></span><h1>bge_game_system.game_loop module<a class="headerlink" href="#module-bge_game_system.game_loop" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="bge_game_system.game_loop.RewindState">
+<em class="property">class </em><tt class="descclassname">bge_game_system.game_loop.</tt><tt class="descname">RewindState</tt><a class="headerlink" href="#bge_game_system.game_loop.RewindState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.tuple</span></tt></p>
+<p>RewindState(position, rotation, animations)</p>
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.RewindState.animations">
+<tt class="descname">animations</tt><a class="headerlink" href="#bge_game_system.game_loop.RewindState.animations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.RewindState.position">
+<tt class="descname">position</tt><a class="headerlink" href="#bge_game_system.game_loop.RewindState.position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.RewindState.rotation">
+<tt class="descname">rotation</tt><a class="headerlink" href="#bge_game_system.game_loop.RewindState.rotation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.game_loop.GameLoop">
+<em class="property">class </em><tt class="descclassname">bge_game_system.game_loop.</tt><tt class="descname">GameLoop</tt><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">import_fixer.LogicLoop</span></tt>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a>, <a class="reference internal" href="game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager" title="game_system.game_loop.FixedTimeStepManager"><tt class="xref py py-class docutils literal"><span class="pre">game_system.game_loop.FixedTimeStepManager</span></tt></a></p>
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.GameLoop.allow_update_display">
+<tt class="descname">allow_update_display</tt><em class="property"> = True</em><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.allow_update_display" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.profile_as">
+<tt class="descname">profile_as</tt><big>(</big><em>context_profile</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.profile_as"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.profile_as" title="Permalink to this definition">¶</a></dt>
+<dd><p>Restores original profile after context collapses</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>context_profile</strong> &#8211; profile for this context</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.GameLoop.profile_category">
+<tt class="descname">profile_category</tt><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.profile_category"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.profile_category" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return current profile category</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.notify_registered">
+<tt class="descname">notify_registered</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.notify_registered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.notify_registered" title="Permalink to this definition">¶</a></dt>
+<dd><p>Signal on_context for replicable instantiation
+Listens for Camera creation to correct camera matrices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> &#8211; replicable instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.scenegraph_callback">
+<tt class="descname">scenegraph_callback</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.scenegraph_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.scenegraph_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for scenegraph update</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.render_callback">
+<tt class="descname">render_callback</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.render_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.render_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for render update</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.physics_callback">
+<tt class="descname">physics_callback</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.physics_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.physics_callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for physics simulation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delta_time</strong> &#8211; time to progress simulation</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.update_network_scene">
+<tt class="descname">update_network_scene</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.update_network_scene"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.update_network_scene" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.update_scene">
+<tt class="descname">update_scene</tt><big>(</big><em>scene</em>, <em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.update_scene"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.update_scene" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.invoke_exit">
+<tt class="descname">invoke_exit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.invoke_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.invoke_exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.on_step">
+<tt class="descname">on_step</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.on_step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.on_step" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.on_update">
+<tt class="descname">on_update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.on_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.on_update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.clean_up">
+<tt class="descname">clean_up</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.clean_up"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.clean_up" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.GameLoop.main">
+<tt class="descname">main</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#GameLoop.main"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.GameLoop.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.game_loop.Server">
+<em class="property">class </em><tt class="descclassname">bge_game_system.game_loop.</tt><tt class="descname">Server</tt><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.game_loop.GameLoop" title="bge_game_system.game_loop.GameLoop"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.game_loop.GameLoop</span></tt></a></p>
+<dl class="staticmethod">
+<dt id="bge_game_system.game_loop.Server.create_network">
+<em class="property">static </em><tt class="descname">create_network</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Server.create_network"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Server.create_network" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.game_loop.Client">
+<em class="property">class </em><tt class="descclassname">bge_game_system.game_loop.</tt><tt class="descname">Client</tt><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.game_loop.GameLoop" title="bge_game_system.game_loop.GameLoop"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.game_loop.GameLoop</span></tt></a></p>
+<dl class="attribute">
+<dt id="bge_game_system.game_loop.Client.graceful_exit_time_out">
+<tt class="descname">graceful_exit_time_out</tt><em class="property"> = 0.6</em><a class="headerlink" href="#bge_game_system.game_loop.Client.graceful_exit_time_out" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.Client.invoke_exit">
+<tt class="descname">invoke_exit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Client.invoke_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Client.invoke_exit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gracefully quit server</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.Client.on_step">
+<tt class="descname">on_step</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Client.on_step"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Client.on_step" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bge_game_system.game_loop.Client.create_network">
+<em class="property">static </em><tt class="descname">create_network</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Client.create_network"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Client.create_network" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.game_loop.Client.new_connection">
+<tt class="descname">new_connection</tt><big>(</big><em>address</em>, <em>port</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/game_loop.html#Client.new_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.game_loop.Client.new_connection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="bge_game_system.draw_tools.html"
+                        title="previous chapter">bge_game_system.draw_tools module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="bge_game_system.inputs.html"
+                        title="next chapter">bge_game_system.inputs module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/bge_game_system.game_loop.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.inputs.html" title="bge_game_system.inputs module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.draw_tools.html" title="bge_game_system.draw_tools module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" >bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

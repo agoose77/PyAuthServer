@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.channel module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.channel">
+<span id="network-channel-module"></span><h1>network.channel module</h1>
+<dl class="class">
+<dt id="network.channel.Channel">
+<em class="property">class </em><tt class="descclassname">network.channel.</tt><tt class="descname">Channel</tt><big>(</big><em>stream</em>, <em>replicable</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#Channel"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.tagged_delegate.html#network.tagged_delegate.DelegateByNetmode" title="network.tagged_delegate.DelegateByNetmode"><tt class="xref py py-class docutils literal"><span class="pre">network.tagged_delegate.DelegateByNetmode</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Channel for replication information.</p>
+<p>Belongs to an instance of Replicable and a connection</p>
+<dl class="attribute">
+<dt id="network.channel.Channel.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'ServerChannel': &lt;class 'network.channel.ServerChannel'&gt;, 'ClientChannel': &lt;class 'network.channel.ClientChannel'&gt;}</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.Channel.is_owner">
+<tt class="descname">is_owner</tt><a class="reference internal" href="_modules/network/channel.html#Channel.is_owner"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return True if this channel is in the ownership tree of the connection replicable</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.channel.Channel.take_rpc_calls">
+<tt class="descname">take_rpc_calls</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/channel.html#Channel.take_rpc_calls"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return the requested RPC calls in a packaged format:</p>
+<p>rpc_id (bytes) + body (bytes), reliable status (bool)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.channel.Channel.invoke_rpc_call">
+<tt class="descname">invoke_rpc_call</tt><big>(</big><em>rpc_call</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#Channel.invoke_rpc_call"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Invoke an RPC call from packaged format</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rpc_call</strong> &#8211; rpc data (see take_rpc_calls)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.Channel.has_rpc_calls">
+<tt class="descname">has_rpc_calls</tt><a class="reference internal" href="_modules/network/channel.html#Channel.has_rpc_calls"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return True if replicable has outgoing RPC calls</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.Channel.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = True</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.channel.ClientChannel">
+<em class="property">class </em><tt class="descclassname">network.channel.</tt><tt class="descname">ClientChannel</tt><big>(</big><em>stream</em>, <em>replicable</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ClientChannel"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.channel.Channel" title="network.channel.Channel"><tt class="xref py py-class docutils literal"><span class="pre">network.channel.Channel</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="method">
+<dt id="network.channel.ClientChannel.notify_callback">
+<tt class="descname">notify_callback</tt><big>(</big><em>notifications</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ClientChannel.notify_callback"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.ClientChannel.replication_priority">
+<tt class="descname">replication_priority</tt><a class="reference internal" href="_modules/network/channel.html#ClientChannel.replication_priority"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Get the replication priority for a replicable.
+Utilises replication interval to increment priority of neglected replicables.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">replication priority</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.channel.ClientChannel.set_attributes">
+<tt class="descname">set_attributes</tt><big>(</big><em>bytes_string</em>, <em>offset=0</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ClientChannel.set_attributes"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Unpack byte stream and updates attributes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>bytes_</strong> &#8211; byte stream of attribute</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.ClientChannel.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.channel.ServerChannel">
+<em class="property">class </em><tt class="descclassname">network.channel.</tt><tt class="descname">ServerChannel</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ServerChannel"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.channel.Channel" title="network.channel.Channel"><tt class="xref py py-class docutils literal"><span class="pre">network.channel.Channel</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.channel.ServerChannel.replication_priority">
+<tt class="descname">replication_priority</tt><a class="reference internal" href="_modules/network/channel.html#ServerChannel.replication_priority"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Get the replication priority for a replicable
+Utilises replication interval to increment priority of neglected replicables.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">replication priority</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.ServerChannel.awaiting_replication">
+<tt class="descname">awaiting_replication</tt><a class="reference internal" href="_modules/network/channel.html#ServerChannel.awaiting_replication"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return True if the channel is due to replicate its state</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.channel.ServerChannel.get_attributes">
+<tt class="descname">get_attributes</tt><big>(</big><em>is_owner</em><big>)</big><a class="reference internal" href="_modules/network/channel.html#ServerChannel.get_attributes"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Return the serialised state of the managed network object</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.channel.ServerChannel.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

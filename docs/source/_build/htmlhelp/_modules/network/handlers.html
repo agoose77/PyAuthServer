@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.handlers</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <h1>Source code for network.handlers</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">getLogger</span>
+
+<span class="n">handlers</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">descriptions</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;static_description&#39;</span><span class="p">,</span> <span class="s">&#39;register_handler&#39;</span><span class="p">,</span> <span class="s">&#39;register_description&#39;</span><span class="p">,</span>
+           <span class="s">&#39;get_handler&#39;</span><span class="p">,</span> <span class="s">&#39;default_logger_as&#39;</span><span class="p">,</span> <span class="s">&#39;IHandler&#39;</span><span class="p">]</span>
+
+<span class="c"># Default loggers for handlers, handlers can be a class or an instance, so don&#39;t force user to set the logger</span>
+<span class="n">_DEFAULT_LOGGER</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="s">&quot;&lt;Default Handler Logger&gt;&quot;</span><span class="p">)</span>
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">_DEFAULT_LOGGER</span>
+
+
+<span class="nd">@contextmanager</span>
+<div class="viewcode-block" id="default_logger_as"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.default_logger_as">[docs]</a><span class="k">def</span> <span class="nf">default_logger_as</span><span class="p">(</span><span class="n">logger</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">LOGGER</span>
+    <span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logger</span>
+    <span class="k">yield</span>
+    <span class="n">LOGGER</span> <span class="o">=</span> <span class="n">_DEFAULT_LOGGER</span>
+
+</div>
+<div class="viewcode-block" id="static_description"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.static_description">[docs]</a><span class="k">def</span> <span class="nf">static_description</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;&quot;A Hash-like representation of a data type.</span>
+
+<span class="sd">    Will default to hash() when no function is registered for value type</span>
+
+<span class="sd">    :param value: object to describe</span>
+<span class="sd">    :rtype: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">value_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="c"># First handle registered descriptions</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">description_func</span> <span class="o">=</span> <span class="n">descriptions</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span>
+
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="c"># Now handle object attribute descriptions</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">__description__</span><span class="p">()</span>
+
+        <span class="c"># Now search for handled superclass descriptions</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">handled_superclasses</span> <span class="o">=</span> <span class="p">(</span><span class="n">cls</span> <span class="k">for</span> <span class="n">cls</span> <span class="ow">in</span> <span class="n">value_type</span><span class="o">.</span><span class="n">__mro__</span> <span class="k">if</span> <span class="n">cls</span> <span class="ow">in</span> <span class="n">descriptions</span><span class="p">)</span>
+                <span class="n">handled_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">handled_superclasses</span><span class="p">)</span>
+
+            <span class="c"># Default to Python hashing, remember for next call (optimisation)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">StopIteration</span><span class="p">):</span>
+                <span class="n">description_func</span> <span class="o">=</span> <span class="n">descriptions</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span> <span class="o">=</span> <span class="nb">hash</span>
+
+            <span class="c"># Remember description for next call (optimisation)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">description_func</span> <span class="o">=</span> <span class="n">descriptions</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">descriptions</span><span class="p">[</span><span class="n">handled_type</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">description_func</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="register_handler"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.register_handler">[docs]</a><span class="k">def</span> <span class="nf">register_handler</span><span class="p">(</span><span class="n">value_type</span><span class="p">,</span> <span class="n">handler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Registers new handler for custom serialisers</span>
+
+<span class="sd">    :param value_type: type of object</span>
+<span class="sd">    :param handler: handler object for value_type</span>
+<span class="sd">    :param is_callable: whether handler should be called with the TypeFlag that</span>
+<span class="sd">    requests it</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">handlers</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">handler</span>
+
+</div>
+<div class="viewcode-block" id="register_description"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.register_description">[docs]</a><span class="k">def</span> <span class="nf">register_description</span><span class="p">(</span><span class="n">value_type</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Registers description callback for types which cannot define</span>
+<span class="sd">    __description__</span>
+<span class="sd">    and are not directly hash-able</span>
+
+<span class="sd">    :param value_type: type of object</span>
+<span class="sd">    :param callback: description function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">descriptions</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span>
+
+</div>
+<div class="viewcode-block" id="get_handler"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.get_handler">[docs]</a><span class="k">def</span> <span class="nf">get_handler</span><span class="p">(</span><span class="n">type_flag</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes a TypeFlag (or subclass thereof) and return handler.</span>
+
+<span class="sd">    If a handler cannot be found for the provided type, look for a handled</span>
+<span class="sd">    superclass, assign it to the requested type and return it.</span>
+
+<span class="sd">    :param type_flag: TypeFlag subclass</span>
+<span class="sd">    :returns: handler object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">value_type</span> <span class="o">=</span> <span class="n">type_flag</span><span class="o">.</span><span class="n">data_type</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">handlers</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span>
+
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">handled_superclasses</span> <span class="o">=</span> <span class="p">(</span><span class="n">cls</span> <span class="k">for</span> <span class="n">cls</span> <span class="ow">in</span> <span class="n">value_type</span><span class="o">.</span><span class="n">__mro__</span> <span class="k">if</span> <span class="n">cls</span> <span class="ow">in</span> <span class="n">handlers</span><span class="p">)</span>
+            <span class="n">handled_type</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">handled_superclasses</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">StopIteration</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;No handler found for object with type {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value_type</span><span class="p">))</span> <span class="kn">from</span> <span class="nn">err</span>
+
+        <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Invalid handler type provided: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value_type</span><span class="p">))</span> <span class="kn">from</span> <span class="nn">err</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Remember this for later call</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="n">handlers</span><span class="p">[</span><span class="n">value_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">handlers</span><span class="p">[</span><span class="n">handled_type</span><span class="p">]</span>
+
+    <span class="c"># Add default logger</span>
+    <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">LOGGER</span>
+
+    <span class="k">return</span> <span class="n">handler</span><span class="p">(</span><span class="n">type_flag</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="IHandler"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler">[docs]</a><span class="k">class</span> <span class="nc">IHandler</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="IHandler.pack"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler.pack">[docs]</a>    <span class="k">def</span> <span class="nf">pack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+<div class="viewcode-block" id="IHandler.pack_multiple"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler.pack_multiple">[docs]</a>    <span class="k">def</span> <span class="nf">pack_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+<div class="viewcode-block" id="IHandler.unpack_from"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler.unpack_from">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+<div class="viewcode-block" id="IHandler.unpack_multiple"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler.unpack_multiple">[docs]</a>    <span class="k">def</span> <span class="nf">unpack_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</div>
+<div class="viewcode-block" id="IHandler.size"><a class="viewcode-back" href="../../network.handlers.html#network.handlers.IHandler.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

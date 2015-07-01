@@ -1,0 +1,508 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.definitions module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="bge_game_system package" href="bge_game_system.html" />
+    <link rel="next" title="bge_game_system.draw_tools module" href="bge_game_system.draw_tools.html" />
+    <link rel="prev" title="bge_game_system.bootstrap module" href="bge_game_system.bootstrap.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.draw_tools.html" title="bge_game_system.draw_tools module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.bootstrap.html" title="bge_game_system.bootstrap module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" accesskey="U">bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-bge_game_system.definitions">
+<span id="bge-game-system-definitions-module"></span><h1>bge_game_system.definitions module<a class="headerlink" href="#module-bge_game_system.definitions" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="bge_game_system.definitions.BGEParentableBase">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGEParentableBase</tt><big>(</big><em>game_object</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEParentableBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEParentableBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGESocket">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGESocket</tt><big>(</big><em>socket</em>, <em>parent</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGESocket"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGESocket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEParentableBase" title="bge_game_system.definitions.BGEParentableBase"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEParentableBase</span></tt></a></p>
+<p>Attachment socket interface</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGEComponent">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGEComponent</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.tagged_delegate.html#network.tagged_delegate.FindByTag" title="network.tagged_delegate.FindByTag"><tt class="xref py py-class docutils literal"><span class="pre">network.tagged_delegate.FindByTag</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Base class for BGE component</p>
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEComponent.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'BGETransformInterface': &lt;class 'bge_game_system.definitions.BGETransformInterface'&gt;, 'BGEPhysicsInterface': &lt;class 'bge_game_system.definitions.BGEPhysicsInterface'&gt;, 'BGECameraInterface': &lt;class 'bge_game_system.definitions.BGECameraInterface'&gt;, 'BGENavmeshInterface': &lt;class 'bge_game_system.definitions.BGENavmeshInterface'&gt;, 'BGELampInterface': &lt;class 'bge_game_system.definitions.BGELampInterface'&gt;, 'BGEAnimationInterface': &lt;class 'bge_game_system.definitions.BGEAnimationInterface'&gt;}</em><a class="headerlink" href="#bge_game_system.definitions.BGEComponent.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEComponent.destroy">
+<tt class="descname">destroy</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponent.destroy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponent.destroy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Destroy component</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGEPhysicsInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="staticmethod">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.entity_from_object">
+<em class="property">static </em><tt class="descname">entity_from_object</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.entity_from_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.entity_from_object" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns entity from BGE object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> &#8211; KX_GameObject instance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.mass">
+<tt class="descname">mass</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.mass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.mass" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.collision_group">
+<tt class="descname">collision_group</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.collision_group"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.collision_group" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.collision_mask">
+<tt class="descname">collision_mask</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.collision_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.collision_mask" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.suspended">
+<tt class="descname">suspended</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.suspended"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.suspended" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.type">
+<tt class="descname">type</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.type" title="Permalink to this definition">¶</a></dt>
+<dd><p>The physics type of this object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">physics type of object, see <a class="reference internal" href="game_system.enums.html#game_system.enums.PhysicsType" title="game_system.enums.PhysicsType"><tt class="xref py py-class docutils literal"><span class="pre">game_system.enums.PhysicsType</span></tt></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.world_velocity">
+<tt class="descname">world_velocity</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.world_velocity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.world_velocity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.world_angular">
+<tt class="descname">world_angular</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.world_angular"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.world_angular" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.ray_test">
+<tt class="descname">ray_test</tt><big>(</big><em>target</em>, <em>source=None</em>, <em>distance=0.0</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.ray_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.ray_test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a ray trace to a target</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>target</strong> &#8211; target to trace towards</li>
+<li><strong>source</strong> &#8211; optional origin of trace, otherwise object position</li>
+<li><strong>distance</strong> &#8211; distance to use instead of vector length</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="game_system.physics.html#game_system.physics.RayTestResult" title="game_system.physics.RayTestResult"><tt class="xref py py-class docutils literal"><span class="pre">game_system.physics.RayTestResult</span></tt></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.is_colliding">
+<tt class="descname">is_colliding</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.is_colliding"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.is_colliding" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEPhysicsInterface.is_colliding_with">
+<tt class="descname">is_colliding_with</tt><big>(</big><em>entity</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEPhysicsInterface.is_colliding_with"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEPhysicsInterface.is_colliding_with" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines if the entity is colliding with another entity</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entity</strong> &#8211; entity to __call__</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGETransformInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGETransformInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a>, <a class="reference internal" href="#bge_game_system.definitions.BGEParentableBase" title="bge_game_system.definitions.BGEParentableBase"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEParentableBase</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Physics implementation for BGE entity</p>
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGETransformInterface.parent">
+<tt class="descname">parent</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.parent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.parent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGETransformInterface.world_position">
+<tt class="descname">world_position</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.world_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.world_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGETransformInterface.world_orientation">
+<tt class="descname">world_orientation</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.world_orientation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.world_orientation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGETransformInterface.align_to">
+<tt class="descname">align_to</tt><big>(</big><em>vector</em>, <em>factor=1</em>, <em>axis=1</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.align_to"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.align_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Align object to vector</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>vector</strong> &#8211; direction vector</li>
+<li><strong>factor</strong> &#8211; slerp factor</li>
+<li><strong>axis</strong> &#8211; alignment direction</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGETransformInterface.create_sockets">
+<tt class="descname">create_sockets</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.create_sockets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.create_sockets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGETransformInterface.get_direction_vector">
+<tt class="descname">get_direction_vector</tt><big>(</big><em>axis</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGETransformInterface.get_direction_vector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGETransformInterface.get_direction_vector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the axis vector of this object in world space</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>axis</strong> &#8211; <a class="reference internal" href="game_system.enums.html#game_system.enums.Axis" title="game_system.enums.Axis"><tt class="xref py py-class docutils literal"><span class="pre">game_system.enums.Axis</span></tt></a> value</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><tt class="xref py py-class docutils literal"><span class="pre">game_system.coordinates.Vector</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGEAnimationInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGEAnimationInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEAnimationInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEAnimationInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Animation implementation for BGE entity</p>
+<dl class="staticmethod">
+<dt id="bge_game_system.definitions.BGEAnimationInterface.create_animations">
+<em class="property">static </em><tt class="descname">create_animations</tt><big>(</big><em>obj</em>, <em>data</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEAnimationInterface.create_animations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEAnimationInterface.create_animations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEAnimationInterface.get_frame">
+<tt class="descname">get_frame</tt><big>(</big><em>animation</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEAnimationInterface.get_frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEAnimationInterface.get_frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the current frame of the animation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>animation</strong> &#8211; animation object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEAnimationInterface.play">
+<tt class="descname">play</tt><big>(</big><em>animation</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEAnimationInterface.play"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEAnimationInterface.play" title="Permalink to this definition">¶</a></dt>
+<dd><p>Play animation on bound object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>animation</strong> &#8211; animation resource</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEAnimationInterface.stop">
+<tt class="descname">stop</tt><big>(</big><em>animation</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEAnimationInterface.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEAnimationInterface.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop a playing animation on bound object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>animation</strong> &#8211; animation resource</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGECameraInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGECameraInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGECameraInterface.is_active">
+<tt class="descname">is_active</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.is_active"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.is_active" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGECameraInterface.set_active">
+<tt class="descname">set_active</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.set_active"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.set_active" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGECameraInterface.active_context">
+<tt class="descname">active_context</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.active_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.active_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGECameraInterface.is_point_in_frustum">
+<tt class="descname">is_point_in_frustum</tt><big>(</big><em>point</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.is_point_in_frustum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.is_point_in_frustum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if a point resides in the camera frustum</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>point</strong> &#8211; <tt class="xref py py-class docutils literal"><span class="pre">mathutils.Vector</span></tt></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGECameraInterface.is_sphere_in_frustum">
+<tt class="descname">is_sphere_in_frustum</tt><big>(</big><em>point</em>, <em>radius</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.is_sphere_in_frustum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.is_sphere_in_frustum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if a sphere resides in the camera frustum</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>point</strong> &#8211; <tt class="xref py py-class docutils literal"><span class="pre">mathutils.Vector</span></tt></li>
+<li><strong>radius</strong> &#8211; radius of sphere</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">bool</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGECameraInterface.get_screen_direction">
+<tt class="descname">get_screen_direction</tt><big>(</big><em>x=0.5</em>, <em>y=0.5</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGECameraInterface.get_screen_direction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGECameraInterface.get_screen_direction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find direction along screen vector</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>x</strong> &#8211; screen space x coordinate</li>
+<li><strong>y</strong> &#8211; screen space y coordinate</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGELampInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGELampInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGELampInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGELampInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGELampInterface.colour">
+<tt class="descname">colour</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGELampInterface.colour"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGELampInterface.colour" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGELampInterface.intensity">
+<tt class="descname">intensity</tt><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGELampInterface.intensity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGELampInterface.intensity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGENavmeshInterface">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGENavmeshInterface</tt><big>(</big><em>config_section</em>, <em>entity</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGENavmeshInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGENavmeshInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.definitions.BGEComponent" title="bge_game_system.definitions.BGEComponent"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.definitions.BGEComponent</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.definitions.BGEComponentLoader">
+<em class="property">class </em><tt class="descclassname">bge_game_system.definitions.</tt><tt class="descname">BGEComponentLoader</tt><big>(</big><em>*component_tags</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponentLoader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="game_system.definitions.html#game_system.definitions.ComponentLoader" title="game_system.definitions.ComponentLoader"><tt class="xref py py-class docutils literal"><span class="pre">game_system.definitions.ComponentLoader</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEComponentLoader.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.definitions.BGEComponentLoader.scene">
+<tt class="descname">scene</tt><em class="property"> = None</em><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.scene" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="bge_game_system.definitions.BGEComponentLoader.create_object">
+<em class="property">classmethod </em><tt class="descname">create_object</tt><big>(</big><em>config_parser</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponentLoader.create_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.create_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="bge_game_system.definitions.BGEComponentLoader.find_object">
+<em class="property">classmethod </em><tt class="descname">find_object</tt><big>(</big><em>config_parser</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponentLoader.find_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.find_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="bge_game_system.definitions.BGEComponentLoader.find_or_create_object">
+<em class="property">classmethod </em><tt class="descname">find_or_create_object</tt><big>(</big><em>entity</em>, <em>config_parser</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponentLoader.find_or_create_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.find_or_create_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.definitions.BGEComponentLoader.load">
+<tt class="descname">load</tt><big>(</big><em>entity</em>, <em>config_parser</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/definitions.html#BGEComponentLoader.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.definitions.BGEComponentLoader.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="bge_game_system.bootstrap.html"
+                        title="previous chapter">bge_game_system.bootstrap module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="bge_game_system.draw_tools.html"
+                        title="next chapter">bge_game_system.draw_tools module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/bge_game_system.definitions.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.draw_tools.html" title="bge_game_system.draw_tools module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.bootstrap.html" title="bge_game_system.bootstrap module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" >bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

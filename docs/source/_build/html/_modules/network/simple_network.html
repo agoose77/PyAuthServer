@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.simple_network &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.simple_network</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.replicable</span> <span class="kn">import</span> <span class="n">Replicable</span>
+<span class="kn">from</span> <span class="nn">.network</span> <span class="kn">import</span> <span class="n">Network</span>
+<span class="kn">from</span> <span class="nn">.connection</span> <span class="kn">import</span> <span class="n">Connection</span>
+<span class="kn">from</span> <span class="nn">.world_info</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+<span class="kn">from</span> <span class="nn">.signals</span> <span class="kn">import</span> <span class="n">Signal</span>
+
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">clock</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;SimpleNetwork&quot;</span><span class="p">,</span> <span class="s">&quot;respect_interval&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="SimpleNetwork"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork">[docs]</a><span class="k">class</span> <span class="nc">SimpleNetwork</span><span class="p">(</span><span class="n">Network</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;Simple network update loop&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SimpleNetwork.on_finished"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork.on_finished">[docs]</a>    <span class="k">def</span> <span class="nf">on_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Connection</span><span class="o">.</span><span class="n">clear_graph</span><span class="p">()</span>
+        <span class="n">Replicable</span><span class="o">.</span><span class="n">clear_graph</span><span class="p">()</span>
+        <span class="n">Signal</span><span class="o">.</span><span class="n">clear_graph</span><span class="p">()</span>
+
+        <span class="n">WorldInfo</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">instance_id</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SimpleNetwork.on_update"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork.on_update">[docs]</a>    <span class="k">def</span> <span class="nf">on_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="SimpleNetwork.stop"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_finished</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="SimpleNetwork.step"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork.step">[docs]</a>    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+        <span class="n">full_update</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_update</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">full_update</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SimpleNetwork.run"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.SimpleNetwork.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">update_rate</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="mi">60</span><span class="p">):</span>
+        <span class="n">started</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+        <span class="n">last_time</span> <span class="o">=</span> <span class="n">started</span>
+
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="n">current_time</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="n">last_time</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">update_rate</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">last_time</span> <span class="o">=</span> <span class="n">current_time</span>
+
+            <span class="n">any_connections</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">Connection</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">timed_out</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">timed_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="n">started</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">timeout</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">any_connections</span> <span class="ow">and</span> <span class="n">timed_out</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="respect_interval"><a class="viewcode-back" href="../../network.simple_network.html#network.simple_network.respect_interval">[docs]</a><span class="k">def</span> <span class="nf">respect_interval</span><span class="p">(</span><span class="n">interval</span><span class="p">,</span> <span class="n">function</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to ensure function is only called after a minimum interval</span>
+
+<span class="sd">    :param interval: minimum interval between successive calls</span>
+<span class="sd">    :param function: function to call</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">():</span>
+        <span class="n">last_called</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">last_called</span>
+
+            <span class="k">if</span> <span class="n">dt</span> <span class="o">&gt;=</span> <span class="n">interval</span><span class="p">:</span>
+                <span class="n">function</span><span class="p">()</span>
+                <span class="n">last_called</span> <span class="o">=</span> <span class="n">now</span>
+
+            <span class="k">yield</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span><span class="p">()</span><span class="o">.</span><span class="n">__next__</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

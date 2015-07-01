@@ -1,0 +1,436 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.signals.signals module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network.signals package" href="network.signals.html" />
+    <link rel="next" title="network.streams package" href="network.streams.html" />
+    <link rel="prev" title="network.signals.listener module" href="network.signals.listener.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.streams.html" title="network.streams package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.signals.listener.html" title="network.signals.listener module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.signals.html" accesskey="U">network.signals package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.signals.signals">
+<span id="network-signals-signals-module"></span><h1>network.signals.signals module<a class="headerlink" href="#module-network.signals.signals" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.signals.signals.SignalMeta">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">SignalMeta</tt><a class="reference internal" href="_modules/network/signals/signals.html#SignalMeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalMeta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.metaclasses.register.type_register.html#network.metaclasses.register.type_register.TypeRegister" title="network.metaclasses.register.type_register.TypeRegister"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register.TypeRegister</span></tt></a>, <a class="reference internal" href="network.metaclasses.context.html#network.metaclasses.context.ContextMemberMeta" title="network.metaclasses.context.ContextMemberMeta"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.context.ContextMemberMeta</span></tt></a></p>
+<dl class="attribute">
+<dt id="network.signals.signals.SignalMeta.subscribers">
+<tt class="descname">subscribers</tt><a class="headerlink" href="#network.signals.signals.SignalMeta.subscribers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data descriptor used with ContextMemberMeta to store contextually global data</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.SignalMeta.isolated_subscribers">
+<tt class="descname">isolated_subscribers</tt><a class="headerlink" href="#network.signals.signals.SignalMeta.isolated_subscribers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data descriptor used with ContextMemberMeta to store contextually global data</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.SignalMeta.children">
+<tt class="descname">children</tt><a class="headerlink" href="#network.signals.signals.SignalMeta.children" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data descriptor used with ContextMemberMeta to store contextually global data</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.SignalMeta.current_context_manager">
+<tt class="descname">current_context_manager</tt><a class="reference internal" href="_modules/network/signals/signals.html#SignalMeta.current_context_manager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalMeta.current_context_manager" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.signals.signals.SignalMeta.get_default_context">
+<tt class="descname">get_default_context</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#SignalMeta.get_default_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalMeta.get_default_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return default context data for this class, for new context managers</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.signals.signals.SignalMeta.merge_context">
+<tt class="descname">merge_context</tt><big>(</big><em>context</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#SignalMeta.merge_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalMeta.merge_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merge other context with current context.</p>
+<p>Returns current context manager</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.Signal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">Signal</tt><a class="reference internal" href="_modules/network/signals/signals.html#Signal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Observer class for signal-like invocation</p>
+<dl class="attribute">
+<dt id="network.signals.signals.Signal.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'PhysicsTickSignal': &lt;class 'game_system.signals.PhysicsTickSignal'&gt;, 'ConnectionDeletedSignal': &lt;class 'network.signals.signals.ConnectionDeletedSignal'&gt;, 'UpdateCollidersSignal': &lt;class 'game_system.signals.UpdateCollidersSignal'&gt;, 'GameExitSignal': &lt;class 'game_system.signals.GameExitSignal'&gt;, 'ReplicableRegisteredSignal': &lt;class 'network.signals.signals.ReplicableRegisteredSignal'&gt;, 'LogicUpdateSignal': &lt;class 'game_system.signals.LogicUpdateSignal'&gt;, 'PhysicsRewindSignal': &lt;class 'game_system.signals.PhysicsRewindSignal'&gt;, 'DisconnectSignal': &lt;class 'network.signals.signals.DisconnectSignal'&gt;, 'SetMoveTarget': &lt;class 'game_system.signals.SetMoveTarget'&gt;, 'CopyActorToState': &lt;class 'game_system.signals.CopyActorToState'&gt;, 'PostPhysicsSignal': &lt;class 'game_system.signals.PostPhysicsSignal'&gt;, 'ConnectionTimeoutSignal': &lt;class 'network.signals.signals.ConnectionTimeoutSignal'&gt;, 'PhysicsReplicatedSignal': &lt;class 'game_system.signals.PhysicsReplicatedSignal'&gt;, 'ActorDamagedSignal': &lt;class 'game_system.signals.ActorDamagedSignal'&gt;, 'MessageReceivedSignal': &lt;class 'game_system.signals.MessageReceivedSignal'&gt;, 'ConnectionErrorSignal': &lt;class 'network.signals.signals.ConnectionErrorSignal'&gt;, 'MapLoadedSignal': &lt;class 'game_system.signals.MapLoadedSignal'&gt;, 'UIUpdateSignal': &lt;class 'game_system.signals.UIUpdateSignal'&gt;, 'PlayerInputSignal': &lt;class 'game_system.signals.PlayerInputSignal'&gt;, 'PawnKilledSignal': &lt;class 'game_system.signals.PawnKilledSignal'&gt;, 'ReplicableUnregisteredSignal': &lt;class 'network.signals.signals.ReplicableUnregisteredSignal'&gt;, 'CopyStateToActor': &lt;class 'game_system.signals.CopyStateToActor'&gt;, 'PhysicsRoleChangedSignal': &lt;class 'game_system.signals.PhysicsRoleChangedSignal'&gt;, 'UIRenderSignal': &lt;class 'game_system.signals.UIRenderSignal'&gt;, 'PhysicsSingleUpdateSignal': &lt;class 'game_system.signals.PhysicsSingleUpdateSignal'&gt;, 'ConnectToSignal': &lt;class 'game_system.signals.ConnectToSignal'&gt;, 'HearSoundSignal': &lt;class 'game_system.signals.HearSoundSignal'&gt;, 'TimerUpdateSignal': &lt;class 'game_system.signals.TimerUpdateSignal'&gt;, 'ConnectionSuccessSignal': &lt;class 'network.signals.signals.ConnectionSuccessSignal'&gt;, 'CollisionSignal': &lt;class 'game_system.signals.CollisionSignal'&gt;, 'LatencyUpdatedSignal': &lt;class 'network.signals.signals.LatencyUpdatedSignal'&gt;}</em><a class="headerlink" href="#network.signals.signals.Signal.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.register_base_class">
+<em class="property">classmethod </em><tt class="descname">register_base_class</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.register_base_class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.register_base_class" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.register_subclass">
+<em class="property">classmethod </em><tt class="descname">register_subclass</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.register_subclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.register_subclass" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="network.signals.signals.Signal.get_signals">
+<em class="property">static </em><tt class="descname">get_signals</tt><big>(</big><em>decorated</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.get_signals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.get_signals" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.set_parent">
+<em class="property">classmethod </em><tt class="descname">set_parent</tt><big>(</big><em>child_identifier</em>, <em>parent_identifier</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.set_parent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.set_parent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.remove_parent">
+<em class="property">classmethod </em><tt class="descname">remove_parent</tt><big>(</big><em>child_identifier</em>, <em>parent_identifier</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.remove_parent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.remove_parent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.get_total_subscribers">
+<em class="property">classmethod </em><tt class="descname">get_total_subscribers</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.get_total_subscribers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.get_total_subscribers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.unsubscribe">
+<em class="property">classmethod </em><tt class="descname">unsubscribe</tt><big>(</big><em>identifier</em>, <em>callback</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.unsubscribe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.unsubscribe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unsubscribe from this Signal class</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>identifier</strong> &#8211; identifier used to subscribe</li>
+<li><strong>callback</strong> &#8211; callback that was used to subscribe</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.subscribe">
+<em class="property">classmethod </em><tt class="descname">subscribe</tt><big>(</big><em>identifier</em>, <em>callback</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.subscribe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.subscribe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subscribe to this Signal class using an identifier handle and a callback when invoked</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>identifier</strong> &#8211; identifier for recipient of signal</li>
+<li><strong>callback</strong> &#8211; callable to run when signal is invoked</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.clear_graph">
+<em class="property">classmethod </em><tt class="descname">clear_graph</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.clear_graph"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.clear_graph" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.invoke">
+<em class="property">classmethod </em><tt class="descname">invoke</tt><big>(</big><em>*args</em>, <em>signal=None</em>, <em>target=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.invoke"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.invoke" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invoke signals for a Signal type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>target</strong> &#8211; target referred to by Signal invocation</li>
+<li><strong>*args</strong> &#8211; <p>tuple of additional arguments</p>
+</li>
+<li><strong>**kwargs</strong> &#8211; <p>dict of additional keyword arguments</p>
+</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.on_global">
+<em class="property">classmethod </em><tt class="descname">on_global</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.on_global"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.on_global" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator for global signal listeners</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to decorate</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">passed function func</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.signals.signals.Signal.on_context">
+<em class="property">classmethod </em><tt class="descname">on_context</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#Signal.on_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.Signal.on_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator for targeted signal listeners</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to decorate</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">passed function func</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.Signal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {&lt;network.descriptors.ContextMember object at 0x0000000005D4D630&gt;: {}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D5C0&gt;: {}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D5F8&gt;: {}}</em><a class="headerlink" href="#network.signals.signals.Signal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.Signal.highest_signal">
+<tt class="descname">highest_signal</tt><a class="headerlink" href="#network.signals.signals.Signal.highest_signal" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">Signal</span></tt></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.SignalValue">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">SignalValue</tt><big>(</big><em>default=None</em>, <em>single_value=False</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#SignalValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Container for signal callback return arguments</p>
+<dl class="attribute">
+<dt id="network.signals.signals.SignalValue.changed">
+<tt class="descname">changed</tt><a class="reference internal" href="_modules/network/signals/signals.html#SignalValue.changed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalValue.changed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.signals.signals.SignalValue.value">
+<tt class="descname">value</tt><a class="reference internal" href="_modules/network/signals/signals.html#SignalValue.value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalValue.value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.signals.signals.SignalValue.create_getter">
+<tt class="descname">create_getter</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#SignalValue.create_getter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalValue.create_getter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a getter function for the internal value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.signals.signals.SignalValue.create_setter">
+<tt class="descname">create_setter</tt><big>(</big><em>value</em><big>)</big><a class="reference internal" href="_modules/network/signals/signals.html#SignalValue.create_setter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.SignalValue.create_setter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a setter function for the internal value</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> &#8211; value to set when invoked</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ReplicableRegisteredSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ReplicableRegisteredSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ReplicableRegisteredSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ReplicableRegisteredSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ReplicableRegisteredSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {&lt;network.descriptors.ContextMember object at 0x0000000005D4D630&gt;: {}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D5C0&gt;: {}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D5F8&gt;: {}}</em><a class="headerlink" href="#network.signals.signals.ReplicableRegisteredSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ReplicableUnregisteredSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ReplicableUnregisteredSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ReplicableUnregisteredSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ReplicableUnregisteredSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ReplicableUnregisteredSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.ReplicableUnregisteredSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.DisconnectSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">DisconnectSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#DisconnectSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.DisconnectSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.DisconnectSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.DisconnectSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ConnectionTimeoutSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ConnectionTimeoutSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ConnectionTimeoutSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ConnectionTimeoutSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ConnectionTimeoutSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.ConnectionTimeoutSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ConnectionErrorSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ConnectionErrorSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ConnectionErrorSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ConnectionErrorSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ConnectionErrorSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.ConnectionErrorSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ConnectionSuccessSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ConnectionSuccessSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ConnectionSuccessSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ConnectionSuccessSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ConnectionSuccessSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.ConnectionSuccessSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.ConnectionDeletedSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">ConnectionDeletedSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#ConnectionDeletedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.ConnectionDeletedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.ConnectionDeletedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.ConnectionDeletedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.signals.signals.LatencyUpdatedSignal">
+<em class="property">class </em><tt class="descclassname">network.signals.signals.</tt><tt class="descname">LatencyUpdatedSignal</tt><a class="reference internal" href="_modules/network/signals/signals.html#LatencyUpdatedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.signals.signals.LatencyUpdatedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.signals.signals.LatencyUpdatedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#network.signals.signals.LatencyUpdatedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.signals.listener.html"
+                        title="previous chapter">network.signals.listener module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.streams.html"
+                        title="next chapter">network.streams package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.signals.signals.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.streams.html" title="network.streams package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.signals.listener.html" title="network.signals.listener module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.signals.html" >network.signals package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

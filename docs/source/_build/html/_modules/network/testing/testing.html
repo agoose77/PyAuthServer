@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.testing.testing &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.testing.testing</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">..bitfield</span> <span class="kn">import</span> <span class="n">BitField</span><span class="p">,</span> <span class="n">USE_BITARRAY</span>
+<span class="kn">from</span> <span class="nn">..descriptors</span> <span class="kn">import</span> <span class="n">Attribute</span>
+<span class="kn">from</span> <span class="nn">..type_flag</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">..handlers</span> <span class="kn">import</span> <span class="n">get_handler</span>
+<span class="kn">from</span> <span class="nn">..native_handlers</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">..struct</span> <span class="kn">import</span> <span class="n">Struct</span>
+<span class="kn">from</span> <span class="nn">..serialiser.serialiser</span> <span class="kn">import</span> <span class="n">UInt8</span><span class="p">,</span> <span class="n">UInt16</span><span class="p">,</span> <span class="n">UInt32</span><span class="p">,</span> <span class="n">UInt64</span><span class="p">,</span> <span class="n">Float32</span><span class="p">,</span> <span class="n">Float64</span><span class="p">,</span> <span class="n">BoolHandler</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;SerialiserTest&quot;</span><span class="p">,</span> <span class="s">&quot;run_tests&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="SerialiserTest"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest">[docs]</a><span class="k">class</span> <span class="nc">SerialiserTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="n">int_value_8bit</span> <span class="o">=</span> <span class="mi">178</span>
+    <span class="n">int_bytes_string8bit</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\xb2</span><span class="s">&#39;</span>
+
+    <span class="n">int_value_16bit</span> <span class="o">=</span> <span class="mi">41593</span>
+    <span class="n">int_bytes_string16bit</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\xa2</span><span class="s">y&#39;</span>
+
+    <span class="n">int_value_32bit</span> <span class="o">=</span> <span class="mi">1938475617</span>
+    <span class="n">int_bytes_string32bit</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;s</span><span class="se">\x8a\xca</span><span class="s">a&#39;</span>
+
+    <span class="n">int_value_64bit</span> <span class="o">=</span> <span class="mi">12398745609812398176</span>
+    <span class="n">int_bytes_string64bit</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\xac\x11</span><span class="s">1p</span><span class="se">\xd5</span><span class="s">MP`&#39;</span>
+
+    <span class="n">float_bytes</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;@</span><span class="se">\x90\x02\x00\x00\x00\x00\x00</span><span class="s">&#39;</span>
+    <span class="n">float_value</span> <span class="o">=</span> <span class="mf">1024.5</span>
+
+    <span class="n">py_struct_bytes</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\x00\x14\x07\n</span><span class="s">TestStruct@@</span><span class="se">\x00\x00</span><span class="s">@</span><span class="se">\x00\x00\x00</span><span class="s">&#39;</span>
+    <span class="n">c_struct_bytes</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\x00\x14\xe0\n</span><span class="s">TestStruct@@</span><span class="se">\x00\x00</span><span class="s">@</span><span class="se">\x00\x00\x00</span><span class="s">&#39;</span>
+
+    <span class="n">bitfield_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">False</span><span class="p">]</span>
+    <span class="n">py_bitfield_fixed_value</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;j&#39;</span>
+    <span class="n">py_bitfield_variable_value</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\x08</span><span class="s">j&#39;</span>
+
+    <span class="n">bool_value</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">bool_bytes</span> <span class="o">=</span> <span class="n">b</span><span class="s">&#39;</span><span class="se">\x01</span><span class="s">&#39;</span>
+
+<div class="viewcode-block" id="SerialiserTest.create_struct"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.create_struct">[docs]</a>    <span class="k">def</span> <span class="nf">create_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">class</span> <span class="nc">StructSample</span><span class="p">(</span><span class="n">Struct</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">data_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+
+        <span class="n">test_struct</span> <span class="o">=</span> <span class="n">StructSample</span><span class="p">()</span>
+        <span class="n">test_struct</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mf">3.0</span>
+        <span class="n">test_struct</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="mf">2.0</span>
+        <span class="n">test_struct</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&quot;TestStruct&quot;</span>
+
+        <span class="k">return</span> <span class="n">test_struct</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_struct"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_struct">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">StructSample</span><span class="p">(</span><span class="n">Struct</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="n">struct_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">StructSample</span><span class="p">)</span>
+        <span class="n">handler_struct</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">struct_flag</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">handler_struct</span><span class="p">,</span> <span class="n">StructHandler</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_bitfield"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_bitfield">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_bitfield</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bitfield_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">BitField</span><span class="p">)</span>
+        <span class="n">handler_bitfield</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">bitfield_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">handler_bitfield</span><span class="p">,</span> <span class="n">BitFieldHandler</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_float_low_precision"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_float_low_precision">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_float_low_precision</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Low precisions</span>
+        <span class="n">float_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">max_precision</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">handler_float</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">float_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_float</span><span class="p">,</span> <span class="n">Float32</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_float_high_precision"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_float_high_precision">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_float_high_precision</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># High precisions</span>
+        <span class="n">float_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">max_precision</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">handler_float</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">float_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_float</span><span class="p">,</span> <span class="n">Float64</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_int_8bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_int_8bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_int_8bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">int_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_bits</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">handler_int</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">int_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_int</span><span class="p">,</span> <span class="n">UInt8</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_int_16bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_int_16bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_int_16bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">int_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_bits</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+        <span class="n">handler_int</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">int_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_int</span><span class="p">,</span> <span class="n">UInt16</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_int_32bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_int_32bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_int_32bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">int_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_bits</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+        <span class="n">handler_int</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">int_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_int</span><span class="p">,</span> <span class="n">UInt32</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_get_int_64bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_get_int_64bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_int_64bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">int_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_bits</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+        <span class="n">handler_int</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">int_flag</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">handler_int</span><span class="p">,</span> <span class="n">UInt64</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_struct"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_struct">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_struct</span><span class="p">()</span>
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">StructHandler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">struct</span><span class="p">)),</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">USE_BITARRAY</span><span class="p">:</span>
+            <span class="n">struct_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">py_struct_bytes</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">struct_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c_struct_bytes</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">struct_bytes</span><span class="p">,</span> <span class="n">handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">struct</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_struct"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_struct">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_struct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_struct</span><span class="p">()</span>
+        <span class="n">handler</span> <span class="o">=</span> <span class="n">StructHandler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">struct</span><span class="p">)),</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">USE_BITARRAY</span><span class="p">:</span>
+            <span class="n">struct_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">py_struct_bytes</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">struct_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c_struct_bytes</span>
+
+        <span class="n">new_struct</span><span class="p">,</span> <span class="n">struct_size</span> <span class="o">=</span> <span class="n">handler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">struct_bytes</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">new_struct</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">new_struct</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">new_struct</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_fixed_py_bitfield"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_fixed_py_bitfield">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_fixed_py_bitfield</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Get fixed handler</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bitfield_list</span><span class="p">)</span>
+
+        <span class="n">bitfield_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">BitField</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">bitfield_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">bitfield_flag</span><span class="p">)</span>
+
+        <span class="c"># Create bitfield</span>
+        <span class="n">bitfield</span> <span class="o">=</span> <span class="n">BitField</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">bitfield</span><span class="p">[:]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bitfield_list</span>
+
+        <span class="n">packed_value</span> <span class="o">=</span> <span class="n">bitfield_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">bitfield</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">packed_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">py_bitfield_fixed_value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_py_variable_bitfield"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_py_variable_bitfield">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_py_variable_bitfield</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Get variable handler</span>
+        <span class="n">bitfield_flag</span> <span class="o">=</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">BitField</span><span class="p">)</span>
+        <span class="n">bitfield_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">bitfield_flag</span><span class="p">)</span>
+
+        <span class="c"># Create bitfield</span>
+        <span class="n">bitfield</span> <span class="o">=</span> <span class="n">BitField</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">bitfield</span><span class="p">[:]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bitfield_list</span>
+
+        <span class="n">packed_value</span> <span class="o">=</span> <span class="n">bitfield_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">bitfield</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">packed_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">py_bitfield_variable_value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_int_64bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_int_64bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_int_64bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt64</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_value_64bit</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string64bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_int_32bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_int_32bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_int_32bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt32</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_value_32bit</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string32bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_int_16bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_int_16bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_int_16bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt16</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_value_16bit</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string16bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_int_8bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_int_8bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_int_8bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt8</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_value_8bit</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string8bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_int_64bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_int_64bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_int_64bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt64</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string64bit</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_value_64bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_int_32bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_int_32bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_int_32bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt32</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string32bit</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_value_32bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_int_16bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_int_16bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_int_16bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt16</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string16bit</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_value_16bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_int_8bit"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_int_8bit">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_int_8bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">UInt8</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">int_bytes_string8bit</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">int_value_8bit</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_float"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_float">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_float</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">Float64</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">float_value</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">float_bytes</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_float"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_float">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_float</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">Float64</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">float_bytes</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">float_value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_pack_bool"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_pack_bool">[docs]</a>    <span class="k">def</span> <span class="nf">test_pack_bool</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">BoolHandler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bool_value</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">bool_bytes</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SerialiserTest.test_unpack_bool"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.SerialiserTest.test_unpack_bool">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpack_bool</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">BoolHandler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bool_bytes</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">bool_value</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="run_tests"><a class="viewcode-back" href="../../../network.testing.testing.html#network.testing.testing.run_tests">[docs]</a><span class="k">def</span> <span class="nf">run_tests</span><span class="p">():</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">module</span><span class="o">=</span><span class="s">&quot;network.testing&quot;</span><span class="p">,</span> <span class="nb">exit</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

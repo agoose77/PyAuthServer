@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.iterators module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.logger module" href="network.logger.html" />
+    <link rel="prev" title="network.hosts module" href="network.hosts.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.logger.html" title="network.logger module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.hosts.html" title="network.hosts module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.iterators">
+<span id="network-iterators-module"></span><h1>network.iterators module<a class="headerlink" href="#module-network.iterators" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.iterators.RenewableGenerator">
+<em class="property">class </em><tt class="descclassname">network.iterators.</tt><tt class="descname">RenewableGenerator</tt><big>(</big><em>renew_func</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#RenewableGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.iterators.RenewableGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>ID manager</p>
+<p>Provides interface to an generator with a callback to replace on StopIteration</p>
+<dl class="method">
+<dt id="network.iterators.RenewableGenerator.renew">
+<tt class="descname">renew</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/iterators.html#RenewableGenerator.renew"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.iterators.RenewableGenerator.renew" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="network.iterators.take_single">
+<tt class="descclassname">network.iterators.</tt><tt class="descname">take_single</tt><big>(</big><em>iterable</em>, <em>default=None</em>, <em>reverse=False</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#take_single"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.iterators.take_single" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns first element from iterable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>default</strong> &#8211; default value if iterable is empty</li>
+<li><strong>reverse</strong> &#8211; reverse the sequence</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>:returns first element or default</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.iterators.partition_iterable">
+<tt class="descclassname">network.iterators.</tt><tt class="descname">partition_iterable</tt><big>(</big><em>iterable</em>, <em>length</em>, <em>steps=None</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#partition_iterable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.iterators.partition_iterable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Partitions an iterable into fixed length parts</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>iterable</strong> &#8211; iterable object</li>
+<li><strong>length</strong> &#8211; length of slice</li>
+<li><strong>steps</strong> &#8211; number of slices</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of partition elements</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.hosts.html"
+                        title="previous chapter">network.hosts module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.logger.html"
+                        title="next chapter">network.logger module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.iterators.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.logger.html" title="network.logger module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.hosts.html" title="network.hosts module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

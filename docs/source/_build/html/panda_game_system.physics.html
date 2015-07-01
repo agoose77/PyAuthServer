@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>panda_game_system.physics module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-panda_game_system.physics">
+<span id="panda-game-system-physics-module"></span><h1>panda_game_system.physics module<a class="headerlink" href="#module-panda_game_system.physics" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="panda_game_system.physics.PandaPhysicsSystem">
+<em class="property">class </em><tt class="descclassname">panda_game_system.physics.</tt><tt class="descname">PandaPhysicsSystem</tt><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaPhysicsSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.tagged_delegate.html#network.tagged_delegate.DelegateByNetmode" title="network.tagged_delegate.DelegateByNetmode"><tt class="xref py py-class docutils literal"><span class="pre">network.tagged_delegate.DelegateByNetmode</span></tt></a>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'PandaClientPhysicsSystem': &lt;class 'panda_game_system.physics.PandaClientPhysicsSystem'&gt;, 'PandaServerPhysicsSystem': &lt;class 'panda_game_system.physics.PandaServerPhysicsSystem'&gt;}</em><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.register_node">
+<tt class="descname">register_node</tt><big>(</big><em>node</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaPhysicsSystem.register_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.register_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.deregister_node">
+<tt class="descname">deregister_node</tt><big>(</big><em>node</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaPhysicsSystem.deregister_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.deregister_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.dispatch_collisions">
+<tt class="descname">dispatch_collisions</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaPhysicsSystem.dispatch_collisions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.dispatch_collisions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaPhysicsSystem.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaPhysicsSystem.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = True</em><a class="headerlink" href="#panda_game_system.physics.PandaPhysicsSystem.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="panda_game_system.physics.PandaServerPhysicsSystem">
+<em class="property">class </em><tt class="descclassname">panda_game_system.physics.</tt><tt class="descname">PandaServerPhysicsSystem</tt><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaServerPhysicsSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaServerPhysicsSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#panda_game_system.physics.PandaPhysicsSystem" title="panda_game_system.physics.PandaPhysicsSystem"><tt class="xref py py-class docutils literal"><span class="pre">panda_game_system.physics.PandaPhysicsSystem</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="method">
+<dt id="panda_game_system.physics.PandaServerPhysicsSystem.save_network_states">
+<tt class="descname">save_network_states</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaServerPhysicsSystem.save_network_states"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaServerPhysicsSystem.save_network_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves Physics transformations to network variables</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaServerPhysicsSystem.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaServerPhysicsSystem.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaServerPhysicsSystem.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsTickSignal.</p>
+<p>Copy physics state to network variable for Actor instances</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaServerPhysicsSystem.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em><a class="headerlink" href="#panda_game_system.physics.PandaServerPhysicsSystem.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem">
+<em class="property">class </em><tt class="descclassname">panda_game_system.physics.</tt><tt class="descname">PandaClientPhysicsSystem</tt><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#panda_game_system.physics.PandaPhysicsSystem" title="panda_game_system.physics.PandaPhysicsSystem"><tt class="xref py py-class docutils literal"><span class="pre">panda_game_system.physics.PandaPhysicsSystem</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.active_physics_types">
+<tt class="descname">active_physics_types</tt><em class="property"> = {1, 2}</em><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.active_physics_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.network_clock">
+<tt class="descname">network_clock</tt><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.network_clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.network_clock" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.extrapolate_network_states">
+<tt class="descname">extrapolate_network_states</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.extrapolate_network_states"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.extrapolate_network_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply state from extrapolators to replicated actors</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.protect_exemptions">
+<tt class="descname">protect_exemptions</tt><big>(</big><em>exemptions</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.protect_exemptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.protect_exemptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Suspend and restore state of exempted actors around an operation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>exemptions</strong> &#8211; Iterable of exempt Actor instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.update_for">
+<tt class="descname">update_for</tt><big>(</big><em>delta_time</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.update_for"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.update_for" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsSingleUpdateSignal
+Attempts to update physics simulation for single actor</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>delta_time</strong> &#8211; Time to progress simulation</li>
+<li><strong>target</strong> &#8211; Actor instance to update state</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.on_physics_replicated">
+<tt class="descname">on_physics_replicated</tt><big>(</big><em>timestamp</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.on_physics_replicated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.on_physics_replicated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.on_replicable_unregistered">
+<tt class="descname">on_replicable_unregistered</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.on_replicable_unregistered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.on_replicable_unregistered" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/panda_game_system/physics.html#PandaClientPhysicsSystem.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsTickSignal.</p>
+<p>Copy physics state to network variable for Actor instances</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="panda_game_system.physics.PandaClientPhysicsSystem.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em><a class="headerlink" href="#panda_game_system.physics.PandaClientPhysicsSystem.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/panda_game_system.physics.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.definitions &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bge_game_system.definitions</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">bge</span> <span class="kn">import</span> <span class="n">logic</span><span class="p">,</span> <span class="n">types</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+
+<span class="kn">from</span> <span class="nn">network.decorators</span> <span class="kn">import</span> <span class="n">with_tag</span>
+<span class="kn">from</span> <span class="nn">network.signals</span> <span class="kn">import</span> <span class="n">SignalListener</span>
+<span class="kn">from</span> <span class="nn">network.tagged_delegate</span> <span class="kn">import</span> <span class="n">FindByTag</span>
+<span class="kn">from</span> <span class="nn">network.logger</span> <span class="kn">import</span> <span class="n">logger</span>
+
+<span class="kn">from</span> <span class="nn">game_system.animation</span> <span class="kn">import</span> <span class="n">Animation</span>
+<span class="kn">from</span> <span class="nn">game_system.coordinates</span> <span class="kn">import</span> <span class="n">Vector</span>
+<span class="kn">from</span> <span class="nn">game_system.definitions</span> <span class="kn">import</span> <span class="n">ComponentLoader</span><span class="p">,</span> <span class="n">ComponentLoaderResult</span>
+<span class="kn">from</span> <span class="nn">game_system.enums</span> <span class="kn">import</span> <span class="n">AnimationMode</span><span class="p">,</span> <span class="n">AnimationBlend</span><span class="p">,</span> <span class="n">Axis</span><span class="p">,</span> <span class="n">CollisionState</span><span class="p">,</span> <span class="n">PhysicsType</span>
+<span class="kn">from</span> <span class="nn">game_system.geometry.utilities</span> <span class="kn">import</span> <span class="n">get_random_point</span><span class="p">,</span> <span class="n">get_random_polygon</span>
+<span class="kn">from</span> <span class="nn">game_system.physics</span> <span class="kn">import</span> <span class="n">RayTestResult</span><span class="p">,</span> <span class="n">CollisionContact</span><span class="p">,</span> <span class="n">LazyCollisionResult</span>
+<span class="kn">from</span> <span class="nn">game_system.signals</span> <span class="kn">import</span> <span class="n">CollisionSignal</span><span class="p">,</span> <span class="n">UpdateCollidersSignal</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">from</span> <span class="nn">.geometry.mesh.navmesh</span> <span class="kn">import</span> <span class="n">BGENavmesh</span>
+
+
+<div class="viewcode-block" id="BGEParentableBase"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEParentableBase">[docs]</a><span class="k">class</span> <span class="nc">BGEParentableBase</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">game_object</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span> <span class="o">=</span> <span class="n">game_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="BGESocket"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGESocket">[docs]</a><span class="k">class</span> <span class="nc">BGESocket</span><span class="p">(</span><span class="n">BGEParentableBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Attachment socket interface&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">socket</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">=</span> <span class="n">parent</span>
+
+</div>
+<div class="viewcode-block" id="BGEComponent"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponent">[docs]</a><span class="k">class</span> <span class="nc">BGEComponent</span><span class="p">(</span><span class="n">FindByTag</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for BGE component&quot;&quot;&quot;</span>
+
+    <span class="n">subclasses</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="BGEComponent.destroy"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponent.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroy component&quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;physics&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGEPhysicsInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface">[docs]</a><span class="k">class</span> <span class="nc">BGEPhysicsInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">):</span>
+
+    <span class="c"># Deprecation warnings</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&quot;BGE PhysicsType is not exposed to the PyAPI, defaulting to dynamic collision&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&quot;BGE collision groups are not exposed to the PyAPI&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&quot;BGE collision masks are not exposed to the PyAPI&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entity</span> <span class="o">=</span> <span class="n">entity</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_new_collisions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_old_collisions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched_entities</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c"># Physics type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_physics_type</span> <span class="o">=</span> <span class="n">PhysicsType</span><span class="o">.</span><span class="n">dynamic</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">getPhysicsId</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspended</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span><span class="p">:</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">collisionCallbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_on_collision</span><span class="p">)</span>
+
+        <span class="c"># Used for raycast lookups</span>
+        <span class="n">obj</span><span class="p">[</span><span class="s">&#39;physics_component&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.entity_from_object"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.entity_from_object">[docs]</a>    <span class="k">def</span> <span class="nf">entity_from_object</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns entity from BGE object</span>
+
+<span class="sd">        :param obj: KX_GameObject instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">component</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s">&quot;physics_component&quot;</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">return</span> <span class="n">component</span><span class="o">.</span><span class="n">_entity</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">mass</span>
+
+    <span class="nd">@mass.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.mass"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.mass">[docs]</a>    <span class="k">def</span> <span class="nf">mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mass</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">mass</span> <span class="o">=</span> <span class="n">mass</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collision_group</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@collision_group.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.collision_group"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.collision_group">[docs]</a>    <span class="k">def</span> <span class="nf">collision_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collision_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@collision_mask.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.collision_mask"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.collision_mask">[docs]</a>    <span class="k">def</span> <span class="nf">collision_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">suspended</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_suspended</span>
+
+    <span class="nd">@suspended.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.suspended"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.suspended">[docs]</a>    <span class="k">def</span> <span class="nf">suspended</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suspended</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span>
+        <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">suspendDynamics</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">restoreDynamics</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.type"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.type">[docs]</a>    <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The physics type of this object</span>
+
+<span class="sd">        :returns: physics type of object, see :py:class:`game_system.enums.PhysicsType`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_physics_type</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">world_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Vector</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldLinearVelocity</span>
+
+    <span class="nd">@world_velocity.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.world_velocity"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.world_velocity">[docs]</a>    <span class="k">def</span> <span class="nf">world_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">velocity</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldLinearVelocity</span> <span class="o">=</span> <span class="n">velocity</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">world_angular</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Vector</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldLinearVelocity</span>
+
+    <span class="nd">@world_angular.setter</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.world_angular"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.world_angular">[docs]</a>    <span class="k">def</span> <span class="nf">world_angular</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angular</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_physics_controller</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">angular</span><span class="p">):</span>
+            <span class="n">angular</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0000002</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldAngularVelocity</span> <span class="o">=</span> <span class="n">angular</span>
+</div>
+<div class="viewcode-block" id="BGEPhysicsInterface.ray_test"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.ray_test">[docs]</a>    <span class="k">def</span> <span class="nf">ray_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Perform a ray trace to a target</span>
+
+<span class="sd">        :param target: target to trace towards</span>
+<span class="sd">        :param source: optional origin of trace, otherwise object position</span>
+<span class="sd">        :param distance: distance to use instead of vector length</span>
+<span class="sd">        :rtype: :py:class:`game_system.physics.RayTestResult`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldPosition</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">rayCast</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">distance</span><span class="p">)</span>
+        <span class="n">hit_bge_object</span><span class="p">,</span> <span class="n">hit_position</span><span class="p">,</span> <span class="n">hit_normal</span> <span class="o">=</span> <span class="n">result</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hit_bge_object</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">hit_entity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entity_from_object</span><span class="p">(</span><span class="n">hit_bge_object</span><span class="p">)</span>
+        <span class="n">hit_distance</span> <span class="o">=</span> <span class="p">(</span><span class="n">hit_position</span> <span class="o">-</span> <span class="n">source</span><span class="p">)</span><span class="o">.</span><span class="n">length</span>
+
+        <span class="k">return</span> <span class="n">RayTestResult</span><span class="p">(</span><span class="n">hit_position</span><span class="p">,</span> <span class="n">hit_normal</span><span class="p">,</span> <span class="n">hit_entity</span><span class="p">,</span> <span class="n">hit_distance</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_on_collision</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="o">*</span><span class="n">data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_new_collisions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">other</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">hit_entity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entity_from_object</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">hit_entity</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched_entities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">hit_entity</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">get_contacts</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">hit_contacts</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">hit_position</span><span class="p">,</span> <span class="n">hit_normal</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="n">hit_contacts</span> <span class="o">=</span> <span class="p">[</span><span class="n">CollisionContact</span><span class="p">(</span><span class="n">hit_position</span><span class="p">,</span> <span class="n">hit_normal</span><span class="p">,</span> <span class="n">Vector</span><span class="p">())]</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">LazyCollisionResult</span><span class="p">(</span><span class="n">hit_entity</span><span class="p">,</span> <span class="n">CollisionState</span><span class="o">.</span><span class="n">started</span><span class="p">,</span> <span class="n">get_contacts</span><span class="p">)</span>
+
+        <span class="n">CollisionSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity</span><span class="p">)</span>
+
+    <span class="nd">@UpdateCollidersSignal.on_global</span>
+    <span class="k">def</span> <span class="nf">_update_collisions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># If we have a stored collision</span>
+        <span class="n">ended_collisions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_old_collisions</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_collisions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_old_collisions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_collisions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_new_collisions</span><span class="p">,</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ended_collisions</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">callback</span> <span class="o">=</span> <span class="n">CollisionSignal</span><span class="o">.</span><span class="n">invoke</span>
+        <span class="n">ended_collision</span> <span class="o">=</span> <span class="n">CollisionState</span><span class="o">.</span><span class="n">ended</span>
+
+        <span class="n">entity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entity</span>
+        <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">ended_collisions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span><span class="o">.</span><span class="n">invalid</span><span class="p">:</span>
+                <span class="n">hit_entity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">entity_from_object</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">hit_entity</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched_entities</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">hit_entity</span><span class="p">)</span>
+
+                <span class="n">result</span> <span class="o">=</span> <span class="n">CollisionResult</span><span class="p">(</span><span class="n">hit_entity</span><span class="p">,</span> <span class="n">ended_collision</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">entity</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEPhysicsInterface.is_colliding"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.is_colliding">[docs]</a>    <span class="k">def</span> <span class="nf">is_colliding</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dispatched</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BGEPhysicsInterface.is_colliding_with"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEPhysicsInterface.is_colliding_with">[docs]</a>    <span class="k">def</span> <span class="nf">is_colliding_with</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines if the entity is colliding with another entity</span>
+
+<span class="sd">        :param entity: entity to __call__</span>
+<span class="sd">        :returns: result of condition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">entity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dispatched_entities</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;transform&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGETransformInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface">[docs]</a><span class="k">class</span> <span class="nc">BGETransformInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">,</span> <span class="n">SignalListener</span><span class="p">,</span> <span class="n">BGEParentableBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Physics implementation for BGE entity&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entity</span> <span class="o">=</span> <span class="n">entity</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sockets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_sockets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_signals</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span>
+
+    <span class="nd">@parent.setter</span>
+<div class="viewcode-block" id="BGETransformInterface.parent"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.parent">[docs]</a>    <span class="k">def</span> <span class="nf">parent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">removeParent</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">BGEParentableBase</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Invalid parent type {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">setParent</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">_game_object</span><span class="p">)</span>
+        <span class="n">parent</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">=</span> <span class="n">parent</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">world_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldPosition</span>
+
+    <span class="nd">@world_position.setter</span>
+<div class="viewcode-block" id="BGETransformInterface.world_position"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.world_position">[docs]</a>    <span class="k">def</span> <span class="nf">world_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldPosition</span> <span class="o">=</span> <span class="n">position</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">world_orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldOrientation</span><span class="o">.</span><span class="n">to_euler</span><span class="p">()</span>
+
+    <span class="nd">@world_orientation.setter</span>
+<div class="viewcode-block" id="BGETransformInterface.world_orientation"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.world_orientation">[docs]</a>    <span class="k">def</span> <span class="nf">world_orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">orientation</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">worldOrientation</span> <span class="o">=</span> <span class="n">orientation</span>
+</div>
+<div class="viewcode-block" id="BGETransformInterface.align_to"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.align_to">[docs]</a>    <span class="k">def</span> <span class="nf">align_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">factor</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">Axis</span><span class="o">.</span><span class="n">y</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Align object to vector</span>
+
+<span class="sd">        :param vector: direction vector</span>
+<span class="sd">        :param factor: slerp factor</span>
+<span class="sd">        :param axis: alignment direction</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">vector</span><span class="o">.</span><span class="n">length_squared</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">forward_axis</span> <span class="o">=</span> <span class="n">Axis</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+        <span class="n">rotation_quaternion</span> <span class="o">=</span> <span class="n">vector</span><span class="o">.</span><span class="n">to_track_quat</span><span class="p">(</span><span class="n">forward_axis</span><span class="p">,</span> <span class="s">&quot;Z&quot;</span><span class="p">)</span>
+        <span class="n">current_rotation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">world_orientation</span><span class="o">.</span><span class="n">to_quaternion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">world_orientation</span> <span class="o">=</span> <span class="n">current_rotation</span><span class="o">.</span><span class="n">slerp</span><span class="p">(</span><span class="n">rotation_quaternion</span><span class="p">,</span> <span class="n">factor</span><span class="p">)</span><span class="o">.</span><span class="n">to_euler</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BGETransformInterface.create_sockets"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.create_sockets">[docs]</a>    <span class="k">def</span> <span class="nf">create_sockets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">BGESocket</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">childrenRecursive</span> <span class="k">if</span> <span class="s">&quot;socket&quot;</span> <span class="ow">in</span> <span class="n">c</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="BGETransformInterface.get_direction_vector"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGETransformInterface.get_direction_vector">[docs]</a>    <span class="k">def</span> <span class="nf">get_direction_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">axis</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the axis vector of this object in world space</span>
+
+<span class="sd">        :param axis: :py:class:`game_system.enums.Axis` value</span>
+<span class="sd">        :rtype: :py:class:`game_system.coordinates.Vector`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">vector</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">vector</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">Vector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="o">.</span><span class="n">getAxisVect</span><span class="p">(</span><span class="n">vector</span><span class="p">))</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;animation&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGEAnimationInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEAnimationInterface">[docs]</a><span class="k">class</span> <span class="nc">BGEAnimationInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Animation implementation for BGE entity&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">skeleton</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">childrenRecursive</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">BL_ArmatureObject</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Animation component requires Armature object&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span> <span class="o">=</span> <span class="n">skeleton</span>
+
+        <span class="c"># Define conversions from Blender behaviours to Network animation enum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bge_play_constants</span> <span class="o">=</span> <span class="p">{</span><span class="n">AnimationMode</span><span class="o">.</span><span class="n">play</span><span class="p">:</span> <span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_PLAY</span><span class="p">,</span>
+                                    <span class="n">AnimationMode</span><span class="o">.</span><span class="n">loop</span><span class="p">:</span> <span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_LOOP</span><span class="p">,</span>
+                                    <span class="n">AnimationMode</span><span class="o">.</span><span class="n">ping_pong</span><span class="p">:</span> <span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_MODE_PING_PONG</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bge_blend_constants</span> <span class="o">=</span> <span class="p">{</span><span class="n">AnimationBlend</span><span class="o">.</span><span class="n">interpolate</span><span class="p">:</span> <span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_BLEND_BLEND</span><span class="p">,</span>
+                                     <span class="n">AnimationBlend</span><span class="o">.</span><span class="n">add</span><span class="p">:</span> <span class="n">logic</span><span class="o">.</span><span class="n">KX_ACTION_BLEND_ADD</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">animations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_animations</span><span class="p">(</span><span class="n">skeleton</span><span class="p">,</span> <span class="n">config_section</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="BGEAnimationInterface.create_animations"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEAnimationInterface.create_animations">[docs]</a>    <span class="k">def</span> <span class="nf">create_animations</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">animations</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">animation_name</span><span class="p">,</span> <span class="n">animation_data</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">frame_info</span> <span class="o">=</span> <span class="n">animation_data</span><span class="p">[</span><span class="s">&#39;frame_info&#39;</span><span class="p">]</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">frame_info</span><span class="p">[</span><span class="s">&#39;start&#39;</span><span class="p">]</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">frame_info</span><span class="p">[</span><span class="s">&#39;end&#39;</span><span class="p">]</span>
+
+            <span class="n">modes</span> <span class="o">=</span> <span class="n">animation_data</span><span class="p">[</span><span class="s">&#39;modes&#39;</span><span class="p">]</span>
+            <span class="n">blend_mode</span> <span class="o">=</span> <span class="n">modes</span><span class="p">[</span><span class="s">&#39;blend&#39;</span><span class="p">]</span>
+            <span class="n">play_mode</span> <span class="o">=</span> <span class="n">modes</span><span class="p">[</span><span class="s">&#39;play&#39;</span><span class="p">]</span>
+
+            <span class="n">layer_data</span> <span class="o">=</span> <span class="n">animation_data</span><span class="p">[</span><span class="s">&#39;layers&#39;</span><span class="p">]</span>
+            <span class="n">layer</span> <span class="o">=</span> <span class="n">layer_data</span><span class="p">[</span><span class="s">&#39;layer&#39;</span><span class="p">]</span>
+            <span class="n">blending</span> <span class="o">=</span> <span class="n">layer_data</span><span class="p">[</span><span class="s">&#39;blending&#39;</span><span class="p">]</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="n">layer_data</span><span class="p">[</span><span class="s">&#39;weight&#39;</span><span class="p">]</span>
+
+            <span class="n">playback</span> <span class="o">=</span> <span class="n">animation_data</span><span class="p">[</span><span class="s">&#39;playback&#39;</span><span class="p">]</span>
+            <span class="n">priority</span> <span class="o">=</span> <span class="n">playback</span><span class="p">[</span><span class="s">&#39;priority&#39;</span><span class="p">]</span>
+            <span class="n">speed</span> <span class="o">=</span> <span class="n">playback</span><span class="p">[</span><span class="s">&#39;speed&#39;</span><span class="p">]</span>
+
+            <span class="n">callback</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">isPlayingAction</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
+
+            <span class="n">animation</span> <span class="o">=</span> <span class="n">Animation</span><span class="p">(</span><span class="n">animation_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">priority</span><span class="p">,</span> <span class="n">blending</span><span class="p">,</span> <span class="n">play_mode</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">speed</span><span class="p">,</span>
+                                  <span class="n">blend_mode</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+            <span class="n">animations</span><span class="p">[</span><span class="n">animation_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">animation</span>
+
+        <span class="k">return</span> <span class="n">animations</span>
+</div>
+<div class="viewcode-block" id="BGEAnimationInterface.get_frame"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEAnimationInterface.get_frame">[docs]</a>    <span class="k">def</span> <span class="nf">get_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">animation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the current frame of the animation</span>
+
+<span class="sd">        :param animation: animation object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">getActionFrame</span><span class="p">(</span><span class="n">animation</span><span class="o">.</span><span class="n">layer</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="BGEAnimationInterface.play"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEAnimationInterface.play">[docs]</a>    <span class="k">def</span> <span class="nf">play</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">animation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Play animation on bound object</span>
+
+<span class="sd">        :param animation: animation resource</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">play_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bge_play_constants</span><span class="p">[</span><span class="n">animation</span><span class="o">.</span><span class="n">mode</span><span class="p">]</span>
+        <span class="n">blend_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bge_blend_constants</span><span class="p">[</span><span class="n">animation</span><span class="o">.</span><span class="n">blend_mode</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">playAction</span><span class="p">(</span><span class="n">animation</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">animation</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">animation</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">animation</span><span class="o">.</span><span class="n">layer</span><span class="p">,</span> <span class="n">animation</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
+                             <span class="n">animation</span><span class="o">.</span><span class="n">blend</span><span class="p">,</span> <span class="n">play_mode</span><span class="p">,</span> <span class="n">animation</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="n">animation</span><span class="o">.</span><span class="n">speed</span><span class="p">,</span> <span class="n">blend_mode</span><span class="o">=</span><span class="n">blend_mode</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BGEAnimationInterface.stop"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEAnimationInterface.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">animation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stop a playing animation on bound object</span>
+
+<span class="sd">        :param animation: animation resource</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">stopAction</span><span class="p">(</span><span class="n">animation</span><span class="o">.</span><span class="n">layer</span><span class="p">)</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;camera&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGECameraInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface">[docs]</a><span class="k">class</span> <span class="nc">BGECameraInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span> <span class="o">=</span> <span class="n">obj</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGECameraInterface.is_active"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.is_active">[docs]</a>    <span class="k">def</span> <span class="nf">is_active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span>
+        <span class="k">return</span> <span class="n">camera</span><span class="o">.</span><span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="ow">is</span> <span class="n">camera</span>
+</div>
+<div class="viewcode-block" id="BGECameraInterface.set_active"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.set_active">[docs]</a>    <span class="k">def</span> <span class="nf">set_active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="n">camera</span>
+</div>
+    <span class="nd">@contextmanager</span>
+<div class="viewcode-block" id="BGECameraInterface.active_context"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.active_context">[docs]</a>    <span class="k">def</span> <span class="nf">active_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">camera</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">scene</span>
+
+        <span class="n">old_camera</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span>
+        <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="n">camera</span>
+
+        <span class="k">yield</span>
+
+        <span class="k">if</span> <span class="n">old_camera</span><span class="p">:</span>
+            <span class="n">scene</span><span class="o">.</span><span class="n">active_camera</span> <span class="o">=</span> <span class="n">old_camera</span>
+</div>
+<div class="viewcode-block" id="BGECameraInterface.is_point_in_frustum"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.is_point_in_frustum">[docs]</a>    <span class="k">def</span> <span class="nf">is_point_in_frustum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine if a point resides in the camera frustum</span>
+
+<span class="sd">        :param point: :py:class:`mathutils.Vector`</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">pointInsideFrustum</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BGECameraInterface.is_sphere_in_frustum"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.is_sphere_in_frustum">[docs]</a>    <span class="k">def</span> <span class="nf">is_sphere_in_frustum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">radius</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine if a sphere resides in the camera frustum</span>
+
+<span class="sd">        :param point: :py:class:`mathutils.Vector`</span>
+<span class="sd">        :param radius: radius of sphere</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">sphereInsideFrustum</span><span class="p">(</span><span class="n">point</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">OUTSIDE</span>
+</div>
+<div class="viewcode-block" id="BGECameraInterface.get_screen_direction"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGECameraInterface.get_screen_direction">[docs]</a>    <span class="k">def</span> <span class="nf">get_screen_direction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find direction along screen vector</span>
+
+<span class="sd">        :param x: screen space x coordinate</span>
+<span class="sd">        :param y: screen space y coordinate</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">getScreenRay</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;lamp&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGELampInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGELampInterface">[docs]</a><span class="k">class</span> <span class="nc">BGELampInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span> <span class="o">=</span> <span class="n">obj</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">colour</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">color</span>
+
+    <span class="nd">@colour.setter</span>
+<div class="viewcode-block" id="BGELampInterface.colour"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGELampInterface.colour">[docs]</a>    <span class="k">def</span> <span class="nf">colour</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colour</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">color</span> <span class="o">=</span> <span class="n">colour</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">energy</span>
+
+    <span class="nd">@intensity.setter</span>
+<div class="viewcode-block" id="BGELampInterface.intensity"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGELampInterface.intensity">[docs]</a>    <span class="k">def</span> <span class="nf">intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_game_object</span><span class="o">.</span><span class="n">energy</span> <span class="o">=</span> <span class="n">energy</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;navmesh&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGENavmeshInterface"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGENavmeshInterface">[docs]</a><span class="k">class</span> <span class="nc">BGENavmeshInterface</span><span class="p">(</span><span class="n">BGEComponent</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_section</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="c"># self._navmesh = BGENavmesh(obj)</span>
+        <span class="c"># self._game_object = obj</span>
+        <span class="c">#</span>
+        <span class="c"># self.find_node = self._navmesh.find_node</span>
+        <span class="c"># self.nodes = self._navmesh.polygons</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="c"># @property</span>
+    <span class="c"># def random_point(self):</span>
+    <span class="c">#     node = get_random_polygon(self.nodes)</span>
+    <span class="c">#     return get_random_point(node)</span>
+
+</div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;BGE&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="BGEComponentLoader"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponentLoader">[docs]</a><span class="k">class</span> <span class="nc">BGEComponentLoader</span><span class="p">(</span><span class="n">ComponentLoader</span><span class="p">):</span>
+    <span class="n">scene</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">component_tags</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">component_tags</span> <span class="o">=</span> <span class="n">component_tags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">component_classes</span> <span class="o">=</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">BGEComponent</span><span class="o">.</span><span class="n">find_subclass_for</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">component_tags</span><span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BGEComponentLoader.create_object"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponentLoader.create_object">[docs]</a>    <span class="k">def</span> <span class="nf">create_object</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">config_parser</span><span class="p">):</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">scene</span>
+
+        <span class="n">object_name</span> <span class="o">=</span> <span class="n">config_parser</span><span class="p">[</span><span class="s">&#39;object_name&#39;</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">spawn_obj</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">objectsInactive</span><span class="p">[</span><span class="n">object_name</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;As a non-static actor, object must be in hidden layer&quot;</span><span class="p">)</span>
+
+        <span class="n">transform_obj</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">inverse_transform</span> <span class="o">=</span> <span class="n">transform_obj</span><span class="o">.</span><span class="n">worldTransform</span><span class="o">.</span><span class="n">inverted</span><span class="p">()</span>
+
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">addObject</span><span class="p">(</span><span class="n">spawn_obj</span><span class="p">,</span> <span class="n">transform_obj</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">worldTransform</span> <span class="o">=</span> <span class="n">inverse_transform</span> <span class="o">*</span> <span class="n">obj</span><span class="o">.</span><span class="n">worldTransform</span>
+
+        <span class="k">return</span> <span class="n">obj</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BGEComponentLoader.find_object"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponentLoader.find_object">[docs]</a>    <span class="k">def</span> <span class="nf">find_object</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">config_parser</span><span class="p">):</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">scene</span>
+        <span class="n">object_name</span> <span class="o">=</span> <span class="n">config_parser</span><span class="p">[</span><span class="s">&#39;object_name&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">object_name</span> <span class="ow">in</span> <span class="n">scene</span><span class="o">.</span><span class="n">objects</span><span class="p">,</span> <span class="s">&quot;Unable to resolve object for static network object&quot;</span>
+        <span class="k">return</span> <span class="n">scene</span><span class="o">.</span><span class="n">objects</span><span class="p">[</span><span class="n">object_name</span><span class="p">]</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="BGEComponentLoader.find_or_create_object"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponentLoader.find_or_create_object">[docs]</a>    <span class="k">def</span> <span class="nf">find_or_create_object</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">config_parser</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">entity</span><span class="o">.</span><span class="n">is_static</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">find_object</span><span class="p">(</span><span class="n">config_parser</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">create_object</span><span class="p">(</span><span class="n">config_parser</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BGEComponentLoader.load"><a class="viewcode-back" href="../../bge_game_system.definitions.html#bge_game_system.definitions.BGEComponentLoader.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">config_parser</span><span class="p">):</span>
+        <span class="n">game_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_or_create_object</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">config_parser</span><span class="p">)</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_components</span><span class="p">(</span><span class="n">config_parser</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">game_object</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">on_unloaded</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">game_object</span><span class="o">.</span><span class="n">invalid</span><span class="p">:</span>
+                <span class="n">game_object</span><span class="o">.</span><span class="n">endObject</span><span class="p">()</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ComponentLoaderResult</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">on_unloaded</span> <span class="o">=</span> <span class="n">on_unloaded</span>
+
+        <span class="k">return</span> <span class="n">result</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

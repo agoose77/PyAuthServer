@@ -1,0 +1,436 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.streams.replication &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.streams.replication</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.streams</span> <span class="kn">import</span> <span class="n">response_protocol</span><span class="p">,</span> <span class="n">ProtocolHandler</span><span class="p">,</span> <span class="n">Stream</span>
+<span class="kn">from</span> <span class="nn">.latency_calculator</span> <span class="kn">import</span> <span class="n">LatencyCalculator</span>
+
+<span class="kn">from</span> <span class="nn">..channel</span> <span class="kn">import</span> <span class="n">Channel</span>
+<span class="kn">from</span> <span class="nn">..decorators</span> <span class="kn">import</span> <span class="n">with_tag</span>
+<span class="kn">from</span> <span class="nn">..enums</span> <span class="kn">import</span> <span class="n">ConnectionProtocols</span><span class="p">,</span> <span class="n">Netmodes</span><span class="p">,</span> <span class="n">Roles</span>
+<span class="kn">from</span> <span class="nn">..handlers</span> <span class="kn">import</span> <span class="n">get_handler</span>
+<span class="kn">from</span> <span class="nn">..packet</span> <span class="kn">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">PacketCollection</span>
+<span class="kn">from</span> <span class="nn">..replicable</span> <span class="kn">import</span> <span class="n">Replicable</span>
+<span class="kn">from</span> <span class="nn">..signals</span> <span class="kn">import</span> <span class="p">(</span><span class="n">SignalListener</span><span class="p">,</span> <span class="n">ReplicableRegisteredSignal</span><span class="p">,</span> <span class="n">ReplicableUnregisteredSignal</span><span class="p">,</span>
+                       <span class="n">LatencyUpdatedSignal</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..tagged_delegate</span> <span class="kn">import</span> <span class="n">DelegateByNetmode</span>
+<span class="kn">from</span> <span class="nn">..type_flag</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">..world_info</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">attrgetter</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="s">&quot;ReplicationStream&quot;</span><span class="p">,</span> <span class="s">&quot;ServerReplicationStream&quot;</span><span class="p">,</span> <span class="s">&quot;ClientReplicationStream&quot;</span>
+
+
+<span class="c"># Replication Streams</span>
+<div class="viewcode-block" id="ReplicationStream"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream">[docs]</a><span class="k">class</span> <span class="nc">ReplicationStream</span><span class="p">(</span><span class="n">Stream</span><span class="p">,</span> <span class="n">SignalListener</span><span class="p">,</span> <span class="n">ProtocolHandler</span><span class="p">,</span> <span class="n">DelegateByNetmode</span><span class="p">):</span>
+    <span class="n">subclasses</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dispatcher</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">dispatcher</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">int_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bool_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">bool</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="n">Replicable</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">method_queue</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_existing_replicables</span><span class="p">()</span>
+
+        <span class="c"># Call this last to ensure we intercept registration callbacks at the correct time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_signals</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ReplicationStream.prioritised_channels"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.prioritised_channels">[docs]</a>    <span class="k">def</span> <span class="nf">prioritised_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a generator for replicables</span>
+<span class="sd">        with a remote role != Roles.none</span>
+
+<span class="sd">        :yield: replicable, (is_owner and relevant_to_owner), channel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">no_role</span> <span class="o">=</span> <span class="n">Roles</span><span class="o">.</span><span class="n">none</span>  <span class="c"># @UndefinedVariable</span>
+
+        <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">attrgetter</span><span class="p">(</span><span class="s">&quot;replication_priority&quot;</span><span class="p">)):</span>
+            <span class="n">replicable</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">replicable</span>
+
+            <span class="c"># Check if remote role is permitted</span>
+            <span class="k">if</span> <span class="n">replicable</span><span class="o">.</span><span class="n">roles</span><span class="o">.</span><span class="n">remote</span> <span class="o">==</span> <span class="n">no_role</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">yield</span> <span class="n">channel</span><span class="p">,</span> <span class="n">replicable</span><span class="o">.</span><span class="n">relevant_to_owner</span> <span class="ow">and</span> <span class="n">channel</span><span class="o">.</span><span class="n">is_owner</span>
+</div>
+    <span class="nd">@response_protocol</span><span class="p">(</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">invoke_method</span><span class="p">)</span>
+<div class="viewcode-block" id="ReplicationStream.handle_method_call"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.handle_method_call">[docs]</a>    <span class="k">def</span> <span class="nf">handle_method_call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+
+        <span class="c"># Unpack data</span>
+        <span class="n">instance_id</span><span class="p">,</span> <span class="n">id_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+        <span class="c"># If we have permission to execute</span>
+        <span class="k">if</span> <span class="n">channel</span><span class="o">.</span><span class="n">is_owner</span><span class="p">:</span>
+            <span class="n">channel_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">id_size</span><span class="p">:]</span>
+            <span class="n">channel</span><span class="o">.</span><span class="n">invoke_rpc_call</span><span class="p">(</span><span class="n">channel_data</span><span class="p">)</span>
+</div>
+    <span class="nd">@ReplicableUnregisteredSignal.on_global</span>
+<div class="viewcode-block" id="ReplicationStream.notify_unregistered"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.notify_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">notify_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handles un-registered of a replicable instance</span>
+<span class="sd">        Deletes channel for replicable instance</span>
+
+<span class="sd">        :param target: replicable that was unregistered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+</div>
+    <span class="nd">@ReplicableRegisteredSignal.on_global</span>
+<div class="viewcode-block" id="ReplicationStream.notify_registered"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.notify_registered">[docs]</a>    <span class="k">def</span> <span class="nf">notify_registered</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handles registered of a replicable instance</span>
+<span class="sd">        Create channel for replicable instance</span>
+
+<span class="sd">        :param target: replicable that was registered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">Channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicationStream.load_existing_replicables"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.load_existing_replicables">[docs]</a>    <span class="k">def</span> <span class="nf">load_existing_replicables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load existing registered replicables&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">replicable</span> <span class="ow">in</span> <span class="n">Replicable</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">notify_registered</span><span class="p">(</span><span class="n">replicable</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicationStream.send_method_calls"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.send_method_calls">[docs]</a>    <span class="k">def</span> <span class="nf">send_method_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicables</span><span class="p">,</span> <span class="n">available_bandwidth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a packet collection of replicated function calls</span>
+
+<span class="sd">        :param available_bandwidth: estimated available bandwidth</span>
+<span class="sd">        :returns: PacketCollection instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">replicables</span><span class="p">:</span>
+            <span class="n">channel</span><span class="p">,</span> <span class="n">is_and_relevant_to_owner</span> <span class="o">=</span> <span class="n">item</span>
+
+            <span class="c"># Only send attributes if relevant</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">is_and_relevant_to_owner</span> <span class="ow">and</span> <span class="n">channel</span><span class="o">.</span><span class="n">has_rpc_calls</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_method_calls</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ReplicationStream.write_method_calls"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ReplicationStream.write_method_calls">[docs]</a>    <span class="k">def</span> <span class="nf">write_method_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="n">packed_id</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span>
+        <span class="n">method_invoke_protocol</span> <span class="o">=</span> <span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">invoke_method</span>
+        <span class="n">packets</span> <span class="o">=</span> <span class="p">[</span><span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">method_invoke_protocol</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">packed_id</span> <span class="o">+</span> <span class="n">rpc_call</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="n">reliable</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">rpc_call</span><span class="p">,</span> <span class="n">reliable</span> <span class="ow">in</span> <span class="n">channel</span><span class="o">.</span><span class="n">take_rpc_calls</span><span class="p">()]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">method_queue</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">packets</span><span class="p">)</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="ServerReplicationStream"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream">[docs]</a><span class="k">class</span> <span class="nc">ServerReplicationStream</span><span class="p">(</span><span class="n">ReplicationStream</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dispatcher</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">dispatcher</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">removal_queue</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">creation_queue</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attribute_queue</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">queues</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">removal_queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">creation_queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attribute_queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">method_queue</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">post_initialise</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">latency_calculator</span> <span class="o">=</span> <span class="n">LatencyCalculator</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latency_calculator</span><span class="o">.</span><span class="n">on_updated</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">LatencyUpdatedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ServerReplicationStream.get_ack_latency_wrapper"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.get_ack_latency_wrapper">[docs]</a>    <span class="k">def</span> <span class="nf">get_ack_latency_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Wraps callback with latency calculator callback</span>
+
+<span class="sd">        :param callback: callback used to stop timing</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">_wrapper</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+                <span class="n">callback</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">latency_calculator</span><span class="o">.</span><span class="n">stop_sample</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_wrapper</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.on_disconnected"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.on_disconnected">[docs]</a>    <span class="k">def</span> <span class="nf">on_disconnected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">post_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">)</span>
+</div>
+    <span class="nd">@ReplicableUnregisteredSignal.on_global</span>
+<div class="viewcode-block" id="ServerReplicationStream.notify_unregistered"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.notify_unregistered">[docs]</a>    <span class="k">def</span> <span class="nf">notify_unregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called when replicable dies</span>
+
+<span class="sd">        :param target: replicable that was unregistered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># If the target is not in channel list, we don&#39;t need to delete</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">instance_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">instance_id</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_removal</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">notify_unregistered</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.send_attributes"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.send_attributes">[docs]</a>    <span class="k">def</span> <span class="nf">send_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replicables</span><span class="p">,</span> <span class="n">available_bandwidth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a packet collection of replicated function calls and attributes</span>
+
+<span class="sd">        :param available_bandwidth: estimated available bandwidth</span>
+<span class="sd">        :returns: PacketCollection instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_relevant</span> <span class="o">=</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">rules</span><span class="o">.</span><span class="n">is_relevant</span>
+        <span class="n">connection_replicable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">replicables</span><span class="p">:</span>
+            <span class="n">channel</span><span class="p">,</span> <span class="n">is_and_relevant_to_owner</span> <span class="o">=</span> <span class="n">item</span>
+
+            <span class="c"># Get replicable</span>
+            <span class="n">replicable</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">replicable</span>
+
+            <span class="c"># Only send attributes if relevant</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">channel</span><span class="o">.</span><span class="n">awaiting_replication</span> <span class="ow">and</span> <span class="p">(</span><span class="n">is_and_relevant_to_owner</span> <span class="ow">or</span>
+                                                      <span class="n">is_relevant</span><span class="p">(</span><span class="n">connection_replicable</span><span class="p">,</span> <span class="n">replicable</span><span class="p">))):</span>
+                <span class="k">continue</span>
+
+            <span class="c"># If we&#39;ve never replicated to this channel</span>
+            <span class="k">if</span> <span class="n">channel</span><span class="o">.</span><span class="n">is_initial</span><span class="p">:</span>
+                <span class="c"># Pack the class name</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write_creation</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+            <span class="c"># Send changed attributes</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_attributes</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">is_and_relevant_to_owner</span><span class="p">)</span>
+
+            <span class="c"># If a temporary replicable remove from channels (but don&#39;t delete)</span>
+            <span class="k">if</span> <span class="n">replicable</span><span class="o">.</span><span class="n">replicate_temporarily</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">replicable</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">item</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.pull_packets"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.pull_packets">[docs]</a>    <span class="k">def</span> <span class="nf">pull_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prioritised_channels</span>
+
+        <span class="k">if</span> <span class="n">network_tick</span><span class="p">:</span>
+            <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_attributes</span><span class="p">(</span><span class="n">replicables</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_method_calls</span><span class="p">(</span><span class="n">replicables</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">)</span>
+
+        <span class="n">members</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">queue</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">queues</span><span class="p">:</span>
+            <span class="n">members</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">queue</span><span class="p">)</span>
+            <span class="n">queue</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">members</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="n">packets</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span>
+        <span class="n">packets</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="n">members</span>
+
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">members</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">packet</span><span class="o">.</span><span class="n">on_success</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ack_latency_wrapper</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">on_success</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">latency_calculator</span><span class="o">.</span><span class="n">start_sample</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">packets</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.write_attributes"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.write_attributes">[docs]</a>    <span class="k">def</span> <span class="nf">write_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">):</span>
+        <span class="n">attributes</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">get_attributes</span><span class="p">(</span><span class="n">is_owner</span><span class="p">)</span>
+
+        <span class="c"># If they have changed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">attributes</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">update_payload</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span> <span class="o">+</span> <span class="n">attributes</span>
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">attribute_update</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">update_payload</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attribute_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.write_creation"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.write_creation">[docs]</a>    <span class="k">def</span> <span class="nf">write_creation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="n">replicable</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">replicable</span>
+
+        <span class="n">packed_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">replicable</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">type_name</span><span class="p">)</span>
+        <span class="n">packed_is_host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bool_packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">replicable</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span><span class="p">)</span>
+
+        <span class="c"># Send the protocol, class name and owner status to client</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span> <span class="o">+</span> <span class="n">packed_class</span> <span class="o">+</span> <span class="n">packed_is_host</span>
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">replication_init</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">creation_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ServerReplicationStream.write_removal"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ServerReplicationStream.write_removal">[docs]</a>    <span class="k">def</span> <span class="nf">write_removal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">Packet</span><span class="p">(</span><span class="n">protocol</span><span class="o">=</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">replication_del</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">channel</span><span class="o">.</span><span class="n">packed_id</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">removal_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="ClientReplicationStream"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream">[docs]</a><span class="k">class</span> <span class="nc">ClientReplicationStream</span><span class="p">(</span><span class="n">ReplicationStream</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dispatcher</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">dispatcher</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_notifications</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@response_protocol</span><span class="p">(</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">replication_init</span><span class="p">)</span>
+<div class="viewcode-block" id="ClientReplicationStream.handle_replication_init"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.handle_replication_init">[docs]</a>    <span class="k">def</span> <span class="nf">handle_replication_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">instance_id</span><span class="p">,</span> <span class="n">id_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">id_size</span>
+
+        <span class="n">type_name</span><span class="p">,</span> <span class="n">type_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">+=</span> <span class="n">type_size</span>
+
+        <span class="n">is_connection_host</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bool_packer</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+
+        <span class="c"># Find replicable class</span>
+        <span class="n">replicable_cls</span> <span class="o">=</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">from_type_name</span><span class="p">(</span><span class="n">type_name</span><span class="p">)</span>
+        <span class="c"># Create replicable of same type</span>
+        <span class="n">replicable</span> <span class="o">=</span> <span class="n">replicable_cls</span><span class="o">.</span><span class="n">create_or_return</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+        <span class="c"># If replicable is parent (top owner)</span>
+        <span class="k">if</span> <span class="n">is_connection_host</span><span class="p">:</span>
+            <span class="c"># Register as own replicable</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">replicable</span> <span class="o">=</span> <span class="n">replicable</span>
+</div>
+    <span class="nd">@response_protocol</span><span class="p">(</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">attribute_update</span><span class="p">)</span>
+<div class="viewcode-block" id="ClientReplicationStream.handle_replication_update"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.handle_replication_update">[docs]</a>    <span class="k">def</span> <span class="nf">handle_replication_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">instance_id</span><span class="p">,</span> <span class="n">id_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&quot;Unable to find channel for network object with id {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">instance_id</span><span class="p">))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Apply attributes and retrieve notify callback</span>
+            <span class="n">notification_callback</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">set_attributes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">id_size</span><span class="p">)</span>
+
+            <span class="c"># Save callbacks</span>
+            <span class="k">if</span> <span class="n">notification_callback</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pending_notifications</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">notification_callback</span><span class="p">)</span>
+</div>
+    <span class="nd">@response_protocol</span><span class="p">(</span><span class="n">ConnectionProtocols</span><span class="o">.</span><span class="n">replication_del</span><span class="p">)</span>
+<div class="viewcode-block" id="ClientReplicationStream.handle_replication_delete"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.handle_replication_delete">[docs]</a>    <span class="k">def</span> <span class="nf">handle_replication_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">instance_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicable_packer</span><span class="o">.</span><span class="n">unpack_id</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">replicable</span> <span class="o">=</span> <span class="n">Replicable</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">replicable</span><span class="o">.</span><span class="n">deregister</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ClientReplicationStream.handle_packets"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.handle_packets">[docs]</a>    <span class="k">def</span> <span class="nf">handle_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet_collection</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">handle_packets</span><span class="p">(</span><span class="n">packet_collection</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">notification</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_notifications</span><span class="p">:</span>
+            <span class="n">notification</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_notifications</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ClientReplicationStream.on_disconnected"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.on_disconnected">[docs]</a>    <span class="k">def</span> <span class="nf">on_disconnected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">replicable</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">replicable</span><span class="o">.</span><span class="n">is_static</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">replicable</span><span class="o">.</span><span class="n">deregister</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ClientReplicationStream.pull_packets"><a class="viewcode-back" href="../../../network.streams.replication.html#network.streams.replication.ClientReplicationStream.pull_packets">[docs]</a>    <span class="k">def</span> <span class="nf">pull_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="n">replicables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prioritised_channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_method_calls</span><span class="p">(</span><span class="n">replicables</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">)</span>
+
+        <span class="n">members</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">method_queue</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">members</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="n">packets</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span>
+        <span class="n">packets</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">members</span><span class="p">)</span>
+        <span class="n">members</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">packets</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

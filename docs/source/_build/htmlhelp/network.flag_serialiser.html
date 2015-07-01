@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.flag_serialiser module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.flag_serialiser">
+<span id="network-flag-serialiser-module"></span><h1>network.flag_serialiser module</h1>
+<dl class="class">
+<dt id="network.flag_serialiser.FlagSerialiser">
+<em class="property">class </em><tt class="descclassname">network.flag_serialiser.</tt><tt class="descname">FlagSerialiser</tt><big>(</big><em>arguments</em>, <em>logger=None</em><big>)</big><a class="reference internal" href="_modules/network/flag_serialiser.html#FlagSerialiser"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Interface class for parsing/dumping data to bytes
+Packed member order: Contents, Data, Booleans, Nones</p>
+<dl class="attribute">
+<dt id="network.flag_serialiser.FlagSerialiser.NONE_CONTENT_INDEX">
+<tt class="descname">NONE_CONTENT_INDEX</tt><em class="property"> = -1</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.flag_serialiser.FlagSerialiser.BOOL_CONTENT_INDEX">
+<tt class="descname">BOOL_CONTENT_INDEX</tt><em class="property"> = -2</em></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.flag_serialiser.FlagSerialiser.report_information">
+<tt class="descname">report_information</tt><big>(</big><em>bytes_string</em>, <em>offset=0</em><big>)</big><a class="reference internal" href="_modules/network/flag_serialiser.html#FlagSerialiser.report_information"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Display the contents of a serialised stream</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bytes_string</strong> &#8211; data to interpret</li>
+<li><strong>offset</strong> &#8211; offset from start of stream</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.flag_serialiser.FlagSerialiser.unpack">
+<tt class="descname">unpack</tt><big>(</big><em>bytes_string</em>, <em>previous_values={}</em>, <em>offset=0</em><big>)</big><a class="reference internal" href="_modules/network/flag_serialiser.html#FlagSerialiser.unpack"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Unpack bytes into Python objects</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bytes_string</strong> &#8211; packed data</li>
+<li><strong>previous_values</strong> &#8211; previous packed values (optional)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.flag_serialiser.FlagSerialiser.pack">
+<tt class="descname">pack</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/flag_serialiser.html#FlagSerialiser.pack"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Pack data into bytes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> &#8211; data to be packed</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

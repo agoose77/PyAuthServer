@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.struct &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.struct</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="kn">from</span> <span class="nn">.metaclasses.struct</span> <span class="kn">import</span> <span class="n">StructMeta</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Struct&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Struct"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct">[docs]</a><span class="k">class</span> <span class="nc">Struct</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">StructMeta</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Serialisable object with individual fields&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">register_storage_interfaces</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__deepcopy__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">memo</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Serialiser description of tuple</span>
+
+<span class="sd">        :returns: new struct instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">()</span>
+        <span class="n">source_container</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span>
+        <span class="n">target_container</span> <span class="o">=</span> <span class="n">new_struct</span><span class="o">.</span><span class="n">_attribute_container</span>
+
+        <span class="c"># Local lookups</span>
+        <span class="n">old_attribute_container_data</span> <span class="o">=</span> <span class="n">source_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">new_attribute_container_data</span> <span class="o">=</span> <span class="n">target_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">get_new_member</span> <span class="o">=</span> <span class="n">target_container</span><span class="o">.</span><span class="n">get_member_by_name</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">source_container</span><span class="o">.</span><span class="n">_ordered_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">old_value</span> <span class="o">=</span> <span class="n">old_attribute_container_data</span><span class="p">[</span><span class="n">member</span><span class="p">]</span>
+            <span class="n">new_member</span> <span class="o">=</span> <span class="n">get_new_member</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">new_attribute_container_data</span><span class="p">[</span><span class="n">new_member</span><span class="p">]</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">old_value</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">new_struct</span>
+
+    <span class="k">def</span> <span class="nf">__description__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Serialiser description of tuple&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">get_ordered_descriptions</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="n">attributes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">associated_values</span> <span class="o">=</span> <span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">    {} = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">attributes</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;Struct {}&gt;{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">class_name</span><span class="p">,</span> <span class="n">associated_values</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Struct.from_bytes"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.from_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">from_bytes</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a struct from bytes</span>
+
+<span class="sd">        :param bytes_string: Packed byte representation of struct contents</span>
+<span class="sd">        :returns: Struct instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">struct</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">,</span> <span class="n">offset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">struct</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Struct.from_list"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.from_list">[docs]</a>    <span class="k">def</span> <span class="nf">from_list</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">list_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a struct from a list</span>
+
+<span class="sd">        :param list_: List representation of struct contents</span>
+<span class="sd">        :returns: Struct instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">struct</span><span class="o">.</span><span class="n">read_list</span><span class="p">(</span><span class="n">list_</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">struct</span>
+</div>
+<div class="viewcode-block" id="Struct.read_bytes"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.read_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">read_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update struct contents with bytes</span>
+
+<span class="sd">        :param bytes_string: Packed byte representation of struct contents</span>
+<span class="sd">        :param offset: offset to start reading from</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">replicable_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">get_attribute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">get_member_by_name</span>
+
+        <span class="c"># Process and store new values</span>
+        <span class="k">for</span> <span class="n">attribute_name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serialiser</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">,</span> <span class="n">previous_values</span><span class="o">=</span><span class="n">replicable_data</span><span class="p">,</span>
+                                                             <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">):</span>
+            <span class="n">attribute</span> <span class="o">=</span> <span class="n">get_attribute</span><span class="p">(</span><span class="n">attribute_name</span><span class="p">)</span>
+            <span class="c"># Store new value</span>
+            <span class="n">replicable_data</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="Struct.read_list"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.read_list">[docs]</a>    <span class="k">def</span> <span class="nf">read_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update struct contents with a list</span>
+
+<span class="sd">        :param list_: List representation of struct contents</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">members</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">_ordered_mapping</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">member</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">members</span><span class="p">,</span> <span class="n">list_</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">member</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="Struct.to_bytes"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.to_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write struct contents to bytes</span>
+
+<span class="sd">        :returns: packed contents</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serialiser</span><span class="o">.</span><span class="n">pack</span><span class="p">({</span><span class="n">a</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+</div>
+<div class="viewcode-block" id="Struct.to_list"><a class="viewcode-back" href="../../network.struct.html#network.struct.Struct.to_list">[docs]</a>    <span class="k">def</span> <span class="nf">to_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write struct contents to a list</span>
+
+<span class="sd">        :returns: contents tuple</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attribute_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">attributes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attribute_container</span><span class="o">.</span><span class="n">_ordered_mapping</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">attribute_data</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span> <span class="k">for</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="n">attributes</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_list</span><span class="p">())</span>
+
+    <span class="n">__bytes__</span> <span class="o">=</span> <span class="n">to_bytes</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

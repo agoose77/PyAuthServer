@@ -1,0 +1,343 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.testing.testing module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network.testing package" href="network.testing.html" />
+    <link rel="next" title="network.bitfield module" href="network.bitfield.html" />
+    <link rel="prev" title="network.testing.kernprof module" href="network.testing.kernprof.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.bitfield.html" title="network.bitfield module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.testing.kernprof.html" title="network.testing.kernprof module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.testing.html" accesskey="U">network.testing package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.testing.testing">
+<span id="network-testing-testing-module"></span><h1>network.testing.testing module<a class="headerlink" href="#module-network.testing.testing" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.testing.testing.SerialiserTest">
+<em class="property">class </em><tt class="descclassname">network.testing.testing.</tt><tt class="descname">SerialiserTest</tt><big>(</big><em>methodName='runTest'</em><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></tt></p>
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_value_8bit">
+<tt class="descname">int_value_8bit</tt><em class="property"> = 178</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_value_8bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_bytes_string8bit">
+<tt class="descname">int_bytes_string8bit</tt><em class="property"> = b'\xb2'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_bytes_string8bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_value_16bit">
+<tt class="descname">int_value_16bit</tt><em class="property"> = 41593</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_value_16bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_bytes_string16bit">
+<tt class="descname">int_bytes_string16bit</tt><em class="property"> = b'\xa2y'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_bytes_string16bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_value_32bit">
+<tt class="descname">int_value_32bit</tt><em class="property"> = 1938475617</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_value_32bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_bytes_string32bit">
+<tt class="descname">int_bytes_string32bit</tt><em class="property"> = b's\x8a\xcaa'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_bytes_string32bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_value_64bit">
+<tt class="descname">int_value_64bit</tt><em class="property"> = 12398745609812398176</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_value_64bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.int_bytes_string64bit">
+<tt class="descname">int_bytes_string64bit</tt><em class="property"> = b'\xac\x111p\xd5MP`'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.int_bytes_string64bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.float_bytes">
+<tt class="descname">float_bytes</tt><em class="property"> = b'&#64;\x90\x02\x00\x00\x00\x00\x00'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.float_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.float_value">
+<tt class="descname">float_value</tt><em class="property"> = 1024.5</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.float_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.py_struct_bytes">
+<tt class="descname">py_struct_bytes</tt><em class="property"> = b'\x00\x14\x07\nTestStruct&#64;&#64;\x00\x00&#64;\x00\x00\x00'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.py_struct_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.c_struct_bytes">
+<tt class="descname">c_struct_bytes</tt><em class="property"> = b'\x00\x14\xe0\nTestStruct&#64;&#64;\x00\x00&#64;\x00\x00\x00'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.c_struct_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.bitfield_list">
+<tt class="descname">bitfield_list</tt><em class="property"> = [False, True, False, True, False, True, True, False]</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.bitfield_list" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.py_bitfield_fixed_value">
+<tt class="descname">py_bitfield_fixed_value</tt><em class="property"> = b'j'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.py_bitfield_fixed_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.py_bitfield_variable_value">
+<tt class="descname">py_bitfield_variable_value</tt><em class="property"> = b'\x08j'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.py_bitfield_variable_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.bool_value">
+<tt class="descname">bool_value</tt><em class="property"> = True</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.bool_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.testing.testing.SerialiserTest.bool_bytes">
+<tt class="descname">bool_bytes</tt><em class="property"> = b'\x01'</em><a class="headerlink" href="#network.testing.testing.SerialiserTest.bool_bytes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.create_struct">
+<tt class="descname">create_struct</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.create_struct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.create_struct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_struct">
+<tt class="descname">test_get_struct</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_struct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_struct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_bitfield">
+<tt class="descname">test_get_bitfield</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_bitfield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_bitfield" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_float_low_precision">
+<tt class="descname">test_get_float_low_precision</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_float_low_precision"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_float_low_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_float_high_precision">
+<tt class="descname">test_get_float_high_precision</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_float_high_precision"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_float_high_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_int_8bit">
+<tt class="descname">test_get_int_8bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_int_8bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_int_8bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_int_16bit">
+<tt class="descname">test_get_int_16bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_int_16bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_int_16bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_int_32bit">
+<tt class="descname">test_get_int_32bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_int_32bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_int_32bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_get_int_64bit">
+<tt class="descname">test_get_int_64bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_get_int_64bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_get_int_64bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_struct">
+<tt class="descname">test_pack_struct</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_struct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_struct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_struct">
+<tt class="descname">test_unpack_struct</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_struct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_struct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_fixed_py_bitfield">
+<tt class="descname">test_pack_fixed_py_bitfield</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_fixed_py_bitfield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_fixed_py_bitfield" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_py_variable_bitfield">
+<tt class="descname">test_pack_py_variable_bitfield</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_py_variable_bitfield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_py_variable_bitfield" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_int_64bit">
+<tt class="descname">test_pack_int_64bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_int_64bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_int_64bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_int_32bit">
+<tt class="descname">test_pack_int_32bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_int_32bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_int_32bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_int_16bit">
+<tt class="descname">test_pack_int_16bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_int_16bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_int_16bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_int_8bit">
+<tt class="descname">test_pack_int_8bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_int_8bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_int_8bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_int_64bit">
+<tt class="descname">test_unpack_int_64bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_int_64bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_int_64bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_int_32bit">
+<tt class="descname">test_unpack_int_32bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_int_32bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_int_32bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_int_16bit">
+<tt class="descname">test_unpack_int_16bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_int_16bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_int_16bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_int_8bit">
+<tt class="descname">test_unpack_int_8bit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_int_8bit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_int_8bit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_float">
+<tt class="descname">test_pack_float</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_float"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_float" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_float">
+<tt class="descname">test_unpack_float</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_float"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_float" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_pack_bool">
+<tt class="descname">test_pack_bool</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_pack_bool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_pack_bool" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.testing.testing.SerialiserTest.test_unpack_bool">
+<tt class="descname">test_unpack_bool</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#SerialiserTest.test_unpack_bool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.SerialiserTest.test_unpack_bool" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="network.testing.testing.run_tests">
+<tt class="descclassname">network.testing.testing.</tt><tt class="descname">run_tests</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/testing/testing.html#run_tests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.testing.testing.run_tests" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.testing.kernprof.html"
+                        title="previous chapter">network.testing.kernprof module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.bitfield.html"
+                        title="next chapter">network.bitfield module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.testing.testing.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.bitfield.html" title="network.bitfield module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.testing.kernprof.html" title="network.testing.kernprof module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.testing.html" >network.testing package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

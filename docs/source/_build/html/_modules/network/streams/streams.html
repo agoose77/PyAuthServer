@@ -1,0 +1,233 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.streams.streams &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.streams.streams</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getmembers</span>
+
+<span class="kn">from</span> <span class="nn">..conditions</span> <span class="kn">import</span> <span class="n">is_annotatable</span>
+<span class="kn">from</span> <span class="nn">..decorators</span> <span class="kn">import</span> <span class="n">get_annotation</span><span class="p">,</span> <span class="n">set_annotation</span>
+<span class="kn">from</span> <span class="nn">..metaclasses.register</span> <span class="kn">import</span> <span class="n">TypeRegister</span>
+<span class="kn">from</span> <span class="nn">..packet</span> <span class="kn">import</span> <span class="n">PacketCollection</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="s">&#39;Dispatcher&#39;</span><span class="p">,</span> <span class="s">&#39;InjectorStream&#39;</span><span class="p">,</span> <span class="s">&#39;ProtocolHandler&#39;</span><span class="p">,</span> <span class="s">&#39;StatusDispatcher&#39;</span><span class="p">,</span> <span class="s">&#39;response_protocol&#39;</span><span class="p">,</span> <span class="s">&#39;send_state&#39;</span>
+
+<span class="n">response_protocol</span> <span class="o">=</span> <span class="n">set_annotation</span><span class="p">(</span><span class="s">&quot;response_to&quot;</span><span class="p">)</span>
+<span class="n">send_state</span> <span class="o">=</span> <span class="n">set_annotation</span><span class="p">(</span><span class="s">&quot;send_for&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Dispatcher"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.Dispatcher">[docs]</a><span class="k">class</span> <span class="nc">Dispatcher</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Dispatches packets to subscriber streams, and requests new packets from them&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">streams</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+
+<div class="viewcode-block" id="Dispatcher.create_stream"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.Dispatcher.create_stream">[docs]</a>    <span class="k">def</span> <span class="nf">create_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_cls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">stream_cls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">streams</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Stream class already exists for this dispatcher&quot;</span><span class="p">)</span>
+
+        <span class="n">stream</span> <span class="o">=</span> <span class="n">stream_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">streams</span><span class="p">[</span><span class="n">stream_cls</span><span class="p">]</span> <span class="o">=</span> <span class="n">stream</span>
+
+        <span class="k">return</span> <span class="n">stream</span>
+</div>
+<div class="viewcode-block" id="Dispatcher.handle_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.Dispatcher.handle_packets">[docs]</a>    <span class="k">def</span> <span class="nf">handle_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet_collection</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">stream</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">streams</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">handle_packets</span><span class="p">(</span><span class="n">packet_collection</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Dispatcher.pull_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.Dispatcher.pull_packets">[docs]</a>    <span class="k">def</span> <span class="nf">pull_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="n">packet_collection</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">stream</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">streams</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="n">packets</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">pull_packets</span><span class="p">(</span><span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">packets</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">packet_collection</span> <span class="o">+=</span> <span class="n">packets</span>
+
+        <span class="k">return</span> <span class="n">packet_collection</span>
+
+</div></div>
+<span class="k">class</span> <span class="nc">Stream</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dispatcher</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatcher</span> <span class="o">=</span> <span class="n">dispatcher</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">dispatcher</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span><span class="s">&quot;&lt;Stream: {}&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="InjectorStream"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.InjectorStream">[docs]</a><span class="k">class</span> <span class="nc">InjectorStream</span><span class="p">(</span><span class="n">Stream</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Interface to inject packets into the packet stream&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dispatcher</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">dispatcher</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="InjectorStream.handle_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.InjectorStream.handle_packets">[docs]</a>    <span class="k">def</span> <span class="nf">handle_packets</span><span class="p">(</span><span class="n">packet_collection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Non functional packet handling method</span>
+
+<span class="sd">        :param packet: Packet instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span>
+</div>
+<div class="viewcode-block" id="InjectorStream.pull_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.InjectorStream.pull_packets">[docs]</a>    <span class="k">def</span> <span class="nf">pull_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">packets</span> <span class="o">=</span> <span class="n">PacketCollection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">packets</span>
+
+</div></div>
+<div class="viewcode-block" id="ProtocolHandler"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.ProtocolHandler">[docs]</a><span class="k">class</span> <span class="nc">ProtocolHandler</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">TypeRegister</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dispatches packets to appropriate handlers&quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ProtocolHandler.register_subclass"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.ProtocolHandler.register_subclass">[docs]</a>    <span class="k">def</span> <span class="nf">register_subclass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">register_subclass</span><span class="p">()</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">receivers</span> <span class="o">=</span> <span class="n">receivers</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">receive_getter</span> <span class="o">=</span> <span class="n">get_annotation</span><span class="p">(</span><span class="s">&quot;response_to&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_annotatable</span><span class="p">):</span>
+
+            <span class="n">receiver_type</span> <span class="o">=</span> <span class="n">receive_getter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">receiver_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">receivers</span><span class="p">[</span><span class="n">receiver_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="ProtocolHandler.handle_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.ProtocolHandler.handle_packets">[docs]</a>    <span class="k">def</span> <span class="nf">handle_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet_collection</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Lookup the appropriate handler for given packet type</span>
+
+<span class="sd">        :param packet: Packet instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">receivers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">receivers</span>
+
+        <span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">packet_collection</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">handler</span> <span class="o">=</span> <span class="n">receivers</span><span class="p">[</span><span class="n">packet</span><span class="o">.</span><span class="n">protocol</span><span class="p">]</span>
+
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="StatusDispatcher"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.StatusDispatcher">[docs]</a><span class="k">class</span> <span class="nc">StatusDispatcher</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">TypeRegister</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dispatches packets according to current state&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="StatusDispatcher.register_subclass"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.StatusDispatcher.register_subclass">[docs]</a>    <span class="k">def</span> <span class="nf">register_subclass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">register_subclass</span><span class="p">()</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">senders</span> <span class="o">=</span> <span class="n">senders</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">send_getter</span> <span class="o">=</span> <span class="n">get_annotation</span><span class="p">(</span><span class="s">&quot;send_for&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">getmembers</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">is_annotatable</span><span class="p">):</span>
+            <span class="n">sender_type</span> <span class="o">=</span> <span class="n">send_getter</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">sender_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">senders</span><span class="p">[</span><span class="n">sender_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="StatusDispatcher.pull_packets"><a class="viewcode-back" href="../../../network.streams.streams.html#network.streams.streams.StatusDispatcher.pull_packets">[docs]</a>    <span class="k">def</span> <span class="nf">pull_packets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sender</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">senders</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="k">return</span> <span class="n">sender</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_tick</span><span class="p">,</span> <span class="n">bandwidth</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

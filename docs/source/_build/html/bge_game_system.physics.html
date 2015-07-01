@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.physics module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="bge_game_system package" href="bge_game_system.html" />
+    <link rel="prev" title="bge_game_system.inputs module" href="bge_game_system.inputs.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.inputs.html" title="bge_game_system.inputs module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" accesskey="U">bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-bge_game_system.physics">
+<span id="bge-game-system-physics-module"></span><h1>bge_game_system.physics module<a class="headerlink" href="#module-bge_game_system.physics" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="bge_game_system.physics.BGEPhysicsSystem">
+<em class="property">class </em><tt class="descclassname">bge_game_system.physics.</tt><tt class="descname">BGEPhysicsSystem</tt><big>(</big><em>update_bullet</em>, <em>update_scenegraph</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEPhysicsSystem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.tagged_delegate.html#network.tagged_delegate.DelegateByNetmode" title="network.tagged_delegate.DelegateByNetmode"><tt class="xref py py-class docutils literal"><span class="pre">network.tagged_delegate.DelegateByNetmode</span></tt></a>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="bge_game_system.physics.BGEPhysicsSystem.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'BGEServerPhysics': &lt;class 'bge_game_system.physics.BGEServerPhysics'&gt;, 'BGEClientPhysics': &lt;class 'bge_game_system.physics.BGEClientPhysics'&gt;}</em><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEPhysicsSystem.apply_state">
+<tt class="descname">apply_state</tt><big>(</big><em>state</em>, <em>actor</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEPhysicsSystem.apply_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem.apply_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy state information from source to target</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>state</strong> &#8211; Source state</li>
+<li><strong>actor</strong> &#8211; Actor to receive state</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEPhysicsSystem.dump_state">
+<tt class="descname">dump_state</tt><big>(</big><em>actor</em>, <em>state</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEPhysicsSystem.dump_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem.dump_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy state information from source to target</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>actor</strong> &#8211; Actor to provide state</li>
+<li><strong>state</strong> &#8211; Dumped state</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEPhysicsSystem.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEPhysicsSystem.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsTickSignal
+Updates Physics simulation for entire world</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delta_time</strong> &#8211; Time to progress simulation</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.physics.BGEPhysicsSystem.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = True</em><a class="headerlink" href="#bge_game_system.physics.BGEPhysicsSystem.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.physics.BGEServerPhysics">
+<em class="property">class </em><tt class="descclassname">bge_game_system.physics.</tt><tt class="descname">BGEServerPhysics</tt><big>(</big><em>update_bullet</em>, <em>update_scenegraph</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEServerPhysics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEServerPhysics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.physics.BGEPhysicsSystem" title="bge_game_system.physics.BGEPhysicsSystem"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.physics.BGEPhysicsSystem</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Handles server-side physics</p>
+<dl class="method">
+<dt id="bge_game_system.physics.BGEServerPhysics.save_network_states">
+<tt class="descname">save_network_states</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEServerPhysics.save_network_states"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEServerPhysics.save_network_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves Physics transformations to network variables</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEServerPhysics.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEServerPhysics.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEServerPhysics.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsTickSignal.</p>
+<p>Copy physics state to network variable for Actor instances</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.physics.BGEServerPhysics.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em><a class="headerlink" href="#bge_game_system.physics.BGEServerPhysics.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bge_game_system.physics.BGEClientPhysics">
+<em class="property">class </em><tt class="descclassname">bge_game_system.physics.</tt><tt class="descname">BGEClientPhysics</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bge_game_system.physics.BGEPhysicsSystem" title="bge_game_system.physics.BGEPhysicsSystem"><tt class="xref py py-class docutils literal"><span class="pre">bge_game_system.physics.BGEPhysicsSystem</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Handles client side physics</p>
+<dl class="attribute">
+<dt id="bge_game_system.physics.BGEClientPhysics.network_clock">
+<tt class="descname">network_clock</tt><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.network_clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.network_clock" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.protect_exemptions">
+<tt class="descname">protect_exemptions</tt><big>(</big><em>exemptions</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.protect_exemptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.protect_exemptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Suspend and restore state of exempted actors around an operation</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>exemptions</strong> &#8211; Iterable of exempt Actor instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.update_for">
+<tt class="descname">update_for</tt><big>(</big><em>delta_time</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.update_for"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.update_for" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsSingleUpdateSignal
+Attempts to update physics simulation for single actor</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>delta_time</strong> &#8211; Time to progress simulation</li>
+<li><strong>target</strong> &#8211; Actor instance to update state</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.extrapolate_network_states">
+<tt class="descname">extrapolate_network_states</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.extrapolate_network_states"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.extrapolate_network_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply state from extrapolators to replicated actors</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.on_physics_replicated">
+<tt class="descname">on_physics_replicated</tt><big>(</big><em>timestamp</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.on_physics_replicated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.on_physics_replicated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.on_replicable_unregistered">
+<tt class="descname">on_replicable_unregistered</tt><big>(</big><em>target</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.on_replicable_unregistered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.on_replicable_unregistered" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bge_game_system.physics.BGEClientPhysics.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/bge_game_system/physics.html#BGEClientPhysics.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listener for PhysicsTickSignal.</p>
+<p>Copy physics state to network variable for Actor instances</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bge_game_system.physics.BGEClientPhysics.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em><a class="headerlink" href="#bge_game_system.physics.BGEClientPhysics.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="bge_game_system.inputs.html"
+                        title="previous chapter">bge_game_system.inputs module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/bge_game_system.physics.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="bge_game_system.inputs.html" title="bge_game_system.inputs module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="bge_game_system.html" >bge_game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

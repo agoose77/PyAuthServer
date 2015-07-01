@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.metaclasses.register package</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network.metaclasses package" href="network.metaclasses.html" />
+    <link rel="next" title="network.serialiser package" href="network.serialiser.html" />
+    <link rel="prev" title="network.metaclasses.mapping package" href="network.metaclasses.mapping.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.serialiser.html" title="network.serialiser package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.metaclasses.mapping.html" title="network.metaclasses.mapping package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.metaclasses.html" accesskey="U">network.metaclasses package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="network-metaclasses-register-package">
+<h1>network.metaclasses.register package</h1>
+<div class="section" id="submodules">
+<h2>Submodules</h2>
+</div>
+<div class="section" id="module-network.metaclasses.register.instance_register">
+<span id="network-metaclasses-register-instance-register-module"></span><h2>network.metaclasses.register.instance_register module</h2>
+<dl class="class">
+<dt id="network.metaclasses.register.instance_register.InstanceRegister">
+<em class="property">class </em><tt class="descclassname">network.metaclasses.register.instance_register.</tt><tt class="descname">InstanceRegister</tt><a class="reference internal" href="_modules/network/metaclasses/register/instance_register.html#InstanceRegister"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.metaclasses.register.type_register.html#network.metaclasses.register.type_register.TypeRegister" title="network.metaclasses.register.type_register.TypeRegister"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register.TypeRegister</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.context.ContextMemberMeta</span></tt></p>
+<p>Graph managing metaclass</p>
+<p>Provides high level interface for managing instance objects
+Supports ID conflict resolution and ID recycling</p>
+<p>Most methods could be implemented as classmethods on the implementee,
+however this metaclass prevents namespace cluttering</p>
+<dl class="method">
+<dt id="network.metaclasses.register.instance_register.InstanceRegister.get_id_range">
+<tt class="descname">get_id_range</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/instance_register.html#InstanceRegister.get_id_range"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Get iterable of all potential IDs</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">range object wider than the current range of IDs in use</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.metaclasses.register.instance_register.InstanceRegister.get_available_ids">
+<tt class="descname">get_available_ids</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/instance_register.html#InstanceRegister.get_available_ids"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Get iterator of available Instance IDs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.metaclasses.register.instance_register.InstanceRegister.clear_graph">
+<tt class="descname">clear_graph</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/instance_register.html#InstanceRegister.clear_graph"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Removes all internal registered instances</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-network.metaclasses.register.replicable_register">
+<span id="network-metaclasses-register-replicable-register-module"></span><h2>network.metaclasses.register.replicable_register module</h2>
+<dl class="class">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister">
+<em class="property">class </em><tt class="descclassname">network.metaclasses.register.replicable_register.</tt><tt class="descname">ReplicableRegister</tt><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.metaclasses.mapping.attribute_mapping.html#network.metaclasses.mapping.attribute_mapping.AttributeMeta" title="network.metaclasses.mapping.attribute_mapping.AttributeMeta"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.mapping.attribute_mapping.AttributeMeta</span></tt></a>, <a class="reference internal" href="network.metaclasses.mapping.rpc_mapping.html#network.metaclasses.mapping.rpc_mapping.RPCMeta" title="network.metaclasses.mapping.rpc_mapping.RPCMeta"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.mapping.rpc_mapping.RPCMeta</span></tt></a>, <a class="reference internal" href="network.metaclasses.register.instance_register.html#network.metaclasses.register.instance_register.InstanceRegister" title="network.metaclasses.register.instance_register.InstanceRegister"><tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.instance_register.InstanceRegister</span></tt></a></p>
+<p>Creates interfaces for RPCs and Attributes in Replicable class.</p>
+<p>Wraps methods in protectors for simulated decorators.</p>
+<dl class="method">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister.subclass_of_type">
+<tt class="descname">subclass_of_type</tt><big>(</big><em>cls_type</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister.subclass_of_type"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Find registered Replicable instances that are subclasses of a given type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>actor_type</strong> &#8211; type to compare against</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of subclass instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister.of_type">
+<tt class="descname">of_type</tt><big>(</big><em>cls_type</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister.of_type"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Find Replicable instances with provided type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cls_type</strong> &#8211; class type to find</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of sibling instances derived from provided type</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister.is_unbound_rpc_function">
+<em class="property">static </em><tt class="descname">is_unbound_rpc_function</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister.is_unbound_rpc_function"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Determine if function is annotated as an RPC call</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to test</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister.is_wrapable">
+<em class="property">static </em><tt class="descname">is_wrapable</tt><big>(</big><em>attribute</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister.is_wrapable"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Determine if function can be wrapped as an RPC call</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>attribute</strong> &#8211; attribute in question</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.metaclasses.register.replicable_register.ReplicableRegister.is_found_in_parents">
+<em class="property">classmethod </em><tt class="descname">is_found_in_parents</tt><big>(</big><em>metacls</em>, <em>name</em>, <em>parents</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/replicable_register.html#ReplicableRegister.is_found_in_parents"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Determine if parent classes contain an attribute</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> &#8211; name of attribute</li>
+<li><strong>parents</strong> &#8211; parent classes</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-network.metaclasses.register.type_register">
+<span id="network-metaclasses-register-type-register-module"></span><h2>network.metaclasses.register.type_register module</h2>
+<dl class="class">
+<dt id="network.metaclasses.register.type_register.TypeRegister">
+<em class="property">class </em><tt class="descclassname">network.metaclasses.register.type_register.</tt><tt class="descname">TypeRegister</tt><a class="reference internal" href="_modules/network/metaclasses/register/type_register.html#TypeRegister"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.type</span></tt></p>
+<p>Registers all subclasses of parent class
+Stores class name: class mapping on parent.subclasses</p>
+<dl class="attribute">
+<dt id="network.metaclasses.register.type_register.TypeRegister.type_name">
+<tt class="descname">type_name</tt><a class="reference internal" href="_modules/network/metaclasses/register/type_register.html#TypeRegister.type_name"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.metaclasses.register.type_register.TypeRegister.from_type_name">
+<tt class="descname">from_type_name</tt><big>(</big><em>type_name</em><big>)</big><a class="reference internal" href="_modules/network/metaclasses/register/type_register.html#TypeRegister.from_type_name"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Get class type from type_name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>type_name</strong> &#8211; name of class type</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">class reference</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-network.metaclasses.register">
+<span id="module-contents"></span><h2>Module contents</h2>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.serialiser.html" title="network.serialiser package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.metaclasses.mapping.html" title="network.metaclasses.mapping package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li>
+          <li><a href="network.metaclasses.html" >network.metaclasses package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+game_system.six module
+======================
+
+.. automodule:: game_system.six
+    :members:
+    :undoc-members:
+    :show-inheritance:

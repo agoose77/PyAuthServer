@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to PyAuthServer’s documentation! &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="#" />
+    <link rel="next" title="network package" href="network.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.html" title="network package"
+             accesskey="N">next</a> |</li>
+        <li><a href="#">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="welcome-to-pyauthserver-s-documentation">
+<h1>Welcome to PyAuthServer&#8217;s documentation!<a class="headerlink" href="#welcome-to-pyauthserver-s-documentation" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><p>&#8220;There is no substantial networking engine in Python for Blender that allows any kind of multiplayer game project to be realised without writing the underlying network mechanism itself. Faced with such a challenge, most users would prefer to use another own engine, or remove the feature from the design document.</p>
+<p>This project intends to provide a useful Python framework for creating multiplayer games which eliminates the headache in writing and maintaining a networked game. It does not require the Blender Game Engine, but certain parts of the system must be realised by writing a new engine interface. Anything in the network library is pure python, and the bge_game_system is for BGE code.&#8221;
+&#8211; From the GitHub readme</p>
+</div></blockquote>
+<p>The <a class="reference internal" href="network.html#module-network" title="network"><tt class="xref py py-mod docutils literal"><span class="pre">network</span></tt></a> module abstracts the details of UDP sockets under a multi-layered replication system. <a class="reference internal" href="network.connection.html#network.connection.Connection" title="network.connection.Connection"><tt class="xref py py-class docutils literal"><span class="pre">Connection</span></tt></a> objects handle connections between peers, whilst a static-type <a class="reference internal" href="network.serialiser.html#module-network.serialiser" title="network.serialiser"><tt class="xref py py-mod docutils literal"><span class="pre">serialisation</span> <span class="pre">layer</span></tt></a> handles the interface between Python objects and the required bytes strings used by the socket layer. A <tt class="xref py py-class docutils literal"><span class="pre">network</span> <span class="pre">object</span></tt> class is responsible for providing a user-friendly API for server-client data replication, inluding contextual role-based replication of function calls and attributes.
+The game_system module</p>
+<div class="section" id="networking-documentation">
+<h2>Networking Documentation<a class="headerlink" href="#networking-documentation" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="network.html">network package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="network.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="network.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="network.html#module-network">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="game-system-documentation">
+<h2>Game System Documentation<a class="headerlink" href="#game-system-documentation" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="game_system.html">game_system package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="game_system.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="game_system.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="game_system.html#module-game_system">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bge_game_system.html">bge_game_system package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bge_game_system.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bge_game_system.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="bge_game_system.html#module-bge_game_system">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to PyAuthServer&#8217;s documentation!</a><ul>
+<li><a class="reference internal" href="#networking-documentation">Networking Documentation</a></li>
+<li><a class="reference internal" href="#game-system-documentation">Game System Documentation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.html"
+                        title="next chapter">network package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.html" title="network package"
+             >next</a> |</li>
+        <li><a href="#">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

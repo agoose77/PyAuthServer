@@ -1,0 +1,337 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.configobj module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system package" href="game_system.html" />
+    <link rel="next" title="game_system.constants module" href="game_system.constants.html" />
+    <link rel="prev" title="game_system.clock module" href="game_system.clock.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.constants.html" title="game_system.constants module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.clock.html" title="game_system.clock module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" accesskey="U">game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.configobj">
+<span id="game-system-configobj-module"></span><h1>game_system.configobj module<a class="headerlink" href="#module-game_system.configobj" title="Permalink to this headline">¶</a></h1>
+<dl class="exception">
+<dt id="game_system.configobj.UnknownType">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">UnknownType</tt><a class="reference internal" href="_modules/game_system/configobj.html#UnknownType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.UnknownType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.Exception</span></tt></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.ConfigObjError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">ConfigObjError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObjError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObjError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.SyntaxError</span></tt></p>
+<p>This is the base class for all errors that ConfigObj raises.
+It is a subclass of SyntaxError.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.NestingError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">NestingError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#NestingError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.NestingError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>This error indicates a level of nesting that doesn&#8217;t match.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.ParseError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">ParseError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ParseError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ParseError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>This error indicates that a line is badly written.
+It is neither a valid <tt class="docutils literal"><span class="pre">key</span> <span class="pre">=</span> <span class="pre">value</span></tt> line,
+nor a valid section marker line.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.ReloadError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">ReloadError</tt><a class="reference internal" href="_modules/game_system/configobj.html#ReloadError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ReloadError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.OSError</span></tt></p>
+<p>A &#8216;reload&#8217; operation failed.
+This exception is a subclass of <tt class="docutils literal"><span class="pre">IOError</span></tt>.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.DuplicateError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">DuplicateError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#DuplicateError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.DuplicateError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>The keyword or section specified already exists.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.ConfigspecError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">ConfigspecError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigspecError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigspecError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>An error occured whilst parsing a configspec.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.InterpolationError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">InterpolationError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#InterpolationError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.InterpolationError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>Base class for the two interpolation errors</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.InterpolationLoopError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">InterpolationLoopError</tt><big>(</big><em>option</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#InterpolationLoopError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.InterpolationLoopError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.InterpolationError" title="game_system.configobj.InterpolationError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.InterpolationError</span></tt></a></p>
+<p>Maximum interpolation depth exceeded in string interpolation</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.RepeatSectionError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">RepeatSectionError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#RepeatSectionError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.RepeatSectionError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>This error indicates additional sections in a section with a
+<tt class="docutils literal"><span class="pre">__many__</span></tt> (repeated) section.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.MissingInterpolationOption">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">MissingInterpolationOption</tt><big>(</big><em>option</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#MissingInterpolationOption"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.MissingInterpolationOption" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.InterpolationError" title="game_system.configobj.InterpolationError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.InterpolationError</span></tt></a></p>
+<p>A value specified for interpolation was missing</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="game_system.configobj.UnreprError">
+<em class="property">exception </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">UnreprError</tt><big>(</big><em>message=''</em>, <em>line_number=None</em>, <em>line=''</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#UnreprError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.UnreprError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.configobj.ConfigObjError" title="game_system.configobj.ConfigObjError"><tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.ConfigObjError</span></tt></a></p>
+<p>An error parsing in unrepr mode</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.configobj.ConfigObj">
+<em class="property">class </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">ConfigObj</tt><big>(</big><em>infile=None</em>, <em>options=None</em>, <em>configspec=None</em>, <em>encoding=None</em>, <em>interpolation=True</em>, <em>raise_errors=False</em>, <em>list_values=True</em>, <em>create_empty=False</em>, <em>file_error=False</em>, <em>stringify=True</em>, <em>indent_type=None</em>, <em>default_encoding=None</em>, <em>unrepr=False</em>, <em>write_empty_values=False</em>, <em>_inspec=False</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">game_system.configobj.Section</span></tt></p>
+<p>An object to read, create, and write config files</p>
+<dl class="method">
+<dt id="game_system.configobj.ConfigObj.write">
+<tt class="descname">write</tt><big>(</big><em>outfile=None</em>, <em>section=None</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObj.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObj.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write the current ConfigObj as a file</p>
+<p>tekNico: FIXME: use StringIO instead of real files</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="s">&#39;test.ini&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">==</span> <span class="n">ConfigObj</span><span class="p">(</span><span class="s">&#39;test.ini&#39;</span><span class="p">,</span> <span class="n">raise_errors</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;test.ini&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.configobj.ConfigObj.validate">
+<tt class="descname">validate</tt><big>(</big><em>validator</em>, <em>preserve_errors=False</em>, <em>copy=False</em>, <em>section=None</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObj.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObj.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test the ConfigObj against a configspec.</p>
+<p>It uses the <tt class="docutils literal"><span class="pre">validator</span></tt> object from <em>validate.py</em>.</p>
+<p>To run <tt class="docutils literal"><span class="pre">validate</span></tt> on the current ConfigObj, call:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">test</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">validator</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>(Normally having previously passed in the configspec when the ConfigObj
+was created - you can dynamically assign a dictionary of checks to the
+<tt class="docutils literal"><span class="pre">configspec</span></tt> attribute of a section though).</p>
+<p>It returns <tt class="docutils literal"><span class="pre">True</span></tt> if everything passes, or a dictionary of
+pass/fails (True/False). If every member of a subsection passes, it
+will just have the value <tt class="docutils literal"><span class="pre">True</span></tt>. (It also returns <tt class="docutils literal"><span class="pre">False</span></tt> if all
+members fail).</p>
+<p>In addition, it converts the values from strings to their native
+types if their checks pass (and <tt class="docutils literal"><span class="pre">stringify</span></tt> is set).</p>
+<p>If <tt class="docutils literal"><span class="pre">preserve_errors</span></tt> is <tt class="docutils literal"><span class="pre">True</span></tt> (<tt class="docutils literal"><span class="pre">False</span></tt> is default) then instead
+of a marking a fail with a <tt class="docutils literal"><span class="pre">False</span></tt>, it will preserve the actual
+exception object. This can contain info about the reason for failure.
+For example the <tt class="docutils literal"><span class="pre">VdtValueTooSmallError</span></tt> indicates that the value
+supplied was too small. If a value (or section) is missing it will
+still be marked as <tt class="docutils literal"><span class="pre">False</span></tt>.</p>
+<p>You must have the validate module to use <tt class="docutils literal"><span class="pre">preserve_errors=True</span></tt>.</p>
+<p>You can then use the <tt class="docutils literal"><span class="pre">flatten_errors</span></tt> function to turn your nested
+results dictionary into a flattened list of failures - useful for
+displaying meaningful error messages.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.configobj.ConfigObj.reset">
+<tt class="descname">reset</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObj.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObj.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear ConfigObj instance and restore to &#8216;freshly created&#8217; state</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.configobj.ConfigObj.reload">
+<tt class="descname">reload</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#ConfigObj.reload"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.ConfigObj.reload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reload a ConfigObj from file.</p>
+<p>This method raises a <tt class="docutils literal"><span class="pre">ReloadError</span></tt> if the ConfigObj doesn&#8217;t have
+a filename attribute pointing to a file.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.configobj.SimpleVal">
+<em class="property">class </em><tt class="descclassname">game_system.configobj.</tt><tt class="descname">SimpleVal</tt><a class="reference internal" href="_modules/game_system/configobj.html#SimpleVal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.SimpleVal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>A simple validator.
+Can be used to check that all members expected are present.</p>
+<p>To use it, provide a configspec with all your members in (the value given
+will be ignored). Pass an instance of <tt class="docutils literal"><span class="pre">SimpleVal</span></tt> to the <tt class="docutils literal"><span class="pre">validate</span></tt>
+method of your <tt class="docutils literal"><span class="pre">ConfigObj</span></tt>. <tt class="docutils literal"><span class="pre">validate</span></tt> will return <tt class="docutils literal"><span class="pre">True</span></tt> if all
+members are present, or a dictionary with True/False meaning
+present/missing. (Whole missing sections will be replaced with <tt class="docutils literal"><span class="pre">False</span></tt>)</p>
+<dl class="method">
+<dt id="game_system.configobj.SimpleVal.check">
+<tt class="descname">check</tt><big>(</big><em>check</em>, <em>member</em>, <em>missing=False</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#SimpleVal.check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.SimpleVal.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>A dummy check method, always returns the value unchanged</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="game_system.configobj.flatten_errors">
+<tt class="descclassname">game_system.configobj.</tt><tt class="descname">flatten_errors</tt><big>(</big><em>cfg</em>, <em>res</em>, <em>levels=None</em>, <em>results=None</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#flatten_errors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.flatten_errors" title="Permalink to this definition">¶</a></dt>
+<dd><p>An example function that will turn a nested dictionary of results
+(as returned by <tt class="docutils literal"><span class="pre">ConfigObj.validate</span></tt>) into a flat list.</p>
+<p><tt class="docutils literal"><span class="pre">cfg</span></tt> is the ConfigObj instance being checked, <tt class="docutils literal"><span class="pre">res</span></tt> is the results
+dictionary returned by <tt class="docutils literal"><span class="pre">validate</span></tt>.</p>
+<p>(This is a recursive function, so you shouldn&#8217;t use the <tt class="docutils literal"><span class="pre">levels</span></tt> or
+<tt class="docutils literal"><span class="pre">results</span></tt> arguments - they are used by the function.)</p>
+<p>Returns a list of keys that failed. Each member of the list is a tuple:</p>
+<div class="highlight-python"><div class="highlight"><pre>([list of sections...], key, result)
+</pre></div>
+</div>
+<p>If <tt class="docutils literal"><span class="pre">validate</span></tt> was called with <tt class="docutils literal"><span class="pre">preserve_errors=False</span></tt> (the default)
+then <tt class="docutils literal"><span class="pre">result</span></tt> will always be <tt class="docutils literal"><span class="pre">False</span></tt>.</p>
+<p><em>list of sections</em> is a flattened list of sections that the key was found
+in.</p>
+<p>If the section was missing (or a section was expected and a scalar provided
+- or vice-versa) then key will be <tt class="docutils literal"><span class="pre">None</span></tt>.</p>
+<p>If the value (or section) was missing then <tt class="docutils literal"><span class="pre">result</span></tt> will be <tt class="docutils literal"><span class="pre">False</span></tt>.</p>
+<p>If <tt class="docutils literal"><span class="pre">validate</span></tt> was called with <tt class="docutils literal"><span class="pre">preserve_errors=True</span></tt> and a value
+was present, but failed the check, then <tt class="docutils literal"><span class="pre">result</span></tt> will be the exception
+object returned. You can use this as a string that describes the failure.</p>
+<p>For example <em>The value &#8220;3&#8221; is of the wrong type</em>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="game_system.configobj.get_extra_values">
+<tt class="descclassname">game_system.configobj.</tt><tt class="descname">get_extra_values</tt><big>(</big><em>conf</em>, <em>_prepend=()</em><big>)</big><a class="reference internal" href="_modules/game_system/configobj.html#get_extra_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.configobj.get_extra_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find all the values and sections not in the configspec from a validated
+ConfigObj.</p>
+<p><tt class="docutils literal"><span class="pre">get_extra_values</span></tt> returns a list of tuples where each tuple represents
+either an extra section, or an extra value.</p>
+<p>The tuples contain two values, a tuple representing the section the value 
+is in and the name of the extra values. For extra values in the top level
+section the first member will be an empty tuple. For values in the &#8216;foo&#8217;
+section the first member will be <tt class="docutils literal"><span class="pre">('foo',)</span></tt>. For members in the &#8216;bar&#8217;
+subsection of the &#8216;foo&#8217; section the first member will be <tt class="docutils literal"><span class="pre">('foo',</span> <span class="pre">'bar')</span></tt>.</p>
+<p>NOTE: If you call <tt class="docutils literal"><span class="pre">get_extra_values</span></tt> on a ConfigObj instance that hasn&#8217;t
+been validated it will return an empty list.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.clock.html"
+                        title="previous chapter">game_system.clock module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.constants.html"
+                        title="next chapter">game_system.constants module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.configobj.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.constants.html" title="game_system.constants module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.clock.html" title="game_system.clock module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

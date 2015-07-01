@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.geometry.kdtree module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system.geometry package" href="game_system.geometry.html" />
+    <link rel="next" title="game_system.geometry.mesh module" href="game_system.geometry.mesh.html" />
+    <link rel="prev" title="game_system.geometry package" href="game_system.geometry.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.mesh.html" title="game_system.geometry.mesh module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.html" title="game_system.geometry package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.geometry.html" accesskey="U">game_system.geometry package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.geometry.kdtree">
+<span id="game-system-geometry-kdtree-module"></span><h1>game_system.geometry.kdtree module<a class="headerlink" href="#module-game_system.geometry.kdtree" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.geometry.kdtree.SortedList">
+<em class="property">class </em><tt class="descclassname">game_system.geometry.kdtree.</tt><tt class="descname">SortedList</tt><big>(</big><em>iterable=()</em>, <em>key=None</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#SortedList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.SortedList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="game_system.sorted_collection.html#game_system.sorted_collection.SortedCollection" title="game_system.sorted_collection.SortedCollection"><tt class="xref py py-class docutils literal"><span class="pre">game_system.sorted_collection.SortedCollection</span></tt></a></p>
+<dl class="method">
+<dt id="game_system.geometry.kdtree.SortedList.append">
+<tt class="descname">append</tt><big>(</big><em>item</em><big>)</big><a class="headerlink" href="#game_system.geometry.kdtree.SortedList.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Insert a new item.  If equal keys are found, add to the left</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>item</strong> &#8211; item to insert</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.geometry.kdtree.SortedList.pop">
+<tt class="descname">pop</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#SortedList.pop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.SortedList.pop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.geometry.kdtree.Node">
+<em class="property">class </em><tt class="descclassname">game_system.geometry.kdtree.</tt><tt class="descname">Node</tt><a class="headerlink" href="#game_system.geometry.kdtree.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.tuple</span></tt></p>
+<p>Node(position, left_child, right_child, split_axis)</p>
+<dl class="attribute">
+<dt id="game_system.geometry.kdtree.Node.left_child">
+<tt class="descname">left_child</tt><a class="headerlink" href="#game_system.geometry.kdtree.Node.left_child" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.geometry.kdtree.Node.position">
+<tt class="descname">position</tt><a class="headerlink" href="#game_system.geometry.kdtree.Node.position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.geometry.kdtree.Node.right_child">
+<tt class="descname">right_child</tt><a class="headerlink" href="#game_system.geometry.kdtree.Node.right_child" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.geometry.kdtree.Node.split_axis">
+<tt class="descname">split_axis</tt><a class="headerlink" href="#game_system.geometry.kdtree.Node.split_axis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 3</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.geometry.kdtree.RangedKDNeighbours">
+<em class="property">class </em><tt class="descclassname">game_system.geometry.kdtree.</tt><tt class="descname">RangedKDNeighbours</tt><big>(</big><em>distance</em>, <em>neighbour_type=functools.partial(&lt;class 'game_system.geometry.kdtree.SortedList'&gt;</em>, <em>key=&lt;operator.itemgetter object at 0x0000000006225438&gt;)</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#RangedKDNeighbours"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.RangedKDNeighbours" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="game_system.geometry.kdtree.RangedKDNeighbours.add_point">
+<tt class="descname">add_point</tt><big>(</big><em>distance</em>, <em>node</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#RangedKDNeighbours.add_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.RangedKDNeighbours.add_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.geometry.kdtree.KDNeighbours">
+<em class="property">class </em><tt class="descclassname">game_system.geometry.kdtree.</tt><tt class="descname">KDNeighbours</tt><big>(</big><em>requested</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDNeighbours"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDNeighbours" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="game_system.geometry.kdtree.KDNeighbours.add_point">
+<tt class="descname">add_point</tt><big>(</big><em>distance</em>, <em>node</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDNeighbours.add_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDNeighbours.add_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.geometry.kdtree.KDTree">
+<em class="property">class </em><tt class="descclassname">game_system.geometry.kdtree.</tt><tt class="descname">KDTree</tt><big>(</big><em>points</em>, <em>dimensions</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDTree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDTree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="classmethod">
+<dt id="game_system.geometry.kdtree.KDTree.get_root_node">
+<em class="property">classmethod </em><tt class="descname">get_root_node</tt><big>(</big><em>points</em>, <em>dimensions</em>, <em>depth=0</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDTree.get_root_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDTree.get_root_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.geometry.kdtree.KDTree.nn_search">
+<tt class="descname">nn_search</tt><big>(</big><em>point</em>, <em>requested=1</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDTree.nn_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDTree.nn_search" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.geometry.kdtree.KDTree.nn_range_search">
+<tt class="descname">nn_range_search</tt><big>(</big><em>point</em>, <em>distance</em><big>)</big><a class="reference internal" href="_modules/game_system/geometry/kdtree.html#KDTree.nn_range_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.geometry.kdtree.KDTree.nn_range_search" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.geometry.html"
+                        title="previous chapter">game_system.geometry package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.geometry.mesh.html"
+                        title="next chapter">game_system.geometry.mesh module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.geometry.kdtree.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.mesh.html" title="game_system.geometry.mesh module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.html" title="game_system.geometry package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.geometry.html" >game_system.geometry package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

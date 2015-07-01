@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.game_loop &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for game_system.game_loop</h1><div class="highlight"><pre>
+<span class="n">__all__</span> <span class="o">=</span> <span class="s">&quot;FixedTimeStepManager&quot;</span><span class="p">,</span> <span class="s">&quot;OnExitUpdate&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">monotonic</span>
+
+
+<div class="viewcode-block" id="OnExitUpdate"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.OnExitUpdate">[docs]</a><span class="k">class</span> <span class="nc">OnExitUpdate</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Safe exit exception&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="FixedTimeStepManager"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager">[docs]</a><span class="k">class</span> <span class="nc">FixedTimeStepManager</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Real-time, fixed time-step logic controller&quot;&quot;&quot;</span>
+    
+    <span class="n">time_step</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">60</span>
+    <span class="n">maximum_dt</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">5</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_time</span> <span class="o">=</span> <span class="bp">None</span>
+    
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="FixedTimeStepManager.is_running"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager.is_running">[docs]</a>    <span class="k">def</span> <span class="nf">is_running</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running</span>
+    </div>
+<div class="viewcode-block" id="FixedTimeStepManager.on_step"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager.on_step">[docs]</a>    <span class="k">def</span> <span class="nf">on_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Step callback.</span>
+<span class="sd">        Called for discrete intervals of time_step</span>
+
+<span class="sd">        :param delta_time: discrete unit of update time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="FixedTimeStepManager.on_update"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager.on_update">[docs]</a>    <span class="k">def</span> <span class="nf">on_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update callback.</span>
+<span class="sd">        Called continuously for each iteration of update loop</span>
+
+<span class="sd">        :param delta_time: continuous unit of update time</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Internal blocking execution function&quot;&quot;&quot;</span>
+        <span class="n">time_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_step</span>
+        
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>            
+            <span class="n">current_time</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span>
+            <span class="n">last_time</span> <span class="o">=</span> <span class="n">current_time</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_time</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_time</span>
+            <span class="n">delta_time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="n">last_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">maximum_dt</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_time</span> <span class="o">=</span> <span class="n">current_time</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator</span> <span class="o">+=</span> <span class="n">delta_time</span>
+            
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator</span> <span class="o">&gt;</span> <span class="n">time_step</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">on_step</span><span class="p">(</span><span class="n">time_step</span><span class="p">)</span>                    
+                <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator</span> <span class="o">-=</span> <span class="n">time_step</span>
+                
+                <span class="n">time_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_step</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FixedTimeStepManager.cleanup"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="FixedTimeStepManager.delegate"><a class="viewcode-back" href="../../game_system.game_loop.html#game_system.game_loop.FixedTimeStepManager.delegate">[docs]</a>    <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Start blocking execute of update functions at discrete time-step&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="bp">True</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run</span><span class="p">()</span>
+         
+        <span class="k">except</span> <span class="n">OnExitUpdate</span><span class="p">:</span>
+            <span class="k">pass</span>
+        
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="bp">False</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

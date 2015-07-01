@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.chat.irc module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system.chat package" href="game_system.chat.html" />
+    <link rel="next" title="game_system.geometry package" href="game_system.geometry.html" />
+    <link rel="prev" title="game_system.chat package" href="game_system.chat.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.html" title="game_system.geometry package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.chat.html" title="game_system.chat package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.chat.html" accesskey="U">game_system.chat package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.chat.irc">
+<span id="game-system-chat-irc-module"></span><h1>game_system.chat.irc module<a class="headerlink" href="#module-game_system.chat.irc" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.chat.irc.IRCChannel">
+<em class="property">class </em><tt class="descclassname">game_system.chat.irc.</tt><tt class="descname">IRCChannel</tt><big>(</big><em>irc_client</em>, <em>name</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCChannel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCChannel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="game_system.chat.irc.IRCChannel.join">
+<tt class="descname">join</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCChannel.join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCChannel.join" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCChannel.leave">
+<tt class="descname">leave</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCChannel.leave"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCChannel.leave" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCChannel.say">
+<tt class="descname">say</tt><big>(</big><em>message</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCChannel.say"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCChannel.say" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.chat.irc.IRCClient">
+<em class="property">class </em><tt class="descclassname">game_system.chat.irc.</tt><tt class="descname">IRCClient</tt><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="http://docs.python.org/library/threading.html#threading.Thread" title="(in Python v2.7)"><tt class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></tt></a></p>
+<dl class="attribute">
+<dt id="game_system.chat.irc.IRCClient.connected">
+<tt class="descname">connected</tt><em class="property"> = False</em><a class="headerlink" href="#game_system.chat.irc.IRCClient.connected" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.chat.irc.IRCClient.is_registered">
+<tt class="descname">is_registered</tt><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.is_registered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.is_registered" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.chat.irc.IRCClient.nickname">
+<tt class="descname">nickname</tt><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.nickname"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.nickname" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="game_system.chat.irc.IRCClient.split_message">
+<em class="property">static </em><tt class="descname">split_message</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.split_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.split_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.enqueue_command">
+<tt class="descname">enqueue_command</tt><big>(</big><em>command</em>, <em>requires_registered=True</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.enqueue_command"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.enqueue_command" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.join_channel">
+<tt class="descname">join_channel</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.join_channel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.join_channel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.quit">
+<tt class="descname">quit</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.quit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.quit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.receive_messages">
+<tt class="descname">receive_messages</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.receive_messages"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.receive_messages" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.chat.irc.IRCClient.say">
+<tt class="descname">say</tt><big>(</big><em>message</em>, <em>target</em><big>)</big><a class="reference internal" href="_modules/game_system/chat/irc.html#IRCClient.say"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.chat.irc.IRCClient.say" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.chat.html"
+                        title="previous chapter">game_system.chat package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.geometry.html"
+                        title="next chapter">game_system.geometry package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.chat.irc.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.geometry.html" title="game_system.geometry package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.chat.html" title="game_system.chat package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.chat.html" >game_system.chat package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

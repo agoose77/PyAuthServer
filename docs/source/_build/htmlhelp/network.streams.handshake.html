@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.streams.handshake module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.streams.handshake">
+<span id="network-streams-handshake-module"></span><h1>network.streams.handshake module</h1>
+<dl class="class">
+<dt id="network.streams.handshake.HandshakeStream">
+<em class="property">class </em><tt class="descclassname">network.streams.handshake.</tt><tt class="descname">HandshakeStream</tt><big>(</big><em>dispatcher</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#HandshakeStream"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">network.streams.streams.Stream</span></tt>, <a class="reference internal" href="network.streams.streams.html#network.streams.streams.ProtocolHandler" title="network.streams.streams.ProtocolHandler"><tt class="xref py py-class docutils literal"><span class="pre">network.streams.streams.ProtocolHandler</span></tt></a>, <a class="reference internal" href="network.streams.streams.html#network.streams.streams.StatusDispatcher" title="network.streams.streams.StatusDispatcher"><tt class="xref py py-class docutils literal"><span class="pre">network.streams.streams.StatusDispatcher</span></tt></a>, <a class="reference internal" href="network.tagged_delegate.html#network.tagged_delegate.DelegateByNetmode" title="network.tagged_delegate.DelegateByNetmode"><tt class="xref py py-class docutils literal"><span class="pre">network.tagged_delegate.DelegateByNetmode</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="network.streams.handshake.HandshakeStream.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'ClientHandshakeStream': &lt;class 'network.streams.handshake.ClientHandshakeStream'&gt;, 'ServerHandshakeStream': &lt;class 'network.streams.handshake.ServerHandshakeStream'&gt;}</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.HandshakeStream.timed_out">
+<tt class="descname">timed_out</tt><a class="reference internal" href="_modules/network/streams/handshake.html#HandshakeStream.timed_out"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>If this stream has not received anything for an interval greater or equal to the timeout duration</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.HandshakeStream.on_timeout">
+<tt class="descname">on_timeout</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#HandshakeStream.on_timeout"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.HandshakeStream.handle_packets">
+<tt class="descname">handle_packets</tt><big>(</big><em>packet_collection</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#HandshakeStream.handle_packets"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.HandshakeStream.pull_packets">
+<tt class="descname">pull_packets</tt><big>(</big><em>network_tick</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#HandshakeStream.pull_packets"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.HandshakeStream.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = True</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.streams.handshake.ServerHandshakeStream">
+<em class="property">class </em><tt class="descclassname">network.streams.handshake.</tt><tt class="descname">ServerHandshakeStream</tt><big>(</big><em>dispatcher</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.streams.handshake.HandshakeStream" title="network.streams.handshake.HandshakeStream"><tt class="xref py py-class docutils literal"><span class="pre">network.streams.handshake.HandshakeStream</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Manages connection state for the server</p>
+<dl class="method">
+<dt id="network.streams.handshake.ServerHandshakeStream.on_ack_handshake_failed">
+<tt class="descname">on_ack_handshake_failed</tt><big>(</big><em>packet</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream.on_ack_handshake_failed"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ServerHandshakeStream.receive_disconnect_request">
+<tt class="descname">receive_disconnect_request</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream.receive_disconnect_request"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ServerHandshakeStream.receive_handshake_request">
+<tt class="descname">receive_handshake_request</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream.receive_handshake_request"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ServerHandshakeStream.send_handshake_result">
+<tt class="descname">send_handshake_result</tt><big>(</big><em>network_tick</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream.send_handshake_result"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ServerHandshakeStream.invoke_handshake">
+<tt class="descname">invoke_handshake</tt><big>(</big><em>network_tick</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ServerHandshakeStream.invoke_handshake"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Invoke handshake attempt on client, used for multicasting</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>network_tick</strong> &#8211; is a full network tick</li>
+<li><strong>bandwidth</strong> &#8211; available bandwidth</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ServerHandshakeStream.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ServerHandshakeStream.receivers">
+<tt class="descname">receivers</tt><em class="property"> = {0: &lt;function ServerHandshakeStream.receive_disconnect_request at 0x0000000006163EA0&gt;, 1: &lt;function ServerHandshakeStream.receive_handshake_request at 0x0000000006163F28&gt;}</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ServerHandshakeStream.senders">
+<tt class="descname">senders</tt><em class="property"> = {3: &lt;function ServerHandshakeStream.invoke_handshake at 0x00000000061650D0&gt;, 4: &lt;function ServerHandshakeStream.send_handshake_result at 0x0000000006165048&gt;}</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.streams.handshake.ClientHandshakeStream">
+<em class="property">class </em><tt class="descclassname">network.streams.handshake.</tt><tt class="descname">ClientHandshakeStream</tt><big>(</big><em>dispatcher</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ClientHandshakeStream"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.streams.handshake.HandshakeStream" title="network.streams.handshake.HandshakeStream"><tt class="xref py py-class docutils literal"><span class="pre">network.streams.handshake.HandshakeStream</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="method">
+<dt id="network.streams.handshake.ClientHandshakeStream.send_handshake_request">
+<tt class="descname">send_handshake_request</tt><big>(</big><em>network_tick</em>, <em>bandwidth</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ClientHandshakeStream.send_handshake_request"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ClientHandshakeStream.receive_handshake_success">
+<tt class="descname">receive_handshake_success</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ClientHandshakeStream.receive_handshake_success"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ClientHandshakeStream.receive_multicast_ping">
+<tt class="descname">receive_multicast_ping</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ClientHandshakeStream.receive_multicast_ping"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.streams.handshake.ClientHandshakeStream.receive_handshake_failed">
+<tt class="descname">receive_handshake_failed</tt><big>(</big><em>data</em><big>)</big><a class="reference internal" href="_modules/network/streams/handshake.html#ClientHandshakeStream.receive_handshake_failed"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ClientHandshakeStream.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = False</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ClientHandshakeStream.receivers">
+<tt class="descname">receivers</tt><em class="property"> = {8: &lt;function ClientHandshakeStream.receive_multicast_ping at 0x0000000006165268&gt;, 2: &lt;function ClientHandshakeStream.receive_handshake_success at 0x00000000061651E0&gt;, 3: &lt;function ClientHandshakeStream.receive_handshake_failed at 0x00000000061652F0&gt;}</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.streams.handshake.ClientHandshakeStream.senders">
+<tt class="descname">senders</tt><em class="property"> = {3: &lt;function ClientHandshakeStream.send_handshake_request at 0x0000000006165158&gt;}</em></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

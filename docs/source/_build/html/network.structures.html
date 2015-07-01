@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.structures module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.tagged_delegate module" href="network.tagged_delegate.html" />
+    <link rel="prev" title="network.struct module" href="network.struct.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.tagged_delegate.html" title="network.tagged_delegate module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.struct.html" title="network.struct module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="network-structures-module">
+<h1>network.structures module<a class="headerlink" href="#network-structures-module" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-network.structures"></span><dl class="function">
+<dt id="network.structures.factory_dict">
+<tt class="descclassname">network.structures.</tt><tt class="descname">factory_dict</tt><big>(</big><em>factory_function</em>, <em>dict_type=&lt;class 'dict'&gt;</em>, <em>provide_key=True</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#factory_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.factory_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produces a dictionary object with default values for missing keys</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>factory_function</strong> &#8211; function to create value for missing key</li>
+<li><strong>dict_type</strong> &#8211; base class for returned dictionary</li>
+<li><strong>provide_key</strong> &#8211; provide the factory function with the missing key</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="network.structures.TypedList">
+<em class="property">class </em><tt class="descclassname">network.structures.</tt><tt class="descname">TypedList</tt><big>(</big><em>type=None</em>, <em>iterable=None</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">network.structures.TypedIterableBase</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">builtins.list</span></tt></p>
+<p>List class with static type checking</p>
+<dl class="method">
+<dt id="network.structures.TypedList.append">
+<tt class="descname">append</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedList.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedList.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedList.extend">
+<tt class="descname">extend</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedList.extend"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedList.extend" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedList.insert">
+<tt class="descname">insert</tt><big>(</big><em>index</em>, <em>obj</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedList.insert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedList.insert" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.structures.TypedSet">
+<em class="property">class </em><tt class="descclassname">network.structures.</tt><tt class="descname">TypedSet</tt><big>(</big><em>type=None</em>, <em>iterable=None</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">network.structures.TypedIterableBase</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">builtins.set</span></tt></p>
+<p>Set class with static type checking</p>
+<dl class="method">
+<dt id="network.structures.TypedSet.add">
+<tt class="descname">add</tt><big>(</big><em>element</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedSet.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedSet.add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.intersection_update">
+<tt class="descname">intersection_update</tt><big>(</big><em>other</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedSet.intersection_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedSet.intersection_update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.symmetric_difference_update">
+<tt class="descname">symmetric_difference_update</tt><big>(</big><em>other</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedSet.symmetric_difference_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedSet.symmetric_difference_update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.update">
+<tt class="descname">update</tt><big>(</big><em>other</em><big>)</big><a class="reference internal" href="_modules/network/structures.html#TypedSet.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.structures.TypedSet.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.union">
+<tt class="descname">union</tt><big>(</big><em>other</em><big>)</big><a class="headerlink" href="#network.structures.TypedSet.union" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.symmetric_difference">
+<tt class="descname">symmetric_difference</tt><big>(</big><em>other</em><big>)</big><a class="headerlink" href="#network.structures.TypedSet.symmetric_difference" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.intersection">
+<tt class="descname">intersection</tt><big>(</big><em>other</em><big>)</big><a class="headerlink" href="#network.structures.TypedSet.intersection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.structures.TypedSet.difference">
+<tt class="descname">difference</tt><big>(</big><big>)</big><a class="headerlink" href="#network.structures.TypedSet.difference" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove all elements of another set from this set.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.struct.html"
+                        title="previous chapter">network.struct module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.tagged_delegate.html"
+                        title="next chapter">network.tagged_delegate module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.structures.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.tagged_delegate.html" title="network.tagged_delegate module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.struct.html" title="network.struct module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.conditions module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.connection module" href="network.connection.html" />
+    <link rel="prev" title="network.channel module" href="network.channel.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.connection.html" title="network.connection module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.channel.html" title="network.channel module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.conditions">
+<span id="network-conditions-module"></span><h1>network.conditions module<a class="headerlink" href="#module-network.conditions" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="network.conditions.is_class_method">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_class_method</tt><big>(</big><em>cls</em>, <em>name</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_class_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_class_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if function is a class method of given class</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cls</strong> &#8211; class with function</li>
+<li><strong>name</strong> &#8211; name of function</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_static_method">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_static_method</tt><big>(</big><em>cls</em>, <em>name</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_static_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_static_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if function is a static method of given class</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cls</strong> &#8211; class with function</li>
+<li><strong>name</strong> &#8211; name of function</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_instance_method">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_instance_method</tt><big>(</big><em>cls</em>, <em>name</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_instance_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_instance_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if function is an instance method of given class</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cls</strong> &#8211; class with function</li>
+<li><strong>name</strong> &#8211; name of function</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_reliable">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_reliable</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_reliable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_reliable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines if a function is replicated reliably</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to __call__</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_simulated">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_simulated</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_simulated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_simulated" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if a function is marked as simulated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to __call__</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_signal_listener">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_signal_listener</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_signal_listener"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_signal_listener" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if a function is a signal on_context</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to __call__</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.conditions.is_annotatable">
+<tt class="descclassname">network.conditions.</tt><tt class="descname">is_annotatable</tt><big>(</big><em>func</em><big>)</big><a class="reference internal" href="_modules/network/conditions.html#is_annotatable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.conditions.is_annotatable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine if function may be given annotations</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> &#8211; function to test</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">result of condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.channel.html"
+                        title="previous chapter">network.channel module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.connection.html"
+                        title="next chapter">network.connection module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.conditions.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.connection.html" title="network.connection module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.channel.html" title="network.channel module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

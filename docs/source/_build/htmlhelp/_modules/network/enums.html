@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.enums</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <h1>Source code for network.enums</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+
+<span class="kn">from</span> <span class="nn">.metaclasses.enumeration</span> <span class="kn">import</span> <span class="n">EnumerationMeta</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;Enumeration&#39;</span><span class="p">,</span> <span class="s">&#39;ConnectionState&#39;</span><span class="p">,</span> <span class="s">&#39;Netmodes&#39;</span><span class="p">,</span> <span class="s">&#39;ConnectionProtocols&#39;</span><span class="p">,</span> <span class="s">&#39;Roles&#39;</span><span class="p">,</span> <span class="s">&#39;IterableCompressionType&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Enumeration"><a class="viewcode-back" href="../../network.enums.html#network.enums.Enumeration">[docs]</a><span class="k">class</span> <span class="nc">Enumeration</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">EnumerationMeta</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="ConnectionState"><a class="viewcode-back" href="../../network.enums.html#network.enums.ConnectionState">[docs]</a><span class="k">class</span> <span class="nc">ConnectionState</span><span class="p">(</span><span class="n">Enumeration</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Status of connection to peer&quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;failed&quot;</span><span class="p">,</span> <span class="s">&quot;timeout&quot;</span><span class="p">,</span> <span class="s">&quot;disconnected&quot;</span><span class="p">,</span> <span class="s">&quot;pending&quot;</span><span class="p">,</span> <span class="s">&quot;handshake&quot;</span><span class="p">,</span> <span class="s">&quot;connected&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Netmodes"><a class="viewcode-back" href="../../network.enums.html#network.enums.Netmodes">[docs]</a><span class="k">class</span> <span class="nc">Netmodes</span><span class="p">(</span><span class="n">Enumeration</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="s">&quot;server&quot;</span><span class="p">,</span> <span class="s">&quot;client&quot;</span>
+
+</div>
+<div class="viewcode-block" id="ConnectionProtocols"><a class="viewcode-back" href="../../network.enums.html#network.enums.ConnectionProtocols">[docs]</a><span class="k">class</span> <span class="nc">ConnectionProtocols</span><span class="p">(</span><span class="n">Enumeration</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="s">&quot;request_disconnect&quot;</span><span class="p">,</span> <span class="s">&quot;request_handshake&quot;</span><span class="p">,</span> <span class="s">&quot;handshake_success&quot;</span><span class="p">,</span> <span class="s">&quot;handshake_failed&quot;</span><span class="p">,</span> <span class="s">&quot;replication_init&quot;</span><span class="p">,</span> \
+             <span class="s">&quot;replication_del&quot;</span><span class="p">,</span>  <span class="s">&quot;attribute_update&quot;</span><span class="p">,</span> <span class="s">&quot;invoke_method&quot;</span><span class="p">,</span> <span class="s">&quot;invoke_handshake&quot;</span>
+
+</div>
+<div class="viewcode-block" id="IterableCompressionType"><a class="viewcode-back" href="../../network.enums.html#network.enums.IterableCompressionType">[docs]</a><span class="k">class</span> <span class="nc">IterableCompressionType</span><span class="p">(</span><span class="n">Enumeration</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;no_compress&quot;</span><span class="p">,</span> <span class="s">&quot;compress&quot;</span><span class="p">,</span> <span class="s">&quot;auto&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Roles"><a class="viewcode-back" href="../../network.enums.html#network.enums.Roles">[docs]</a><span class="k">class</span> <span class="nc">Roles</span><span class="p">(</span><span class="n">Enumeration</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;none&quot;</span><span class="p">,</span> <span class="s">&quot;dumb_proxy&quot;</span><span class="p">,</span> <span class="s">&quot;simulated_proxy&quot;</span><span class="p">,</span> <span class="s">&quot;autonomous_proxy&quot;</span><span class="p">,</span> <span class="s">&quot;authority&quot;</span><span class="p">)</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="s">&quot;local&quot;</span><span class="p">,</span> <span class="s">&quot;remote&quot;</span><span class="p">,</span> <span class="s">&quot;context&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local</span> <span class="o">=</span> <span class="n">local</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote</span> <span class="o">=</span> <span class="n">remote</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="k">def</span> <span class="nf">__description__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;Roles: Local: {}, Remote: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">local</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">remote</span><span class="p">])</span>
+
+    <span class="nd">@contextmanager</span>
+<div class="viewcode-block" id="Roles.set_context"><a class="viewcode-back" href="../../network.enums.html#network.enums.Roles.set_context">[docs]</a>    <span class="k">def</span> <span class="nf">set_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">owner</span>
+
+        <span class="n">switched</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote</span> <span class="o">==</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">owner</span>
+
+        <span class="k">if</span> <span class="n">switched</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remote</span> <span class="o">=</span> <span class="n">Roles</span><span class="o">.</span><span class="n">simulated_proxy</span>
+
+        <span class="k">yield</span>
+
+        <span class="k">if</span> <span class="n">switched</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remote</span> <span class="o">=</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="bp">None</span></div></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

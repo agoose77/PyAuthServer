@@ -1,0 +1,342 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.geometry.mesh.editable &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bge_game_system.geometry.mesh.editable</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+
+<span class="kn">from</span> <span class="nn">mathutils</span> <span class="kn">import</span> <span class="n">geometry</span>
+<span class="kn">from</span> <span class="nn">game_system.coordinates</span> <span class="kn">import</span> <span class="n">Vector</span>
+<span class="kn">from</span> <span class="nn">game_system.geometry.mesh</span> <span class="kn">import</span> <span class="n">IVertex</span><span class="p">,</span> <span class="n">IPolygon</span>
+<span class="kn">from</span> <span class="nn">network.utilities</span> <span class="kn">import</span> <span class="n">mean</span>
+<span class="kn">from</span> <span class="nn">game_system.geometry.kdtree</span> <span class="kn">import</span> <span class="n">KDTree</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;BGEPolygonEditable&#39;</span><span class="p">,</span> <span class="s">&#39;BGEVertexTreeEditable&#39;</span><span class="p">,</span> <span class="s">&#39;BGEVertexGroupEditable&#39;</span><span class="p">,</span> <span class="s">&#39;BoundVector&#39;</span><span class="p">,</span>
+           <span class="s">&#39;BGEMeshEditable&#39;</span><span class="p">]</span>
+
+<span class="n">BoundVector</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s">&quot;BoundVector&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">Vector</span><span class="p">,),</span> <span class="p">{</span><span class="s">&quot;__slots__&quot;</span><span class="p">:</span> <span class="s">&quot;data&quot;</span><span class="p">})</span>
+
+
+<div class="viewcode-block" id="BGEVertexGroupEditable"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable">[docs]</a><span class="k">class</span> <span class="nc">BGEVertexGroupEditable</span><span class="p">(</span><span class="n">IVertex</span><span class="p">):</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;_members&#39;</span><span class="p">,</span> <span class="s">&#39;_get_transform&#39;</span><span class="p">,</span> <span class="s">&#39;_colour&#39;</span><span class="p">,</span> <span class="s">&#39;_normal&#39;</span><span class="p">,</span> <span class="s">&#39;_position&#39;</span><span class="p">,</span> <span class="s">&#39;_uv&#39;</span><span class="p">,</span> <span class="s">&#39;_polygons&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="n">get_transform</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_members</span> <span class="o">=</span> <span class="n">members</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span> <span class="o">=</span> <span class="n">get_transform</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_colour</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_colour</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_normal</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_polygons</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_position</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_uv</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_colour</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">color</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_normal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">()</span> <span class="o">*</span> <span class="n">mean</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">normal</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">()</span> <span class="o">*</span> <span class="n">mean</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">XYZ</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_uv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">UV</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">colour</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_colour</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="nd">@colour.setter</span>
+<div class="viewcode-block" id="BGEVertexGroupEditable.colour"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable.colour">[docs]</a>    <span class="k">def</span> <span class="nf">colour</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colour</span><span class="p">):</span>
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">colour</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_colour</span>
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">colour</span> <span class="o">+=</span> <span class="n">difference</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_colour</span> <span class="o">+=</span> <span class="n">difference</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">normal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="nd">@normal.setter</span>
+<div class="viewcode-block" id="BGEVertexGroupEditable.normal"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable.normal">[docs]</a>    <span class="k">def</span> <span class="nf">normal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normal</span><span class="p">):</span>
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">normal</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span>
+        <span class="n">inverted_difference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">()</span><span class="o">.</span><span class="n">inverted</span><span class="p">()</span> <span class="o">*</span> <span class="n">difference</span>
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">normal</span> <span class="o">+=</span> <span class="n">inverted_difference</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span> <span class="o">+=</span> <span class="n">difference</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEVertexGroupEditable.polygons"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable.polygons">[docs]</a>    <span class="k">def</span> <span class="nf">polygons</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_polygons</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_position</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="nd">@position.setter</span>
+<div class="viewcode-block" id="BGEVertexGroupEditable.position"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable.position">[docs]</a>    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_position</span>
+        <span class="n">inverted_difference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">()</span><span class="o">.</span><span class="n">inverted</span><span class="p">()</span> <span class="o">*</span> <span class="n">difference</span>
+
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">setXYZ</span><span class="p">(</span><span class="n">vertex</span><span class="o">.</span><span class="n">getXYZ</span><span class="p">()</span> <span class="o">+</span> <span class="n">inverted_difference</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_position</span> <span class="o">+=</span> <span class="n">difference</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">uv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uv</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="nd">@uv.setter</span>
+<div class="viewcode-block" id="BGEVertexGroupEditable.uv"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexGroupEditable.uv">[docs]</a>    <span class="k">def</span> <span class="nf">uv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uv</span><span class="p">):</span>
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">uv</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uv</span>
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_members</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">UV</span> <span class="o">+=</span> <span class="n">difference</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uv</span> <span class="o">+=</span> <span class="n">difference</span>
+
+</div></div>
+<div class="viewcode-block" id="BGEPolygonEditable"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable">[docs]</a><span class="k">class</span> <span class="nc">BGEPolygonEditable</span><span class="p">(</span><span class="n">IPolygon</span><span class="p">):</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;_vertices&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vertices</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span> <span class="o">=</span> <span class="n">vertices</span>
+
+        <span class="c"># Register as a polygon</span>
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">polygons</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="n">vertex_positions</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">_position</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">point_in_polygon</span><span class="p">(</span><span class="n">point</span><span class="p">,</span> <span class="n">vertex_positions</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">area</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">area</span>
+
+    <span class="nd">@lru_cache</span><span class="p">()</span>
+<div class="viewcode-block" id="BGEPolygonEditable.get_neighbours"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable.get_neighbours">[docs]</a>    <span class="k">def</span> <span class="nf">get_neighbours</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shared_vertices</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="n">neighbour_counts</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">([</span><span class="n">p</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">polygons</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">])</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">neighbour_counts</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="n">shared_vertices</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEPolygonEditable.area"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable.area">[docs]</a>    <span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">_position</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">]</span>
+        <span class="n">first_tri</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+        <span class="n">area_first</span> <span class="o">=</span> <span class="n">geometry</span><span class="o">.</span><span class="n">area_tri</span><span class="p">(</span><span class="o">*</span><span class="n">first_tri</span><span class="p">)</span>
+
+        <span class="c"># For quads</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_tri</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">area_first</span>
+
+        <span class="n">second_tri</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">area_first</span> <span class="o">+</span> <span class="n">geometry</span><span class="o">.</span><span class="n">area_tri</span><span class="p">(</span><span class="o">*</span><span class="n">second_tri</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEPolygonEditable.normal"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable.normal">[docs]</a>    <span class="k">def</span> <span class="nf">normal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">geometry</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">_position</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEPolygonEditable.vertices"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable.vertices">[docs]</a>    <span class="k">def</span> <span class="nf">vertices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">_position</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">])</span>
+
+    <span class="nd">@position.setter</span>
+<div class="viewcode-block" id="BGEPolygonEditable.position"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEPolygonEditable.position">[docs]</a>    <span class="k">def</span> <span class="nf">position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_position</span>
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vertices</span><span class="p">:</span>
+            <span class="n">vertex</span><span class="o">.</span><span class="n">position</span> <span class="o">+=</span> <span class="n">difference</span>
+
+</div></div>
+<div class="viewcode-block" id="BGEVertexTreeEditable"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexTreeEditable">[docs]</a><span class="k">class</span> <span class="nc">BGEVertexTreeEditable</span><span class="p">(</span><span class="n">KDTree</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vertices</span><span class="p">):</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">:</span>
+            <span class="n">point</span> <span class="o">=</span> <span class="n">BoundVector</span><span class="p">(</span><span class="n">vertex</span><span class="o">.</span><span class="n">XYZ</span><span class="p">)</span>
+            <span class="n">point</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">vertex</span>
+
+            <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BGEVertexTreeEditable.find_vertex"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexTreeEditable.find_vertex">[docs]</a>    <span class="k">def</span> <span class="nf">find_vertex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nn_search</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">data</span>
+
+</div>
+<div class="viewcode-block" id="BGEVertexTreeEditable.find_vertices"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEVertexTreeEditable.find_vertices">[docs]</a>    <span class="k">def</span> <span class="nf">find_vertices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">search_range</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">nodes</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">nn_range_search</span><span class="p">(</span><span class="n">point</span><span class="p">,</span> <span class="n">search_range</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">]</span>
+
+</div></div>
+<div class="viewcode-block" id="BGEMeshEditable"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEMeshEditable">[docs]</a><span class="k">class</span> <span class="nc">BGEMeshEditable</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bge_obj</span><span class="p">,</span> <span class="n">mesh_index</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">bge_mesh</span> <span class="o">=</span> <span class="n">bge_obj</span><span class="o">.</span><span class="n">meshes</span><span class="p">[</span><span class="n">mesh_index</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">bge_obj</span><span class="o">.</span><span class="n">worldTransform</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_polygons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_polygons</span><span class="p">(</span><span class="n">bge_mesh</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEMeshEditable.polygons"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEMeshEditable.polygons">[docs]</a>    <span class="k">def</span> <span class="nf">polygons</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_polygons</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="BGEMeshEditable.vertices"><a class="viewcode-back" href="../../../../bge_game_system.geometry.mesh.editable.html#bge_game_system.geometry.mesh.editable.BGEMeshEditable.vertices">[docs]</a>    <span class="k">def</span> <span class="nf">vertices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">poly</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_polygons</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">poly</span><span class="o">.</span><span class="n">vertices</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_build_temporary_data</span><span class="p">(</span><span class="n">mesh</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct dictionary representation of mesh structure&quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">p_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">numPolygons</span><span class="p">):</span>
+            <span class="n">polygon</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">getPolygon</span><span class="p">(</span><span class="n">p_index</span><span class="p">)</span>
+            <span class="n">polygon_vertices</span> <span class="o">=</span> <span class="n">polygon</span><span class="o">.</span><span class="n">getNumVertex</span><span class="p">()</span>
+            <span class="n">material_id</span> <span class="o">=</span> <span class="n">polygon</span><span class="o">.</span><span class="n">material_id</span>
+
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">poly_v_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">polygon_vertices</span><span class="p">):</span>
+                <span class="n">v_index</span> <span class="o">=</span> <span class="n">polygon</span><span class="o">.</span><span class="n">getVertexIndex</span><span class="p">(</span><span class="n">poly_v_index</span><span class="p">)</span>
+                <span class="n">vertex</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">getVertex</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">v_index</span><span class="p">)</span>
+                <span class="n">vertices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vertex</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">vertices</span>
+
+    <span class="k">def</span> <span class="nf">_convert_polygons</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bge_mesh</span><span class="p">):</span>
+        <span class="n">bge_polygon_vertices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_temporary_data</span><span class="p">(</span><span class="n">bge_mesh</span><span class="p">)</span>
+
+        <span class="n">vertex_tree</span> <span class="o">=</span> <span class="n">BGEVertexTreeEditable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_all_vertices</span><span class="p">(</span><span class="n">bge_mesh</span><span class="p">))</span>
+        <span class="n">get_similar_vertices</span> <span class="o">=</span> <span class="n">vertex_tree</span><span class="o">.</span><span class="n">find_vertices</span>
+
+        <span class="n">converted_vertices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">get_vertex</span> <span class="o">=</span> <span class="n">converted_vertices</span><span class="o">.</span><span class="n">__getitem__</span>
+        <span class="n">set_vertex</span> <span class="o">=</span> <span class="n">converted_vertices</span><span class="o">.</span><span class="n">__setitem__</span>
+
+        <span class="n">polygons</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">add_polygon</span> <span class="o">=</span> <span class="n">polygons</span><span class="o">.</span><span class="n">append</span>
+
+        <span class="k">for</span> <span class="n">vertices</span> <span class="ow">in</span> <span class="n">bge_polygon_vertices</span><span class="p">:</span>
+            <span class="n">polygon_vertices</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">add_vertex</span> <span class="o">=</span> <span class="n">polygon_vertices</span><span class="o">.</span><span class="n">append</span>
+
+            <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">:</span>
+                <span class="n">shared_vertices</span> <span class="o">=</span> <span class="n">get_similar_vertices</span><span class="p">(</span><span class="n">vertex</span><span class="o">.</span><span class="n">XYZ</span><span class="p">)</span>
+                <span class="n">lookup</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">XYZ</span><span class="p">[:]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">shared_vertices</span><span class="p">)</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">bge_vertex</span> <span class="o">=</span> <span class="n">get_vertex</span><span class="p">(</span><span class="n">lookup</span><span class="p">)</span>
+
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="n">bge_vertex</span> <span class="o">=</span> <span class="n">BGEVertexGroupEditable</span><span class="p">(</span><span class="n">shared_vertices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">)</span>
+                    <span class="n">set_vertex</span><span class="p">(</span><span class="n">lookup</span><span class="p">,</span> <span class="n">bge_vertex</span><span class="p">)</span>
+
+                <span class="n">add_vertex</span><span class="p">(</span><span class="n">bge_vertex</span><span class="p">)</span>
+
+            <span class="n">polygon</span> <span class="o">=</span> <span class="n">BGEPolygonEditable</span><span class="p">(</span><span class="n">polygon_vertices</span><span class="p">)</span>
+            <span class="n">add_polygon</span><span class="p">(</span><span class="n">polygon</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">polygons</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_all_vertices</span><span class="p">(</span><span class="n">mesh</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">m_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">materials</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">v_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">getVertexArrayLength</span><span class="p">(</span><span class="n">m_index</span><span class="p">)):</span>
+                <span class="k">yield</span> <span class="n">mesh</span><span class="o">.</span><span class="n">getVertex</span><span class="p">(</span><span class="n">m_index</span><span class="p">,</span> <span class="n">v_index</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

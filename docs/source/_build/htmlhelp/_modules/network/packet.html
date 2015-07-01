@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.packet</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <h1>Source code for network.packet</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.handlers</span> <span class="kn">import</span> <span class="n">get_handler</span>
+<span class="kn">from</span> <span class="nn">.type_flag</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;PacketCollection&#39;</span><span class="p">,</span> <span class="s">&#39;Packet&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="PacketCollection"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection">[docs]</a><span class="k">class</span> <span class="nc">PacketCollection</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Container for a sequence of Packet instances&quot;&quot;&quot;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="s">&quot;members&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">members</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">members</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c"># If members support member interface</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">members</span><span class="p">,</span> <span class="s">&quot;members&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="n">members</span><span class="o">.</span><span class="n">members</span>
+
+        <span class="c"># Otherwise recreate members</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">members</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">members</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PacketCollection.reliable_members"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.reliable_members">[docs]</a>    <span class="k">def</span> <span class="nf">reliable_members</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The reliable members of this packet collection&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">reliable</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PacketCollection.unreliable_members"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.unreliable_members">[docs]</a>    <span class="k">def</span> <span class="nf">unreliable_members</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The unreliable members of this packet collection&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="o">.</span><span class="n">reliable</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PacketCollection.size"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="PacketCollection.to_reliable"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.to_reliable">[docs]</a>    <span class="k">def</span> <span class="nf">to_reliable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create PacketCollection of reliable members</span>
+
+<span class="sd">        :rtype: :py:class:`network.packet.PacketCollection`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reliable_members</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PacketCollection.to_unreliable"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.to_unreliable">[docs]</a>    <span class="k">def</span> <span class="nf">to_unreliable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create PacketCollection of unreliable members</span>
+
+<span class="sd">        :rtype: :py:class:`network.packet.PacketCollection`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unreliable_members</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PacketCollection.on_ack"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.on_ack">[docs]</a>    <span class="k">def</span> <span class="nf">on_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Callback for acknowledgement of packet receipt&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
+            <span class="n">member</span><span class="o">.</span><span class="n">on_ack</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PacketCollection.on_not_ack"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.on_not_ack">[docs]</a>    <span class="k">def</span> <span class="nf">on_not_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Callback for assumption of a lost packet&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reliable_members</span><span class="p">:</span>
+            <span class="n">member</span><span class="o">.</span><span class="n">on_not_ack</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PacketCollection.to_bytes"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.to_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes collection contents to bytes&quot;&quot;&quot;</span> 
+        <span class="k">return</span> <span class="n">b</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">])</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PacketCollection.iter_bytes"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.iter_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">iter_bytes</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Iterates over packets within a byte stream</span>
+
+<span class="sd">        :param bytes_string: byte stream</span>
+<span class="sd">        :param callback: callable object to handle created packets&quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">bytes_string</span><span class="p">:</span>
+            <span class="n">packet</span> <span class="o">=</span> <span class="n">Packet</span><span class="p">()</span>
+            <span class="n">bytes_string</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">take_from</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">)</span>
+            <span class="n">callback</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PacketCollection.from_bytes"><a class="viewcode-back" href="../../network.packet.html#network.packet.PacketCollection.from_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">from_bytes</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates PacketCollection instance</span>
+<span class="sd">        Populates with packets in byte stream</span>
+
+<span class="sd">        :param bytes_string: bytes stream</span>
+<span class="sd">        :rtype: :py:class:`network.packet.PacketCollection`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">iter_bytes</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">,</span> <span class="n">collection</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">collection</span>
+</div>
+    <span class="k">def</span> <span class="nf">__bool__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+    <span class="n">__radd__</span> <span class="o">=</span> <span class="n">__add__</span>
+    <span class="n">__bytes_string_</span> <span class="o">=</span> <span class="n">to_bytes</span>
+
+</div>
+<div class="viewcode-block" id="Packet"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet">[docs]</a><span class="k">class</span> <span class="nc">Packet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Interface class for packets sent over the network.</span>
+
+<span class="sd">    Supports protocol and length header</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="s">&quot;protocol&quot;</span><span class="p">,</span> <span class="s">&quot;payload&quot;</span><span class="p">,</span> <span class="s">&quot;reliable&quot;</span><span class="p">,</span> <span class="s">&quot;on_success&quot;</span><span class="p">,</span> <span class="s">&quot;on_failure&quot;</span>
+
+    <span class="n">_protocol_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+    <span class="n">_size_handler</span> <span class="o">=</span> <span class="n">get_handler</span><span class="p">(</span><span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">1000</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">b</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reliable</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">on_success</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">on_failure</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+
+        <span class="c"># Force reliability for callbacks</span>
+        <span class="n">reliable</span> <span class="o">=</span> <span class="n">reliable</span> <span class="ow">or</span> <span class="nb">bool</span><span class="p">(</span><span class="n">on_success</span> <span class="ow">or</span> <span class="n">on_failure</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_success</span> <span class="o">=</span> <span class="n">on_success</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_failure</span> <span class="o">=</span> <span class="n">on_failure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span> <span class="o">=</span> <span class="n">protocol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">payload</span> <span class="o">=</span> <span class="n">payload</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reliable</span> <span class="o">=</span> <span class="n">reliable</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Packet.members"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.members">[docs]</a>    <span class="k">def</span> <span class="nf">members</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns self as a member of a list&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Packet.size"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Length of packet when reduced to bytes&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="Packet.on_ack"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.on_ack">[docs]</a>    <span class="k">def</span> <span class="nf">on_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called when packet is acknowledged.</span>
+
+<span class="sd">        Invokes on_success callback</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_success</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_success</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Packet.on_not_ack"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.on_not_ack">[docs]</a>    <span class="k">def</span> <span class="nf">on_not_ack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called when packet is considered dropped.</span>
+
+<span class="sd">        Invokes on_failure callback if this packet is reliable</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_failure</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</div>
+    <span class="nd">@lru_cache</span><span class="p">()</span>
+<div class="viewcode-block" id="Packet.to_bytes"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.to_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reduces packet into bytes</span>
+
+<span class="sd">        :rtype: bytes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_protocol_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">payload</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size_handler</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span> <span class="o">+</span> <span class="n">data</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Packet.from_bytes"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.from_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">from_bytes</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates packet instance from bytes</span>
+
+<span class="sd">        :param bytes_string: bytes stream</span>
+<span class="sd">        :rtype: :py:class:`network.packet.Packet`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">cls</span><span class="p">()</span>
+        <span class="n">packet</span><span class="o">.</span><span class="n">take_from</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">packet</span>
+</div>
+<div class="viewcode-block" id="Packet.take_from"><a class="viewcode-back" href="../../network.packet.html#network.packet.Packet.take_from">[docs]</a>    <span class="k">def</span> <span class="nf">take_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bytes_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Populates packet instance with data.</span>
+
+<span class="sd">        Offsets returned bytes by length of packet</span>
+
+<span class="sd">        :param bytes_string: bytes stream</span>
+<span class="sd">        :rtype: bytes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">length_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_size_handler</span>
+        <span class="n">protocol_handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_protocol_handler</span>
+
+        <span class="c"># Read packet length (excluding length character size)</span>
+        <span class="n">length</span><span class="p">,</span> <span class="n">length_size</span> <span class="o">=</span> <span class="n">length_handler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">)</span>
+        <span class="n">bytes_string</span> <span class="o">=</span> <span class="n">bytes_string</span><span class="p">[</span><span class="n">length_size</span><span class="p">:]</span>
+
+        <span class="c"># Read packet protocol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">,</span> <span class="n">protocol_size</span> <span class="o">=</span> <span class="n">protocol_handler</span><span class="o">.</span><span class="n">unpack_from</span><span class="p">(</span><span class="n">bytes_string</span><span class="p">)</span>
+        <span class="n">bytes_string</span> <span class="o">=</span> <span class="n">bytes_string</span><span class="p">[</span><span class="n">protocol_size</span><span class="p">:]</span>
+
+        <span class="c"># Determine the slice index of this payload</span>
+        <span class="n">end_index</span> <span class="o">=</span> <span class="n">length</span> <span class="o">-</span> <span class="n">protocol_size</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">payload</span> <span class="o">=</span> <span class="n">bytes_string</span><span class="p">[:</span><span class="n">end_index</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reliable</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">return</span> <span class="n">bytes_string</span><span class="p">[</span><span class="n">end_index</span><span class="p">:]</span>
+</div>
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Concatenates two Packets</span>
+
+<span class="sd">        :param other: Packet instance</span>
+<span class="sd">        :rtype: :py:class:`network.packet.PacketCollection`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">PacketCollection</span><span class="p">(</span><span class="n">members</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">members</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;String representation of Packet&quot;&quot;&quot;</span>
+        <span class="n">to_console</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;[Packet]&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slots__</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">to_console</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{}: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)))</span>
+
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">to_console</span><span class="p">)</span>
+
+    <span class="n">__radd__</span> <span class="o">=</span> <span class="n">__add__</span>
+    <span class="n">__bytes__</span> <span class="o">=</span> <span class="n">to_bytes</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

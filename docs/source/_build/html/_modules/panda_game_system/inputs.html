@@ -1,0 +1,190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>panda_game_system.inputs &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for panda_game_system.inputs</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">game_system.enums</span> <span class="kn">import</span> <span class="n">ButtonState</span><span class="p">,</span> <span class="n">InputButtons</span>
+<span class="kn">from</span> <span class="nn">game_system.coordinates</span> <span class="kn">import</span> <span class="n">Vector</span>
+<span class="kn">from</span> <span class="nn">game_system.inputs</span> <span class="kn">import</span> <span class="n">InputState</span>
+
+<span class="kn">from</span> <span class="nn">direct.showbase</span> <span class="kn">import</span> <span class="n">DirectObject</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;PandaInputManager&#39;</span><span class="p">,</span> <span class="s">&#39;PandaMouseManager&#39;</span><span class="p">]</span>
+
+
+<span class="n">panda_to_input_button_key</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;a&#39;</span><span class="p">:</span> <span class="s">&#39;AKEY&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\\</span><span class="s">&#39;</span><span class="p">:</span> <span class="s">&#39;BACKSLASHKEY&#39;</span><span class="p">,</span> <span class="s">&#39;backspace&#39;</span><span class="p">:</span> <span class="s">&#39;BACKSPACEKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;b&#39;</span><span class="p">:</span> <span class="s">&#39;BKEY&#39;</span><span class="p">,</span> <span class="s">&#39;caps_lock&#39;</span><span class="p">:</span> <span class="s">&#39;CAPSLOCKKEY&#39;</span><span class="p">,</span> <span class="s">&#39;c&#39;</span><span class="p">:</span> <span class="s">&#39;CKEY&#39;</span><span class="p">,</span> <span class="s">&#39;,&#39;</span><span class="p">:</span> <span class="s">&#39;COMMAKEY&#39;</span><span class="p">,</span> <span class="s">&#39;delete&#39;</span><span class="p">:</span> <span class="s">&#39;DELKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;d&#39;</span><span class="p">:</span> <span class="s">&#39;DKEY&#39;</span><span class="p">,</span> <span class="s">&#39;arrow_down&#39;</span><span class="p">:</span> <span class="s">&#39;DOWNARROWKEY&#39;</span><span class="p">,</span> <span class="s">&#39;8&#39;</span><span class="p">:</span> <span class="s">&#39;EIGHTKEY&#39;</span><span class="p">,</span> <span class="s">&#39;e&#39;</span><span class="p">:</span> <span class="s">&#39;EKEY&#39;</span><span class="p">,</span> <span class="s">&#39;end&#39;</span><span class="p">:</span> <span class="s">&#39;ENDKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;enter&#39;</span><span class="p">:</span> <span class="s">&#39;ENTERKEY&#39;</span><span class="p">,</span> <span class="s">&#39;=&#39;</span><span class="p">:</span> <span class="s">&#39;EQUALKEY&#39;</span><span class="p">,</span> <span class="s">&#39;escape&#39;</span><span class="p">:</span> <span class="s">&#39;ESCKEY&#39;</span><span class="p">,</span> <span class="s">&#39;f10&#39;</span><span class="p">:</span> <span class="s">&#39;F10KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f11&#39;</span><span class="p">:</span> <span class="s">&#39;F11KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f12&#39;</span><span class="p">:</span> <span class="s">&#39;F12KEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;f13&#39;</span><span class="p">:</span> <span class="s">&#39;F13KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f14&#39;</span><span class="p">:</span> <span class="s">&#39;F14KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f15&#39;</span><span class="p">:</span> <span class="s">&#39;F15KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f16&#39;</span><span class="p">:</span> <span class="s">&#39;F16KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f17&#39;</span><span class="p">:</span> <span class="s">&#39;F17KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f18&#39;</span><span class="p">:</span> <span class="s">&#39;F18KEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;f19&#39;</span><span class="p">:</span> <span class="s">&#39;F19KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f1&#39;</span><span class="p">:</span> <span class="s">&#39;F1KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f2&#39;</span><span class="p">:</span> <span class="s">&#39;F2KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f3&#39;</span><span class="p">:</span> <span class="s">&#39;F3KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f4&#39;</span><span class="p">:</span> <span class="s">&#39;F4KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f5&#39;</span><span class="p">:</span> <span class="s">&#39;F5KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f6&#39;</span><span class="p">:</span> <span class="s">&#39;F6KEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;f7&#39;</span><span class="p">:</span> <span class="s">&#39;F7KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f8&#39;</span><span class="p">:</span> <span class="s">&#39;F8KEY&#39;</span><span class="p">,</span> <span class="s">&#39;f9&#39;</span><span class="p">:</span> <span class="s">&#39;F9KEY&#39;</span><span class="p">,</span> <span class="s">&#39;5&#39;</span><span class="p">:</span> <span class="s">&#39;FIVEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;f&#39;</span><span class="p">:</span> <span class="s">&#39;FKEY&#39;</span><span class="p">,</span> <span class="s">&#39;4&#39;</span><span class="p">:</span> <span class="s">&#39;FOURKEY&#39;</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">:</span> <span class="s">&#39;GKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;h&#39;</span><span class="p">:</span> <span class="s">&#39;HKEY&#39;</span><span class="p">,</span> <span class="s">&#39;home&#39;</span><span class="p">:</span> <span class="s">&#39;HOMEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;i&#39;</span><span class="p">:</span> <span class="s">&#39;IKEY&#39;</span><span class="p">,</span> <span class="s">&#39;insert&#39;</span><span class="p">:</span> <span class="s">&#39;INSERTKEY&#39;</span><span class="p">,</span> <span class="s">&#39;j&#39;</span><span class="p">:</span> <span class="s">&#39;JKEY&#39;</span><span class="p">,</span> <span class="s">&#39;k&#39;</span><span class="p">:</span> <span class="s">&#39;KKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;lalt&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTALTKEY&#39;</span><span class="p">,</span> <span class="s">&#39;arrow_left&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTARROWKEY&#39;</span><span class="p">,</span> <span class="s">&#39;[&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTBRACKETKEY&#39;</span><span class="p">,</span> <span class="s">&#39;lcontrol&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTCTRLKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;mouse1&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTMOUSE&#39;</span><span class="p">,</span> <span class="s">&#39;lshift&#39;</span><span class="p">:</span> <span class="s">&#39;LEFTSHIFTKEY&#39;</span><span class="p">,</span> <span class="s">&#39;l&#39;</span><span class="p">:</span> <span class="s">&#39;LKEY&#39;</span><span class="p">,</span> <span class="s">&#39;mouse2&#39;</span><span class="p">:</span> <span class="s">&#39;MIDDLEMOUSE&#39;</span><span class="p">,</span> <span class="s">&#39;-&#39;</span><span class="p">:</span> <span class="s">&#39;MINUSKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;m&#39;</span><span class="p">:</span> <span class="s">&#39;MKEY&#39;</span><span class="p">,</span> <span class="s">&#39;9&#39;</span><span class="p">:</span> <span class="s">&#39;NINEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;n&#39;</span><span class="p">:</span> <span class="s">&#39;NKEY&#39;</span><span class="p">,</span> <span class="s">&#39;o&#39;</span><span class="p">:</span> <span class="s">&#39;OKEY&#39;</span><span class="p">,</span> <span class="s">&#39;1&#39;</span><span class="p">:</span> <span class="s">&#39;ONEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;meta&#39;</span><span class="p">:</span> <span class="s">&#39;OSKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;page_down&#39;</span><span class="p">:</span> <span class="s">&#39;PAGEDOWNKEY&#39;</span><span class="p">,</span> <span class="s">&#39;page_up&#39;</span><span class="p">:</span> <span class="s">&#39;PAGEUPKEY&#39;</span><span class="p">,</span> <span class="s">&#39;pause&#39;</span><span class="p">:</span> <span class="s">&#39;PAUSEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;.&#39;</span><span class="p">:</span> <span class="s">&#39;PERIODKEY&#39;</span><span class="p">,</span> <span class="s">&#39;p&#39;</span><span class="p">:</span> <span class="s">&#39;PKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;q&#39;</span><span class="p">:</span> <span class="s">&#39;QKEY&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">&#39;</span><span class="p">:</span> <span class="s">&#39;QUOTEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;ralt&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTALTKEY&#39;</span><span class="p">,</span> <span class="s">&#39;arrow_right&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTARROWKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;]&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTBRACKETKEY&#39;</span><span class="p">,</span> <span class="s">&#39;rcontrol&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTCTRLKEY&#39;</span><span class="p">,</span> <span class="s">&#39;mouse3&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTMOUSE&#39;</span><span class="p">,</span> <span class="s">&#39;rshift&#39;</span><span class="p">:</span> <span class="s">&#39;RIGHTSHIFTKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;r&#39;</span><span class="p">:</span> <span class="s">&#39;RKEY&#39;</span><span class="p">,</span> <span class="s">&#39;;&#39;</span><span class="p">:</span> <span class="s">&#39;SEMICOLONKEY&#39;</span><span class="p">,</span> <span class="s">&#39;7&#39;</span><span class="p">:</span> <span class="s">&#39;SEVENKEY&#39;</span><span class="p">,</span> <span class="s">&#39;6&#39;</span><span class="p">:</span> <span class="s">&#39;SIXKEY&#39;</span><span class="p">,</span> <span class="s">&#39;s&#39;</span><span class="p">:</span> <span class="s">&#39;SKEY&#39;</span><span class="p">,</span> <span class="s">&#39;/&#39;</span><span class="p">:</span> <span class="s">&#39;SLASHKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;space&#39;</span><span class="p">:</span> <span class="s">&#39;SPACEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;tab&#39;</span><span class="p">:</span> <span class="s">&#39;TABKEY&#39;</span><span class="p">,</span> <span class="s">&#39;3&#39;</span><span class="p">:</span> <span class="s">&#39;THREEKEY&#39;</span><span class="p">,</span> <span class="s">&#39;t&#39;</span><span class="p">:</span> <span class="s">&#39;TKEY&#39;</span><span class="p">,</span> <span class="s">&#39;2&#39;</span><span class="p">:</span> <span class="s">&#39;TWOKEY&#39;</span><span class="p">,</span> <span class="s">&#39;u&#39;</span><span class="p">:</span> <span class="s">&#39;UKEY&#39;</span><span class="p">,</span>
+    <span class="s">&#39;arrow_up&#39;</span><span class="p">:</span> <span class="s">&#39;UPARROWKEY&#39;</span><span class="p">,</span> <span class="s">&#39;v&#39;</span><span class="p">:</span> <span class="s">&#39;VKEY&#39;</span><span class="p">,</span> <span class="s">&#39;wheel_down&#39;</span><span class="p">:</span> <span class="s">&#39;WHEELDOWNMOUSE&#39;</span><span class="p">,</span> <span class="s">&#39;wheel_up&#39;</span><span class="p">:</span> <span class="s">&#39;WHEELUPMOUSE&#39;</span><span class="p">,</span>
+    <span class="s">&#39;w&#39;</span><span class="p">:</span> <span class="s">&#39;WKEY&#39;</span><span class="p">,</span> <span class="s">&#39;x&#39;</span><span class="p">:</span> <span class="s">&#39;XKEY&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">:</span> <span class="s">&#39;YKEY&#39;</span><span class="p">,</span> <span class="s">&#39;0&#39;</span><span class="p">:</span> <span class="s">&#39;ZEROKEY&#39;</span><span class="p">,</span> <span class="s">&#39;z&#39;</span><span class="p">:</span> <span class="s">&#39;ZKEY&#39;</span><span class="p">}</span>
+
+
+<span class="n">panda_to_input_button</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">InputButtons</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">panda_to_input_button_key</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="n">input_button_values</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">InputButtons</span><span class="o">.</span><span class="n">values_to_keys</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PandaInputManager"><a class="viewcode-back" href="../../panda_game_system.inputs.html#panda_game_system.inputs.PandaInputManager">[docs]</a><span class="k">class</span> <span class="nc">PandaInputManager</span><span class="p">(</span><span class="n">DirectObject</span><span class="o">.</span><span class="n">DirectObject</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Input manager for Panda3D&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">InputState</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mouse_manager</span> <span class="o">=</span> <span class="n">PandaMouseManager</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_down_events</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PandaInputManager.update"><a class="viewcode-back" href="../../panda_game_system.inputs.html#panda_game_system.inputs.PandaInputManager.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Get Panda state</span>
+        <span class="n">is_down</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">mouseWatcherNode</span><span class="o">.</span><span class="n">is_button_down</span>
+
+        <span class="n">active_events</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">panda_to_input_button</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">is_down</span><span class="p">(</span><span class="n">k</span><span class="p">)}</span>
+        <span class="n">entered_events</span> <span class="o">=</span> <span class="n">active_events</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_down_events</span>
+        <span class="n">released_events</span> <span class="o">=</span> <span class="n">input_button_values</span> <span class="o">-</span> <span class="n">active_events</span>
+
+        <span class="c"># Build converted state</span>
+        <span class="n">PRESSED</span> <span class="o">=</span> <span class="n">ButtonState</span><span class="o">.</span><span class="n">pressed</span>
+        <span class="n">HELD</span> <span class="o">=</span> <span class="n">ButtonState</span><span class="o">.</span><span class="n">held</span>
+        <span class="n">RELEASED</span> <span class="o">=</span> <span class="n">ButtonState</span><span class="o">.</span><span class="n">released</span>
+
+        <span class="n">converted_events</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="p">:</span> <span class="n">HELD</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">active_events</span><span class="p">}</span>
+        <span class="n">converted_events</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">e</span><span class="p">:</span> <span class="n">PRESSED</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entered_events</span><span class="p">})</span>
+        <span class="n">converted_events</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">e</span><span class="p">:</span> <span class="n">RELEASED</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">released_events</span><span class="p">})</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">buttons</span> <span class="o">=</span> <span class="n">converted_events</span>
+
+        <span class="c"># Update ranges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mouse_manager</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="n">delta_x</span><span class="p">,</span> <span class="n">delta_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mouse_manager</span><span class="o">.</span><span class="n">delta_position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ranges</span><span class="p">[</span><span class="s">&#39;mouse_delta_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ranges</span><span class="p">[</span><span class="s">&#39;mouse_delta_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_y</span>
+
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mouse_manager</span><span class="o">.</span><span class="n">position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ranges</span><span class="p">[</span><span class="s">&#39;mouse_x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ranges</span><span class="p">[</span><span class="s">&#39;mouse_y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span>
+
+        <span class="c"># Clear event sets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_down_events</span> <span class="o">=</span> <span class="n">active_events</span>
+
+</div></div>
+<div class="viewcode-block" id="PandaMouseManager"><a class="viewcode-back" href="../../panda_game_system.inputs.html#panda_game_system.inputs.PandaMouseManager">[docs]</a><span class="k">class</span> <span class="nc">PandaMouseManager</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_position</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PandaMouseManager.delta_position"><a class="viewcode-back" href="../../panda_game_system.inputs.html#panda_game_system.inputs.PandaMouseManager.delta_position">[docs]</a>    <span class="k">def</span> <span class="nf">delta_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_position</span>
+</div>
+<div class="viewcode-block" id="PandaMouseManager.update"><a class="viewcode-back" href="../../panda_game_system.inputs.html#panda_game_system.inputs.PandaMouseManager.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Process new mouse state&quot;&quot;&quot;</span>
+        <span class="n">mouse_node</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">mouseWatcherNode</span>
+
+        <span class="k">if</span> <span class="n">mouse_node</span><span class="o">.</span><span class="n">hasMouse</span><span class="p">():</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">mouse_node</span><span class="o">.</span><span class="n">getMouseX</span><span class="p">()</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">mouse_node</span><span class="o">.</span><span class="n">getMouseY</span><span class="p">()</span>
+
+            <span class="n">position</span> <span class="o">=</span> <span class="n">Vector</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">position</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

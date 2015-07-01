@@ -1,0 +1,373 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.signals module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system package" href="game_system.html" />
+    <link rel="next" title="game_system.six module" href="game_system.six.html" />
+    <link rel="prev" title="game_system.resources module" href="game_system.resources.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.six.html" title="game_system.six module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.resources.html" title="game_system.resources module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" accesskey="U">game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.signals">
+<span id="game-system-signals-module"></span><h1>game_system.signals module<a class="headerlink" href="#module-game_system.signals" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.signals.CollisionSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">CollisionSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#CollisionSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.CollisionSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.CollisionSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.CollisionSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.UpdateCollidersSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">UpdateCollidersSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#UpdateCollidersSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.UpdateCollidersSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.UpdateCollidersSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.UpdateCollidersSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.SetMoveTarget">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">SetMoveTarget</tt><a class="reference internal" href="_modules/game_system/signals.html#SetMoveTarget"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.SetMoveTarget" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.SetMoveTarget.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.SetMoveTarget.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PhysicsReplicatedSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PhysicsReplicatedSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PhysicsReplicatedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PhysicsReplicatedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PhysicsReplicatedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PhysicsReplicatedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PhysicsSingleUpdateSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PhysicsSingleUpdateSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PhysicsSingleUpdateSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PhysicsSingleUpdateSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PhysicsSingleUpdateSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PhysicsSingleUpdateSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PhysicsRoleChangedSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PhysicsRoleChangedSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PhysicsRoleChangedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PhysicsRoleChangedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PhysicsRoleChangedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PhysicsRoleChangedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PhysicsRewindSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PhysicsRewindSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PhysicsRewindSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PhysicsRewindSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PhysicsRewindSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PhysicsRewindSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.ConnectToSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">ConnectToSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#ConnectToSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.ConnectToSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.ConnectToSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.ConnectToSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.CopyStateToActor">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">CopyStateToActor</tt><a class="reference internal" href="_modules/game_system/signals.html#CopyStateToActor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.CopyStateToActor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.CopyStateToActor.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.CopyStateToActor.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.CopyActorToState">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">CopyActorToState</tt><a class="reference internal" href="_modules/game_system/signals.html#CopyActorToState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.CopyActorToState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.CopyActorToState.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.CopyActorToState.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.ActorDamagedSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">ActorDamagedSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#ActorDamagedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.ActorDamagedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.ActorDamagedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.ActorDamagedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PawnKilledSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PawnKilledSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PawnKilledSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PawnKilledSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PawnKilledSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PawnKilledSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PlayerInputSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PlayerInputSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PlayerInputSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PlayerInputSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PlayerInputSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PlayerInputSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PhysicsTickSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PhysicsTickSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PhysicsTickSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PhysicsTickSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PhysicsTickSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PhysicsTickSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.MapLoadedSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">MapLoadedSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#MapLoadedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.MapLoadedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.MapLoadedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.MapLoadedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.GameExitSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">GameExitSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#GameExitSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.GameExitSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.GameExitSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.GameExitSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.MessageReceivedSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">MessageReceivedSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#MessageReceivedSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.MessageReceivedSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.MessageReceivedSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.MessageReceivedSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.PostPhysicsSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">PostPhysicsSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#PostPhysicsSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.PostPhysicsSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.PostPhysicsSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.PostPhysicsSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.LogicUpdateSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">LogicUpdateSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#LogicUpdateSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.LogicUpdateSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.LogicUpdateSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.LogicUpdateSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.TimerUpdateSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">TimerUpdateSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#TimerUpdateSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.TimerUpdateSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.TimerUpdateSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.TimerUpdateSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.UIUpdateSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">UIUpdateSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#UIUpdateSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.UIUpdateSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.UIUpdateSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.UIUpdateSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.UIRenderSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">UIRenderSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#UIRenderSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.UIRenderSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.UIRenderSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.UIRenderSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.signals.HearSoundSignal">
+<em class="property">class </em><tt class="descclassname">game_system.signals.</tt><tt class="descname">HearSoundSignal</tt><a class="reference internal" href="_modules/game_system/signals.html#HearSoundSignal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.signals.HearSoundSignal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.signals.signals.html#network.signals.signals.Signal" title="network.signals.signals.Signal"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.signals.Signal</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.signals.HearSoundSignal.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {}</em><a class="headerlink" href="#game_system.signals.HearSoundSignal.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.resources.html"
+                        title="previous chapter">game_system.resources module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.six.html"
+                        title="next chapter">game_system.six module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.signals.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.six.html" title="game_system.six module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.resources.html" title="game_system.resources module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

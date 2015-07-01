@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.utilities module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.utilities">
+<span id="network-utilities-module"></span><h1>network.utilities module</h1>
+<dl class="function">
+<dt id="network.utilities.clamp">
+<tt class="descclassname">network.utilities.</tt><tt class="descname">clamp</tt><big>(</big><em>low</em>, <em>high</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/network/utilities.html#clamp"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Constrain value within limits</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>low</strong> &#8211; lower bound</li>
+<li><strong>high</strong> &#8211; upper bound</li>
+<li><strong>value</strong> &#8211; unconstrained value</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">constrained value</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.utilities.lerp">
+<tt class="descclassname">network.utilities.</tt><tt class="descname">lerp</tt><big>(</big><em>a</em>, <em>b</em>, <em>factor</em><big>)</big><a class="reference internal" href="_modules/network/utilities.html#lerp"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Linear interpolation between two numbers</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>a</strong> &#8211; first term</li>
+<li><strong>b</strong> &#8211; second term</li>
+<li><strong>factor</strong> &#8211; interpolation factor</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">interpolated value</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.utilities.mean">
+<tt class="descclassname">network.utilities.</tt><tt class="descname">mean</tt><big>(</big><em>iterable</em><big>)</big><a class="reference internal" href="_modules/network/utilities.html#mean"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Finds the mean of an iterable object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>iterable</strong> &#8211; iterable object</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">mean of all terms</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.utilities.median">
+<tt class="descclassname">network.utilities.</tt><tt class="descname">median</tt><big>(</big><em>iterable</em><big>)</big><a class="reference internal" href="_modules/network/utilities.html#median"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Finds the median of an iterable object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>iterable</strong> &#8211; iterable object</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">median of all terms</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.ai.behaviour.behaviour module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system.ai.behaviour package" href="game_system.ai.behaviour.html" />
+    <link rel="next" title="game_system.ai.behaviour.nodes module" href="game_system.ai.behaviour.nodes.html" />
+    <link rel="prev" title="game_system.ai.behaviour package" href="game_system.ai.behaviour.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.ai.behaviour.nodes.html" title="game_system.ai.behaviour.nodes module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.ai.behaviour.html" title="game_system.ai.behaviour package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.ai.html" >game_system.ai package</a> &raquo;</li>
+          <li><a href="game_system.ai.behaviour.html" accesskey="U">game_system.ai.behaviour package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.ai.behaviour.behaviour">
+<span id="game-system-ai-behaviour-behaviour-module"></span><h1>game_system.ai.behaviour.behaviour module<a class="headerlink" href="#module-game_system.ai.behaviour.behaviour" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.Node">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">Node</tt><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Base class for Behaviour tree nodes</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.Node.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#Node.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.Node.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate the node state</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.Node.on_enter">
+<tt class="descname">on_enter</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#Node.on_enter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.Node.on_enter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.Node.on_exit">
+<tt class="descname">on_exit</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#Node.on_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.Node.on_exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.CompositeNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">CompositeNode</tt><big>(</big><em>*children</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#CompositeNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.CompositeNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.Node" title="game_system.ai.behaviour.behaviour.Node"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.Node</span></tt></a></p>
+<p>Base class for Behaviour tree nodes with children</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.CompositeNode.reset">
+<tt class="descname">reset</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#CompositeNode.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.CompositeNode.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset this node&#8217;s (and its children&#8217;s) state to ready</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.DecoratorNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">DecoratorNode</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#DecoratorNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.DecoratorNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.CompositeNode" title="game_system.ai.behaviour.behaviour.CompositeNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.CompositeNode</span></tt></a></p>
+<p>Decorates a single child Behaviour tree node</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.DecoratorNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#DecoratorNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.DecoratorNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.SequenceNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">SequenceNode</tt><big>(</big><em>*children</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SequenceNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SequenceNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.CompositeNode" title="game_system.ai.behaviour.behaviour.CompositeNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.CompositeNode</span></tt></a></p>
+<p>Evaluates children in sequential order.</p>
+<p>If child fails to succeed, evaluation is considered a failure, otherwise a success</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SequenceNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SequenceNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SequenceNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates the node&#8217;s (and its children&#8217;s) state.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">the state of the first node to return a non-success state</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.SelectorNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">SelectorNode</tt><big>(</big><em>*children</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SelectorNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SelectorNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.CompositeNode" title="game_system.ai.behaviour.behaviour.CompositeNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.CompositeNode</span></tt></a></p>
+<p>Evaluates children in sequential order.</p>
+<p>If any child succeeds, evaluation is considered a success, else a failure.</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SelectorNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SelectorNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SelectorNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates the node&#8217;s (and its children&#8217;s) state.</p>
+<p>Returns success if any node succeeds, else failure.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.SucceederNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">SucceederNode</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SucceederNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SucceederNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.DecoratorNode" title="game_system.ai.behaviour.behaviour.DecoratorNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.DecoratorNode</span></tt></a></p>
+<p>Evaluates child node and returns a success</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SucceederNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SucceederNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SucceederNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.RepeaterNodeBase">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">RepeaterNodeBase</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeaterNodeBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeaterNodeBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.DecoratorNode" title="game_system.ai.behaviour.behaviour.DecoratorNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.DecoratorNode</span></tt></a></p>
+<p>Base class for repeating decorator nodes</p>
+<p>Repeatedly evaluates child node according to implementation.</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.RepeaterNodeBase.iterations">
+<tt class="descname">iterations</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeaterNodeBase.iterations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeaterNodeBase.iterations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.RepeaterNodeBase.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeaterNodeBase.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeaterNodeBase.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.RepeatUntilFailNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">RepeatUntilFailNode</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeatUntilFailNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeatUntilFailNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.RepeaterNodeBase" title="game_system.ai.behaviour.behaviour.RepeaterNodeBase"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.RepeaterNodeBase</span></tt></a></p>
+<p>Repeats evaluation of decorated node until failure.</p>
+<p>Returns success state on completion.</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.RepeatUntilFailNode.iterations">
+<tt class="descname">iterations</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeatUntilFailNode.iterations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeatUntilFailNode.iterations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.RepeatForNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">RepeatForNode</tt><big>(</big><em>count</em>, <em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeatForNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeatForNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.RepeaterNodeBase" title="game_system.ai.behaviour.behaviour.RepeaterNodeBase"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.RepeaterNodeBase</span></tt></a></p>
+<p>Repeats evaluation of decorated node for N iterations</p>
+<p>Returns state of child on completion.</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.RepeatForNode.iterations">
+<tt class="descname">iterations</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RepeatForNode.iterations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RepeatForNode.iterations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.RandomiserNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">RandomiserNode</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RandomiserNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RandomiserNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.DecoratorNode" title="game_system.ai.behaviour.behaviour.DecoratorNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.DecoratorNode</span></tt></a></p>
+<p>Decorates CompositeNode instance</p>
+<p>Shuffles node&#8217;s children before evaluation, returns state of node.</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.RandomiserNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#RandomiserNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.RandomiserNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.InverterNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">InverterNode</tt><big>(</big><em>child</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#InverterNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.InverterNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.DecoratorNode" title="game_system.ai.behaviour.behaviour.DecoratorNode"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.DecoratorNode</span></tt></a></p>
+<p>Inverts the state of evaluated node.</p>
+<p>Does not invert running (as it has no counterpart).</p>
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.InverterNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#InverterNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.InverterNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.ai.behaviour.behaviour.SignalListenerNode">
+<em class="property">class </em><tt class="descclassname">game_system.ai.behaviour.behaviour.</tt><tt class="descname">SignalListenerNode</tt><big>(</big><em>signal_cls</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SignalListenerNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SignalListenerNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.ai.behaviour.behaviour.Node" title="game_system.ai.behaviour.behaviour.Node"><tt class="xref py py-class docutils literal"><span class="pre">game_system.ai.behaviour.behaviour.Node</span></tt></a>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a></p>
+<p>Returns success state if appropriate signal is received.</p>
+<dl class="attribute">
+<dt id="game_system.ai.behaviour.behaviour.SignalListenerNode.parent_identifier">
+<tt class="descname">parent_identifier</tt><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SignalListenerNode.parent_identifier"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SignalListenerNode.parent_identifier" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SignalListenerNode.change_signal_handler">
+<tt class="descname">change_signal_handler</tt><big>(</big><em>old_id</em>, <em>id_</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SignalListenerNode.change_signal_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SignalListenerNode.change_signal_handler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change parent dispatcher for signaller</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>old_id</strong> &#8211; previous parent identifier</li>
+<li><strong>id</strong> &#8211; new parent identifier</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SignalListenerNode.evaluate">
+<tt class="descname">evaluate</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SignalListenerNode.evaluate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SignalListenerNode.evaluate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.ai.behaviour.behaviour.SignalListenerNode.on_exit">
+<tt class="descname">on_exit</tt><big>(</big><em>blackboard</em><big>)</big><a class="reference internal" href="_modules/game_system/ai/behaviour/behaviour.html#SignalListenerNode.on_exit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.ai.behaviour.behaviour.SignalListenerNode.on_exit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.ai.behaviour.html"
+                        title="previous chapter">game_system.ai.behaviour package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.ai.behaviour.nodes.html"
+                        title="next chapter">game_system.ai.behaviour.nodes module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.ai.behaviour.behaviour.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.ai.behaviour.nodes.html" title="game_system.ai.behaviour.nodes module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.ai.behaviour.html" title="game_system.ai.behaviour package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.ai.html" >game_system.ai package</a> &raquo;</li>
+          <li><a href="game_system.ai.behaviour.html" >game_system.ai.behaviour package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

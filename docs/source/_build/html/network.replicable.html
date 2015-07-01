@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.replicable module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.rpc module" href="network.rpc.html" />
+    <link rel="prev" title="network.profiler module" href="network.profiler.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.rpc.html" title="network.rpc module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.profiler.html" title="network.profiler module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.replicable">
+<span id="network-replicable-module"></span><h1>network.replicable module<a class="headerlink" href="#module-network.replicable" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.replicable.Replicable">
+<em class="property">class </em><tt class="descclassname">network.replicable.</tt><tt class="descname">Replicable</tt><big>(</big><em>instance_id=None</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.instance_register._ManagedInstanceBase</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Base class for all network involved objects
+Supports Replicated Function calls, Attribute replication
+and Signal subscription</p>
+<dl class="attribute">
+<dt id="network.replicable.Replicable.MAXIMUM_REPLICABLES">
+<tt class="descname">MAXIMUM_REPLICABLES</tt><em class="property"> = 255</em><a class="headerlink" href="#network.replicable.Replicable.MAXIMUM_REPLICABLES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.roles">
+<tt class="descname">roles</tt><a class="headerlink" href="#network.replicable.Replicable.roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.torn_off">
+<tt class="descname">torn_off</tt><a class="headerlink" href="#network.replicable.Replicable.torn_off" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'ProjectileWeapon': &lt;class 'game_system.weapons.ProjectileWeapon'&gt;, 'TraceWeapon': &lt;class 'game_system.weapons.TraceWeapon'&gt;, '_WorldInfo': &lt;class 'network.world_info._WorldInfo'&gt;, 'Pawn': &lt;class 'game_system.entities.Pawn'&gt;, 'RemoteTerminal': &lt;class 'demos.example_utilities.remote_debugging.replicables.RemoteTerminal'&gt;, 'Navmesh': &lt;class 'game_system.entities.Navmesh'&gt;, 'Projectile': &lt;class 'game_system.entities.Projectile'&gt;, 'ReplicationInfo': &lt;class 'game_system.replication_info.ReplicationInfo'&gt;, 'TestActor': &lt;class 'demos.test_blender.actors.TestActor'&gt;, 'Clock': &lt;class 'game_system.clock.Clock'&gt;, 'TestPandaPlayerController': &lt;class 'demos.test_blender.controllers.TestPandaPlayerController'&gt;, 'ReplicableComponentEntity': &lt;class 'game_system.entities.ReplicableComponentEntity'&gt;, 'PlayerReplicationInfo': &lt;class 'game_system.replication_info.PlayerReplicationInfo'&gt;, 'AIReplicationInfo': &lt;class 'game_system.replication_info.AIReplicationInfo'&gt;, 'Weapon': &lt;class 'game_system.weapons.Weapon'&gt;, 'Camera': &lt;class 'game_system.entities.Camera'&gt;, 'WeaponAttachment': &lt;class 'game_system.entities.WeaponAttachment'&gt;, 'PlayerPawnController': &lt;class 'game_system.controllers.PlayerPawnController'&gt;, 'Actor': &lt;class 'game_system.entities.Actor'&gt;, 'PawnController': &lt;class 'game_system.controllers.PawnController'&gt;, 'AIPawnController': &lt;class 'game_system.controllers.AIPawnController'&gt;}</em><a class="headerlink" href="#network.replicable.Replicable.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.owner">
+<tt class="descname">owner</tt><a class="headerlink" href="#network.replicable.Replicable.owner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.is_static">
+<tt class="descname">is_static</tt><a class="reference internal" href="_modules/network/replicable.html#Replicable.is_static"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.is_static" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.uppermost">
+<tt class="descname">uppermost</tt><a class="reference internal" href="_modules/network/replicable.html#Replicable.uppermost"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.uppermost" title="Permalink to this definition">¶</a></dt>
+<dd><p>Walks the successive owner of each Replicable to find highest parent</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">uppermost parent</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#network.replicable.Replicable" title="network.replicable.Replicable"><tt class="xref py py-class docutils literal"><span class="pre">network.replicable.Replicable</span></tt></a> or <tt class="xref py py-class docutils literal"><span class="pre">None</span></tt></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.replicable.Replicable.create_or_return">
+<em class="property">classmethod </em><tt class="descname">create_or_return</tt><big>(</big><em>instance_id</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.create_or_return"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.create_or_return" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a replicable if it is not already registered.</p>
+<p>Called by the replication system to establish
+<a class="reference internal" href="#network.replicable.Replicable" title="network.replicable.Replicable"><tt class="xref py py-class docutils literal"><span class="pre">network.replicable.Replicable</span></tt></a> references.</p>
+<p>If the instance_id is registered, take precedence over non-static
+instances.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="network.replicable.Replicable.get_id_iterable">
+<em class="property">classmethod </em><tt class="descname">get_id_iterable</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.get_id_iterable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.get_id_iterable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create iterator up to maximum replicable count</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">range up to maximum ID</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">iterable</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.register">
+<tt class="descname">register</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.register"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.register" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.resolve_id_conflict">
+<tt class="descname">resolve_id_conflict</tt><big>(</big><em>instance_id</em>, <em>conflicting_instance</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.resolve_id_conflict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.resolve_id_conflict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.possessed_by">
+<tt class="descname">possessed_by</tt><big>(</big><em>other</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.possessed_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.possessed_by" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called on possession by other replicable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>other</strong> &#8211; other replicable (owner)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.unpossessed">
+<tt class="descname">unpossessed</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.unpossessed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.unpossessed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called on unpossession by replicable.</p>
+<p>May be due to death of replicable</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.on_registered">
+<tt class="descname">on_registered</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.on_registered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.on_registered" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called on registered of replicable.</p>
+<p>Registers instance to type list</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.on_deregistered">
+<tt class="descname">on_deregistered</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.on_deregistered"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.on_deregistered" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called on unregistered of replicable.</p>
+<p>Removes instance from type list</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.on_notify">
+<tt class="descname">on_notify</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.on_notify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.on_notify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called on notifier attribute change</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> &#8211; name of attribute that has changed</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="network.replicable.Replicable.conditions">
+<tt class="descname">conditions</tt><big>(</big><em>is_owner</em>, <em>is_complaint</em>, <em>is_initial</em><big>)</big><a class="reference internal" href="_modules/network/replicable.html#Replicable.conditions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.replicable.Replicable.conditions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Condition generator that determines replicated attributes.</p>
+<p>Attributes yielded are still subject to conditions before sending</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>is_owner</strong> &#8211; if the current <a class="reference internal" href="network.channel.html#network.channel.Channel" title="network.channel.Channel"><tt class="xref py py-class docutils literal"><span class="pre">network.channel.Channel</span></tt></a>        is the owner</li>
+<li><strong>is_complaint</strong> &#8211; if any complaining variables have been changed</li>
+<li><strong>is_initial</strong> &#8211; if this is the first replication for this target</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="network.replicable.Replicable.context_member_data">
+<tt class="descname">context_member_data</tt><em class="property"> = {&lt;network.descriptors.ContextMember object at 0x0000000005D3DC88&gt;: {255: (Replicable _WorldInfo: id=255)}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D4A8&gt;: {&lt;class 'network.metaclasses.register.instance_register._ManagedInstanceBase'&gt;: {(Replicable _WorldInfo: id=255)}, &lt;class 'network.world_info._WorldInfo'&gt;: {(Replicable _WorldInfo: id=255)}, &lt;class 'object'&gt;: {(Replicable _WorldInfo: id=255)}, &lt;class 'network.replicable.Replicable'&gt;: {(Replicable _WorldInfo: id=255)}, &lt;class 'network.signals.listener.SignalListener'&gt;: {(Replicable _WorldInfo: id=255)}, &lt;class 'network.metaclasses.register.type_register._TypeRegisterBase'&gt;: {(Replicable _WorldInfo: id=255)}}, &lt;network.descriptors.ContextMember object at 0x0000000005D4D470&gt;: {&lt;class 'network.world_info._WorldInfo'&gt;: {(Replicable _WorldInfo: id=255)}}}</em><a class="headerlink" href="#network.replicable.Replicable.context_member_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.profiler.html"
+                        title="previous chapter">network.profiler module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.rpc.html"
+                        title="next chapter">network.rpc module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.replicable.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.rpc.html" title="network.rpc module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.profiler.html" title="network.profiler module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

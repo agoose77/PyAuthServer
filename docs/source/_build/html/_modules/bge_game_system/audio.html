@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bge_game_system.audio &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for bge_game_system.audio</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">network.decorators</span> <span class="kn">import</span> <span class="n">with_tag</span>
+
+<span class="kn">from</span> <span class="nn">game_system.audio</span> <span class="kn">import</span> <span class="n">AudioManager</span>
+
+<span class="kn">from</span> <span class="nn">aud</span> <span class="kn">import</span> <span class="n">device</span><span class="p">,</span> <span class="n">Factory</span>
+
+<span class="n">_all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;AUDAudioManager&quot;</span><span class="p">,</span> <span class="s">&quot;AUDSoundHandle&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="AUDSoundHandle"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDSoundHandle">[docs]</a><span class="k">class</span> <span class="nc">AUDSoundHandle</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handle</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span> <span class="o">=</span> <span class="n">handle</span>
+
+<div class="viewcode-block" id="AUDSoundHandle.stop"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDSoundHandle.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AUDSoundHandle.pause"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDSoundHandle.pause">[docs]</a>    <span class="k">def</span> <span class="nf">pause</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="o">.</span><span class="n">pause</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AUDSoundHandle.resume"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDSoundHandle.resume">[docs]</a>    <span class="k">def</span> <span class="nf">resume</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="o">.</span><span class="n">resume</span><span class="p">()</span>
+
+</div></div>
+<span class="nd">@with_tag</span><span class="p">(</span><span class="s">&quot;BGE&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="AUDAudioManager"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager">[docs]</a><span class="k">class</span> <span class="nc">AUDAudioManager</span><span class="p">(</span><span class="n">AudioManager</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device</span> <span class="o">=</span> <span class="n">device</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">listener_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_location</span>
+
+    <span class="nd">@listener_location.setter</span>
+<div class="viewcode-block" id="AUDAudioManager.listener_location"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager.listener_location">[docs]</a>    <span class="k">def</span> <span class="nf">listener_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_location</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">listener_orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_orientation</span>
+
+    <span class="nd">@listener_orientation.setter</span>
+<div class="viewcode-block" id="AUDAudioManager.listener_orientation"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager.listener_orientation">[docs]</a>    <span class="k">def</span> <span class="nf">listener_orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_orientation</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">listener_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_velocity</span>
+
+    <span class="nd">@listener_velocity.setter</span>
+<div class="viewcode-block" id="AUDAudioManager.listener_velocity"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager.listener_velocity">[docs]</a>    <span class="k">def</span> <span class="nf">listener_velocity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">listener_velocity</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">distance_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">distance_model</span>
+
+    <span class="nd">@distance_model.setter</span>
+<div class="viewcode-block" id="AUDAudioManager.distance_model"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager.distance_model">[docs]</a>    <span class="k">def</span> <span class="nf">distance_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">distance_model</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="AUDAudioManager.play_sound"><a class="viewcode-back" href="../../bge_game_system.audio.html#bge_game_system.audio.AUDAudioManager.play_sound">[docs]</a>    <span class="k">def</span> <span class="nf">play_sound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sound_path</span><span class="p">):</span>
+        <span class="n">factory</span> <span class="o">=</span> <span class="n">Factory</span><span class="p">(</span><span class="n">sound_path</span><span class="p">)</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_device</span><span class="o">.</span><span class="n">play</span><span class="p">(</span><span class="n">factory</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">AUDSoundHandle</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

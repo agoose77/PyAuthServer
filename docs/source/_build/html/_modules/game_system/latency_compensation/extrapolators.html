@@ -1,0 +1,229 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.latency_compensation.extrapolators &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for game_system.latency_compensation.extrapolators</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
+
+<span class="kn">from</span> <span class="nn">..coordinates</span> <span class="kn">import</span> <span class="n">Vector</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="s">&#39;EPICExtrapolator&#39;</span><span class="p">,</span> <span class="s">&#39;PhysicsExtrapolator&#39;</span>
+
+
+<div class="viewcode-block" id="EPICExtrapolator"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator">[docs]</a><span class="k">class</span> <span class="nc">EPICExtrapolator</span><span class="p">:</span>
+    <span class="n">minimum_dt</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">variable_cls</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_derivative</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+
+<div class="viewcode-block" id="EPICExtrapolator.add_sample"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator.add_sample">[docs]</a>    <span class="k">def</span> <span class="nf">add_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="n">new_derivative</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add new sample to the extrapolator</span>
+
+<span class="sd">        :param timestamp: timestamp of new sample</span>
+<span class="sd">        :param current_time: timestamp sample was received</span>
+<span class="sd">        :param current_value: position at current time</span>
+<span class="sd">        :param new_value: position of new sample</span>
+<span class="sd">        :param new_derivative: velocity of new sample</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">new_derivative</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">new_derivative</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">determine_derivative</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">new_value</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">timestamp</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">new_value</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+        <span class="n">new_derivative</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">new_derivative</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_estimates</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_value</span> <span class="o">=</span> <span class="n">new_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span> <span class="o">=</span> <span class="n">timestamp</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_at</span><span class="p">(</span><span class="n">current_time</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span> <span class="o">=</span> <span class="n">current_time</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span>
+
+        <span class="n">delta_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">-</span> <span class="n">timestamp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_value</span> <span class="o">=</span> <span class="n">new_value</span> <span class="o">+</span> <span class="n">new_derivative</span> <span class="o">*</span> <span class="n">delta_time</span>
+
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">minimum_dt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_snap_derivative</span> <span class="o">=</span> <span class="n">new_derivative</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">inv_delta_time</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_snap_derivative</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_target_value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_value</span><span class="p">)</span> <span class="o">*</span> <span class="n">inv_delta_time</span>
+</div>
+<div class="viewcode-block" id="EPICExtrapolator.determine_derivative"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator.determine_derivative">[docs]</a>    <span class="k">def</span> <span class="nf">determine_derivative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine velocity required to move to a given position with respect to the delta time</span>
+
+<span class="sd">        :param timestamp: timestamp of new position</span>
+<span class="sd">        :param value: target position</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">minimum_dt</span><span class="p">:</span>
+            <span class="n">inv_delta_time</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span><span class="p">)</span>
+            <span class="n">derivative</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_value</span><span class="p">)</span> <span class="o">*</span> <span class="n">inv_delta_time</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">derivative</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">derivative</span>
+</div>
+<div class="viewcode-block" id="EPICExtrapolator.sample_at"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator.sample_at">[docs]</a>    <span class="k">def</span> <span class="nf">sample_at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sample the extrapolator for timestamp</span>
+
+<span class="sd">        :param request_time: timestamp of sample</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_timestamp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span>
+
+        <span class="n">valid</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">request_time</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span><span class="p">:</span>
+            <span class="n">request_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">request_time</span> <span class="o">&gt;</span> <span class="n">max_timestamp</span><span class="p">:</span>
+            <span class="n">request_time</span> <span class="o">=</span> <span class="n">max_timestamp</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="n">derivative</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_derivative</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_value</span> <span class="o">+</span> <span class="n">derivative</span> <span class="o">*</span> <span class="p">(</span><span class="n">request_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid</span><span class="p">:</span>
+            <span class="n">derivative</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_cls</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">value</span><span class="p">,</span> <span class="n">derivative</span>
+</div>
+<div class="viewcode-block" id="EPICExtrapolator.reset"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">derivative</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ignore previous samples and base extrapolator upon new data</span>
+
+<span class="sd">        :param timestamp: timestamp of base sample</span>
+<span class="sd">        :param current_time: current timestamp</span>
+<span class="sd">        :param value: position of base sample</span>
+<span class="sd">        :param derivative: velocity of base sample</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">current_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">current_time</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span> <span class="o">=</span> <span class="n">timestamp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_timestamp</span> <span class="o">=</span> <span class="n">current_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">-</span> <span class="n">timestamp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_timestamp</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snap_derivative</span> <span class="o">=</span> <span class="n">derivative</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target_value</span> <span class="o">=</span> <span class="n">value</span> <span class="o">+</span> <span class="n">derivative</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span>
+</div>
+<div class="viewcode-block" id="EPICExtrapolator.update_estimates"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.EPICExtrapolator.update_estimates">[docs]</a>    <span class="k">def</span> <span class="nf">update_estimates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update extrapolator estimate of the update time</span>
+
+<span class="sd">        :param timestamp: timestamp of new sample</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">update_time</span> <span class="o">=</span> <span class="n">timestamp</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_timestamp</span>
+        <span class="k">if</span> <span class="n">update_time</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">+</span> <span class="n">update_time</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="mi">8</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">update_time</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="PhysicsExtrapolator"><a class="viewcode-back" href="../../../game_system.latency_compensation.extrapolators.html#game_system.latency_compensation.extrapolators.PhysicsExtrapolator">[docs]</a><span class="k">class</span> <span class="nc">PhysicsExtrapolator</span><span class="p">(</span><span class="n">EPICExtrapolator</span><span class="p">):</span>
+    <span class="n">variable_cls</span> <span class="o">=</span> <span class="n">Vector</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

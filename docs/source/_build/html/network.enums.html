@@ -1,0 +1,377 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.enums module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="network package" href="network.html" />
+    <link rel="next" title="network.errors module" href="network.errors.html" />
+    <link rel="prev" title="network.encoding module" href="network.encoding.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.errors.html" title="network.errors module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network.encoding.html" title="network.encoding module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" accesskey="U">network package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.enums">
+<span id="network-enums-module"></span><h1>network.enums module<a class="headerlink" href="#module-network.enums" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="network.enums.Enumeration">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">Enumeration</tt><a class="reference internal" href="_modules/network/enums.html#Enumeration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.Enumeration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="network.enums.ConnectionState">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">ConnectionState</tt><a class="reference internal" href="_modules/network/enums.html#ConnectionState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.ConnectionState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.enums.Enumeration" title="network.enums.Enumeration"><tt class="xref py py-class docutils literal"><span class="pre">network.enums.Enumeration</span></tt></a></p>
+<p>Status of connection to peer</p>
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.values">
+<tt class="descname">values</tt><em class="property"> = ('failed', 'timeout', 'disconnected', 'pending', 'handshake', 'connected')</em><a class="headerlink" href="#network.enums.ConnectionState.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.connected">
+<tt class="descname">connected</tt><em class="property"> = 5</em><a class="headerlink" href="#network.enums.ConnectionState.connected" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.disconnected">
+<tt class="descname">disconnected</tt><em class="property"> = 2</em><a class="headerlink" href="#network.enums.ConnectionState.disconnected" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.failed">
+<tt class="descname">failed</tt><em class="property"> = 0</em><a class="headerlink" href="#network.enums.ConnectionState.failed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.handshake">
+<tt class="descname">handshake</tt><em class="property"> = 4</em><a class="headerlink" href="#network.enums.ConnectionState.handshake" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.keys_to_values">
+<tt class="descname">keys_to_values</tt><em class="property"> = {'pending': 3, 'handshake': 4, 'connected': 5, 'disconnected': 2, 'timeout': 1, 'failed': 0}</em><a class="headerlink" href="#network.enums.ConnectionState.keys_to_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.pending">
+<tt class="descname">pending</tt><em class="property"> = 3</em><a class="headerlink" href="#network.enums.ConnectionState.pending" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.timeout">
+<tt class="descname">timeout</tt><em class="property"> = 1</em><a class="headerlink" href="#network.enums.ConnectionState.timeout" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionState.values_to_keys">
+<tt class="descname">values_to_keys</tt><em class="property"> = {0: 'failed', 1: 'timeout', 2: 'disconnected', 3: 'pending', 4: 'handshake', 5: 'connected'}</em><a class="headerlink" href="#network.enums.ConnectionState.values_to_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.enums.Netmodes">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">Netmodes</tt><a class="reference internal" href="_modules/network/enums.html#Netmodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.Netmodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.enums.Enumeration" title="network.enums.Enumeration"><tt class="xref py py-class docutils literal"><span class="pre">network.enums.Enumeration</span></tt></a></p>
+<dl class="attribute">
+<dt id="network.enums.Netmodes.values">
+<tt class="descname">values</tt><em class="property"> = ('server', 'client')</em><a class="headerlink" href="#network.enums.Netmodes.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Netmodes.client">
+<tt class="descname">client</tt><em class="property"> = 1</em><a class="headerlink" href="#network.enums.Netmodes.client" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Netmodes.keys_to_values">
+<tt class="descname">keys_to_values</tt><em class="property"> = {'client': 1, 'server': 0}</em><a class="headerlink" href="#network.enums.Netmodes.keys_to_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Netmodes.server">
+<tt class="descname">server</tt><em class="property"> = 0</em><a class="headerlink" href="#network.enums.Netmodes.server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Netmodes.values_to_keys">
+<tt class="descname">values_to_keys</tt><em class="property"> = {0: 'server', 1: 'client'}</em><a class="headerlink" href="#network.enums.Netmodes.values_to_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.enums.ConnectionProtocols">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">ConnectionProtocols</tt><a class="reference internal" href="_modules/network/enums.html#ConnectionProtocols"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.ConnectionProtocols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.enums.Enumeration" title="network.enums.Enumeration"><tt class="xref py py-class docutils literal"><span class="pre">network.enums.Enumeration</span></tt></a></p>
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.values">
+<tt class="descname">values</tt><em class="property"> = ('request_disconnect', 'request_handshake', 'handshake_success', 'handshake_failed', 'replication_init', 'replication_del', 'attribute_update', 'invoke_method', 'invoke_handshake')</em><a class="headerlink" href="#network.enums.ConnectionProtocols.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.attribute_update">
+<tt class="descname">attribute_update</tt><em class="property"> = 6</em><a class="headerlink" href="#network.enums.ConnectionProtocols.attribute_update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.handshake_failed">
+<tt class="descname">handshake_failed</tt><em class="property"> = 3</em><a class="headerlink" href="#network.enums.ConnectionProtocols.handshake_failed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.handshake_success">
+<tt class="descname">handshake_success</tt><em class="property"> = 2</em><a class="headerlink" href="#network.enums.ConnectionProtocols.handshake_success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.invoke_handshake">
+<tt class="descname">invoke_handshake</tt><em class="property"> = 8</em><a class="headerlink" href="#network.enums.ConnectionProtocols.invoke_handshake" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.invoke_method">
+<tt class="descname">invoke_method</tt><em class="property"> = 7</em><a class="headerlink" href="#network.enums.ConnectionProtocols.invoke_method" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.keys_to_values">
+<tt class="descname">keys_to_values</tt><em class="property"> = {'request_disconnect': 0, 'attribute_update': 6, 'invoke_handshake': 8, 'handshake_success': 2, 'replication_init': 4, 'request_handshake': 1, 'invoke_method': 7, 'handshake_failed': 3, 'replication_del': 5}</em><a class="headerlink" href="#network.enums.ConnectionProtocols.keys_to_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.replication_del">
+<tt class="descname">replication_del</tt><em class="property"> = 5</em><a class="headerlink" href="#network.enums.ConnectionProtocols.replication_del" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.replication_init">
+<tt class="descname">replication_init</tt><em class="property"> = 4</em><a class="headerlink" href="#network.enums.ConnectionProtocols.replication_init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.request_disconnect">
+<tt class="descname">request_disconnect</tt><em class="property"> = 0</em><a class="headerlink" href="#network.enums.ConnectionProtocols.request_disconnect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.request_handshake">
+<tt class="descname">request_handshake</tt><em class="property"> = 1</em><a class="headerlink" href="#network.enums.ConnectionProtocols.request_handshake" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.ConnectionProtocols.values_to_keys">
+<tt class="descname">values_to_keys</tt><em class="property"> = {0: 'request_disconnect', 1: 'request_handshake', 2: 'handshake_success', 3: 'handshake_failed', 4: 'replication_init', 5: 'replication_del', 6: 'attribute_update', 7: 'invoke_method', 8: 'invoke_handshake'}</em><a class="headerlink" href="#network.enums.ConnectionProtocols.values_to_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.enums.IterableCompressionType">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">IterableCompressionType</tt><a class="reference internal" href="_modules/network/enums.html#IterableCompressionType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.IterableCompressionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.enums.Enumeration" title="network.enums.Enumeration"><tt class="xref py py-class docutils literal"><span class="pre">network.enums.Enumeration</span></tt></a></p>
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.values">
+<tt class="descname">values</tt><em class="property"> = ('no_compress', 'compress', 'auto')</em><a class="headerlink" href="#network.enums.IterableCompressionType.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.auto">
+<tt class="descname">auto</tt><em class="property"> = 2</em><a class="headerlink" href="#network.enums.IterableCompressionType.auto" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.compress">
+<tt class="descname">compress</tt><em class="property"> = 1</em><a class="headerlink" href="#network.enums.IterableCompressionType.compress" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.keys_to_values">
+<tt class="descname">keys_to_values</tt><em class="property"> = {'no_compress': 0, 'compress': 1, 'auto': 2}</em><a class="headerlink" href="#network.enums.IterableCompressionType.keys_to_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.no_compress">
+<tt class="descname">no_compress</tt><em class="property"> = 0</em><a class="headerlink" href="#network.enums.IterableCompressionType.no_compress" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.IterableCompressionType.values_to_keys">
+<tt class="descname">values_to_keys</tt><em class="property"> = {0: 'no_compress', 1: 'compress', 2: 'auto'}</em><a class="headerlink" href="#network.enums.IterableCompressionType.values_to_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="network.enums.Roles">
+<em class="property">class </em><tt class="descclassname">network.enums.</tt><tt class="descname">Roles</tt><big>(</big><em>local</em>, <em>remote</em><big>)</big><a class="reference internal" href="_modules/network/enums.html#Roles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.Roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#network.enums.Enumeration" title="network.enums.Enumeration"><tt class="xref py py-class docutils literal"><span class="pre">network.enums.Enumeration</span></tt></a></p>
+<dl class="attribute">
+<dt id="network.enums.Roles.values">
+<tt class="descname">values</tt><em class="property"> = ('none', 'dumb_proxy', 'simulated_proxy', 'autonomous_proxy', 'authority')</em><a class="headerlink" href="#network.enums.Roles.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.local">
+<tt class="descname">local</tt><a class="headerlink" href="#network.enums.Roles.local" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.remote">
+<tt class="descname">remote</tt><a class="headerlink" href="#network.enums.Roles.remote" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.context">
+<tt class="descname">context</tt><a class="headerlink" href="#network.enums.Roles.context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="network.enums.Roles.set_context">
+<tt class="descname">set_context</tt><big>(</big><em>owner</em><big>)</big><a class="reference internal" href="_modules/network/enums.html#Roles.set_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#network.enums.Roles.set_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.authority">
+<tt class="descname">authority</tt><em class="property"> = 4</em><a class="headerlink" href="#network.enums.Roles.authority" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.autonomous_proxy">
+<tt class="descname">autonomous_proxy</tt><em class="property"> = 3</em><a class="headerlink" href="#network.enums.Roles.autonomous_proxy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.dumb_proxy">
+<tt class="descname">dumb_proxy</tt><em class="property"> = 1</em><a class="headerlink" href="#network.enums.Roles.dumb_proxy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.keys_to_values">
+<tt class="descname">keys_to_values</tt><em class="property"> = {'none': 0, 'autonomous_proxy': 3, 'authority': 4, 'dumb_proxy': 1, 'simulated_proxy': 2}</em><a class="headerlink" href="#network.enums.Roles.keys_to_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.none">
+<tt class="descname">none</tt><em class="property"> = 0</em><a class="headerlink" href="#network.enums.Roles.none" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.simulated_proxy">
+<tt class="descname">simulated_proxy</tt><em class="property"> = 2</em><a class="headerlink" href="#network.enums.Roles.simulated_proxy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="network.enums.Roles.values_to_keys">
+<tt class="descname">values_to_keys</tt><em class="property"> = {0: 'none', 1: 'dumb_proxy', 2: 'simulated_proxy', 3: 'autonomous_proxy', 4: 'authority'}</em><a class="headerlink" href="#network.enums.Roles.values_to_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network.encoding.html"
+                        title="previous chapter">network.encoding module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="network.errors.html"
+                        title="next chapter">network.errors module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/network.enums.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="network.errors.html" title="network.errors module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network.encoding.html" title="network.encoding module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="network.html" >network package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

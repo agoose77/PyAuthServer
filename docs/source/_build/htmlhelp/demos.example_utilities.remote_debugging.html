@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>demos.example_utilities.remote_debugging package</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="demos-example-utilities-remote-debugging-package">
+<h1>demos.example_utilities.remote_debugging package</h1>
+<div class="section" id="submodules">
+<h2>Submodules</h2>
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging.application">
+<span id="demos-example-utilities-remote-debugging-application-module"></span><h2>demos.example_utilities.remote_debugging.application module</h2>
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.application.run">
+<tt class="descclassname">demos.example_utilities.remote_debugging.application.</tt><tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/application.html#run"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging.client">
+<span id="demos-example-utilities-remote-debugging-client-module"></span><h2>demos.example_utilities.remote_debugging.client module</h2>
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.client.run_interface">
+<tt class="descclassname">demos.example_utilities.remote_debugging.client.</tt><tt class="descname">run_interface</tt><big>(</big><em>namespace</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/client.html#run_interface"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.client.application">
+<tt class="descclassname">demos.example_utilities.remote_debugging.client.</tt><tt class="descname">application</tt><big>(</big><em>peer_data=('localhost'</em>, <em>1200)</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/client.html#application"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging.replicables">
+<span id="demos-example-utilities-remote-debugging-replicables-module"></span><h2>demos.example_utilities.remote_debugging.replicables module</h2>
+<dl class="class">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal">
+<em class="property">class </em><tt class="descclassname">demos.example_utilities.remote_debugging.replicables.</tt><tt class="descname">RemoteTerminal</tt><big>(</big><em>instance_id=None</em>, <em>static=True</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/replicables.html#RemoteTerminal"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <a class="reference internal" href="network.replicable.html#network.replicable.Replicable" title="network.replicable.Replicable"><tt class="xref py py-class docutils literal"><span class="pre">network.replicable.Replicable</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.instance_register._ManagedInstanceBase</span></tt>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<dl class="attribute">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal.roles">
+<tt class="descname">roles</tt></dt>
+<dd><p>Container for static-type values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal.on_initialised">
+<tt class="descname">on_initialised</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/replicables.html#RemoteTerminal.on_initialised"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal.execute">
+<tt class="descname">execute</tt><big>(</big><em>command</em>, <em>on_received</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/replicables.html#RemoteTerminal.execute"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal.server_execute">
+<tt class="descname">server_execute</tt><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/replicables.html#RemoteTerminal.server_execute"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="demos.example_utilities.remote_debugging.replicables.RemoteTerminal.result">
+<tt class="descname">result</tt><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/replicables.html#RemoteTerminal.result"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging.server">
+<span id="demos-example-utilities-remote-debugging-server-module"></span><h2>demos.example_utilities.remote_debugging.server module</h2>
+<dl class="class">
+<dt id="demos.example_utilities.remote_debugging.server.Rules">
+<em class="property">class </em><tt class="descclassname">demos.example_utilities.remote_debugging.server.</tt><tt class="descname">Rules</tt><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#Rules"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.server.Rules.pre_initialise">
+<tt class="descname">pre_initialise</tt><big>(</big><em>addr</em>, <em>netmode</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#Rules.pre_initialise"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.server.Rules.post_initialise">
+<tt class="descname">post_initialise</tt><big>(</big><em>connection</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#Rules.post_initialise"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.server.Rules.post_disconnect">
+<tt class="descname">post_disconnect</tt><big>(</big><em>connection</em>, <em>replicable</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#Rules.post_disconnect"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="demos.example_utilities.remote_debugging.server.Rules.is_relevant">
+<tt class="descname">is_relevant</tt><big>(</big><em>conn</em>, <em>replicable</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#Rules.is_relevant"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.server.application">
+<tt class="descclassname">demos.example_utilities.remote_debugging.server.</tt><tt class="descname">application</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/server.html#application"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging.tools">
+<span id="demos-example-utilities-remote-debugging-tools-module"></span><h2>demos.example_utilities.remote_debugging.tools module</h2>
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.tools.stdout_io">
+<tt class="descclassname">demos.example_utilities.remote_debugging.tools.</tt><tt class="descname">stdout_io</tt><big>(</big><em>stdout=None</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/tools.html#stdout_io"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="demos.example_utilities.remote_debugging.tools.multiline_input">
+<tt class="descclassname">demos.example_utilities.remote_debugging.tools.</tt><tt class="descname">multiline_input</tt><big>(</big><em>single_prompt='&gt;&gt;&gt; '</em>, <em>additional_prompt='... '</em><big>)</big><a class="reference internal" href="_modules/demos/example_utilities/remote_debugging/tools.html#multiline_input"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-demos.example_utilities.remote_debugging">
+<span id="module-contents"></span><h2>Module contents</h2>
+<p>Example of remote debugging.</p>
+<p>Provides interpreter access to remote server.
+Run the application module from an interpreter.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>network.network &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for network.network</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">.connection</span> <span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">random</span>
+<span class="kn">from</span> <span class="nn">socket</span> <span class="kn">import</span> <span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_DGRAM</span><span class="p">,</span> <span class="n">error</span> <span class="k">as</span> <span class="n">SOCK_ERROR</span><span class="p">,</span> <span class="n">gethostname</span><span class="p">,</span> <span class="n">gethostbyname</span><span class="p">,</span> <span class="n">SOL_IP</span><span class="p">,</span>
+                    <span class="n">IP_MULTICAST_IF</span><span class="p">,</span> <span class="n">IP_ADD_MEMBERSHIP</span><span class="p">,</span> <span class="n">IP_MULTICAST_TTL</span><span class="p">,</span> <span class="n">IP_DROP_MEMBERSHIP</span><span class="p">,</span> <span class="n">inet_aton</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">clock</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;NonBlockingSocketUDP&#39;</span><span class="p">,</span> <span class="s">&#39;UnreliableSocketWrapper&#39;</span><span class="p">,</span> <span class="s">&#39;Network&#39;</span><span class="p">,</span> <span class="s">&#39;NetworkMetrics&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="NonBlockingSocketUDP"><a class="viewcode-back" href="../../network.network.html#network.network.NonBlockingSocketUDP">[docs]</a><span class="k">class</span> <span class="nc">NonBlockingSocketUDP</span><span class="p">(</span><span class="n">socket</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Non blocking socket class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Network socket initialiser&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_DGRAM</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="n">addr</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setblocking</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="UnreliableSocketWrapper"><a class="viewcode-back" href="../../network.network.html#network.network.UnreliableSocketWrapper">[docs]</a><span class="k">class</span> <span class="nc">UnreliableSocketWrapper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Non blocking socket class.</span>
+
+<span class="sd">    A SignalListener which applies artificial latency</span>
+<span class="sd">    to outgoing packets</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">socket_</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="n">socket_</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">latency</span> <span class="o">=</span> <span class="mf">0.250</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">packet_loss_factor</span> <span class="o">=</span> <span class="mf">0.10</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_sent_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># If this class doesn&#39;t have the data member, return from wrapped socket</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UnreliableSocketWrapper.update"><a class="viewcode-back" href="../../network.network.html#network.network.UnreliableSocketWrapper.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">current_time</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+        <span class="n">delay</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">latency</span>
+
+        <span class="c"># Find eligible data to send</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="o">*</span><span class="n">payload</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="n">timestamp</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">delay</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="c"># Shrink window to find pending outgoing data</span>
+        <span class="n">pending_send</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="p">[:</span><span class="n">index</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="p">[:]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="p">[</span><span class="n">index</span><span class="p">:]</span>
+
+        <span class="c"># Send the delayed data</span>
+        <span class="n">send</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">sendto</span>
+        <span class="n">sent_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">pending_send</span><span class="p">:</span>
+            <span class="n">sent_bytes</span> <span class="o">+=</span> <span class="n">send</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_sent_bytes</span> <span class="o">+=</span> <span class="n">sent_bytes</span>
+</div>
+<div class="viewcode-block" id="UnreliableSocketWrapper.sendto"><a class="viewcode-back" href="../../network.network.html#network.network.UnreliableSocketWrapper.sendto">[docs]</a>    <span class="k">def</span> <span class="nf">sendto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Send count from actual send call</span>
+        <span class="n">sent_bytes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_sent_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_sent_bytes</span><span class="p">,</span> <span class="mi">0</span>
+
+        <span class="c"># Store data for delay</span>
+        <span class="k">if</span> <span class="n">random</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packet_loss_factor</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sent_bytes</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">clock</span><span class="p">(),</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">sent_bytes</span>
+
+</div></div>
+<div class="viewcode-block" id="NetworkMetrics"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics">[docs]</a><span class="k">class</span> <span class="nc">NetworkMetrics</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Metrics object for network transfers&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_received</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_sent</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_timestamp</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_received_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sent_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="NetworkMetrics.sent_bytes"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.sent_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">sent_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sent_bytes</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="NetworkMetrics.received_bytes"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.received_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">received_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_received_bytes</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="NetworkMetrics.send_rate"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.send_rate">[docs]</a>    <span class="k">def</span> <span class="nf">send_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_sent</span> <span class="o">/</span> <span class="p">(</span><span class="n">clock</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_timestamp</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="NetworkMetrics.receive_rate"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.receive_rate">[docs]</a>    <span class="k">def</span> <span class="nf">receive_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_received</span> <span class="o">/</span> <span class="p">(</span><span class="n">clock</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_timestamp</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="NetworkMetrics.sample_age"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.sample_age">[docs]</a>    <span class="k">def</span> <span class="nf">sample_age</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">clock</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_timestamp</span>
+</div>
+<div class="viewcode-block" id="NetworkMetrics.on_sent_bytes"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.on_sent_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">on_sent_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sent_bytes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update internal sent bytes&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sent_bytes</span> <span class="o">+=</span> <span class="n">sent_bytes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_sent</span> <span class="o">+=</span> <span class="n">sent_bytes</span>
+</div>
+<div class="viewcode-block" id="NetworkMetrics.on_received_bytes"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.on_received_bytes">[docs]</a>    <span class="k">def</span> <span class="nf">on_received_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">received_bytes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update internal received bytes&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_received_bytes</span> <span class="o">+=</span> <span class="n">received_bytes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_received</span> <span class="o">+=</span> <span class="n">received_bytes</span>
+</div>
+<div class="viewcode-block" id="NetworkMetrics.reset_sample_window"><a class="viewcode-back" href="../../network.network.html#network.network.NetworkMetrics.reset_sample_window">[docs]</a>    <span class="k">def</span> <span class="nf">reset_sample_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reset data used to calculate metrics&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_timestamp</span> <span class="o">=</span> <span class="n">clock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delta_sent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delta_received</span> <span class="o">=</span> <span class="mi">0</span>
+
+</div></div>
+<span class="k">class</span> <span class="nc">MulticastDiscovery</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Interface for multi-cast discovery&quot;&quot;&quot;</span>
+
+    <span class="n">DEFAULT_HOST</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;224.0.0.0&#39;</span><span class="p">,</span> <span class="mi">1201</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_host</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_reply</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">receive_buffer_size</span> <span class="o">=</span> <span class="mi">63553</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">enable_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multicast_host</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">time_to_live</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Allow this network peer to receive multicast data</span>
+
+<span class="sd">        :param multicast_host: address, port of multicast group</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_listener</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">multicast_host</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">multicast_host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_HOST</span>
+
+        <span class="n">address</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">multicast_host</span>
+        <span class="n">intf</span> <span class="o">=</span> <span class="n">gethostbyname</span><span class="p">(</span><span class="n">gethostname</span><span class="p">())</span>
+
+        <span class="n">multicast_socket</span> <span class="o">=</span> <span class="n">NonBlockingSocketUDP</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+
+        <span class="n">multicast_socket</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">SOL_IP</span><span class="p">,</span> <span class="n">IP_MULTICAST_IF</span><span class="p">,</span> <span class="n">inet_aton</span><span class="p">(</span><span class="n">intf</span><span class="p">))</span>
+        <span class="n">multicast_socket</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">SOL_IP</span><span class="p">,</span> <span class="n">IP_ADD_MEMBERSHIP</span><span class="p">,</span>
+                                    <span class="n">inet_aton</span><span class="p">(</span><span class="n">address</span><span class="p">)</span> <span class="o">+</span> <span class="n">inet_aton</span><span class="p">(</span><span class="n">intf</span><span class="p">))</span>
+        <span class="n">multicast_socket</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">SOL_IP</span><span class="p">,</span> <span class="n">IP_MULTICAST_TTL</span><span class="p">,</span> <span class="n">time_to_live</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_host</span> <span class="o">=</span> <span class="n">multicast_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="n">multicast_socket</span>
+
+    <span class="k">def</span> <span class="nf">disable_listener</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_listener</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="sd">&quot;&quot;&quot;Stop this network peer from receiving multicast data&quot;&quot;&quot;</span>
+        <span class="n">address</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">SOL_IP</span><span class="p">,</span> <span class="n">IP_DROP_MEMBERSHIP</span><span class="p">,</span>
+                                <span class="n">inet_aton</span><span class="p">(</span><span class="n">address</span><span class="p">)</span> <span class="o">+</span> <span class="n">inet_aton</span><span class="p">(</span><span class="s">&#39;0.0.0.0&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_host</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_on_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_reply</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_reply</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_listener</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">buff_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receive_buffer_size</span>
+
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">recvfrom</span><span class="p">(</span><span class="n">buff_size</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="n">SOCK_ERROR</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">_</span><span class="p">,</span> <span class="n">host</span> <span class="o">=</span> <span class="n">data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_on_reply</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disable_listener</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Network"><a class="viewcode-back" href="../../network.network.html#network.network.Network">[docs]</a><span class="k">class</span> <span class="nc">Network</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Network management class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">socket</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="n">socket</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">getsockname</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">NetworkMetrics</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multicast</span> <span class="o">=</span> <span class="n">MulticastDiscovery</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">receive_buffer_size</span> <span class="o">=</span> <span class="mi">63553</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;Network Manager: {}:{}&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Network.from_address_info"><a class="viewcode-back" href="../../network.network.html#network.network.Network.from_address_info">[docs]</a>    <span class="k">def</span> <span class="nf">from_address_info</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="s">&quot;localhost&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create Network object from address and port</span>
+
+<span class="sd">        :param address: address for socket</span>
+<span class="sd">        :param port: port to bind to, 0 for any</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">socket</span> <span class="o">=</span> <span class="n">NonBlockingSocketUDP</span><span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Network.received_data"><a class="viewcode-back" href="../../network.network.html#network.network.Network.received_data">[docs]</a>    <span class="k">def</span> <span class="nf">received_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return iterator over received data&quot;&quot;&quot;</span>
+        <span class="n">buff_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receive_buffer_size</span>
+        <span class="n">on_received_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">on_received_bytes</span>
+
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">recvfrom</span><span class="p">(</span><span class="n">buff_size</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="n">SOCK_ERROR</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">payload</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span>
+            <span class="n">on_received_bytes</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+
+            <span class="k">yield</span> <span class="n">data</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Network.connect_to"><a class="viewcode-back" href="../../network.network.html#network.network.Network.connect_to">[docs]</a>    <span class="k">def</span> <span class="nf">connect_to</span><span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return connection interface to remote peer.</span>
+
+<span class="sd">        If connection does not exist, create a new ConnectionInterface.</span>
+
+<span class="sd">        :param address: address of remote peer</span>
+<span class="sd">        :param port: port of remote peer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Connection</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Network.receive"><a class="viewcode-back" href="../../network.network.html#network.network.Network.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receive all data from socket&quot;&quot;&quot;</span>
+        <span class="c"># Receives all incoming data</span>
+        <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">address</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">received_data</span><span class="p">:</span>
+            <span class="c"># Find existing connection for address</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">Connection</span><span class="p">[</span><span class="n">address</span><span class="p">]</span>
+
+            <span class="c"># Create a new interface to handle connection</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">Connection</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
+
+            <span class="c"># Dispatch data to connection</span>
+            <span class="n">connection</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c"># Update multi-cast listeners</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multicast</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Network.send"><a class="viewcode-back" href="../../network.network.html#network.network.Network.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_update</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send all connection data and update timeouts</span>
+
+<span class="sd">        :param full_update: whether this is a full send call</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">send_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_to</span>
+
+        <span class="c"># Send all queued data</span>
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">Connection</span><span class="p">):</span>
+            <span class="c"># Give the option to send nothing</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">full_update</span><span class="p">)</span>
+
+            <span class="c"># If returns data, send it</span>
+            <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">send_func</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">instance_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Network.send_to"><a class="viewcode-back" href="../../network.network.html#network.network.Network.send_to">[docs]</a>    <span class="k">def</span> <span class="nf">send_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">address</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send data to remote peer</span>
+
+<span class="sd">        :param data: data to send</span>
+<span class="sd">        :param address: address of remote peer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">sendto</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">on_sent_bytes</span><span class="p">(</span><span class="n">data_length</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">data_length</span>
+</div>
+<div class="viewcode-block" id="Network.ping_multicast"><a class="viewcode-back" href="../../network.network.html#network.network.Network.ping_multicast">[docs]</a>    <span class="k">def</span> <span class="nf">ping_multicast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multicast_host</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send a ping to a multicast group</span>
+
+<span class="sd">        :param multicast_host: (address, port) of multicast group</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">multicast</span><span class="o">.</span><span class="n">is_listener</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Multicast listeners cannot send pings&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">multicast_host</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">multicast_host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multicast</span><span class="o">.</span><span class="n">DEFAULT_HOST</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_to</span><span class="p">(</span><span class="n">b</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">multicast_host</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Network.stop"><a class="viewcode-back" href="../../network.network.html#network.network.Network.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close network socket&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multicast</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

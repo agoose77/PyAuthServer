@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.conversions</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <h1>Source code for network.conversions</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">math</span>
+
+
+<div class="viewcode-block" id="x10"><a class="viewcode-back" href="../../network.conversions.html#network.conversions.x10">[docs]</a><span class="k">def</span> <span class="nf">x10</span><span class="p">(</span><span class="n">number</span><span class="p">):</span>
+    <span class="k">return</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">number</span>
+</div>
+<span class="n">bits</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;b&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&quot;B&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">}</span>
+<span class="n">prefixes</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;K&quot;</span><span class="p">:</span> <span class="n">x10</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="s">&quot;M&quot;</span><span class="p">:</span> <span class="n">x10</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="s">&quot;G&quot;</span><span class="p">:</span> <span class="n">x10</span><span class="p">(</span><span class="mi">9</span><span class="p">)}</span>
+
+
+<div class="viewcode-block" id="get_scalar"><a class="viewcode-back" href="../../network.conversions.html#network.conversions.get_scalar">[docs]</a><span class="k">def</span> <span class="nf">get_scalar</span><span class="p">(</span><span class="n">fmt</span><span class="p">):</span>
+    <span class="n">scalar_a</span> <span class="o">=</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fmt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">scalar_b</span> <span class="o">=</span> <span class="n">bits</span><span class="p">[</span><span class="n">fmt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">scalar_a</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">fmt</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">scalar_a</span> <span class="o">*</span> <span class="n">scalar_b</span>
+
+</div>
+<div class="viewcode-block" id="conversion"><a class="viewcode-back" href="../../network.conversions.html#network.conversions.conversion">[docs]</a><span class="k">def</span> <span class="nf">conversion</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">from_fmt</span><span class="p">,</span> <span class="n">to_fmt</span><span class="p">,</span> <span class="n">round_to_int</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">round_func</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">from_scalar</span> <span class="o">=</span> <span class="n">get_scalar</span><span class="p">(</span><span class="n">from_fmt</span><span class="p">)</span>
+        <span class="n">to_scalar</span> <span class="o">=</span> <span class="n">get_scalar</span><span class="p">(</span><span class="n">to_fmt</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Converter could not convert {} to {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">from_fmt</span><span class="p">,</span> <span class="n">to_fmt</span><span class="p">))</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">value</span> <span class="o">*</span> <span class="p">(</span><span class="n">from_scalar</span> <span class="o">/</span> <span class="n">to_scalar</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">round_to_int</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">round_func</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.definitions module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system package" href="game_system.html" />
+    <link rel="next" title="game_system.entities module" href="game_system.entities.html" />
+    <link rel="prev" title="game_system.coordinates module" href="game_system.coordinates.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.entities.html" title="game_system.entities module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.coordinates.html" title="game_system.coordinates module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" accesskey="U">game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.definitions">
+<span id="game-system-definitions-module"></span><h1>game_system.definitions module<a class="headerlink" href="#module-game_system.definitions" title="Permalink to this headline">¶</a></h1>
+<p>The environment specified by ResourceManager.environment is used to select the appropriate ComponentLoader for the
+current game engine</p>
+<p>Each component that belongs to this definition can be selected by a tag i.e &#8220;physics&#8221; and these are specified in
+the appropriate base classes for cameras, pawns etc, by instantiating a loader with the tags as arguments</p>
+<dl class="docutils">
+<dt>class Pawn:</dt>
+<dd>component_loader = ComponentLoader(&#8220;physics&#8221;, &#8220;animation&#8221;)</dd>
+</dl>
+<p>Each component is provided a configuration section which pertains to the section within a config file</p>
+<dl class="docutils">
+<dt>[BGE]</dt>
+<dd><dl class="first last docutils">
+<dt>[physics]</dt>
+<dd>velocity = 1.0
+range = 2.0</dd>
+</dl>
+</dd>
+</dl>
+<p>This file is only used to load platform-specific data (like mesh names)</p>
+<dl class="class">
+<dt id="game_system.definitions.ComponentLoader">
+<em class="property">class </em><tt class="descclassname">game_system.definitions.</tt><tt class="descname">ComponentLoader</tt><a class="reference internal" href="_modules/game_system/definitions.html#ComponentLoader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.definitions.ComponentLoader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="game_system.tagged_delegate.html#game_system.tagged_delegate.EnvironmentDefinitionByTag" title="game_system.tagged_delegate.EnvironmentDefinitionByTag"><tt class="xref py py-class docutils literal"><span class="pre">game_system.tagged_delegate.EnvironmentDefinitionByTag</span></tt></a>, <tt class="xref py py-class docutils literal"><span class="pre">network.metaclasses.register.type_register._TypeRegisterBase</span></tt></p>
+<p>Abstract component loader class</p>
+<dl class="attribute">
+<dt id="game_system.definitions.ComponentLoader.subclasses">
+<tt class="descname">subclasses</tt><em class="property"> = {'BGEComponentLoader': &lt;class 'bge_game_system.definitions.BGEComponentLoader'&gt;}</em><a class="headerlink" href="#game_system.definitions.ComponentLoader.subclasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.definitions.ComponentLoader.load">
+<tt class="descname">load</tt><big>(</big><em>entity</em>, <em>configuration</em><big>)</big><a class="reference internal" href="_modules/game_system/definitions.html#ComponentLoader.load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.definitions.ComponentLoader.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load components for given entity with configuration file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>entity</strong> &#8211; entity to load components</li>
+<li><strong>configuration</strong> &#8211; configuration dictionary</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.definitions.ComponentLoader.is_delegate">
+<tt class="descname">is_delegate</tt><em class="property"> = True</em><a class="headerlink" href="#game_system.definitions.ComponentLoader.is_delegate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.definitions.ComponentLoaderResult">
+<em class="property">class </em><tt class="descclassname">game_system.definitions.</tt><tt class="descname">ComponentLoaderResult</tt><big>(</big><em>components</em><big>)</big><a class="reference internal" href="_modules/game_system/definitions.html#ComponentLoaderResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.definitions.ComponentLoaderResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Container for loaded components from <a class="reference internal" href="#game_system.definitions.ComponentLoader" title="game_system.definitions.ComponentLoader"><tt class="xref py py-class docutils literal"><span class="pre">game_system.definitions.ComponentLoader</span></tt></a></p>
+<dl class="method">
+<dt id="game_system.definitions.ComponentLoaderResult.on_unloaded">
+<tt class="descname">on_unloaded</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/definitions.html#ComponentLoaderResult.on_unloaded"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.definitions.ComponentLoaderResult.on_unloaded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback on unloaded</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.definitions.ComponentLoaderResult.unload">
+<tt class="descname">unload</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/definitions.html#ComponentLoaderResult.unload"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.definitions.ComponentLoaderResult.unload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unload loaded components from ComponentLoader</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.coordinates.html"
+                        title="previous chapter">game_system.coordinates module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.entities.html"
+                        title="next chapter">game_system.entities module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.definitions.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.entities.html" title="game_system.entities module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.coordinates.html" title="game_system.coordinates module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

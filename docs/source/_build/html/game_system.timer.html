@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.timer module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system package" href="game_system.html" />
+    <link rel="next" title="game_system.weapons module" href="game_system.weapons.html" />
+    <link rel="prev" title="game_system.threads module" href="game_system.threads.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.weapons.html" title="game_system.weapons module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.threads.html" title="game_system.threads module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" accesskey="U">game_system package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.timer">
+<span id="game-system-timer-module"></span><h1>game_system.timer module<a class="headerlink" href="#module-game_system.timer" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.timer.ManualTimer">
+<em class="property">class </em><tt class="descclassname">game_system.timer.</tt><tt class="descname">ManualTimer</tt><big>(</big><em>end=0.0</em>, <em>start=0.0</em>, <em>count_down=False</em>, <em>repeat=False</em>, <em>active=True</em>, <em>disposable=False</em><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Manual timer class with callbacks</p>
+<dl class="method">
+<dt id="game_system.timer.ManualTimer.delete">
+<tt class="descname">delete</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.timer.ManualTimer.progress">
+<tt class="descname">progress</tt><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.progress"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.progress" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.timer.ManualTimer.success">
+<tt class="descname">success</tt><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.success"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.timer.ManualTimer.reset">
+<tt class="descname">reset</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset timer to start value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.timer.ManualTimer.stop">
+<tt class="descname">stop</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop timer updating</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.timer.ManualTimer.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#ManualTimer.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.ManualTimer.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update timer value</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>delta_time</strong> &#8211; time since last update</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.timer.Timer">
+<em class="property">class </em><tt class="descclassname">game_system.timer.</tt><tt class="descname">Timer</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#Timer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.Timer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.timer.ManualTimer" title="game_system.timer.ManualTimer"><tt class="xref py py-class docutils literal"><span class="pre">game_system.timer.ManualTimer</span></tt></a>, <a class="reference internal" href="network.signals.listener.html#network.signals.listener.SignalListener" title="network.signals.listener.SignalListener"><tt class="xref py py-class docutils literal"><span class="pre">network.signals.listener.SignalListener</span></tt></a></p>
+<p>Managed timer class with callbacks</p>
+<dl class="method">
+<dt id="game_system.timer.Timer.delete">
+<tt class="descname">delete</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#Timer.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.Timer.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unregister timer signals</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.timer.Timer.update">
+<tt class="descname">update</tt><big>(</big><em>delta_time</em><big>)</big><a class="reference internal" href="_modules/game_system/timer.html#Timer.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.timer.Timer.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.threads.html"
+                        title="previous chapter">game_system.threads module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.weapons.html"
+                        title="next chapter">game_system.weapons module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.timer.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.weapons.html" title="game_system.weapons module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.threads.html" title="game_system.threads module"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.latency_compensation.extrapolators module &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" />
+    <link rel="up" title="game_system.latency_compensation package" href="game_system.latency_compensation.html" />
+    <link rel="next" title="game_system.latency_compensation.jitter_buffer module" href="game_system.latency_compensation.jitter_buffer.html" />
+    <link rel="prev" title="game_system.latency_compensation package" href="game_system.latency_compensation.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.latency_compensation.jitter_buffer.html" title="game_system.latency_compensation.jitter_buffer module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="game_system.latency_compensation.html" title="game_system.latency_compensation package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.latency_compensation.html" accesskey="U">game_system.latency_compensation package</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-game_system.latency_compensation.extrapolators">
+<span id="game-system-latency-compensation-extrapolators-module"></span><h1>game_system.latency_compensation.extrapolators module<a class="headerlink" href="#module-game_system.latency_compensation.extrapolators" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator">
+<em class="property">class </em><tt class="descclassname">game_system.latency_compensation.extrapolators.</tt><tt class="descname">EPICExtrapolator</tt><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="attribute">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.minimum_dt">
+<tt class="descname">minimum_dt</tt><em class="property"> = 0.0001</em><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.minimum_dt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.variable_cls">
+<tt class="descname">variable_cls</tt><em class="property"> = None</em><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.variable_cls" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.add_sample">
+<tt class="descname">add_sample</tt><big>(</big><em>timestamp</em>, <em>current_time</em>, <em>new_value</em>, <em>new_derivative=None</em><big>)</big><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator.add_sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.add_sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add new sample to the extrapolator</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>timestamp</strong> &#8211; timestamp of new sample</li>
+<li><strong>current_time</strong> &#8211; timestamp sample was received</li>
+<li><strong>current_value</strong> &#8211; position at current time</li>
+<li><strong>new_value</strong> &#8211; position of new sample</li>
+<li><strong>new_derivative</strong> &#8211; velocity of new sample</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.determine_derivative">
+<tt class="descname">determine_derivative</tt><big>(</big><em>timestamp</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator.determine_derivative"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.determine_derivative" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine velocity required to move to a given position with respect to the delta time</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>timestamp</strong> &#8211; timestamp of new position</li>
+<li><strong>value</strong> &#8211; target position</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.sample_at">
+<tt class="descname">sample_at</tt><big>(</big><em>request_time</em><big>)</big><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator.sample_at"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.sample_at" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sample the extrapolator for timestamp</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>request_time</strong> &#8211; timestamp of sample</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.reset">
+<tt class="descname">reset</tt><big>(</big><em>timestamp</em>, <em>current_time</em>, <em>value</em>, <em>derivative</em><big>)</big><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ignore previous samples and base extrapolator upon new data</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>timestamp</strong> &#8211; timestamp of base sample</li>
+<li><strong>current_time</strong> &#8211; current timestamp</li>
+<li><strong>value</strong> &#8211; position of base sample</li>
+<li><strong>derivative</strong> &#8211; velocity of base sample</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="game_system.latency_compensation.extrapolators.EPICExtrapolator.update_estimates">
+<tt class="descname">update_estimates</tt><big>(</big><em>timestamp</em><big>)</big><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#EPICExtrapolator.update_estimates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator.update_estimates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update extrapolator estimate of the update time</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timestamp</strong> &#8211; timestamp of new sample</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="game_system.latency_compensation.extrapolators.PhysicsExtrapolator">
+<em class="property">class </em><tt class="descclassname">game_system.latency_compensation.extrapolators.</tt><tt class="descname">PhysicsExtrapolator</tt><a class="reference internal" href="_modules/game_system/latency_compensation/extrapolators.html#PhysicsExtrapolator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#game_system.latency_compensation.extrapolators.PhysicsExtrapolator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#game_system.latency_compensation.extrapolators.EPICExtrapolator" title="game_system.latency_compensation.extrapolators.EPICExtrapolator"><tt class="xref py py-class docutils literal"><span class="pre">game_system.latency_compensation.extrapolators.EPICExtrapolator</span></tt></a></p>
+<dl class="attribute">
+<dt id="game_system.latency_compensation.extrapolators.PhysicsExtrapolator.variable_cls">
+<tt class="descname">variable_cls</tt><a class="headerlink" href="#game_system.latency_compensation.extrapolators.PhysicsExtrapolator.variable_cls" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">Vector</span></tt></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="game_system.latency_compensation.html"
+                        title="previous chapter">game_system.latency_compensation package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="game_system.latency_compensation.jitter_buffer.html"
+                        title="next chapter">game_system.latency_compensation.jitter_buffer module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/game_system.latency_compensation.extrapolators.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="game_system.latency_compensation.jitter_buffer.html" title="game_system.latency_compensation.jitter_buffer module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="game_system.latency_compensation.html" title="game_system.latency_compensation package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="game_system.html" >game_system package</a> &raquo;</li>
+          <li><a href="game_system.latency_compensation.html" >game_system.latency_compensation package</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

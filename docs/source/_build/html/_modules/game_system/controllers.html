@@ -1,0 +1,597 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>game_system.controllers &mdash; PyAuthServer 1.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for game_system.controllers</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">network.descriptors</span> <span class="kn">import</span> <span class="n">Attribute</span>
+<span class="kn">from</span> <span class="nn">network.decorators</span> <span class="kn">import</span> <span class="n">requires_netmode</span><span class="p">,</span> <span class="n">reliable</span>
+<span class="kn">from</span> <span class="nn">network.enums</span> <span class="kn">import</span> <span class="n">Netmodes</span><span class="p">,</span> <span class="n">Roles</span>
+<span class="kn">from</span> <span class="nn">network.replicable</span> <span class="kn">import</span> <span class="n">Replicable</span>
+<span class="kn">from</span> <span class="nn">network.rpc</span> <span class="kn">import</span> <span class="n">Pointer</span>
+<span class="kn">from</span> <span class="nn">network.signals</span> <span class="kn">import</span> <span class="n">Signal</span><span class="p">,</span> <span class="n">LatencyUpdatedSignal</span>
+<span class="kn">from</span> <span class="nn">network.type_flag</span> <span class="kn">import</span> <span class="n">TypeFlag</span>
+<span class="kn">from</span> <span class="nn">network.world_info</span> <span class="kn">import</span> <span class="n">WorldInfo</span>
+
+<span class="kn">from</span> <span class="nn">.ai.planning.goap</span> <span class="kn">import</span> <span class="n">GOAPActionPlanManager</span>
+<span class="kn">from</span> <span class="nn">.ai.state_machine.fsm</span> <span class="kn">import</span> <span class="n">FiniteStateMachine</span>
+<span class="kn">from</span> <span class="nn">.ai.state_machine.state</span> <span class="kn">import</span> <span class="n">State</span>
+<span class="kn">from</span> <span class="nn">.ai.sensors</span> <span class="kn">import</span> <span class="n">SensorManager</span>
+<span class="kn">from</span> <span class="nn">.ai.working_memory</span> <span class="kn">import</span> <span class="n">WorkingMemory</span>
+<span class="kn">from</span> <span class="nn">.configobj</span> <span class="kn">import</span> <span class="n">ConfigObj</span>
+<span class="kn">from</span> <span class="nn">.clock</span> <span class="kn">import</span> <span class="n">Clock</span>
+<span class="kn">from</span> <span class="nn">.coordinates</span> <span class="kn">import</span> <span class="n">Vector</span><span class="p">,</span> <span class="n">Euler</span>
+<span class="kn">from</span> <span class="nn">.enums</span> <span class="kn">import</span> <span class="n">EvaluationState</span><span class="p">,</span> <span class="n">InputButtons</span>
+<span class="kn">from</span> <span class="nn">.inputs</span> <span class="kn">import</span> <span class="n">InputContext</span>
+<span class="kn">from</span> <span class="nn">.pathfinding.navigation_manager</span> <span class="kn">import</span> <span class="n">NavigationManager</span>
+<span class="kn">from</span> <span class="nn">.latency_compensation</span> <span class="kn">import</span> <span class="n">JitterBuffer</span>
+<span class="kn">from</span> <span class="nn">.resources</span> <span class="kn">import</span> <span class="n">ResourceManager</span>
+<span class="kn">from</span> <span class="nn">.replication_info</span> <span class="kn">import</span> <span class="n">PlayerReplicationInfo</span>
+<span class="kn">from</span> <span class="nn">.signals</span> <span class="kn">import</span> <span class="n">PlayerInputSignal</span><span class="p">,</span> <span class="n">LogicUpdateSignal</span><span class="p">,</span> <span class="n">PostPhysicsSignal</span><span class="p">,</span> <span class="n">PhysicsSingleUpdateSignal</span><span class="p">,</span> \
+    <span class="n">MessageReceivedSignal</span>
+
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span><span class="p">,</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">logging</span> <span class="kn">import</span> <span class="n">getLogger</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">radians</span><span class="p">,</span> <span class="n">pi</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;PawnController&#39;</span><span class="p">,</span> <span class="s">&#39;PlayerPawnController&#39;</span><span class="p">,</span> <span class="s">&#39;AIPawnController&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="PawnController"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController">[docs]</a><span class="k">class</span> <span class="nc">PawnController</span><span class="p">(</span><span class="n">Replicable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for Pawn controllers&quot;&quot;&quot;</span>
+
+    <span class="n">roles</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">Roles</span><span class="p">(</span><span class="n">Roles</span><span class="o">.</span><span class="n">authority</span><span class="p">,</span> <span class="n">Roles</span><span class="o">.</span><span class="n">autonomous_proxy</span><span class="p">))</span>
+    <span class="n">pawn</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">data_type</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">data_type</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PawnController.conditions"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_complaint</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;pawn&quot;</span>
+            <span class="k">yield</span> <span class="s">&quot;info&quot;</span>
+</div>
+<div class="viewcode-block" id="PawnController.on_initialised"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="PawnController.on_notify"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.on_notify">[docs]</a>    <span class="k">def</span> <span class="nf">on_notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s">&quot;pawn&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_possessed_pawn</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PawnController.on_deregistered"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.on_deregistered">[docs]</a>    <span class="k">def</span> <span class="nf">on_deregistered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="o">.</span><span class="n">deregister</span><span class="p">()</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_deregistered</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PawnController.possess"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.possess">[docs]</a>    <span class="k">def</span> <span class="nf">possess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pawn</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Take control of pawn</span>
+
+<span class="sd">        :param pawn: Pawn instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pawn</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="n">pawn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">on_possessed_pawn</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PawnController.on_possessed_pawn"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.on_possessed_pawn">[docs]</a>    <span class="k">def</span> <span class="nf">on_possessed_pawn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># Set pawn as parent for signals</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">register_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">greedy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PawnController.on_pawn_possessed_camera"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.on_pawn_possessed_camera">[docs]</a>    <span class="k">def</span> <span class="nf">on_pawn_possessed_camera</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="PawnController.unpossess"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PawnController.unpossess">[docs]</a>    <span class="k">def</span> <span class="nf">unpossess</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Release control of possessed pawn&quot;&quot;&quot;</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+
+        <span class="c"># Set pawn as parent for signals</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">unregister_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">greedy</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">unpossessed</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div></div>
+<span class="k">def</span> <span class="nf">action_set</span><span class="p">(</span><span class="o">*</span><span class="n">actions</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">c</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">actions</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">GOTORequest</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Request to perform GOTO action&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">running</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distance_to_target</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+
+
+<span class="k">class</span> <span class="nc">UpdateableState</span><span class="p">(</span><span class="n">State</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">GOTOState</span><span class="p">(</span><span class="n">UpdateableState</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;FSM State</span>
+
+<span class="sd">    Handles GOTO requests</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">controller</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller</span> <span class="o">=</span> <span class="n">controller</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span>
+
+        <span class="k">if</span> <span class="n">request</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">running</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># We need a pawn to perform GOTO action</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">pawn</span>
+        <span class="k">if</span> <span class="n">pawn</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">request</span><span class="o">.</span><span class="n">target</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">return</span>
+
+        <span class="n">pawn_position</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_position</span>
+        <span class="n">target_position</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_position</span>
+
+        <span class="n">to_target</span> <span class="o">=</span> <span class="n">target_position</span> <span class="o">-</span> <span class="n">pawn_position</span>
+
+        <span class="c"># Update request</span>
+        <span class="n">distance</span> <span class="o">=</span> <span class="n">to_target</span><span class="o">.</span><span class="n">xy</span><span class="o">.</span><span class="n">length</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">distance_to_target</span> <span class="o">=</span> <span class="n">distance</span>
+
+        <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">request</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span>
+            <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_velocity</span> <span class="o">=</span> <span class="n">to_target</span> <span class="o">*</span> <span class="mi">0</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">align_to</span><span class="p">(</span><span class="n">to_target</span><span class="p">)</span>
+            <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_velocity</span> <span class="o">=</span> <span class="n">to_target</span><span class="o">.</span><span class="n">normalized</span><span class="p">()</span> <span class="o">*</span> <span class="mi">5</span>
+
+
+<div class="viewcode-block" id="AIPawnController"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController">[docs]</a><span class="k">class</span> <span class="nc">AIPawnController</span><span class="p">(</span><span class="n">PawnController</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for AI pawn controllers&quot;&quot;&quot;</span>
+
+    <span class="n">goals</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">actions</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="AIPawnController.on_initialised"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">blackboard</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">working_memory</span> <span class="o">=</span> <span class="n">WorkingMemory</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor_manager</span> <span class="o">=</span> <span class="n">SensorManager</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigation_manager</span> <span class="o">=</span> <span class="n">NavigationManager</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plan_manager</span> <span class="o">=</span> <span class="n">GOAPActionPlanManager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span><span class="s">&quot;GOAP&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span> <span class="o">=</span> <span class="n">FiniteStateMachine</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span><span class="s">&quot;FSM&quot;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">goto_request</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c"># Add states</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">goto_state</span> <span class="o">=</span> <span class="n">GOTOState</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idle_state</span> <span class="o">=</span> <span class="n">UpdateableState</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idle_state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">goto_state</span><span class="p">)</span>
+
+        <span class="n">transition_table</span> <span class="o">=</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_valid_goto_target</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">idle_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">goto_state</span><span class="p">),</span>
+                            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_not_valid_goto_target</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">goto_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">idle_state</span><span class="p">)]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span><span class="o">.</span><span class="n">create_and_add_transitions_from_table</span><span class="p">(</span><span class="n">transition_table</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AIPawnController.has_valid_goto_target"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController.has_valid_goto_target">[docs]</a>    <span class="k">def</span> <span class="nf">has_valid_goto_target</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return whether Controller has a valid GOTO target pending&quot;&quot;&quot;</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">goto_request</span>
+
+        <span class="k">if</span> <span class="n">request</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">request</span><span class="o">.</span><span class="n">target</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">EvaluationState</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="AIPawnController.has_not_valid_goto_target"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController.has_not_valid_goto_target">[docs]</a>    <span class="k">def</span> <span class="nf">has_not_valid_goto_target</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return logical inverse of has_valid_goto_target()&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_valid_goto_target</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AIPawnController.on_possessed_pawn"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController.on_possessed_pawn">[docs]</a>    <span class="k">def</span> <span class="nf">on_possessed_pawn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_possessed_pawn</span><span class="p">()</span>
+
+        <span class="c"># Clear old queries for pawns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigation_manager</span><span class="o">.</span><span class="n">queries</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</div>
+    <span class="nd">@LogicUpdateSignal.on_global</span>
+<div class="viewcode-block" id="AIPawnController.update"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.AIPawnController.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="c"># A Pawn is required to perform game logic</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">working_memory</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor_manager</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plan_manager</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span><span class="o">.</span><span class="n">process_transitions</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fsm</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigation_manager</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">delta_time</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="PlayerPawnController"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController">[docs]</a><span class="k">class</span> <span class="nc">PlayerPawnController</span><span class="p">(</span><span class="n">PawnController</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for player pawn controllers&quot;&quot;&quot;</span>
+
+    <span class="n">MAX_POSITION_ERROR_SQUARED</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">MAX_ORIENTATION_ANGLE_ERROR_SQUARED</span> <span class="o">=</span> <span class="n">radians</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="n">clock</span> <span class="o">=</span> <span class="n">Attribute</span><span class="p">(</span><span class="n">data_type</span><span class="o">=</span><span class="n">Replicable</span><span class="p">,</span> <span class="n">complain</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+    <span class="n">input_context</span> <span class="o">=</span> <span class="n">InputContext</span><span class="p">()</span>
+    <span class="n">info_cls</span> <span class="o">=</span> <span class="n">PlayerReplicationInfo</span>
+
+<div class="viewcode-block" id="PlayerPawnController.conditions"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.conditions">[docs]</a>    <span class="k">def</span> <span class="nf">conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">):</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">conditions</span><span class="p">(</span><span class="n">is_owner</span><span class="p">,</span> <span class="n">is_complaint</span><span class="p">,</span> <span class="n">is_initial</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_complaint</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="s">&quot;clock&quot;</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.on_initialised"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.on_initialised">[docs]</a>    <span class="k">def</span> <span class="nf">on_initialised</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialisation method&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_initialised</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialise_client</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialise_server</span><span class="p">()</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.on_pawn_possessed_camera"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.on_pawn_possessed_camera">[docs]</a>    <span class="k">def</span> <span class="nf">on_pawn_possessed_camera</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">camera</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Callback from pawn to set camera&quot;&quot;&quot;</span>
+        <span class="n">camera</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">set_active</span><span class="p">()</span>
+</div>
+    <span class="nd">@reliable</span>
+<div class="viewcode-block" id="PlayerPawnController.client_correct_move"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.client_correct_move">[docs]</a>    <span class="k">def</span> <span class="nf">client_correct_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move_id</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">MAXIMUM_TICK</span><span class="p">),</span> <span class="n">position</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Vector</span><span class="p">),</span>
+                            <span class="n">yaw</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">),</span> <span class="n">velocity</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Vector</span><span class="p">),</span>
+                            <span class="n">angular_yaw</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Correct previous move which was mis-predicted</span>
+
+<span class="sd">        :param move_id: ID of move to correct</span>
+<span class="sd">        :param position: corrected position</span>
+<span class="sd">        :param yaw: corrected yaw</span>
+<span class="sd">        :param velocity: corrected velocity</span>
+<span class="sd">        :param angular_yaw: corrected angular yaw</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Restore pawn state</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_position</span> <span class="o">=</span> <span class="n">position</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_velocity</span> <span class="o">=</span> <span class="n">velocity</span>
+
+        <span class="c"># Recreate Z rotation</span>
+        <span class="n">orientation</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_orientation</span>
+        <span class="n">orientation</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">yaw</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_orientation</span> <span class="o">=</span> <span class="n">orientation</span>
+
+        <span class="c"># Recreate Z angular rotation</span>
+        <span class="n">angular</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_angular</span>
+        <span class="n">angular</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">angular_yaw</span>
+        <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_angular</span> <span class="o">=</span> <span class="n">angular</span>
+
+        <span class="n">process_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_inputs</span>
+        <span class="n">sent_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sent_states</span>
+        <span class="n">delta_time</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">WorldInfo</span><span class="o">.</span><span class="n">tick_rate</span>
+
+        <span class="c"># Correcting move</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Correcting an invalid move: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">move_id</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">move_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">move_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">move_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">sent_states</span><span class="p">[</span><span class="n">move_id</span><span class="p">]</span>
+            <span class="n">buttons</span><span class="p">,</span> <span class="n">ranges</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+            <span class="n">process_inputs</span><span class="p">(</span><span class="n">buttons</span><span class="p">,</span> <span class="n">ranges</span><span class="p">)</span>
+            <span class="n">PhysicsSingleUpdateSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">delta_time</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">pawn</span><span class="p">)</span>
+
+        <span class="c"># Remember this correction, so that older moves are not corrected</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latest_correction_id</span> <span class="o">=</span> <span class="n">move_id</span>
+</div>
+    <span class="nd">@PlayerInputSignal.on_global</span>
+<div class="viewcode-block" id="PlayerPawnController.client_handle_inputs"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.client_handle_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">client_handle_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">,</span> <span class="n">input_manager</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Handle local inputs from client</span>
+
+<span class="sd">        :param input_manager: input system</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">remapped_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_context</span><span class="o">.</span><span class="n">remap_state</span><span class="p">(</span><span class="n">input_manager</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_map</span><span class="p">)</span>
+        <span class="n">packed_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_context</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">struct_cls</span><span class="p">()</span>
+        <span class="n">packed_state</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">remapped_state</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sent_states</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">move_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">packed_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recent_states</span><span class="o">.</span><span class="n">appendleft</span><span class="p">(</span><span class="n">packed_state</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_inputs</span><span class="p">(</span><span class="o">*</span><span class="n">remapped_state</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.client_send_move"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.client_send_move">[docs]</a>    <span class="k">def</span> <span class="nf">client_send_move</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send inputs, alongside results of applied inputs, to the server&quot;&quot;&quot;</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">position</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_position</span>
+        <span class="n">yaw</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_orientation</span><span class="o">.</span><span class="n">z</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_receive_move</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">move_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">latest_correction_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recent_states</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">yaw</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PlayerPawnController.get_local_controller"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.get_local_controller">[docs]</a>    <span class="k">def</span> <span class="nf">get_local_controller</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the local player controller instance, or None if not found&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">Replicable</span><span class="o">.</span><span class="n">subclass_of_type</span><span class="p">(</span><span class="n">PlayerPawnController</span><span class="p">)),</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PlayerPawnController.get_input_map"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.get_input_map">[docs]</a>    <span class="k">def</span> <span class="nf">get_input_map</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return keybinding mapping (from actions to buttons)&quot;&quot;&quot;</span>
+        <span class="n">resources</span> <span class="o">=</span> <span class="n">ResourceManager</span><span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">ResourceManager</span><span class="o">.</span><span class="n">get_absolute_path</span><span class="p">(</span><span class="n">resources</span><span class="p">[</span><span class="s">&#39;input_map.cfg&#39;</span><span class="p">])</span>
+
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">ConfigObj</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s">&quot;template&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="p">[</span><span class="s">&#39;DEFAULT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">InputButtons</span><span class="o">.</span><span class="n">keys_to_values</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">binding</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">binding</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">binding</span><span class="p">,</span> <span class="nb">str</span><span class="p">)}</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.initialise_client"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.initialise_client">[docs]</a>    <span class="k">def</span> <span class="nf">initialise_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialise client-specific player controller state&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_map</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_input_map</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latest_correction_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sent_states</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recent_states</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.initialise_server"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.initialise_server">[docs]</a>    <span class="k">def</span> <span class="nf">initialise_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialise server-specific player controller state&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">info_cls</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># Network clock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clock</span> <span class="o">=</span> <span class="n">Clock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">possessed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># Network jitter compensation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">JitterBuffer</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">to_ticks</span><span class="p">(</span><span class="mf">0.1</span><span class="p">))</span>
+
+        <span class="c"># Client results of simulating moves</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_moves_states</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c"># ID of move waiting to be verified</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_validation_move_id</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_corrected_move_id</span> <span class="o">=</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.receive_message"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.receive_message">[docs]</a>    <span class="k">def</span> <span class="nf">receive_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">info</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Replicable</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">client</span><span class="p">:</span>
+        <span class="n">MessageReceivedSignal</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.send_message"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.send_message">[docs]</a>    <span class="k">def</span> <span class="nf">send_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">info</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Replicable</span><span class="p">)</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="n">self_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span>
+
+        <span class="c"># Broadcast to all controllers</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">Replicable</span><span class="o">.</span><span class="n">subclass_of_type</span><span class="p">(</span><span class="n">PlayerReplicationInfo</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">():</span>
+                <span class="n">controller</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">owner</span>
+                <span class="n">controller</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">self_info</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">controller</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">owner</span>
+            <span class="n">controller</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">self_info</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.set_name"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.set_name">[docs]</a>    <span class="k">def</span> <span class="nf">set_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span><span class="o">-&gt;</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+</div>
+    <span class="nd">@LatencyUpdatedSignal.on_context</span>
+<div class="viewcode-block" id="PlayerPawnController.server_update_ping"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.server_update_ping">[docs]</a>    <span class="k">def</span> <span class="nf">server_update_ping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rtt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update ReplicationInfo with approximation of connection ping</span>
+
+<span class="sd">        :param rtt: round trip time from server to client and back</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">ping</span> <span class="o">=</span> <span class="n">rtt</span> <span class="o">/</span> <span class="mi">2</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.server_receive_move"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.server_receive_move">[docs]</a>    <span class="k">def</span> <span class="nf">server_receive_move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">move_id</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">MAXIMUM_TICK</span><span class="p">),</span>
+                            <span class="n">latest_correction_id</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="n">WorldInfo</span><span class="o">.</span><span class="n">MAXIMUM_TICK</span><span class="p">),</span>
+                            <span class="n">recent_states</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">element_flag</span><span class="o">=</span><span class="n">TypeFlag</span><span class="p">(</span>
+                                <span class="n">Pointer</span><span class="p">(</span><span class="s">&quot;input_context.network.struct_cls&quot;</span><span class="p">))),</span>
+                            <span class="n">position</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="n">Vector</span><span class="p">),</span> <span class="n">yaw</span><span class="p">:</span> <span class="n">TypeFlag</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Handle remote client inputs</span>
+
+<span class="sd">        :param move_id: unique ID of move</span>
+<span class="sd">        :param recent_states: list of recent input states</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">push</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">push</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">recent_states</span><span class="p">):</span>
+                <span class="n">push</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">move_id</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="c"># Save physics state for this move for later validation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_moves_states</span><span class="p">[</span><span class="n">move_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">position</span><span class="p">,</span> <span class="n">yaw</span><span class="p">,</span> <span class="n">latest_correction_id</span>
+</div>
+    <span class="nd">@PostPhysicsSignal.on_global</span>
+<div class="viewcode-block" id="PlayerPawnController.post_physics"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.post_physics">[docs]</a>    <span class="k">def</span> <span class="nf">post_physics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_send_move</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_validate_last_move</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PlayerPawnController.process_inputs"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.process_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">process_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buttons</span><span class="p">,</span> <span class="n">ranges</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.server_validate_last_move"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.server_validate_last_move">[docs]</a>    <span class="k">def</span> <span class="nf">server_validate_last_move</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validate result of applied input states.</span>
+
+<span class="sd">        Send correction to client if move was invalid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Well, we need a Pawn!</span>
+        <span class="n">pawn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># If we don&#39;t have a move ID, bail here</span>
+        <span class="n">move_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending_validation_move_id</span>
+        <span class="k">if</span> <span class="n">move_id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># We&#39;ve handled this</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_validation_move_id</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="n">moves_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_moves_states</span>
+
+        <span class="c"># Delete old move states</span>
+        <span class="n">old_move_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">moves_states</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">move_id</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">old_move_id</span> <span class="ow">in</span> <span class="n">old_move_ids</span><span class="p">:</span>
+            <span class="n">moves_states</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">old_move_id</span><span class="p">)</span>
+
+        <span class="c"># Get corrected state</span>
+        <span class="n">client_position</span><span class="p">,</span> <span class="n">client_yaw</span><span class="p">,</span> <span class="n">client_last_correction</span> <span class="o">=</span> <span class="n">moves_states</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">move_id</span><span class="p">)</span>
+
+        <span class="c"># Don&#39;t bother checking if we&#39;re already checking invalid state</span>
+        <span class="k">if</span> <span class="n">client_last_correction</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_corrected_move_id</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c"># Check predicted position is valid</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_position</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_velocity</span>
+        <span class="n">yaw</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">world_orientation</span><span class="o">.</span><span class="n">z</span>
+        <span class="n">angular_yaw</span> <span class="o">=</span> <span class="n">pawn</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">world_angular</span><span class="o">.</span><span class="n">z</span>
+
+        <span class="n">pos_err</span> <span class="o">=</span> <span class="p">(</span><span class="n">client_position</span> <span class="o">-</span> <span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">length_squared</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">MAX_POSITION_ERROR_SQUARED</span>
+        <span class="n">abs_yaw_diff</span> <span class="o">=</span> <span class="p">((</span><span class="n">client_yaw</span> <span class="o">-</span> <span class="n">yaw</span><span class="p">)</span> <span class="o">%</span> <span class="n">pi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">rot_err</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">abs_yaw_diff</span><span class="p">,</span> <span class="n">pi</span> <span class="o">-</span> <span class="n">abs_yaw_diff</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">MAX_ORIENTATION_ANGLE_ERROR_SQUARED</span>
+
+        <span class="k">if</span> <span class="n">pos_err</span> <span class="ow">or</span> <span class="n">rot_err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_correct_move</span><span class="p">(</span><span class="n">move_id</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">yaw</span><span class="p">,</span> <span class="n">velocity</span><span class="p">,</span> <span class="n">angular_yaw</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_corrected_move_id</span> <span class="o">=</span> <span class="n">move_id</span>
+</div>
+    <span class="nd">@LogicUpdateSignal.on_global</span>
+    <span class="nd">@requires_netmode</span><span class="p">(</span><span class="n">Netmodes</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+<div class="viewcode-block" id="PlayerPawnController.server_update"><a class="viewcode-back" href="../../game_system.controllers.html#game_system.controllers.PlayerPawnController.server_update">[docs]</a>    <span class="k">def</span> <span class="nf">server_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta_time</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">input_state</span><span class="p">,</span> <span class="n">move_id</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pawn</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">buttons</span><span class="p">,</span> <span class="n">ranges</span> <span class="o">=</span> <span class="n">input_state</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_inputs</span><span class="p">(</span><span class="n">buttons</span><span class="p">,</span> <span class="n">ranges</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_validation_move_id</span> <span class="o">=</span> <span class="n">move_id</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

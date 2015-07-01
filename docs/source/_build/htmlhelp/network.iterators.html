@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=cp1252" />
+    
+    <title>network.iterators module</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="top" title="PyAuthServer 1.0.1 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body">
+            
+  <div class="section" id="module-network.iterators">
+<span id="network-iterators-module"></span><h1>network.iterators module</h1>
+<dl class="class">
+<dt id="network.iterators.RenewableGenerator">
+<em class="property">class </em><tt class="descclassname">network.iterators.</tt><tt class="descname">RenewableGenerator</tt><big>(</big><em>renew_func</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#RenewableGenerator"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>ID manager</p>
+<p>Provides interface to an generator with a callback to replace on StopIteration</p>
+<dl class="method">
+<dt id="network.iterators.RenewableGenerator.renew">
+<tt class="descname">renew</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/network/iterators.html#RenewableGenerator.renew"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="network.iterators.take_single">
+<tt class="descclassname">network.iterators.</tt><tt class="descname">take_single</tt><big>(</big><em>iterable</em>, <em>default=None</em>, <em>reverse=False</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#take_single"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Returns first element from iterable</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>default</strong> &#8211; default value if iterable is empty</li>
+<li><strong>reverse</strong> &#8211; reverse the sequence</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>:returns first element or default</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="network.iterators.partition_iterable">
+<tt class="descclassname">network.iterators.</tt><tt class="descname">partition_iterable</tt><big>(</big><em>iterable</em>, <em>length</em>, <em>steps=None</em><big>)</big><a class="reference internal" href="_modules/network/iterators.html#partition_iterable"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Partitions an iterable into fixed length parts</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>iterable</strong> &#8211; iterable object</li>
+<li><strong>length</strong> &#8211; length of slice</li>
+<li><strong>steps</strong> &#8211; number of slices</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">list of partition elements</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">PyAuthServer 1.0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Angus Hollands.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
