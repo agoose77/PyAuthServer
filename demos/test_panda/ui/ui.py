@@ -1,2 +1,0 @@
-class UI:
-    pass

@@ -13,9 +13,6 @@ class SimpleNetwork(Network):
 
     """Simple network update loop"""
 
-    def __init__(self, address="", port=0):
-        super().__init__(address, port)
-
     def on_finished(self):
         Connection.clear_graph()
         Replicable.clear_graph()
@@ -45,7 +42,7 @@ class SimpleNetwork(Network):
                 continue
 
             last_time = current_time
-            
+
             any_connections = bool(Connection)
 
             if timeout is None:
@@ -56,7 +53,7 @@ class SimpleNetwork(Network):
 
             if not any_connections and timed_out:
                 break
-             
+
             self.step()
 
         self.stop()

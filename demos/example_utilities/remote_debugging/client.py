@@ -30,7 +30,7 @@ def run_interface(namespace):
 
 def application(peer_data=("localhost", 1200)):
     WorldInfo.netmode = Netmodes.client
-    network = SimpleNetwork()
+    network = SimpleNetwork.from_address_info("", 0)
 
     namespace = {}
 

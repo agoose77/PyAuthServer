@@ -104,14 +104,20 @@ class GOTORequest:
         self.status = EvaluationState.success
 
 
-class GOTOState(State):
+class UpdateableState(State):
+
+    def update(self):
+        pass
+
+
+class GOTOState(UpdateableState):
     """FSM State
 
     Handles GOTO requests
     """
 
     def __init__(self, controller):
-        super().__init__("GOTO")
+        super().__init__()
 
         self.controller = controller
         self.request = None
@@ -166,16 +172,33 @@ class AIPawnController(PawnController):
         self.sensor_manager = SensorManager(self)
         self.navigation_manager = NavigationManager(self)
         self.plan_manager = GOAPActionPlanManager(self, logger=self.logger.getChild("GOAP"))
-        self.fsm = FiniteStateMachine()
+        self.fsm = FiniteStateMachine(logger=self.logger.getChild("FSM"))
+
+        self.goto_request = None
 
         # Add states
-        self.fsm.add_state(GOTOState(self))
+        self.goto_state = GOTOState(self)
+        self.idle_state = UpdateableState()
+
+        self.fsm.add_state(self.idle_state)
+        self.fsm.add_state(self.goto_state)
+
+        transition_table = [(self.has_goto_target, self.idle_state, self.goto_state),
+                            (self.not_has_goto_target, self.goto_state, self.idle_state)]
+        self.transitions = self.fsm.create_and_add_transitions_from_table(transition_table)
+
+    def has_goto_target(self):
+        return self.goto_request is not None
+
+    def not_has_goto_target(self):
+        return not self.has_goto_target()
 
     @LogicUpdateSignal.on_global
     def update(self, delta_time):
         self.working_memory.update(delta_time)
         self.sensor_manager.update(delta_time)
         self.plan_manager.update()
+        self.fsm.process_transitions()
         self.fsm.state.update()
         self.navigation_manager.update(delta_time)
 

@@ -1,8 +1,10 @@
 class State:
 
-    def __init__(self, name):
+    def __init__(self):
         self.manager = None
-        self.name = name
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def on_enter(self):
         pass

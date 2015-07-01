@@ -31,7 +31,8 @@ class NavigationQuery:
         """Current planned path"""
         return self._path
 
-    def check_plan_is_valid(self):
+    @property
+    def is_path_valid(self):
         """Check if current path is valid"""
         raise NotImplementedError
 
@@ -42,15 +43,16 @@ class NavigationQuery:
     def update(self, dt):
         """Verify or replan existing path"""
         # Update path state
-        if not self.check_plan_is_valid():
-            self._path = None
+        # if not self.is_path_valid:
+        #     self._path = None
 
         self._accumulator += dt
 
         sample_step = 1 / self.update_frequency
-        if self._accumulator > sample_step:
+        if self._accumulator >= sample_step:
             self._accumulator -= sample_step
-
+            self.replan()
+            return
             if self.needs_replan and self.replan_if_invalid:
                 self.replan()
 
@@ -64,7 +66,8 @@ class PointNavigationQuery(NavigationQuery):
 
         self.replan()
 
-    def check_plan_is_valid(self):
+    @property
+    def is_path_valid(self):
         """Return integrity of current plan"""
         path = self._path
 
@@ -91,6 +94,7 @@ class PointNavigationQuery(NavigationQuery):
 
 
 class ActorNavigationQuery(NavigationQuery):
+    paths = 0
 
     def __init__(self, manager, pawn, target):
         self._target = target
@@ -109,7 +113,8 @@ class ActorNavigationQuery(NavigationQuery):
         """Whether target actor is valid (registered)"""
         return self._target.registered
 
-    def check_plan_is_valid(self):
+    @property
+    def is_path_valid(self):
         """Return integrity of current plan"""
         path = self.path
 
@@ -149,6 +154,7 @@ class ActorNavigationQuery(NavigationQuery):
             if navmesh is not None:
                 try:
                     path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
+                    self.__class__.paths += 1
 
                 except PathNotFoundException:
                     print("No valid path!", source_node, navmesh.navmesh.find_nearest_node(destination))

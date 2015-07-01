@@ -36,30 +36,31 @@ class UnreliableSocketWrapper:
         self._last_sent_bytes = 0
 
     def __getattr__(self, name):
+        # If this class doesn't have the data member, return from wrapped socket
         return getattr(self._socket, name)
 
     def update(self):
         current_time = clock()
-
-        # Check if we can send delayed data
         delay = self.latency
 
+        # Find eligible data to send
         index = 0
         for index, (timestamp, *payload) in enumerate(self._buffer_out):
             if (current_time - timestamp) < delay:
                 break
 
+        # Shrink window to find pending outgoing data
         pending_send = self._buffer_out[:index]
         self._buffer_out[:] = self._buffer_out[index:]
 
         # Send the delayed data
         send = self._socket.sendto
-        sent_bytes = self._last_sent_bytes
+        sent_bytes = 0
 
         for timestamp, args, kwargs in pending_send:
             sent_bytes += send(*args, **kwargs)
 
-        self._last_sent_bytes = sent_bytes
+        self._last_sent_bytes += sent_bytes
 
     def sendto(self, *args, **kwargs):
         # Send count from actual send call
@@ -201,11 +202,10 @@ class MulticastDiscovery:
 class Network:
     """Network management class"""
 
-    def __init__(self, address, port):
-        self.socket = NonBlockingSocketUDP(address, port)
+    def __init__(self, socket):
+        self.socket = socket
 
-        self.address = address
-        self.port = port
+        self.address, self.port = socket.getsockname()
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
@@ -213,6 +213,16 @@ class Network:
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
+
+    @classmethod
+    def from_address_info(cls, address="localhost", port=0):
+        """Create Network object from address and port
+
+        :param address: address for socket
+        :param port: port to bind to, 0 for any
+        """
+        socket = NonBlockingSocketUDP(address, port)
+        return cls(socket)
 
     @property
     def received_data(self):
@@ -305,5 +315,4 @@ class Network:
     def stop(self):
         """Close network socket"""
         self.socket.close()
-
         self.multicast.stop()

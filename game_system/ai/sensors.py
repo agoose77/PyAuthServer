@@ -206,14 +206,14 @@ class SightSensor(Sensor):
         visible_actors = []
         ray_test = pawn.physics.ray_test
         for actor in Actor.subclass_of_type(Actor):
-            actor_position = actor.transform.world_position
-
-            if actor_position not in view_cone:
-                continue
-
-            result = ray_test(actor_position)
-            if result is None:
-                continue
+            # actor_position = actor.transform.world_position
+            #
+            # if actor_position not in view_cone:
+            #     continue
+            #
+            # result = ray_test(actor_position)
+            # if result is None:
+            #     continue
 
             visible_actors.append(actor)
 

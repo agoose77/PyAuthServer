@@ -25,7 +25,7 @@ def application():
     WorldInfo.netmode = Netmodes.server
     WorldInfo.rules = Rules()
 
-    network = SimpleNetwork(port=1200)
+    network = SimpleNetwork.from_address_info(address="", port=1200)
     update_network = respect_interval(1 / 60, network.step)
 
     RemoteTerminal.counter = 0

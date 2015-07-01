@@ -319,7 +319,7 @@ class Server(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network("", 1200)
+        return Network.from_address_info("", 1200)
 
 
 class Client(GameLoop):
@@ -344,7 +344,7 @@ class Client(GameLoop):
 
     @staticmethod
     def create_network():
-        network = Network("", 0)
+        network = Network.from_address_info("", 0)
         #network.socket = UnreliableSocketWrapper(network.socket)
         return network
 

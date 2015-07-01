@@ -497,6 +497,9 @@ class PandaNavmeshInterface(PandaComponent):
         return closest_node
 
     def find_path(self, from_point, to_point, from_node=None, to_node=None):
+        # from_node=None
+        # to_node=None
+
         if from_node is None:
             from_node = self.find_nearest_node(from_point)
 
