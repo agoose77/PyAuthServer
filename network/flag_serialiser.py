@@ -1,5 +1,5 @@
 from .bitfield import BitField
-from .handlers import get_handler, LOGGER
+from .handlers import get_handler
 from .type_flag import TypeFlag
 
 __all__ = ["FlagSerialiser"]
@@ -22,7 +22,7 @@ class FlagSerialiser:
         """
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
         self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
-        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(key)))
+        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(key) if logger else None))
                                   for key, flag in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))

@@ -64,6 +64,9 @@ class PawnController(Replicable):
 
         :param pawn: Pawn instance
         """
+        if pawn is self.pawn:
+            return
+
         self.pawn = pawn
         self.on_possessed_pawn()
 
@@ -99,9 +102,6 @@ class GOTORequest:
         self.target = target
         self.status = EvaluationState.running
         self.distance_to_target = -1.0
-
-    def on_completed(self):
-        self.status = EvaluationState.success
 
 
 class UpdateableState(State):
@@ -183,18 +183,42 @@ class AIPawnController(PawnController):
         self.fsm.add_state(self.idle_state)
         self.fsm.add_state(self.goto_state)
 
-        transition_table = [(self.has_goto_target, self.idle_state, self.goto_state),
-                            (self.not_has_goto_target, self.goto_state, self.idle_state)]
-        self.transitions = self.fsm.create_and_add_transitions_from_table(transition_table)
+        transition_table = [(self.has_valid_goto_target, self.idle_state, self.goto_state),
+                            (self.has_not_valid_goto_target, self.goto_state, self.idle_state)]
 
-    def has_goto_target(self):
-        return self.goto_request is not None
+        self.fsm.create_and_add_transitions_from_table(transition_table)
 
-    def not_has_goto_target(self):
-        return not self.has_goto_target()
+    def has_valid_goto_target(self):
+        """Return whether Controller has a valid GOTO target pending"""
+        request = self.goto_request
+
+        if request is None:
+            return False
+
+        if not request.target:
+            return False
+
+        if request.status == EvaluationState.success:
+            return False
+
+        return True
+
+    def has_not_valid_goto_target(self):
+        """Return logical inverse of has_valid_goto_target()"""
+        return not self.has_valid_goto_target()
+
+    def on_possessed_pawn(self):
+        super().on_possessed_pawn()
+
+        # Clear old queries for pawns
+        self.navigation_manager.queries.clear()
 
     @LogicUpdateSignal.on_global
     def update(self, delta_time):
+        # A Pawn is required to perform game logic
+        if not self.pawn:
+            return
+
         self.working_memory.update(delta_time)
         self.sensor_manager.update(delta_time)
         self.plan_manager.update()

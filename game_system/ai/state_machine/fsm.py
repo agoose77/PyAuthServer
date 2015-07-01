@@ -62,6 +62,20 @@ class FiniteStateMachine:
 
         self._transitions[transition.from_state].remove(transition)
 
+    def find_transitions_involving(self, state):
+        involved_transitions = []
+
+        for from_state, transitions in self._transitions.items():
+            if from_state is state:
+                involved_transitions.extend(transitions)
+
+            else:
+                for transition in transitions:
+                    if transition.to_state is state:
+                        involved_transitions.append(transition)
+
+        return involved_transitions
+
     def add_state(self, state, set_default=True):
         self._states.add(state)
         state.manager = self
@@ -79,6 +93,10 @@ class FiniteStateMachine:
             self._state = None
 
         self._states.remove(state)
+
+        # Remove any dependent transitions
+        for transition in self.find_transitions_involving(state):
+            self.remove_transition(transition)
 
         if self._logger:
             self._logger.info("Exiting removed state {}".format(state))

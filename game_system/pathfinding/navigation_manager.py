@@ -43,16 +43,15 @@ class NavigationQuery:
     def update(self, dt):
         """Verify or replan existing path"""
         # Update path state
-        # if not self.is_path_valid:
-        #     self._path = None
+        if not self.is_path_valid:
+            self._path = None
 
         self._accumulator += dt
 
         sample_step = 1 / self.update_frequency
         if self._accumulator >= sample_step:
             self._accumulator -= sample_step
-            self.replan()
-            return
+
             if self.needs_replan and self.replan_if_invalid:
                 self.replan()
 
@@ -60,11 +59,13 @@ class NavigationQuery:
 class PointNavigationQuery(NavigationQuery):
 
     def __init__(self, manager, pawn, target):
-        self._target = target
+        self._target = target.copy().freeze()
 
         super().__init__(manager, pawn)
 
-        self.replan()
+    @property
+    def target(self):
+        return self._target
 
     @property
     def is_path_valid(self):
@@ -101,7 +102,9 @@ class ActorNavigationQuery(NavigationQuery):
 
         super().__init__(manager, pawn)
 
-        self.replan()
+    @property
+    def target(self):
+        return self._target
 
     @property
     def needs_replan(self):
@@ -154,7 +157,6 @@ class ActorNavigationQuery(NavigationQuery):
             if navmesh is not None:
                 try:
                     path = navmesh.navmesh.find_path(source, destination, from_node=source_node)
-                    self.__class__.paths += 1
 
                 except PathNotFoundException:
                     print("No valid path!", source_node, navmesh.navmesh.find_nearest_node(destination))
@@ -171,7 +173,7 @@ class NavigationManager:
         self.controller = controller
         self.current_node = None
 
-        self._queries = set()
+        self.queries = set()
 
     def create_query(self, destination):
         """Create navigation plan query
@@ -188,12 +190,12 @@ class NavigationManager:
         else:
             query = PointNavigationQuery(self, pawn, destination)
 
-        self._queries.add(query)
+        self.queries.add(query)
 
         return query
 
     def remove_query(self, query):
-        self._queries.remove(query)
+        self.queries.remove(query)
 
     def _update_current_node(self, pawn):
         """Update current tracked node of pawn.
@@ -226,11 +228,7 @@ class NavigationManager:
         """Update navigation queries"""
         pawn = self.controller.pawn
 
-        if pawn is None:
-            self._queries.clear()
-            return
-
         self._update_current_node(pawn)
 
-        for query in self._queries:
+        for query in self.queries:
             query.update(dt)
