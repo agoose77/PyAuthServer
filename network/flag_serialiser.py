@@ -14,8 +14,12 @@ class FlagSerialiser:
     NONE_CONTENT_INDEX = -1
     BOOL_CONTENT_INDEX = -2
 
-    def __init__(self, arguments, logger=LOGGER):
-        """Accepts ordered dict as argument"""
+    def __init__(self, arguments, logger=None):
+        """FlagSerialiser initialiser
+
+        :param arguments: ordered dict of named TypeFlag instances
+        :param logger: logger instance for handlers
+        """
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
         self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
         self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(key)))

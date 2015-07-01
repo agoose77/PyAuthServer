@@ -78,7 +78,7 @@ def register_description(value_type, callback):
     descriptions[value_type] = callback
 
 
-def get_handler(type_flag, logger=LOGGER):
+def get_handler(type_flag, logger=None):
     """Takes a TypeFlag (or subclass thereof) and return handler.
 
     If a handler cannot be found for the provided type, look for a handled
@@ -107,6 +107,10 @@ def get_handler(type_flag, logger=LOGGER):
         else:
             # Remember this for later call
             handler = handlers[value_type] = handlers[handled_type]
+
+    # Add default logger
+    if logger is None:
+        logger = LOGGER
 
     return handler(type_flag, logger=logger)
 
