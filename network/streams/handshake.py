@@ -133,7 +133,7 @@ class ServerHandshakeStream(HandshakeStream):
             ConnectionSuccessSignal.invoke(target=self)
 
             # Send result
-            return Packet(protocol=ConnectionProtocols.handshake_success)
+            return Packet(protocol=ConnectionProtocols.handshake_success, reliable=True)
 
     @send_state(ConnectionState.pending)
     def invoke_handshake(self, network_tick, bandwidth):
@@ -151,9 +151,8 @@ class ClientHandshakeStream(HandshakeStream):
     @send_state(ConnectionState.pending)
     def send_handshake_request(self, network_tick, bandwidth):
         self.state = ConnectionState.handshake
-
         netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
-        return Packet(protocol=ConnectionProtocols.request_handshake, payload=netmode_data)
+        return Packet(protocol=ConnectionProtocols.request_handshake, payload=netmode_data, reliable=True)
 
     @response_protocol(ConnectionProtocols.handshake_success)
     def receive_handshake_success(self, data):
@@ -167,11 +166,8 @@ class ClientHandshakeStream(HandshakeStream):
 
     @response_protocol(ConnectionProtocols.invoke_handshake)
     def receive_multicast_ping(self, data):
-        # Can't connect to new servers when involved with another
-        if self.state != ConnectionState.pending:
-            return
-
-        self.state = ConnectionState.pending
+        # Just handle packet, it's only to trigger connection
+        pass
 
     @response_protocol(ConnectionProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
