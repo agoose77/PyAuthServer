@@ -12,6 +12,20 @@ response_protocol = set_annotation("response_to")
 send_state = set_annotation("send_for")
 
 
+# TODO move away from class types and towards registered listeners
+"""
+stream = Stream()
+
+#Then
+handler = Handler()
+# Or
+handler = Stream()
+
+stream.add_handler(protocol, handler.handle)
+
+"""
+
+
 class Dispatcher:
     """Dispatches packets to subscriber streams, and requests new packets from them"""
 
