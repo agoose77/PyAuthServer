@@ -138,8 +138,8 @@ class Connection(metaclass=InstanceRegister):
         window_size = self.ack_window
 
         # Iterate over ACK bitfield
-        for relative_sequence in range(window_size):
-            absolute_sequence = ack_base - (relative_sequence + 1)
+        for relative_sequence in range(window_size + 1):
+            absolute_sequence = ack_base - relative_sequence
 
             # If we are waiting for this packet, acknowledge it
             if ack_bitfield[relative_sequence] and absolute_sequence in requested_ack:
@@ -150,20 +150,14 @@ class Connection(metaclass=InstanceRegister):
                 if absolute_sequence == self.tagged_throttle_sequence:
                     self.stop_throttling()
 
-        # Acknowledge the sequence of this packet
-        if ack_base in self.requested_ack:
-            sent_packet = requested_ack.pop(ack_base)
-            sent_packet.on_ack()
-
-            # If a packet has had time to return since throttling began
-            if ack_base == self.tagged_throttle_sequence:
-                self.stop_throttling()
+        assert relative_sequence == ack_base, "DEBUGGING CHECK FAILED"
 
         # Dropped locals
         missed_ack = False
 
         # Find packets we think are dropped and resend them
         considered_dropped = [s for s in requested_ack if (ack_base - s) >= window_size]
+
         redelivery_queue = self.injector.queue
         # If the packet drops off the ack_window assume it is lost
         for absolute_sequence in considered_dropped:

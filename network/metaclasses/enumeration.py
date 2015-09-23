@@ -1,40 +1,64 @@
 __all__ = "EnumerationMeta",
 
 
+class _EnumDict(dict):
+
+    def __init__(self, autonum):
+        super().__init__()
+
+        self._member_names = []
+        self._autonum = autonum
+
+    def __setitem__(self, name, value):
+        if name.startswith("__"):
+            return super().__setitem__(name, value)
+
+        if name in self._member_names:
+            raise ValueError("'{}' is already a member of '{}' Enum".format(name, self.__class__.__name__))
+
+        # Auto numbering
+        if value is Ellipsis:
+            value = self._autonum(len(self._member_names))
+
+        self._member_names.append(name)
+        super().__setitem__(name, value)
+
+
+def default_numbering(i):
+    return i
+
+
 class EnumerationMeta(type):
     """Metaclass for Enumerations in Python"""
 
-    def __new__(metacls, name, parents, attributes):
-        try:
-            values = attributes['values']
-            
-        except KeyError:
-            pass
+    def __init__(metacls, name, bases, namespace, autonum=None):
+        super().__init__(name, bases, namespace)
 
-        else:
-            # Get settings
-            get_index = (lambda x: 2 ** x if attributes.get('use_bits', False) else x)
-
-            forward_mapping = {v: get_index(i) for i, v in enumerate(values)}
-            reverse_mapping = {i: v for v, i in forward_mapping.items()}
-
-            attributes.update(forward_mapping)
-            attributes['keys_to_values'] = forward_mapping
-            attributes['values_to_keys'] = reverse_mapping
+    def __new__(metacls, name, bases, namespace, autonum=None):
+        identifiers = namespace._member_names
 
         # Return new class
-        return super().__new__(metacls, name, parents, attributes)
+        cls = super().__new__(metacls, name, bases, namespace)
+
+        cls.identifiers = tuple(identifiers)
+        cls._values_to_identifiers = {namespace[n]: n for n in identifiers}
+
+        return cls
+
+    @classmethod
+    def __prepare__(metacls, name, bases, autonum=default_numbering, **kwargs):
+        return _EnumDict(autonum)
 
     def __getitem__(cls, value):
         # Add ability to lookup name
-        return cls.values_to_keys[value]
+        return cls._values_to_identifiers[value]
 
     def __contains__(cls, index):
-        return index in cls.values_to_keys
+        return index in cls.identifiers
 
     def __len__(cls):
-        return len(cls.values)
+        return len(cls.identifiers)
 
-    def __repr__(cls):
-        contents_string = '\n'.join("<{}: {}>".format(*mapping) for mapping in cls.keys_to_values.items())
-        return "<{} Enumeration>\n{}\n".format(cls.__name__, contents_string)
+    def __iter__(cls):
+        namespace = cls.__dict__
+        return ((k, namespace[k]) for k in cls.identifiers)

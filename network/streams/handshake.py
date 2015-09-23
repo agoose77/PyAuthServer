@@ -3,7 +3,7 @@ from .replication import ReplicationStream
 
 from ..decorators import with_tag
 from ..errors import NetworkError
-from ..enums import ConnectionState, ConnectionProtocols, Netmodes
+from ..enums import ConnectionStates, ConnectionProtocols, Netmodes
 from ..handlers import get_handler
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal
@@ -24,7 +24,7 @@ class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmo
         Stream.__init__(self, dispatcher)
         StatusDispatcher.__init__(self)
 
-        self.state = ConnectionState.pending
+        self.state = ConnectionStates.pending
 
         self.dispatcher = dispatcher
 
@@ -88,12 +88,12 @@ class ServerHandshakeStream(HandshakeStream):
     def receive_disconnect_request(self, data):
         self._cleanup()
 
-        self.state = ConnectionState.disconnected
+        self.state = ConnectionStates.disconnected
 
     @response_protocol(ConnectionProtocols.request_handshake)
     def receive_handshake_request(self, data):
         # Only if we're not already connected
-        if self.state != ConnectionState.pending:
+        if self.state != ConnectionStates.pending:
             return
 
         netmode, netmode_size = self.netmode_packer.unpack_from(data)
@@ -106,9 +106,9 @@ class ServerHandshakeStream(HandshakeStream):
             self.logger.error("Connection was refused: {}".format(err))
             self.handshake_error = err
 
-        self.state = ConnectionState.handshake
+        self.state = ConnectionStates.handshake
 
-    @send_state(ConnectionState.handshake)
+    @send_state(ConnectionStates.handshake)
     def send_handshake_result(self, network_tick, bandwidth):
         connection_failed = self.handshake_error is not None
 
@@ -119,7 +119,7 @@ class ServerHandshakeStream(HandshakeStream):
             error_data = pack_string(error_type) + pack_string(error_body)
 
             # Set failed state
-            self.state = ConnectionState.failed
+            self.state = ConnectionStates.failed
             ConnectionErrorSignal.invoke(target=self)
 
             # Send result
@@ -129,13 +129,13 @@ class ServerHandshakeStream(HandshakeStream):
         else:
             self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
             # Set success state
-            self.state = ConnectionState.connected
+            self.state = ConnectionStates.connected
             ConnectionSuccessSignal.invoke(target=self)
 
             # Send result
             return Packet(protocol=ConnectionProtocols.handshake_success, reliable=True)
 
-    @send_state(ConnectionState.pending)
+    @send_state(ConnectionStates.pending)
     def invoke_handshake(self, network_tick, bandwidth):
         """Invoke handshake attempt on client, used for multicasting
 
@@ -148,18 +148,18 @@ class ServerHandshakeStream(HandshakeStream):
 @with_tag(Netmodes.client)
 class ClientHandshakeStream(HandshakeStream):
 
-    @send_state(ConnectionState.pending)
+    @send_state(ConnectionStates.pending)
     def send_handshake_request(self, network_tick, bandwidth):
-        self.state = ConnectionState.handshake
+        self.state = ConnectionStates.handshake
         netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
         return Packet(protocol=ConnectionProtocols.request_handshake, payload=netmode_data, reliable=True)
 
     @response_protocol(ConnectionProtocols.handshake_success)
     def receive_handshake_success(self, data):
-        if self.state != ConnectionState.handshake:
+        if self.state != ConnectionStates.handshake:
             return
 
-        self.state = ConnectionState.connected
+        self.state = ConnectionStates.connected
         self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
 
         ConnectionSuccessSignal.invoke(target=self)
@@ -178,6 +178,6 @@ class ClientHandshakeStream(HandshakeStream):
         raised_error = error_class(error_message)
 
         self.logger.error("Authentication failed: {}".format(raised_error))
-        self.state = ConnectionState.failed
+        self.state = ConnectionStates.failed
 
         ConnectionErrorSignal.invoke(raised_error, target=self)

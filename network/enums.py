@@ -2,59 +2,77 @@ from contextlib import contextmanager
 
 from .metaclasses.enumeration import EnumerationMeta
 
-__all__ = ['Enumeration', 'ConnectionState', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
+__all__ = ['Enum', 'ConnectionStates', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
 
 
-class Enumeration(metaclass=EnumerationMeta):
+class Enum(metaclass=EnumerationMeta):
     pass
 
 
-class ConnectionState(Enumeration):
+class ConnectionStates(Enum):
     """Status of connection to peer"""
-    values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
+    failed = ...
+    timeout = ...
+    disconnected = ...
+    pending = ...
+    handshake = ...
+    connected = ...
 
 
-class Netmodes(Enumeration):
-    values = "server", "client"
+class Netmodes(Enum):
+    server = ...
+    client = ...
 
 
-class ConnectionProtocols(Enumeration):
-    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
-             "replication_del",  "attribute_update", "invoke_method", "invoke_handshake"
+class ConnectionProtocols(Enum):
+    request_disconnect = ...
+    request_handshake = ...
+    handhsake_success = ...
+    handshake_failed = ...
+    replication_init = ...
+    replication_del = ...
+    attribute_update = ...
+    invoke_method = ...
+    invoke_handshake = ...
 
 
-class IterableCompressionType(Enumeration):
-    values = ("no_compress", "compress", "auto")
+class IterableCompressionType(Enum):
+    no_compress = ...
+    compress = ...
+    auto = ...
 
 
-class Roles(Enumeration):
-    values = ("none", "dumb_proxy", "simulated_proxy", "autonomous_proxy", "authority")
+class Roles(Enum):
+    none = ...
+    dumb_proxy = ...
+    simulated_proxy = ...
+    autonomous_proxy = ...
+    authority = ...
 
-    __slots__ = "local", "remote", "context"
+    __slots__ = "local", "remote", "_context"
 
     def __init__(self, local, remote):
         self.local = local
         self.remote = remote
-        self.context = False
+        self._context = None
 
     def __description__(self):
-        return hash((self.context, self.local, self.remote))
+        return hash((self._context, self.local, self.remote))
 
     def __repr__(self):
-        return "Roles: Local: {}, Remote: {}".format(self.__class__[self.local], self.__class__[self.remote])
+        return "Roles: Local: {}, Remote: {}".format(self.__class__[self.local],
+                                                     self.__class__[self.remote])
 
     @contextmanager
-    def set_context(self, owner):
-        self.context = owner
+    def set_context(self, is_owner):
+        self._context = is_owner
 
-        switched = self.remote == Roles.autonomous_proxy and not owner
-
-        if switched:
+        if self.remote == Roles.autonomous_proxy and not is_owner:
             self.remote = Roles.simulated_proxy
-
-        yield
-
-        if switched:
+            yield
             self.remote = Roles.autonomous_proxy
 
-        self.context = None
+        else:
+            yield
+
+        self._context = None
