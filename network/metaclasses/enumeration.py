@@ -8,6 +8,10 @@ class _EnumDict(dict):
 
         self._member_names = []
         self._autonum = autonum
+        self._has_real_values = False
+
+        # TODO autonum don't allow explict after auto-num
+        # Use autonum base from last explicit define (maybe use intelligent stepping?)
 
     def __setitem__(self, name, value):
         if name.startswith("__"):
@@ -18,7 +22,21 @@ class _EnumDict(dict):
 
         # Auto numbering
         if value is Ellipsis:
+            if self._has_real_values:
+                raise SyntaxError("An implicit definition cannot follow an explicit one")
+
             value = self._autonum(len(self._member_names))
+
+        # Int values
+        elif isinstance(value, int):
+            if self._member_names and not self._has_real_values:
+                print(self._member_names, value)
+                raise SyntaxError("An explicit definition cannot follow an implicit one")
+
+            self._has_real_values = True
+
+        else:
+            super().__setitem__(name, value)
 
         self._member_names.append(name)
         super().__setitem__(name, value)
@@ -26,6 +44,14 @@ class _EnumDict(dict):
 
 def default_numbering(i):
     return i
+
+
+# For scene:
+#   scene has channels
+#   create generic parser (id->payload - maybe nested packet? - packet is a subclass of ProtocolPayload?)
+#       write to/from containers with a container_stream
+#   use generic ID for scene, name is local data, sent on replication
+#   create event system (?) or have a replication command for creating scene
 
 
 class EnumerationMeta(type):
