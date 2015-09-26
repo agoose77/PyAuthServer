@@ -1,33 +1,31 @@
-from .streams import response_protocol, ProtocolHandler, Stream
+from .streams import on_protocol, register_protocol_listeners
 from .latency_calculator import LatencyCalculator
 
-from ..channel import Channel
-from ..decorators import with_tag
-from ..enums import ConnectionProtocols, Netmodes, Roles
+from ..channel import ChannelBase
+from ..enums import PacketProtocols, Roles
 from ..handlers import get_handler
 from ..packet import Packet, PacketCollection
 from ..replicable import Replicable
-from ..signals import (SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal,
-                       LatencyUpdatedSignal)
-from ..tagged_delegate import DelegateByNetmode
+from ..signals import (SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal, LatencyUpdatedSignal)
+from ..scene import NetworkScene
 from ..type_flag import TypeFlag
 from ..world_info import WorldInfo
 
 from functools import partial
 from operator import attrgetter
 
-__all__ = "ReplicationStream", "ServerReplicationStream", "ClientReplicationStream"
+__all__ = "SceneReplicationManagerBase", "ServerSceneReplicationManager", "ClientSceneReplicationManager"
 
 
 # Replication Streams
-class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmode):
-    subclasses = {}
+class SceneReplicationManagerBase(SignalListener):
 
-    def __init__(self, dispatcher):
-        super().__init__(dispatcher)
-
-        self.channels = {}
+    def __init__(self, connection):
+        self.scene_channels = {}
+        self.connection = connection
         self.replicable = None
+
+        self.logger = connection.logger.getChild("ReplicationManager")
 
         self.string_packer = get_handler(TypeFlag(str))
         self.int_packer = get_handler(TypeFlag(int))
@@ -41,6 +39,8 @@ class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmo
         # Call this last to ensure we intercept registration callbacks at the correct time
         self.register_signals()
 
+        register_protocol_listeners(self, connection.dispatcher)
+
     @property
     def prioritised_channels(self):
         """Returns a generator for replicables
@@ -49,7 +49,7 @@ class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmo
         :yield: replicable, (is_owner and relevant_to_owner), channel
         """
         no_role = Roles.none  # @UndefinedVariable
-
+        # TODO move this
         for channel in sorted(self.channels.values(), reverse=True, key=attrgetter("replication_priority")):
             replicable = channel.replicable
 
@@ -59,7 +59,7 @@ class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmo
 
             yield channel, replicable.relevant_to_owner and channel.is_owner
 
-    @response_protocol(ConnectionProtocols.invoke_method)
+    @on_protocol(PacketProtocols.invoke_method)
     def handle_method_call(self, data):
 
         # Unpack data
@@ -87,7 +87,7 @@ class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmo
 
         :param target: replicable that was registered
         """
-        self.channels[target.instance_id] = Channel(self, target)
+        self.channels[target.instance_id] = ChannelBase(self, target)
 
     def load_existing_replicables(self):
         """Load existing registered replicables"""
@@ -111,31 +111,30 @@ class ReplicationStream(Stream, SignalListener, ProtocolHandler, DelegateByNetmo
 
     def write_method_calls(self, channel):
         packed_id = channel.packed_id
-        method_invoke_protocol = ConnectionProtocols.invoke_method
+        method_invoke_protocol = PacketProtocols.invoke_method
         packets = [Packet(protocol=method_invoke_protocol, payload=packed_id + rpc_call, reliable=reliable)
-                   for rpc_call, reliable in channel.take_rpc_calls()]
+                   for rpc_call, reliable in channel.dump_rpc_calls()]
 
         self.method_queue.extend(packets)
 
 
-@with_tag(Netmodes.server)
-class ServerReplicationStream(ReplicationStream):
+class ServerSceneReplicationManager(SceneReplicationManagerBase):
 
-    def __init__(self, dispatcher):
-        super().__init__(dispatcher)
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.removal_queue = []
         self.creation_queue = []
         self.attribute_queue = []
 
-        self.queues = self.removal_queue, self.creation_queue, self.attribute_queue, self.method_queue
+        self.packet_queues = self.removal_queue, self.creation_queue, self.attribute_queue, self.method_queue
 
         self.replicable = WorldInfo.rules.post_initialise(self)
 
         self.latency_calculator = LatencyCalculator()
         self.latency_calculator.on_updated = partial(LatencyUpdatedSignal.invoke, target=self.replicable)
 
-    def get_ack_latency_wrapper(self, callback):
+    def _get_ack_latency_wrapper(self, callback):
         """Wraps callback with latency calculator callback
 
         :param callback: callback used to stop timing
@@ -182,8 +181,9 @@ class ServerReplicationStream(ReplicationStream):
             replicable = channel.replicable
 
             # Only send attributes if relevant
-            if not (channel.awaiting_replication and (is_and_relevant_to_owner or
-                                                      is_relevant(connection_replicable, replicable))):
+            if not (channel.awaiting_replication
+                    and (is_and_relevant_to_owner or
+                      is_relevant(connection_replicable, replicable))):
                 continue
 
             # If we've never replicated to this channel
@@ -200,32 +200,38 @@ class ServerReplicationStream(ReplicationStream):
 
             yield item
 
-    def pull_packets(self, network_tick, bandwidth):
-        replicables = self.prioritised_channels
+    def send(self, network_tick):
+        replication_tuples = self.prioritised_channels
+        bandwidth = self.connection.bandwidth
 
         if network_tick:
-            replicables = self.send_attributes(replicables, bandwidth)
+            replication_tuples = self.send_attributes(replication_tuples, bandwidth)
 
-        self.send_method_calls(replicables, bandwidth)
+        self.send_method_calls(replication_tuples, bandwidth)
 
-        members = []
-
-        for queue in self.queues:
-            members.extend(queue)
+        # Collate all queues
+        packets = []
+        for queue in self.packet_queues:
+            packets.extend(queue)
             queue.clear()
 
-        if not members:
+        if not packets:
             return None
 
-        packets = PacketCollection()
-        packets.members = members
+        packet_collection = PacketCollection(packets)
 
-        packet = members[0]
-        packet.on_success = self.get_ack_latency_wrapper(packet.on_success)
+        first_packet = packets[0]
 
-        self.latency_calculator.start_sample(packet)
+        # Start RTT calculation
+        self.latency_calculator.start_sample(first_packet)
 
-        return packets
+        # Stop calculating RTT when ACKED
+        existing_on_success = first_packet.on_success
+        first_packet.on_success = self._get_ack_latency_wrapper(existing_on_success)
+
+        packets.clear()
+
+        return packet_collection
 
     def write_attributes(self, channel, is_owner):
         attributes = channel.get_attributes(is_owner)
@@ -235,7 +241,7 @@ class ServerReplicationStream(ReplicationStream):
             return
 
         update_payload = channel.packed_id + attributes
-        packet = Packet(protocol=ConnectionProtocols.attribute_update, payload=update_payload, reliable=True)
+        packet = Packet(protocol=PacketProtocols.attribute_update, payload=update_payload, reliable=True)
         self.attribute_queue.append(packet)
 
     def write_creation(self, channel):
@@ -246,23 +252,25 @@ class ServerReplicationStream(ReplicationStream):
 
         # Send the protocol, class name and owner status to client
         payload = channel.packed_id + packed_class + packed_is_host
-        packet = Packet(protocol=ConnectionProtocols.replication_init, payload=payload, reliable=True)
+        packet = Packet(protocol=PacketProtocols.replication_init, payload=payload, reliable=True)
         self.creation_queue.append(packet)
 
     def write_removal(self, channel):
-        packet = Packet(protocol=ConnectionProtocols.replication_del, payload=channel.packed_id, reliable=True)
+        packet = Packet(protocol=PacketProtocols.replication_del, payload=channel.packed_id, reliable=True)
         self.removal_queue.append(packet)
 
 
-@with_tag(Netmodes.client)
-class ClientReplicationStream(ReplicationStream):
+class ClientSceneReplicationManager(SceneReplicationManagerBase):
 
-    def __init__(self, dispatcher):
-        super().__init__(dispatcher)
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.pending_notifications = []
 
-    @response_protocol(ConnectionProtocols.replication_init)
+        # After receiving packets is done, we need to send attribute notifications
+        self.connection.post_receive_callbacks.append(self.post_receive)
+
+    @on_protocol(PacketProtocols.replication_init)
     def handle_replication_init(self, data):
         instance_id, id_size = self.replicable_packer.unpack_id(data)
         offset = id_size
@@ -281,7 +289,7 @@ class ClientReplicationStream(ReplicationStream):
             # Register as own replicable
             self.replicable = replicable
 
-    @response_protocol(ConnectionProtocols.attribute_update)
+    @on_protocol(PacketProtocols.attribute_update)
     def handle_replication_update(self, data):
         instance_id, id_size = self.replicable_packer.unpack_id(data)
 
@@ -299,7 +307,7 @@ class ClientReplicationStream(ReplicationStream):
             if notification_callback:
                 self.pending_notifications.append(notification_callback)
 
-    @response_protocol(ConnectionProtocols.replication_del)
+    @on_protocol(PacketProtocols.replication_del)
     def handle_replication_delete(self, data):
         instance_id, _ = self.replicable_packer.unpack_id(data)
 
@@ -312,32 +320,33 @@ class ClientReplicationStream(ReplicationStream):
         else:
             replicable.deregister()
 
-    def handle_packets(self, packet_collection):
-        super().handle_packets(packet_collection)
-
+    def post_receive(self):
+        # TODO call this in gameloop
+        """Called after network receives incoming packets"""
         for notification in self.pending_notifications:
             notification()
 
         self.pending_notifications.clear()
 
     def on_disconnected(self):
+        # Unregister replicables created by server on client
         for replicable in list(Replicable):
             if replicable.is_static:
                 continue
 
             replicable.deregister()
 
-    def pull_packets(self, network_tick, bandwidth):
+    def send(self, network_tick):
         replicables = self.prioritised_channels
+        bandwidth = self.connection.bandwidth
+
         self.send_method_calls(replicables, bandwidth)
 
-        members = self.method_queue
-
-        if not members:
+        packets = self.method_queue
+        if not packets:
             return None
 
-        packets = PacketCollection()
-        packets.members.extend(members)
-        members.clear()
+        packet_collection = PacketCollection(packets)
+        packets.clear()
 
-        return packets
+        return packet_collection

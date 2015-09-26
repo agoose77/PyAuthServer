@@ -7,9 +7,9 @@ Transition = namedtuple("Transition", ("condition", "from_state", "to_state"))
 class FiniteStateMachine:
 
     def __init__(self, logger=None):
-        self._transitions = defaultdict(list)
-        self._states = set()
         self._state = None
+        self._states = set()
+        self._transitions = defaultdict(list)
 
         self._logger = logger
 
@@ -56,12 +56,6 @@ class FiniteStateMachine:
 
         return transitions
 
-    def remove_transition(self, transition):
-        if self._logger:
-            self._logger.info("Removing transition {}".format(transition))
-
-        self._transitions[transition.from_state].remove(transition)
-
     def find_transitions_involving(self, state):
         involved_transitions = []
 
@@ -75,6 +69,24 @@ class FiniteStateMachine:
                         involved_transitions.append(transition)
 
         return involved_transitions
+
+    def process_transitions(self):
+        current_state = self.state
+
+        for transition in self._transitions[current_state]:
+            if transition.condition():
+                self.state = transition.to_state
+
+                if self._logger:
+                    self._logger.info("Transitioning from {} to {}"
+                                      .format(current_state, transition.to_state))
+                break
+
+    def remove_transition(self, transition):
+        if self._logger:
+            self._logger.info("Removing transition {}".format(transition))
+
+        self._transitions[transition.from_state].remove(transition)
 
     def add_state(self, state, set_default=True):
         self._states.add(state)
@@ -103,15 +115,3 @@ class FiniteStateMachine:
 
         state.on_exit()
         state.manager = None
-
-    def process_transitions(self):
-        current_state = self.state
-
-        for transition in self._transitions[current_state]:
-            if transition.condition():
-                self.state = transition.to_state
-
-                if self._logger:
-                    self._logger.info("Transitioning from {} to {}"
-                    .format(current_state, transition.to_state))
-                break

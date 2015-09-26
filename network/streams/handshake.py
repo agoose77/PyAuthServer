@@ -1,32 +1,27 @@
-from .streams import ProtocolHandler, response_protocol, send_state, StatusDispatcher, Stream
-from .replication import ReplicationStream
+from .streams import register_protocol_listeners, get_state_senders, on_protocol
+from .replication import ClientReplicationManager, ServerReplicationManager
 
-from ..decorators import with_tag
 from ..errors import NetworkError
-from ..enums import ConnectionStates, ConnectionProtocols, Netmodes
+from ..enums import ConnectionStates, PacketProtocols, Netmodes
 from ..handlers import get_handler
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal
-from ..tagged_delegate import DelegateByNetmode
 from ..type_flag import TypeFlag
 from ..world_info import WorldInfo
 
 from time import clock
 
-__all__ = 'HandshakeStream', 'ServerHandshakeStream', 'ClientHandshakeStream'
+__all__ = 'ServerHandshakeManager', 'ClientHandshakeManager'
 
 
 # Handshake Streams
-class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmode):
-    subclasses = {}
+class HandshakeManagerBase:
 
-    def __init__(self, dispatcher):
-        Stream.__init__(self, dispatcher)
-        StatusDispatcher.__init__(self)
-
+    def __init__(self, connection):
         self.state = ConnectionStates.pending
 
-        self.dispatcher = dispatcher
+        self.connection = connection
+        self.logger = connection.logger.getChild("HandshakeManager")
 
         self.replication_stream = None
         self.connection_info = None
@@ -39,10 +34,14 @@ class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmo
         self.netmode_packer = get_handler(TypeFlag(int))
         self.string_packer = get_handler(TypeFlag(str))
 
+        # Register listeneres
+        register_protocol_listeners(self, connection.dispatcher)
+        self.senders = get_state_senders(self)
+
     @property
     def timed_out(self):
         """If this stream has not received anything for an interval greater or equal to the timeout duration"""
-        return (clock() - self._last_received_time) > self.timeout_duration
+        return (clock() - self.connection.last_received_time) > self.timeout_duration
 
     def _cleanup(self):
         if callable(self.remove_connection):
@@ -57,24 +56,16 @@ class HandshakeStream(Stream, ProtocolHandler, StatusDispatcher, DelegateByNetmo
         self.logger.info("Timed out after {} seconds".format(self.timeout_duration))
         ConnectionTimeoutSignal.invoke(target=self)
 
-    def handle_packets(self, packet_collection):
-        super().handle_packets(packet_collection)
-
-        self._last_received_time = clock()
-
     def pull_packets(self, network_tick, bandwidth):
         if self.timed_out:
             self.on_timeout()
 
-        return super().pull_packets(network_tick, bandwidth)
 
-
-@with_tag(Netmodes.server)
-class ServerHandshakeStream(HandshakeStream):
+class ServerHandshakeManager(HandshakeManagerBase):
     """Manages connection state for the server"""
 
-    def __init__(self, dispatcher):
-        super().__init__(dispatcher)
+    def __init__(self, connection):
+        super().__init__(connection)
 
         self.handshake_error = None
         self.replication_stream = None
@@ -84,32 +75,31 @@ class ServerHandshakeStream(HandshakeStream):
 
         ConnectionErrorSignal.invoke(target=self)
 
-    @response_protocol(ConnectionProtocols.request_disconnect)
+    @on_protocol(PacketProtocols.request_disconnect)
     def receive_disconnect_request(self, data):
         self._cleanup()
 
         self.state = ConnectionStates.disconnected
 
-    @response_protocol(ConnectionProtocols.request_handshake)
+    @on_protocol(PacketProtocols.request_handshake)
     def receive_handshake_request(self, data):
-        # Only if we're not already connected
-        if self.state != ConnectionStates.pending:
+        # Only if we're not already in some handshake process
+        if self.state != ConnectionStates.awaiting_handshake:
             return
 
         netmode, netmode_size = self.netmode_packer.unpack_from(data)
-        connection_info = self.connection_info
 
         try:
-            WorldInfo.rules.pre_initialise(connection_info, netmode)
+            WorldInfo.rules.pre_initialise(self.connection_info, netmode)
 
         except NetworkError as err:
             self.logger.error("Connection was refused: {}".format(err))
             self.handshake_error = err
 
-        self.state = ConnectionStates.handshake
+        self.state = ConnectionStates.received_handshake
+        self.send_handshake_result()
 
-    @send_state(ConnectionStates.handshake)
-    def send_handshake_result(self, network_tick, bandwidth):
+    def send_handshake_result(self):
         connection_failed = self.handshake_error is not None
 
         if connection_failed:
@@ -123,53 +113,60 @@ class ServerHandshakeStream(HandshakeStream):
             ConnectionErrorSignal.invoke(target=self)
 
             # Send result
-            return Packet(protocol=ConnectionProtocols.handshake_failed, payload=error_data,
-                          on_success=self.on_ack_handshake_failed)
+            packet = Packet(protocol=PacketProtocols.handshake_failed, payload=error_data,
+                            on_success=self.on_ack_handshake_failed)
 
         else:
-            self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
+            # Create replication stream TODO fix this
+            self.replication_manager = ServerReplicationManager(self.connection)
+
             # Set success state
             self.state = ConnectionStates.connected
             ConnectionSuccessSignal.invoke(target=self)
 
             # Send result
-            return Packet(protocol=ConnectionProtocols.handshake_success, reliable=True)
+            packet = Packet(protocol=PacketProtocols.handshake_success, reliable=True)
 
-    @send_state(ConnectionStates.pending)
-    def invoke_handshake(self, network_tick, bandwidth):
+        # Add to connection queue
+        self.connection.queue_packet(packet)
+
+    def invoke_handshake(self):
         """Invoke handshake attempt on client, used for multicasting
 
         :param network_tick: is a full network tick
         :param bandwidth: available bandwidth
         """
-        return Packet(protocol=ConnectionProtocols.invoke_handshake)
+        self.state = ConnectionStates.awaiting_handshake
+
+        packet = Packet(protocol=PacketProtocols.invoke_handshake, reliable=True)
+        self.connection.queue_packet(packet)
 
 
-@with_tag(Netmodes.client)
-class ClientHandshakeStream(HandshakeStream):
+class ClientHandshakeManager(HandshakeManagerBase):
 
-    @send_state(ConnectionStates.pending)
-    def send_handshake_request(self, network_tick, bandwidth):
-        self.state = ConnectionStates.handshake
+    def invoke_handshake(self):
+        self.state = ConnectionStates.received_handshake
         netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
-        return Packet(protocol=ConnectionProtocols.request_handshake, payload=netmode_data, reliable=True)
 
-    @response_protocol(ConnectionProtocols.handshake_success)
+        packet = Packet(protocol=PacketProtocols.request_handshake, payload=netmode_data, reliable=True)
+        self.connection.queue_packet(packet)
+
+    @on_protocol(PacketProtocols.handshake_success)
     def receive_handshake_success(self, data):
-        if self.state != ConnectionStates.handshake:
+        if self.state != ConnectionStates.received_handshake:
             return
 
         self.state = ConnectionStates.connected
-        self.replication_stream = self.dispatcher.create_stream(ReplicationStream)
+        # Create replication stream TODO fix this
+        self.replication_manager = ClientReplicationManager(self.connection)
 
         ConnectionSuccessSignal.invoke(target=self)
 
-    @response_protocol(ConnectionProtocols.invoke_handshake)
+    @on_protocol(PacketProtocols.invoke_handshake)
     def receive_multicast_ping(self, data):
-        # Just handle packet, it's only to trigger connection
-        pass
+        self.invoke_handshake()
 
-    @response_protocol(ConnectionProtocols.handshake_failed)
+    @on_protocol(PacketProtocols.handshake_failed)
     def receive_handshake_failed(self, data):
         error_type, type_size = self.string_packer.unpack_from(data)
         error_message, message_size = self.string_packer.unpack_from(data, type_size)
@@ -181,3 +178,11 @@ class ClientHandshakeStream(HandshakeStream):
         self.state = ConnectionStates.failed
 
         ConnectionErrorSignal.invoke(raised_error, target=self)
+
+
+def create_handshake_manager(netmode, connection):
+    if netmode == Netmodes.server:
+        return ServerHandshakeManager(connection)
+
+    else:
+        return ClientHandshakeManager(connection)

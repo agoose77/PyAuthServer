@@ -10,8 +10,8 @@ __all__ = ['StorageInterface', 'RPCStorageInterface', 'AttributeStorageInterface
            'RPCStorageContainer', 'AttributeStorageContainer']
 
 
-AttributeStorageInterface = namedtuple("StorageInterface", "get set complain")
-RPCStorageInterface = namedtuple("StorageInterface", "set")
+AttributeStorageInterface = namedtuple("AttributeStorageInterface", "get set complain")
+RPCStorageInterface = namedtuple("RPCStorageInterface", "set")
 StorageInterface = namedtuple("StorageInterface", "get set")
 
 

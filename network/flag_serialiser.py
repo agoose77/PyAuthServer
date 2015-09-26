@@ -103,6 +103,8 @@ class FlagSerialiser:
         :param previous_values: previous packed values (optional)
         """
         # Get the contents header
+        start_offset = offset
+
         offset += self._read_contents(bytes_string, offset)
         content_values = list(self.content_bits)
 
@@ -120,6 +122,8 @@ class FlagSerialiser:
         # Create list for faster successive iterations
         none_values = list(self.none_bits)
 
+        unpacked_items = []
+
         # All values have an entry in the contents bitfield
         for included, value_none, (key, handler) in zip(content_values, none_values, self.non_bool_handlers):
             if not included:
@@ -134,6 +138,7 @@ class FlagSerialiser:
                 if previous_value is not None and hasattr(handler, "unpack_merge"):
                     # If we can't merge use default unpack
                     value_size = handler.unpack_merge(previous_value, bytes_string, offset)
+                    value = previous_value
 
                 # Otherwise ask for a new value
                 else:
@@ -142,13 +147,12 @@ class FlagSerialiser:
                 # We have unpacked a value, so shift by its size
                 offset += value_size
 
-            yield (key, value)
+            unpacked_items.append((key, value))
 
         # If there are Boolean values included in the data
         if has_booleans:
             # Read data from Boolean bitfields
-            # Increment offset by this return value if any later reading occurs
-            self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, offset)
+            offset += self.boolean_packer.unpack_merge(self.bool_bits, bytes_string, offset)
 
             found_booleans = content_values[self.total_none_booleans:]
             none_booleans = none_values[self.total_none_booleans:]
@@ -158,7 +162,11 @@ class FlagSerialiser:
             # Yield included boolean values
             for (value, (key, _), found, none_value) in boolean_info:
                 if found:
-                    yield (key, None if none_value else value)
+                    unpacked_items.append((key, None if none_value else value))
+
+        bytes_read = offset - start_offset
+        # TODO update API users to handle new returned arg
+        return unpacked_items, bytes_read
 
     def pack(self, data):
         """Pack data into bytes

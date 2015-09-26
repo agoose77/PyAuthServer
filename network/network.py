@@ -202,8 +202,9 @@ class MulticastDiscovery:
 class Network:
     """Network management class"""
 
-    def __init__(self, socket):
+    def __init__(self, socket, netmode):
         self.socket = socket
+        self.netmode = netmode
 
         self.address, self.port = socket.getsockname()
 
@@ -221,8 +222,8 @@ class Network:
         :param address: address for socket
         :param port: port to bind to, 0 for any
         """
-        socket = NonBlockingSocketUDP(address, port)
-        return cls(socket)
+        sock = NonBlockingSocketUDP(address, port)
+        return cls(sock)
 
     @property
     def received_data(self):
@@ -253,18 +254,22 @@ class Network:
         """
         return Connection.create_connection(address, port)
 
+    def on_new_connection(self, connection):
+        # TODO setup connection for handshake, replication etc
+        pass
+
     def receive(self):
         """Receive all data from socket"""
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
-
             try:
                 connection = Connection[address]
 
             # Create a new interface to handle connection
             except KeyError:
-                connection = Connection(address)
+                connection = Connection(address, self.netmode)
+                self.on_new_connection(connection)
 
             # Dispatch data to connection
             connection.receive(data)

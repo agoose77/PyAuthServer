@@ -11,7 +11,8 @@ from ..metaclasses.context import ContextMemberMeta
 
 __all__ = ('SignalMeta', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
            'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal',
-           'ConnectionDeletedSignal', 'LatencyUpdatedSignal', 'ConnectionTimeoutSignal')
+           'ConnectionDeletedSignal', 'LatencyUpdatedSignal', 'ConnectionTimeoutSignal',
+           'SceneRegisteredSignal', 'SceneUnregisteredSignal')
 
 
 class SignalMeta(TypeRegister, ContextMemberMeta):
@@ -371,4 +372,12 @@ class ConnectionDeletedSignal(Signal):
 
 
 class LatencyUpdatedSignal(Signal):
+    pass
+
+
+class SceneRegisteredSignal(Signal):
+    pass
+
+
+class SceneUnregisteredSignal(Signal):
     pass

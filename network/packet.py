@@ -15,7 +15,7 @@ class PacketCollection:
         if packets is None:
             packets = []
 
-        self.packets = packets
+        self.packets = list(packets)
 
     @property
     def reliable_packets(self):
@@ -98,6 +98,16 @@ class PacketCollection:
         else:
             return self.__class__(self.packets + other.packets)
 
+    def __iadd__(self, other):
+        if isinstance(other, Packet):
+            self.packets.append(other)
+
+        else:
+            assert isinstance(other, self.__class__)
+            self.packets.extend(other.packets)
+
+        return self
+
     def __radd__(self, other):
         assert isinstance(other, Packet)
         packets = [other]
@@ -118,7 +128,6 @@ class Packet:
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
     _protocol_handler = get_handler(TypeFlag(int))
-    _size_handler = get_handler(TypeFlag(int, max_value=1000))
 
     def __init__(self, protocol=None, payload=b'', *, reliable=False, on_success=None, on_failure=None):
         # Force reliability for callbacks
@@ -158,7 +167,7 @@ class Packet:
         :rtype: bytes
         """
         data = self._protocol_handler.pack(self.protocol) + self.payload
-        return self._size_handler.pack(len(data)) + data
+        return create_group(data)
 
     @classmethod
     def from_bytes(cls, bytes_string):
@@ -179,24 +188,16 @@ class Packet:
         :param bytes_string: bytes stream
         :rtype: bytes
         """
-        length_handler = self._size_handler
         protocol_handler = self._protocol_handler
 
         # Read packet length (excluding length character size)
-        length, length_size = length_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[length_size:]
+        bytes_string, remainder = extract_group(bytes_string)
 
         # Read packet protocol
         self.protocol, protocol_size = protocol_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[protocol_size:]
+        self.payload = bytes_string[protocol_size:]
 
-        # Determine the slice index of this payload
-        end_index = length - protocol_size
-
-        self.payload = bytes_string[:end_index]
-        self.reliable = False
-
-        return bytes_string[end_index:]
+        return remainder
 
     def __add__(self, other):
         """Concatenates two Packets
@@ -221,3 +222,16 @@ class Packet:
         return '\n'.join(to_console)
 
     __bytes__ = to_bytes
+
+
+_size_handler = get_handler(TypeFlag(int, max_value=1000))
+
+
+def create_group(payload):
+    return _size_handler.pack(len(payload)) + payload
+
+
+def extract_group(bytes_string):
+    size, offset = _size_handler.unpack_from(bytes_string)
+    return bytes_string[offset: offset + size], bytes_string[offset + size:]
+

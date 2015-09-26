@@ -1,15 +1,15 @@
 from collections import deque
 from logging import getLogger, Formatter, StreamHandler
 from socket import gethostbyname
-from time import strftime
+from time import strftime, clock
 
 from .bitfield import BitField
 from .conversions import conversion
-from .type_flag import TypeFlag
+from .dispatcher import UniqueMessageDispatcher
 from .handlers import get_handler
 from .metaclasses.register import InstanceRegister
 from .packet import PacketCollection
-from .streams import Dispatcher, InjectorStream, HandshakeStream
+from .type_flag import TypeFlag
 
 
 __all__ = "Connection",
@@ -50,7 +50,12 @@ class Connection(metaclass=InstanceRegister):
 
         return "<Connection>"
 
-    def on_initialised(self):
+    def __init__(self, connection_info, netmode):
+        super().__init__(connection_info)
+
+        # TODO should this be stored like this?
+        self.netmode = netmode
+
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1
         self.sequence_handler = get_handler(TypeFlag(int, max_value=self.sequence_max_size))
@@ -62,14 +67,6 @@ class Connection(metaclass=InstanceRegister):
         self.incoming_ack_bitfield = BitField(self.ack_window)
         self.outgoing_ack_bitfield = BitField(self.ack_window)
         self.ack_packer = get_handler(TypeFlag(BitField, fields=self.ack_window))
-
-        # Additional data
-        self.netmode_packer = get_handler(TypeFlag(int))
-        self.error_packer = get_handler(TypeFlag(str))
-
-        # Protocol unpacker
-        self.protocol_handler = get_handler(TypeFlag(int))
-        self.handshake_packer = get_handler(TypeFlag(int))
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -88,17 +85,31 @@ class Connection(metaclass=InstanceRegister):
         self.throttle_pending = False
 
         # Support logging
-        self.logger = self.create_logger()
+        self.logger = self._create_logger()
 
-        # Internal packet data
-        self.dispatcher = Dispatcher(logger=self.logger)
-        self.injector = self.dispatcher.create_stream(InjectorStream)
+        self.last_received_time = None
 
-        self.handshake = self.dispatcher.create_stream(HandshakeStream)
-        self.handshake.connection_info = self.instance_id
-        self.handshake.remove_connection = self.deregister
+        # handshake.connection_info = connection_info
+        # handshake.remove_connection = self.deregister
 
-    def create_logger(self):
+        self._queue = []
+
+        self.pre_receive_callbacks = []
+        self.post_receive_callbacks = []
+
+        self.dispatcher = UniqueMessageDispatcher()
+
+    def _is_more_recent(self, base, sequence):
+        """Compare two sequence identifiers and determine if one is newer than the other
+
+        :param base: base sequence to compare against
+        :param sequence: sequence tested against base
+        """
+        half_seq = (self.sequence_max_size / 2)
+        return ((base > sequence) and (base - sequence) <= half_seq) or \
+               ((sequence > base) and (sequence - base) > half_seq)
+
+    def _create_logger(self):
         logger = getLogger(repr(self))
         handler = StreamHandler()
 
@@ -108,7 +119,7 @@ class Connection(metaclass=InstanceRegister):
         logger.addHandler(handler)
         return logger
 
-    def get_reliable_information(self, remote_sequence):
+    def _get_reliable_information(self, remote_sequence):
         """Update stored information for remote peer reliability feedback
 
         :param remote_sequence: latest received packet's sequence
@@ -128,7 +139,7 @@ class Connection(metaclass=InstanceRegister):
 
         return ack_bitfield
 
-    def handle_reliable_information(self, ack_base, ack_bitfield):
+    def _update_reliable_information(self, ack_base, ack_bitfield):
         """Update internal packet management, concerning dropped packets and available bandwidth
 
         :param ack_base: base sequence for ack window
@@ -158,7 +169,7 @@ class Connection(metaclass=InstanceRegister):
         # Find packets we think are dropped and resend them
         considered_dropped = [s for s in requested_ack if (ack_base - s) >= window_size]
 
-        redelivery_queue = self.injector.queue
+        redelivery_queue = self._queue
         # If the packet drops off the ack_window assume it is lost
         for absolute_sequence in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
@@ -172,11 +183,18 @@ class Connection(metaclass=InstanceRegister):
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
+    def queue_packet(self, packet):
+        self._queue.append(packet)
+
     def receive(self, bytes_string):
         """Handle received bytes from peer
 
         :param bytes_string: data from peer
         """
+        # Before receiving
+        for callback in self.pre_receive_callbacks:
+            callback()
+
         # Get the sequence id
         sequence, offset = self.sequence_handler.unpack_from(bytes_string)
 
@@ -188,11 +206,13 @@ class Connection(metaclass=InstanceRegister):
         ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string, offset=offset)
         offset += ack_bitfield_size
 
+        # TODO allow packet.reject() to un-ack acked packet
+
         # Dictionary of packets waiting for acknowledgement
-        self.handle_reliable_information(ack_base, self.incoming_ack_bitfield)
+        self._update_reliable_information(ack_base, self.incoming_ack_bitfield)
 
         # If we receive a newer foreign sequence, update our local record
-        if self.sequence_more_recent(sequence, self.remote_sequence):
+        if self._is_more_recent(sequence, self.remote_sequence):
             self.remote_sequence = sequence
 
         # Update received window
@@ -202,9 +222,18 @@ class Connection(metaclass=InstanceRegister):
 
         # Handle received packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
-        self.dispatcher.handle_packets(packet_collection)
 
-    def send(self, network_tick):
+        dispatch = self.dispatcher.send
+        for packet in packet_collection.packets:
+            dispatch(packet.protocol, packet)
+
+        self.last_received_time = clock()
+
+        # After receiving
+        for callback in self.post_receive_callbacks:
+            callback()
+
+    def send(self, is_network_tick):
         """Pull data from connection interfaces to send
 
         :param network_tick: if this is a network tick
@@ -217,10 +246,11 @@ class Connection(metaclass=InstanceRegister):
         if self.throttle_pending and self.tagged_throttle_sequence is None:
             self.tagged_throttle_sequence = sequence
 
-        packet_collection = self.dispatcher.pull_packets(network_tick, self.bandwidth)
+        packet_collection = PacketCollection(self._queue)
+        self._queue.clear()
 
         # Get ack bitfield for reliable feedback
-        ack_bitfield = self.get_reliable_information(remote_sequence)
+        ack_bitfield = self._get_reliable_information(remote_sequence)
 
         # Store acknowledge request for reliable members of packet
         self.requested_ack[sequence] = packet_collection
@@ -237,16 +267,6 @@ class Connection(metaclass=InstanceRegister):
         self.bandwidth += self.packet_growth
 
         return b''.join(payload)
-
-    def sequence_more_recent(self, base, sequence):
-        """Compare two sequence identifiers and determine if one is newer than the other
-
-        :param base: base sequence to compare against
-        :param sequence: sequence tested against base
-        """
-        half_seq = (self.sequence_max_size / 2)
-        return ((base > sequence) and (base - sequence) <= half_seq) or \
-               ((sequence > base) and (sequence - base) > half_seq)
 
     def start_throttling(self):
         """Start updating metric for bandwidth"""

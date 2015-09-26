@@ -77,6 +77,7 @@ class RPCInterface:
 
         try:
             self._serialiser = FlagSerialiser(serialiser_info)
+
         except TypeError:
             logger.exception("Unable to create serialiser for RPC call: {}".format(self._function_name))
 
@@ -106,11 +107,13 @@ class RPCInterface:
         """
         # Unpack RPC
         try:
-            unpacked_data = self._serialiser.unpack(bytes_string)
+            unpacked_data, unpacked_size = self._serialiser.unpack(bytes_string)
             self._function_call(**dict(unpacked_data))
 
         except Exception:
             logger.exception("Could not invoke RPC call: '{}'".format(self._function_name))
+
+        return unpacked_size
 
     def register(self, interface, rpc_id):
         """Register individual RPC interface for a class Instance
