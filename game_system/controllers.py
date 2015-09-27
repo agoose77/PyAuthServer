@@ -1,12 +1,15 @@
+from collections import OrderedDict, deque
+from logging import getLogger
+from math import radians, pi
+
 from network.descriptors import Attribute
-from network.decorators import requires_netmode, reliable
+from network.annotations.decorators import requires_netmode, reliable
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
 from network.rpc import Pointer
-from network.signals import Signal, LatencyUpdatedSignal
+from network.signals import LatencyUpdatedSignal
 from network.type_flag import TypeFlag
 from network.world_info import WorldInfo
-
 from .ai.planning.goap import GOAPActionPlanManager
 from .ai.state_machine.fsm import FiniteStateMachine
 from .ai.state_machine.state import State
@@ -14,7 +17,7 @@ from .ai.sensors import SensorManager
 from .ai.working_memory import WorkingMemory
 from .configobj import ConfigObj
 from .clock import Clock
-from .coordinates import Vector, Euler
+from .coordinates import Vector
 from .enums import EvaluationState, InputButtons
 from .inputs import InputContext
 from .pathfinding.navigation_manager import NavigationManager
@@ -23,12 +26,6 @@ from .resources import ResourceManager
 from .replication_info import PlayerReplicationInfo
 from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, PhysicsSingleUpdateSignal, \
     MessageReceivedSignal
-
-
-from collections import OrderedDict, deque
-from logging import getLogger
-from math import radians, pi
-
 
 __all__ = ['PawnController', 'PlayerPawnController', 'AIPawnController']
 

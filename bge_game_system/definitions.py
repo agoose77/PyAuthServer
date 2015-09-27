@@ -1,8 +1,9 @@
-from bge import logic, types
-from collections import namedtuple
 from contextlib import contextmanager
+from functools import partial
 
-from network.decorators import with_tag
+from bge import logic, types
+
+from network.annotations.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
 from network.logger import logger
@@ -11,13 +12,8 @@ from game_system.animation import Animation
 from game_system.coordinates import Vector
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
 from game_system.enums import AnimationMode, AnimationBlend, Axis, CollisionState, PhysicsType
-from game_system.geometry.utilities import get_random_point, get_random_polygon
 from game_system.physics import RayTestResult, CollisionContact, LazyCollisionResult
 from game_system.signals import CollisionSignal, UpdateCollidersSignal
-
-from functools import partial
-
-from .geometry.mesh.navmesh import BGENavmesh
 
 
 class BGEParentableBase:

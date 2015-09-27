@@ -3,9 +3,9 @@ from inspect import isfunction
 from .instance_register import InstanceRegister
 from ..mapping.attribute_mapping import AttributeMeta
 from ..mapping.rpc_mapping import RPCMeta
-from ...conditions import is_annotatable
+from ...annotations.conditions import is_annotatable
+from ...annotations.decorators import get_annotation, requires_permission
 from ...descriptors import ContextMember
-from ...decorators import get_annotation, requires_permission
 from ...enums import Netmodes
 from ...rpc import RPCInterfaceFactory
 

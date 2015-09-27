@@ -1,4 +1,4 @@
-from network.decorators import with_tag
+from network.annotations.decorators import with_tag
 
 from game_system.audio import AudioManager
 

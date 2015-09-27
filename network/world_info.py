@@ -1,4 +1,4 @@
-from .decorators import simulated
+from .annotations.decorators import simulated
 from .descriptors import Attribute
 from .enums import Roles, Netmodes
 from .replicable import Replicable
@@ -18,7 +18,6 @@ class _WorldInfo(Replicable):
     tick_rate = Attribute(60, complain=True, notify=True)
 
     netmode = Netmodes.server
-    rules = None
 
     def on_initialised(self):
         self.always_relevant = True

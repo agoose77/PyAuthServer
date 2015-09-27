@@ -1,13 +1,12 @@
+from math import floor
+
 from network.replicable import Replicable
-from network.decorators import simulated, requires_netmode
+from network.annotations.decorators import simulated, requires_netmode
 from network.descriptors import Attribute, TypeFlag
 from network.enums import Netmodes, Roles
 from network.world_info import WorldInfo
-
 from .timer import Timer
 from .signals import TimerUpdateSignal
-
-from math import floor
 
 
 class Clock(Replicable):

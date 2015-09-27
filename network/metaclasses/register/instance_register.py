@@ -15,10 +15,9 @@ class _ManagedInstanceBase(SignalListener):
     individual registered functions and registered status
     """
 
-    def __init__(self, instance_id=None, allow_random_key=False):
-        # Generator used for finding IDs
-        self.allow_random_key = allow_random_key
+    allow_random_key = False
 
+    def __init__(self, instance_id=None):
         # Initial value
         self.instance_id = instance_id
 
@@ -50,7 +49,7 @@ class _ManagedInstanceBase(SignalListener):
 
         # Choose random ID
         if instance_id is None:
-            if not self.allow_random_key:
+            if not cls.allow_random_key:
                 raise ValueError("No key specified, random keys are not permitted")
 
             instance_id = cls._get_next_id()

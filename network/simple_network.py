@@ -1,29 +1,25 @@
 from .replicable import Replicable
-from .network import Network
+from .network import NetworkManager
 from .connection import Connection
 from .world_info import WorldInfo
 from .signals import Signal
 
 from time import clock
 
-__all__ = ["SimpleNetwork", "respect_interval"]
+__all__ = ["SimpleNetworkManager", "respect_interval"]
 
 
-class SimpleNetwork(Network):
+class SimpleNetworkManager(NetworkManager):
 
     """Simple network update loop"""
 
-    def on_finished(self):
-        Connection.clear_graph()
-        Replicable.clear_graph()
-        Signal.clear_graph()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        WorldInfo.register(instance_id=WorldInfo.instance_id)
-
-    def on_update(self):
-        return True
+        self.running = False
 
     def stop(self):
+        self.running = False
         self.on_finished()
         super().stop()
 
@@ -36,7 +32,9 @@ class SimpleNetwork(Network):
         started = clock()
         last_time = started
 
-        while True:
+        self.running = True
+
+        while self.running:
             current_time = clock()
             if (current_time - last_time) < update_rate:
                 continue
@@ -57,6 +55,12 @@ class SimpleNetwork(Network):
             self.step()
 
         self.stop()
+
+    def on_finished(self):
+        pass
+
+    def on_update(self):
+        return True
 
 
 def respect_interval(interval, function):

@@ -1,9 +1,8 @@
 from functools import lru_cache
 from inspect import getmembers
 
-from ..conditions import is_annotatable
-from ..decorators import get_annotation, set_annotation
-
+from ..annotations.conditions import is_annotatable
+from ..annotations.decorators import get_annotation, set_annotation
 
 __all__ = 'on_protocol', 'send_for_state'
 

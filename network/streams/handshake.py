@@ -1,4 +1,4 @@
-from .streams import register_protocol_listeners, get_state_senders, on_protocol
+from .helpers import register_protocol_listeners, get_state_senders, on_protocol
 from .replication import ClientReplicationManager, ServerReplicationManager
 
 from ..errors import NetworkError
@@ -7,7 +7,7 @@ from ..handlers import get_handler
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal
 from ..type_flag import TypeFlag
-from ..world_info import WorldInfo
+from ..world import get_current_netmode
 
 from time import clock
 
@@ -18,20 +18,21 @@ __all__ = 'ServerHandshakeManager', 'ClientHandshakeManager'
 class HandshakeManagerBase:
 
     def __init__(self, connection):
-        self.state = ConnectionStates.pending
+        self.state = ConnectionStates.init
 
         self.connection = connection
         self.logger = connection.logger.getChild("HandshakeManager")
 
-        self.replication_stream = None
-        self.connection_info = None
+        self.network_manager = connection.network_manager
+
+        self.replication_manager = None
+        self.connection_info = connection.instance_id
         self.remove_connection = None
 
         self.timeout_duration = 10
         self._last_received_time = clock()
 
         # Additional data
-        self.netmode_packer = get_handler(TypeFlag(int))
         self.string_packer = get_handler(TypeFlag(str))
 
         # Register listeneres
@@ -47,8 +48,8 @@ class HandshakeManagerBase:
         if callable(self.remove_connection):
             self.remove_connection()
 
-        if self.replication_stream is not None:
-            self.replication_stream.on_disconnected()
+        if self.replication_manager is not None:
+            self.replication_manager.on_disconnected()
 
     def on_timeout(self):
         self._cleanup()
@@ -68,7 +69,8 @@ class ServerHandshakeManager(HandshakeManagerBase):
         super().__init__(connection)
 
         self.handshake_error = None
-        self.replication_stream = None
+
+        self.invoke_handshake()
 
     def on_ack_handshake_failed(self, packet):
         self._cleanup()
@@ -87,10 +89,8 @@ class ServerHandshakeManager(HandshakeManagerBase):
         if self.state != ConnectionStates.awaiting_handshake:
             return
 
-        netmode, netmode_size = self.netmode_packer.unpack_from(data)
-
         try:
-            WorldInfo.rules.pre_initialise(self.connection_info, netmode)
+            self.network_manager.rules.pre_initialise(self.connection_info)
 
         except NetworkError as err:
             self.logger.error("Connection was refused: {}".format(err))
@@ -98,6 +98,10 @@ class ServerHandshakeManager(HandshakeManagerBase):
 
         self.state = ConnectionStates.received_handshake
         self.send_handshake_result()
+
+    def on_handshake_success(self):
+        # Create replication stream TODO fix this
+        self.replication_manager = ServerReplicationManager(self.connection, self.network_manager.rules)
 
     def send_handshake_result(self):
         connection_failed = self.handshake_error is not None
@@ -117,12 +121,11 @@ class ServerHandshakeManager(HandshakeManagerBase):
                             on_success=self.on_ack_handshake_failed)
 
         else:
-            # Create replication stream TODO fix this
-            self.replication_manager = ServerReplicationManager(self.connection)
-
             # Set success state
             self.state = ConnectionStates.connected
             ConnectionSuccessSignal.invoke(target=self)
+
+            self.replication_manager = ServerReplicationManager(self.connection, self.network_manager.rules)
 
             # Send result
             packet = Packet(protocol=PacketProtocols.handshake_success, reliable=True)
@@ -144,11 +147,16 @@ class ServerHandshakeManager(HandshakeManagerBase):
 
 class ClientHandshakeManager(HandshakeManagerBase):
 
+    def __init__(self, connection):
+        super().__init__(connection)
+
+        print("NEW STREAM")
+
+        self.invoke_handshake()
+
     def invoke_handshake(self):
         self.state = ConnectionStates.received_handshake
-        netmode_data = self.netmode_packer.pack(WorldInfo.netmode)
-
-        packet = Packet(protocol=PacketProtocols.request_handshake, payload=netmode_data, reliable=True)
+        packet = Packet(protocol=PacketProtocols.request_handshake, reliable=True)
         self.connection.queue_packet(packet)
 
     @on_protocol(PacketProtocols.handshake_success)
@@ -157,7 +165,6 @@ class ClientHandshakeManager(HandshakeManagerBase):
             return
 
         self.state = ConnectionStates.connected
-        # Create replication stream TODO fix this
         self.replication_manager = ClientReplicationManager(self.connection)
 
         ConnectionSuccessSignal.invoke(target=self)
@@ -180,7 +187,9 @@ class ClientHandshakeManager(HandshakeManagerBase):
         ConnectionErrorSignal.invoke(raised_error, target=self)
 
 
-def create_handshake_manager(netmode, connection):
+def create_handshake_manager(connection):
+    netmode = get_current_netmode()
+
     if netmode == Netmodes.server:
         return ServerHandshakeManager(connection)
 

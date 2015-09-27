@@ -1,4 +1,4 @@
-from ...signals import SceneRegisteredSignal, SceneUnregisteredSignal
+from ...signals import SceneRegisteredSignal, SceneUnregisteredSignal, SignalListener
 from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, ReplicableChannelBase
 from ..helpers import on_protocol, register_protocol_listeners
 from ...enums import PacketProtocols, Roles
@@ -15,7 +15,7 @@ from operator import attrgetter
 priority_getter = attrgetter("replication_priority")
 
 
-class ReplicationManagerBase:
+class ReplicationManagerBase(SignalListener):
 
     channel_class = None
 
@@ -28,6 +28,15 @@ class ReplicationManagerBase:
 
         # Listen to packets from connection
         register_protocol_listeners(self, connection.dispatcher)
+        connection.pre_send_callbacks.append(self.send)
+
+        self.register_signals()
+        self.register_existing_scenes()
+
+    def register_existing_scenes(self):
+        """Load existing registered scenes"""
+        for scene in NetworkScene:
+            self.on_scene_registered(scene)
 
     @SceneRegisteredSignal.on_global
     def on_scene_registered(self, target):
@@ -45,10 +54,11 @@ class ServerReplicationManager(ReplicationManagerBase):
 
     channel_class = ServerSceneChannel
 
-    def __init__(self, connection):
+    def __init__(self, connection, rules):
         super().__init__(connection)
 
-        self.root_replicable = WorldInfo.rules.post_initialise(self)
+        self.rules = rules
+        self.root_replicable = rules.post_initialise(self)
 
         self._string_handler = get_handler(TypeFlag(str))
         self._bool_handler = get_handler(TypeFlag(bool))
@@ -76,9 +86,10 @@ class ServerReplicationManager(ReplicationManagerBase):
         attribute_data = []
 
         root_replicable = self.root_replicable
-        is_relevant = WorldInfo.rules.is_relevant
+        is_relevant = self.rules.is_relevant
 
         no_role = Roles.none
+
         # TODO move this
         for replicable_channel in sorted(scene_channel.replicable_channels.values(), reverse=True, key=priority_getter):
             replicable = replicable_channel.replicable
@@ -101,8 +112,8 @@ class ServerReplicationManager(ReplicationManagerBase):
 
             replicable = replicable_channel.replicable
 
-            if replicable_channel.awaiting_replication or is_and_relevant_to_owner \
-                    or is_relevant(root_replicable, replicable):
+            if replicable_channel.is_awaiting_replication and (is_and_relevant_to_owner
+                    or is_relevant(root_replicable, replicable)):
                 # Channel just created
                 if replicable_channel.is_initial:
                     packed_class = pack_string(replicable.__class__.type_name)
@@ -187,15 +198,16 @@ class ClientReplicationManager(ReplicationManagerBase):
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
         scene = NetworkScene[scene_id]
 
-        with scene.context:
-            while offset < len(packet):
-                instance_id, id_size = ReplicableChannelBase.id_handler.unpack_id(payload)
+        with scene:
+            while offset < len(payload):
+                instance_id, id_size = ReplicableChannelBase.id_handler.unpack_id(payload, offset=offset)
                 offset += id_size
 
                 type_name, type_size = self._string_handler.unpack_from(payload, offset=offset)
                 offset += type_size
 
-                is_connection_host, _ = self._bool_handler.unpack_from(payload, offset=offset)
+                is_connection_host, bool_size = self._bool_handler.unpack_from(payload, offset=offset)
+                offset += bool_size
 
                 # Find replicable class
                 replicable_cls = Replicable.from_type_name(type_name)
@@ -222,8 +234,8 @@ class ClientReplicationManager(ReplicationManagerBase):
         scene_channel = self.scene_channels[scene_id]
         replicable_channels = scene_channel.replicable_channels
 
-        with scene.context:
-            while offset < len(packet):
+        with scene:
+            while offset < len(payload):
                 instance_id, id_size = ReplicableChannelBase.id_handler.unpack_id(payload, offset)
                 offset += id_size
 
@@ -231,7 +243,7 @@ class ClientReplicationManager(ReplicationManagerBase):
                 notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
                 offset += read_bytes
 
-                self._pending_notifications.extend(notifier)
+                self._pending_notifications.append(notifier)
 
     def _dispatch_notifications(self):
         for notification in self._pending_notifications:

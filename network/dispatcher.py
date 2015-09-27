@@ -8,12 +8,12 @@ class UniqueMessageDispatcher:
             listener = self._listeners[identifier]
             
         except KeyError:
-            raise ValueError("Invalid identifier '{}' given")
+            raise ValueError("Invalid identifier '{}' given, have {}".format(identifier, self._listeners))
         
         listener(message)
 
     def set_listener(self, identifier, listener):
         if identifier in self._listeners:
-            raise ValueError("'{}' already in listeners")
+            raise ValueError("'{}' already in listeners".format(identifier))
         
-        self._listeners[listener] = listener
+        self._listeners[identifier] = listener

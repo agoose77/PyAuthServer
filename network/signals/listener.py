@@ -1,6 +1,6 @@
 from inspect import getmembers
 
-from ..conditions import is_annotatable, is_signal_listener
+from ..annotations.conditions import is_annotatable, is_signal_listener
 from ..structures import factory_dict
 from ..signals import Signal
 

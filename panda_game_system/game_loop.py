@@ -1,5 +1,5 @@
 from network.enums import Netmodes
-from network.network import Network
+from network.network import NetworkManager
 from network.signals import SignalListener, Signal
 from network.world_info import WorldInfo
 from network.signals import DisconnectSignal
@@ -111,7 +111,7 @@ class Server(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network.from_address_info("", 1200)
+        return NetworkManager.from_address_info("", 1200)
 
 
 class Client(GameLoop):
@@ -129,7 +129,7 @@ class Client(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network.from_address_info("", 0)
+        return NetworkManager.from_address_info("", 0)
 
     @ConnectToSignal.on_global
     def new_connection(self, address, port):

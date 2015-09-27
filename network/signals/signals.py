@@ -1,13 +1,11 @@
-from collections import defaultdict
 from inspect import signature
 from functools import wraps
 
 from ..logger import logger
-from ..decorators import signal_listener
+from ..annotations.decorators import signal_listener
 from ..descriptors import ContextMember
 from ..metaclasses.register import TypeRegister
 from ..metaclasses.context import ContextMemberMeta
-
 
 __all__ = ('SignalMeta', 'Signal', 'ReplicableRegisteredSignal', 'ReplicableUnregisteredSignal',
            'ConnectionErrorSignal', 'ConnectionSuccessSignal', 'SignalValue',  'DisconnectSignal',

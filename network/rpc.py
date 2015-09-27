@@ -10,17 +10,6 @@ from inspect import signature, Parameter
 __all__ = ['RPCInterfaceFactory', 'RPCInterface', 'Pointer']
 
 
-WorldInfo = None
-
-
-def import_world_info():
-    """Import and return the WorldInfo module
-    Overcome import limitations by importing after definition
-    """
-    global WorldInfo
-    from .world_info import WorldInfo as WorldInfo
-
-
 def _resolve_parameters(cls, flag):
     data = flag.data
 
@@ -81,11 +70,13 @@ class RPCInterface:
         except TypeError:
             logger.exception("Unable to create serialiser for RPC call: {}".format(self._function_name))
 
-        import_world_info()
+        # Get current world
+        from .world import get_current_netmode
+        self._netmode = get_current_netmode()
 
     def __call__(self, *args, **kwargs):
         # Determines if call should be executed or bounced
-        if self.target == WorldInfo.netmode:
+        if self.target == self._netmode:
             return self._function_call(*args, **kwargs)
 
         # Store serialised argument data for later sending

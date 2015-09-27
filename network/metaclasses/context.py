@@ -48,7 +48,7 @@ class ContextMemberMeta(type):
         cls._current_context_manager = context_manager
         cls.context_member_data = context_manager.data
 
-    def get_context_manager(cls, name="Context"):
+    def create_context_manager(cls, name="Context"):
         """Create a context manager which owns the contextual state for this class
 
         :param name: name of context manager
@@ -68,3 +68,17 @@ class ContextMemberMeta(type):
         current_context_manager.data.update(context.data)
         context.data.clear()
         return current_context_manager
+
+
+class AggregateContext:
+
+    def __init__(self, *contexts):
+        self.contexts = contexts
+
+    def __enter__(self):
+        for context in self.contexts:
+            context.__enter__()
+
+    def __exit__(self, *exc_details):
+        for context in self.contexts:
+            context.__exit__(*exc_details)

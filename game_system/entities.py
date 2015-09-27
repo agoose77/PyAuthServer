@@ -1,6 +1,4 @@
-from functools import partial
-
-from network.decorators import requires_netmode, simulated
+from network.annotations.decorators import requires_netmode, simulated
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.utilities import mean
@@ -9,10 +7,8 @@ from network.signals import SignalListener
 from network.world_info import WorldInfo
 
 from .configobj import ConfigObj
-from .coordinates import Vector, Euler
 from .definitions import ComponentLoader
-from .enums import Axis, CameraMode, CollisionGroups, CollisionState
-from .pathfinding.algorithm import AStarAlgorithm, FunnelAlgorithm
+from .enums import Axis, CollisionGroups, CollisionState
 from .resources import ResourceManager
 from .structs import RigidBodyState, RigidBodyInfo
 from .signals import ActorDamagedSignal, CollisionSignal, LogicUpdateSignal, PhysicsReplicatedSignal

@@ -22,6 +22,8 @@ class Replicable(metaclass=ReplicableRegister):
     owner = Attribute(complain=True, notify=True)
     torn_off = Attribute(False, complain=True, notify=True)
 
+    allow_random_key = True
+
     # Dictionary of class-owned instances
     subclasses = {}
 
@@ -47,7 +49,24 @@ class Replicable(metaclass=ReplicableRegister):
         self.replication_update_period = 1 / 20
 
         # Instantiate parent (this is when the creation callback may be called)
-        super().__init__(instance_id=instance_id, allow_random_key=True, **kwargs)
+        super().__init__(instance_id=instance_id, **kwargs)
+
+        # TODO maybe save construction context, and warn if attempt to modify graph from different context!
+
+    def __description__(self):
+        """Returns a hash-like description for this replicable.
+
+        Used by replication system to determine if reference has changed
+        :rtype: int"""
+        return id(self)
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+
+        if not self.registered:
+            return "(Replicable {})".format(class_name)
+
+        return "(Replicable {0}: id={1.instance_id})".format(class_name, self)
 
     @property
     def is_static(self):
@@ -72,6 +91,21 @@ class Replicable(metaclass=ReplicableRegister):
             pass
 
         return last
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        """Condition generator that determines replicated attributes.
+
+        Attributes yielded are still subject to conditions before sending
+
+        :param is_owner: if the current :py:class:`network.channel.Channel`\
+        is the owner
+        :param is_complaint: if any complaining variables have been changed
+        :param is_initial: if this is the first replication for this target
+        """
+        if is_complaint or is_initial:
+            yield "roles"
+            yield "owner"
+            yield "torn_off"
 
     @classmethod
     def create_or_return(cls, instance_id):
@@ -116,42 +150,6 @@ class Replicable(metaclass=ReplicableRegister):
         :rtype: iterable
         """
         return range(cls.MAXIMUM_REPLICABLES)
-
-    def register(self):
-        # If replicable instantiated without ID, must be local, cannot be static
-        if self.instance_id is None:
-            self._local_authority = True
-            self._static = False
-
-        super().register()
-
-    def resolve_id_conflict(self, instance_id, conflicting_instance):
-        # If the instance is not local, then we have a conflict
-        error_message = "Authority over instance id {} cannot be resolved".format(instance_id)
-        assert conflicting_instance._local_authority, error_message
-
-        # Forces reassignment of instance id
-        conflicting_instance.on_deregistered()
-
-        logger.info("Resolved Replicable instance ID conflict")
-
-        # Re register
-        conflicting_instance.instance_id = None
-        conflicting_instance.register()
-
-    def possessed_by(self, other):
-        """Called on possession by other replicable
-
-        :param other: other replicable (owner)
-        """
-        self.owner = other
-
-    def unpossessed(self):
-        """Called on unpossession by replicable.
-
-        May be due to death of replicable
-        """
-        self.owner = None
 
     def on_registered(self):
         """Called on registered of replicable.
@@ -226,36 +224,46 @@ class Replicable(metaclass=ReplicableRegister):
         """
         pass
 
-    def conditions(self, is_owner, is_complaint, is_initial):
-        """Condition generator that determines replicated attributes.
+    def register(self):
+        # If replicable instantiated without ID, must be local, cannot be static
+        if self.instance_id is None:
+            self._local_authority = True
+            self._static = False
 
-        Attributes yielded are still subject to conditions before sending
+        super().register()
 
-        :param is_owner: if the current :py:class:`network.channel.Channel`\
-        is the owner
-        :param is_complaint: if any complaining variables have been changed
-        :param is_initial: if this is the first replication for this target
+    def resolve_id_conflict(self, instance_id, conflicting_instance):
+        # If the instance is not local, then we have a conflict
+        error_message = "Authority over instance id {} cannot be resolved".format(instance_id)
+        assert conflicting_instance._local_authority, error_message
+
+        # Forces reassignment of instance id
+        conflicting_instance.on_deregistered()
+
+        logger.info("Resolved Replicable instance ID conflict")
+
+        # Re register
+        conflicting_instance.instance_id = None
+        conflicting_instance.register()
+
+    def possessed_by(self, other):
+        """Called on possession by other replicable
+
+        :param other: other replicable (owner)
         """
-        if is_complaint or is_initial:
-            yield "roles"
-            yield "owner"
-            yield "torn_off"
+        self.owner = other
 
-    def __description__(self):
-        """Returns a hash-like description for this replicable.
+    def unpossessed(self):
+        """Called on unpossession by replicable.
 
-        Used by replication system to determine if reference has changed
-        :rtype: int"""
-        return id(self)
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-
-        if not self.registered:
-            return "(Replicable {})".format(class_name)
-
-        return "(Replicable {0}: id={1.instance_id})".format(class_name, self)
+        May be due to death of replicable
+        """
+        self.owner = None
 
 
 # Circular Reference on attribute
 Replicable.owner.data_type = Replicable
+
+
+class RR(Replicable):
+    pass

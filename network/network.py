@@ -1,11 +1,12 @@
 from .connection import Connection
+from .streams import create_handshake_manager
 
 from random import random
 from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
 
-__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketWrapper', 'Network', 'NetworkMetrics']
+__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketWrapper', 'NetworkManager', 'NetworkMetrics']
 
 
 class NonBlockingSocketUDP(socket):
@@ -199,18 +200,19 @@ class MulticastDiscovery:
         self.disable_listener()
 
 
-class Network:
+class NetworkManager:
     """Network management class"""
 
-    def __init__(self, socket, netmode):
-        self.socket = socket
-        self.netmode = netmode
+    def __init__(self, socket):
+        self._socket = socket
 
         self.address, self.port = socket.getsockname()
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
         self.receive_buffer_size = 63553
+
+        self.rules = None
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
@@ -225,6 +227,26 @@ class Network:
         sock = NonBlockingSocketUDP(address, port)
         return cls(sock)
 
+    def connect_to(self, address, port):
+        """Return connection interface to remote peer.
+
+        If connection does not exist, create a new ConnectionInterface.
+
+        :param address: address of remote peer
+        :param port: port of remote peer
+        """
+        address = gethostbyname(address)
+        return self._create_or_return((address, port))
+
+    def _create_or_return(self, connection_info):
+        try:
+            return Connection[connection_info]
+
+        except KeyError:
+            connection = Connection(connection_info, self)
+            self.on_new_connection(connection)
+            return connection
+
     @property
     def received_data(self):
         """Return iterator over received data"""
@@ -233,7 +255,7 @@ class Network:
 
         while True:
             try:
-                data = self.socket.recvfrom(buff_size)
+                data = self._socket.recvfrom(buff_size)
 
             except SOCK_ERROR:
                 return
@@ -243,33 +265,15 @@ class Network:
 
             yield data
 
-    @staticmethod
-    def connect_to(address, port):
-        """Return connection interface to remote peer.
-
-        If connection does not exist, create a new ConnectionInterface.
-
-        :param address: address of remote peer
-        :param port: port of remote peer
-        """
-        return Connection.create_connection(address, port)
-
     def on_new_connection(self, connection):
-        # TODO setup connection for handshake, replication etc
-        pass
+        connection.handshake_manager = create_handshake_manager(connection)
 
     def receive(self):
         """Receive all data from socket"""
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
-            try:
-                connection = Connection[address]
-
-            # Create a new interface to handle connection
-            except KeyError:
-                connection = Connection(address, self.netmode)
-                self.on_new_connection(connection)
+            connection = self._create_or_return(address)
 
             # Dispatch data to connection
             connection.receive(data)
@@ -299,7 +303,7 @@ class Network:
         :param data: data to send
         :param address: address of remote peer
         """
-        data_length = self.socket.sendto(data, address)
+        data_length = self._socket.sendto(data, address)
         self.metrics.on_sent_bytes(data_length)
 
         return data_length
@@ -319,5 +323,5 @@ class Network:
 
     def stop(self):
         """Close network socket"""
-        self.socket.close()
+        self._socket.close()
         self.multicast.stop()

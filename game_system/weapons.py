@@ -1,4 +1,4 @@
-from network.decorators import requires_netmode
+from network.annotations.decorators import requires_netmode
 from network.descriptors import Attribute
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable

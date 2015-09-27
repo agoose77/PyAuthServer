@@ -1,15 +1,12 @@
-from network.conditions import is_reliable
-from network.type_flag import TypeFlag
-from network.enums import Netmodes, ReplicationProtocols
-from network.flag_serialiser import FlagSerialiser
-from network.handlers import static_description, get_handler
-from network.packet import Packet
-from network.replicable import Replicable
-from network.signals import SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal
-
-from collections import namedtuple
 from functools import partial
 from time import clock
+
+from ...annotations.conditions import is_reliable
+from ...type_flag import TypeFlag
+from ...flag_serialiser import FlagSerialiser
+from ...handlers import static_description, get_handler
+from ...replicable import Replicable
+from ...signals import SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal
 
 __all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
 
@@ -241,23 +238,22 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
 class SceneChannelBase(SignalListener):
 
+    channel_class = None
     id_handler = get_handler(TypeFlag(int))
 
     def __init__(self, connection, scene):
         self.scene = scene
         self.connection = connection
 
+        self.logger = connection.logger.getChild("SceneChannel")
+
         self.packed_id = self.__class__.id_handler.pack(scene.instance_id)
         self.replicable_channels = {}
 
         # Channels may be created after replicables were instantiated
-        with scene.context:
+        with scene:
             self.register_signals()
             self.register_existing_replicables()
-
-    @property
-    def prioritised_channels(self):
-        return []
 
     def register_existing_replicables(self):
         """Load existing registered replicables"""
@@ -266,7 +262,7 @@ class SceneChannelBase(SignalListener):
 
     @ReplicableRegisteredSignal.on_global
     def on_replicable_registered(self, target):
-        self.replicable_channels[target.instance_id] = ServerReplicableChannel(self.scene, target)
+        self.replicable_channels[target.instance_id] = self.channel_class(self, target)
 
     @ReplicableUnregisteredSignal.on_global
     def on_replicable_unregistered(self, target):
@@ -275,6 +271,8 @@ class SceneChannelBase(SignalListener):
 
 class ServerSceneChannel(SceneChannelBase):
 
+    channel_class = ServerReplicableChannel
+
     def __init__(self, connection, scene):
         super().__init__(connection, scene)
 
@@ -282,4 +280,5 @@ class ServerSceneChannel(SceneChannelBase):
 
 
 class ClientSceneChannel(SceneChannelBase):
-    pass
+
+    channel_class = ClientReplicableChannel

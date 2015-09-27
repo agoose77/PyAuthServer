@@ -1,37 +1,25 @@
 from network.enums import Netmodes
-from network.network import Network
-from network.signals import SignalListener, Signal
-from network.world_info import WorldInfo
+from network.network import NetworkManager
 from network.signals import DisconnectSignal
-from network.replicable import Replicable
 
 from game_system.enums import PhysicsType
 from game_system.timer import Timer
-from game_system.signals import ConnectToSignal, TimerUpdateSignal, UIUpdateSignal, PlayerInputSignal, \
-    LogicUpdateSignal, PhysicsTickSignal, PostPhysicsSignal
+from game_system.signals import ConnectToSignal, TimerUpdateSignal, UIUpdateSignal, LogicUpdateSignal, PhysicsTickSignal, PostPhysicsSignal
 from game_system.level_manager import LevelManager
-from game_system.game_loop import FixedTimeStepManager, OnExitUpdate
-from game_system.enums import ButtonState, InputButtons
-
+from game_system.game_loop import FixedTimeStepManager
 
 import bpy
 
 from .physics import BlenderPhysicsSystem
 
-from game_system.controllers import *
-from game_system.entities import Actor
-
 from game_system.resources import ResourceManager
 ResourceManager.environment = "Blender"
 ResourceManager.data_path = bpy.path.abspath("//data")
 
-from network.decorators import with_tag
+from network.annotations.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
 from game_system.definitions import ComponentLoader, ComponentLoaderResult
-
-
-from mathutils import *
 
 
 class BlenderComponent(FindByTag):
@@ -411,7 +399,7 @@ class Server(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network.from_address_info("", 1200)
+        return NetworkManager.from_address_info("", 1200)
 
 
 class Client(GameLoop):
@@ -429,7 +417,7 @@ class Client(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network.from_address_info("", 0)
+        return NetworkManager.from_address_info("", 0)
 
     @ConnectToSignal.on_global
     def new_connection(self, address, port):

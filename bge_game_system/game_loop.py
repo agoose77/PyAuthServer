@@ -2,7 +2,7 @@ from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 
 from network.enums import Netmodes
-from network.network import Network, UnreliableSocketWrapper
+from network.network import NetworkManager, UnreliableSocketWrapper
 from network.replicable import Replicable
 from network.signals import *
 from network.world_info import WorldInfo
@@ -319,7 +319,7 @@ class Server(GameLoop):
 
     @staticmethod
     def create_network():
-        return Network.from_address_info("", 1200)
+        return NetworkManager.from_address_info("", 1200)
 
 
 class Client(GameLoop):
@@ -344,7 +344,7 @@ class Client(GameLoop):
 
     @staticmethod
     def create_network():
-        network = Network.from_address_info("", 0)
+        network = NetworkManager.from_address_info("", 0)
         #network.socket = UnreliableSocketWrapper(network.socket)
         return network
 

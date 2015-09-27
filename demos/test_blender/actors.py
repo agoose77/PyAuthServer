@@ -1,9 +1,8 @@
 from game_system.entities import Actor
-from game_system.enums import CollisionState
 from game_system.signals import LogicUpdateSignal, CollisionSignal
 
 from network.descriptors import Attribute
-from network.decorators import simulated
+from network.annotations.decorators import simulated
 from network.enums import Roles
 
 

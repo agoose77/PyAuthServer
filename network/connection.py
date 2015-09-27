@@ -29,32 +29,17 @@ class Connection(metaclass=InstanceRegister):
 
     subclasses = {}
 
-    @classmethod
-    def create_connection(cls, address, port):
-        """Return new connnection to remote peer.
-
-        Creates a Connection object with a tuple of ``(address, port)``, returning existing connection if present.
-        """
-        address = gethostbyname(address)
-        ip_info = address, port
-
-        try:
-            return cls[ip_info]
-
-        except KeyError:
-            return cls(ip_info)
-
     def __repr__(self):
         if self.registered:
             return "<Connection: <{}>>".format(self.instance_id)
 
         return "<Connection>"
 
-    def __init__(self, connection_info, netmode):
+    def __init__(self, connection_info, network_manager):
         super().__init__(connection_info)
 
         # TODO should this be stored like this?
-        self.netmode = netmode
+        self.network_manager = network_manager
 
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1
@@ -96,6 +81,7 @@ class Connection(metaclass=InstanceRegister):
 
         self.pre_receive_callbacks = []
         self.post_receive_callbacks = []
+        self.pre_send_callbacks = []
 
         self.dispatcher = UniqueMessageDispatcher()
 
@@ -149,8 +135,8 @@ class Connection(metaclass=InstanceRegister):
         window_size = self.ack_window
 
         # Iterate over ACK bitfield
-        for relative_sequence in range(window_size + 1):
-            absolute_sequence = ack_base - relative_sequence
+        for relative_sequence in range(window_size):
+            absolute_sequence = ack_base - (relative_sequence + 1)
 
             # If we are waiting for this packet, acknowledge it
             if ack_bitfield[relative_sequence] and absolute_sequence in requested_ack:
@@ -161,7 +147,14 @@ class Connection(metaclass=InstanceRegister):
                 if absolute_sequence == self.tagged_throttle_sequence:
                     self.stop_throttling()
 
-        assert relative_sequence == ack_base, "DEBUGGING CHECK FAILED"
+        # Acknowledge the sequence of this packet
+        if ack_base in self.requested_ack:
+            sent_packet = requested_ack.pop(ack_base)
+            sent_packet.on_ack()
+
+            # If a packet has had time to return since throttling began
+            if ack_base == self.tagged_throttle_sequence:
+                self.stop_throttling()
 
         # Dropped locals
         missed_ack = False
@@ -225,6 +218,8 @@ class Connection(metaclass=InstanceRegister):
 
         dispatch = self.dispatcher.send
         for packet in packet_collection.packets:
+            from .enums import PacketProtocols
+            print("Dispatch", PacketProtocols[packet.protocol])
             dispatch(packet.protocol, packet)
 
         self.last_received_time = clock()
@@ -245,6 +240,9 @@ class Connection(metaclass=InstanceRegister):
         # If we are waiting to detect when throttling will have returned
         if self.throttle_pending and self.tagged_throttle_sequence is None:
             self.tagged_throttle_sequence = sequence
+
+        for callback in self.pre_send_callbacks:
+            callback(is_network_tick)
 
         packet_collection = PacketCollection(self._queue)
         self._queue.clear()

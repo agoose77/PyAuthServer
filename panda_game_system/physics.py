@@ -1,26 +1,23 @@
-from network.decorators import with_tag
+from contextlib import contextmanager
+from collections import defaultdict
+
+from panda3d.bullet import BulletWorld, BulletDebugNode
+from panda3d.core import loadPrcFileData
+from direct.showbase.DirectObject import DirectObject
+
+from network.annotations.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
-from network.world_info import WorldInfo
-
 from game_system.controllers import PlayerPawnController
 from game_system.entities import Actor
 from game_system.enums import CollisionState, PhysicsType
 from game_system.latency_compensation import PhysicsExtrapolator
 from game_system.physics import CollisionContact, LazyCollisionResult
 from game_system.signals import *
-
 from .definitions import entity_from_nodepath
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
-
-from panda3d.bullet import BulletWorld, BulletDebugNode
-from panda3d.core import loadPrcFileData
-from direct.showbase.DirectObject import DirectObject
-
-from contextlib import contextmanager
-from collections import defaultdict
 
 loadPrcFileData('', 'bullet-enable-contact-events true')
 

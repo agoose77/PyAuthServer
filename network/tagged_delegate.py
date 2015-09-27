@@ -1,6 +1,6 @@
-from .decorators import get_tag, has_tag
+from .annotations.decorators import get_tag, has_tag
 from .metaclasses.register import TypeRegister
-from .world_info import WorldInfo
+from .world import World
 
 __all__ = ['DelegateByNetmode', 'DelegateByTag', 'FindByTag']
 
@@ -91,4 +91,4 @@ class DelegateByNetmode(DelegateByTag):
 
     @staticmethod
     def get_current_tag():
-        return WorldInfo.netmode
+        return World.current_world.netmode

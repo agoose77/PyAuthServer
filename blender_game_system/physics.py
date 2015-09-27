@@ -1,12 +1,10 @@
 from contextlib import contextmanager
 
-from network.decorators import with_tag
+from network.annotations.decorators import with_tag
 from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
-from network.world_info import WorldInfo
-
 from game_system.entities import Actor
 from game_system.controllers import PlayerPawnController
 from game_system.enums import PhysicsType
