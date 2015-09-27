@@ -35,7 +35,7 @@ class HandshakeManagerBase:
         # Additional data
         self.string_packer = get_handler(TypeFlag(str))
 
-        # Register listeneres
+        # Register listeners
         register_protocol_listeners(self, connection.dispatcher)
         self.senders = get_state_senders(self)
 
@@ -130,11 +130,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
         self.connection.queue_packet(packet)
 
     def invoke_handshake(self):
-        """Invoke handshake attempt on client, used for multicasting
-
-        :param network_tick: is a full network tick
-        :param bandwidth: available bandwidth
-        """
+        """Invoke handshake attempt on client, used for multicasting"""
         self.state = ConnectionStates.awaiting_handshake
 
         packet = Packet(protocol=PacketProtocols.invoke_handshake, reliable=True)
@@ -145,8 +141,6 @@ class ClientHandshakeManager(HandshakeManagerBase):
 
     def __init__(self, connection):
         super().__init__(connection)
-
-        print("NEW STREAM")
 
         self.invoke_handshake()
 

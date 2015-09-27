@@ -10,9 +10,6 @@ class _EnumDict(dict):
         self._autonum = autonum
         self._has_real_values = False
 
-        # TODO autonum don't allow explict after auto-num
-        # Use autonum base from last explicit define (maybe use intelligent stepping?)
-
     def __setitem__(self, name, value):
         if name.startswith("__"):
             return super().__setitem__(name, value)

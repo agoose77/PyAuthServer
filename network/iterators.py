@@ -54,7 +54,8 @@ def partition_iterable(iterable, length, steps=None):
     :param steps: number of slices
     :returns: list of partition elements
     """
+    as_list = list(iterable)
     if steps is None:
-        steps = len(iterable)
+        steps = len(as_list)
 
-    return [iterable[i * length: (i + 1 ) * length] for i in range(steps)]
+    return [as_list[i * length: (i + 1) * length] for i in range(steps)]

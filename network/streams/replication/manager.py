@@ -1,12 +1,13 @@
 from ...signals import SceneRegisteredSignal, SceneUnregisteredSignal, SignalListener
-from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, ReplicableChannelBase
-from ..helpers import on_protocol, register_protocol_listeners
+from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, \
+    ReplicableChannelBase
 from ...enums import PacketProtocols, Roles
 from ...handlers import get_handler
 from ...packet import Packet, PacketCollection
 from ...replicable import Replicable
 from ...type_flag import TypeFlag
 from ...scene import NetworkScene
+from ..helpers import on_protocol, register_protocol_listeners
 
 from collections import defaultdict
 from operator import attrgetter
@@ -127,7 +128,6 @@ class ServerReplicationManager(ReplicationManagerBase):
                 replicable_channel.replicable_channels.pop(replicable)
 
         # Now send packets
-        # TODO - if any creation packets (scene / replicable, send everything together! that way order preserved)
         queued_packets = []
 
         is_new_scene = scene_channel.is_initial

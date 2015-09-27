@@ -188,7 +188,6 @@ class Connection(metaclass=InstanceRegister):
         # Get ack bitfield for reliable feedback
         ack_bitfield = self._get_reliable_information(remote_sequence)
 
-        # TODO do this per out
         # Store acknowledge request for reliable members of packet
         self.requested_ack[sequence] = packet
 
