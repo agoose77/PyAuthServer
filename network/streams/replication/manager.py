@@ -3,12 +3,12 @@ from ...streams.replication.channels import ServerSceneChannel, ClientSceneChann
 from ..helpers import on_protocol, register_protocol_listeners
 from ...enums import PacketProtocols, Roles
 from ...handlers import get_handler
-from ...packet import Packet
+from ...packet import Packet, PacketCollection
 from ...replicable import Replicable
 from ...type_flag import TypeFlag
 from ...scene import NetworkScene
-from ...world_info import WorldInfo
 
+from collections import defaultdict
 from operator import attrgetter
 
 
@@ -62,13 +62,6 @@ class ServerReplicationManager(ReplicationManagerBase):
 
         self._string_handler = get_handler(TypeFlag(str))
         self._bool_handler = get_handler(TypeFlag(bool))
-
-    def _initialise_channel(self, channel):
-        #TODO support scene natively
-        packed_name = self._string_handler.pack(channel.scene.name)
-        payload = channel.packed_id + packed_name
-        packet = Packet(protocol=PacketProtocols.create_scene, payload=payload)
-        self.connection.queue_packet(packet)
 
     def _replicate_channel(self, scene_channel):
         pack_string = self._string_handler.pack
@@ -135,32 +128,52 @@ class ServerReplicationManager(ReplicationManagerBase):
 
         # Now send packets
         # TODO - if any creation packets (scene / replicable, send everything together! that way order preserved)
+        queued_packets = []
+
+        is_new_scene = scene_channel.is_initial
+
+        if is_new_scene:
+            packed_name = self._string_handler.pack(scene_channel.scene.name)
+            payload = scene_channel.packed_id + packed_name
+            packet = Packet(protocol=PacketProtocols.create_scene, payload=payload)
+            queued_packets.append(packet)
+
+            scene_channel.is_initial = False
+
         if creation_data:
             creation_payload = scene_channel.packed_id + b''.join(creation_data)
             creation_packet = Packet(PacketProtocols.create_replicable, payload=creation_payload, reliable=True)
-            self.connection.queue_packet(creation_packet)
+            queued_packets.append(creation_packet)
 
         if reliable_invoke_method_data:
             reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
             reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload, reliable=True)
-            self.connection.queue_packet(reliable_method_packet)
+            queued_packets.append(reliable_method_packet)
 
         if unreliable_invoke_method_data:
             unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
             unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
-            self.connection.queue_packet(unreliable_method_packet)
+            queued_packets.append(unreliable_method_packet)
 
         if attribute_data:
             attribute_payload = scene_channel.packed_id + b''.join(attribute_data)
             attribute_packet = Packet(PacketProtocols.update_attributes, payload=attribute_payload)
-            self.connection.queue_packet(attribute_packet)
+            queued_packets.append(attribute_packet)
+
+        # Force joined packet
+        if creation_data or is_new_scene:
+            collection = PacketCollection(queued_packets)
+            self.connection.queue_packet(collection)
+
+        # Else normal queuing
+        else:
+            queue_packet = self.connection.queue_packet
+
+            for packet in queued_packets:
+                queue_packet(packet)
 
     def send(self, is_network_tick):
         for channel in self.scene_channels.values():
-            if channel.is_initial:
-                self._initialise_channel(channel)
-                channel.is_initial = False
-
             self._replicate_channel(channel)
 
 
@@ -174,7 +187,7 @@ class ClientReplicationManager(ReplicationManagerBase):
         self._string_handler = get_handler(TypeFlag(str))
         self._bool_handler = get_handler(TypeFlag(bool))
 
-        self._pending_notifications = []
+        self._pending_notifications = defaultdict(list)
         connection.post_receive_callbacks.append(self._dispatch_notifications)
 
     @on_protocol(PacketProtocols.create_scene)
@@ -243,11 +256,13 @@ class ClientReplicationManager(ReplicationManagerBase):
                 notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
                 offset += read_bytes
 
-                self._pending_notifications.append(notifier)
+                self._pending_notifications[scene].append(notifier)
 
     def _dispatch_notifications(self):
-        for notification in self._pending_notifications:
-            notification()
+        for scene, notifications in self._pending_notifications.items():
+            with scene:
+                for notification in notifications:
+                    notification()
 
         self._pending_notifications.clear()
 

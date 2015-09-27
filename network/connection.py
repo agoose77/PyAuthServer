@@ -1,14 +1,14 @@
 from collections import deque
 from logging import getLogger, Formatter, StreamHandler
-from socket import gethostbyname
 from time import strftime, clock
 
 from .bitfield import BitField
 from .conversions import conversion
 from .dispatcher import UniqueMessageDispatcher
+from .enums import PacketProtocols
 from .handlers import get_handler
 from .metaclasses.register import InstanceRegister
-from .packet import PacketCollection
+from .packet import PacketCollection, Packet
 from .type_flag import TypeFlag
 
 
@@ -73,9 +73,7 @@ class Connection(metaclass=InstanceRegister):
         self.logger = self._create_logger()
 
         self.last_received_time = None
-
-        # handshake.connection_info = connection_info
-        # handshake.remove_connection = self.deregister
+        self.send_heartbeat_when_idle = True
 
         self._queue = []
 
@@ -84,6 +82,8 @@ class Connection(metaclass=InstanceRegister):
         self.pre_send_callbacks = []
 
         self.dispatcher = UniqueMessageDispatcher()
+        # Ignore heartbeat packet
+        self.dispatcher.set_listener(PacketProtocols.heartbeat, lambda packet: None)
 
     def _is_more_recent(self, base, sequence):
         """Compare two sequence identifiers and determine if one is newer than the other
@@ -162,24 +162,47 @@ class Connection(metaclass=InstanceRegister):
         # Find packets we think are dropped and resend them
         considered_dropped = [s for s in requested_ack if (ack_base - s) >= window_size]
 
-        redelivery_queue = self._queue
+        queue_packet = self.queue_packet
         # If the packet drops off the ack_window assume it is lost
         for absolute_sequence in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
-            reliable_collection = requested_ack.pop(absolute_sequence).to_reliable()
-            reliable_collection.on_not_ack()
+            reliable_packet = requested_ack.pop(absolute_sequence).to_reliable()
+            reliable_packet.on_not_ack()
 
             missed_ack = True
-            redelivery_queue.extend(reliable_collection.members)
+            queue_packet(reliable_packet)
 
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
     def queue_packet(self, packet):
-        self._queue.append(packet)
+        # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
+        sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
+        remote_sequence = self.remote_sequence
 
-    def receive(self, bytes_string):
+        # If we are waiting to detect when throttling will have returned
+        if self.throttle_pending and self.tagged_throttle_sequence is None:
+            self.tagged_throttle_sequence = sequence
+
+        # Get ack bitfield for reliable feedback
+        ack_bitfield = self._get_reliable_information(remote_sequence)
+
+        # TODO do this per out
+        # Store acknowledge request for reliable members of packet
+        self.requested_ack[sequence] = packet
+
+        # Construct header information
+        message_parts = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence),
+                         self.ack_packer.pack(ack_bitfield), packet.to_bytes()]
+
+        # Force bandwidth to grow (until throttled)
+        self.bandwidth += self.packet_growth
+
+        message = b''.join(message_parts)
+        self._queue.append(message)
+
+    def receive_message(self, bytes_string):
         """Handle received bytes from peer
 
         :param bytes_string: data from peer
@@ -199,7 +222,7 @@ class Connection(metaclass=InstanceRegister):
         ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string, offset=offset)
         offset += ack_bitfield_size
 
-        # TODO allow packet.reject() to un-ack acked packet
+        # TODO allow packet.reject() to un-ack acked packet before check the ack
 
         # Dictionary of packets waiting for acknowledgement
         self._update_reliable_information(ack_base, self.incoming_ack_bitfield)
@@ -213,13 +236,11 @@ class Connection(metaclass=InstanceRegister):
         if len(self.received_window) > self.ack_window:
             self.received_window.popleft()
 
-        # Handle received packets
+        # Handle received packets, allow possible multiple packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
 
         dispatch = self.dispatcher.send
         for packet in packet_collection.packets:
-            from .enums import PacketProtocols
-            print("Dispatch", PacketProtocols[packet.protocol])
             dispatch(packet.protocol, packet)
 
         self.last_received_time = clock()
@@ -228,43 +249,23 @@ class Connection(metaclass=InstanceRegister):
         for callback in self.post_receive_callbacks:
             callback()
 
-    def send(self, is_network_tick):
+    def request_messages(self, is_network_tick):
         """Pull data from connection interfaces to send
 
         :param network_tick: if this is a network tick
         """
-        # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
-        sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
-        remote_sequence = self.remote_sequence
-
-        # If we are waiting to detect when throttling will have returned
-        if self.throttle_pending and self.tagged_throttle_sequence is None:
-            self.tagged_throttle_sequence = sequence
-
         for callback in self.pre_send_callbacks:
             callback(is_network_tick)
 
-        packet_collection = PacketCollection(self._queue)
+        # Use heartbeat packet
+        if not self._queue and self.send_heartbeat_when_idle:
+            heartbeat_packet = Packet(PacketProtocols.heartbeat)
+            self.queue_packet(heartbeat_packet)
+
+        messages = self._queue[:]
         self._queue.clear()
 
-        # Get ack bitfield for reliable feedback
-        ack_bitfield = self._get_reliable_information(remote_sequence)
-
-        # Store acknowledge request for reliable members of packet
-        self.requested_ack[sequence] = packet_collection
-
-        # Construct header information
-        payload = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence),
-                   self.ack_packer.pack(ack_bitfield)]
-
-        # Include user defined payload
-        packet_bytes = packet_collection.to_bytes()
-        payload.append(packet_bytes)
-
-        # Force bandwidth to grow (until throttled)
-        self.bandwidth += self.packet_growth
-
-        return b''.join(payload)
+        return messages
 
     def start_throttling(self):
         """Start updating metric for bandwidth"""

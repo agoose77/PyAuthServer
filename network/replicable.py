@@ -263,7 +263,3 @@ class Replicable(metaclass=ReplicableRegister):
 
 # Circular Reference on attribute
 Replicable.owner.data_type = Replicable
-
-
-class RR(Replicable):
-    pass

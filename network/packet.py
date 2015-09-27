@@ -6,7 +6,34 @@ from functools import lru_cache
 __all__ = ['PacketCollection', 'Packet']
 
 
-class PacketCollection:
+class NetworkPacketBase:
+
+    def on_ack(self):
+        raise NotImplementedError
+
+    def on_not_ack(self):
+        raise NotImplementedError
+
+    def to_bytes(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_bytes(cls, bytes_string):
+        raise NotImplementedError
+
+    def to_reliable(self):
+        raise NotImplementedError
+
+    def to_unreliable(self):
+        raise NotImplementedError
+
+    def take_from(self, bytes_string):
+        raise NotImplementedError
+
+    size = None
+
+
+class PacketCollection(NetworkPacketBase):
     """Container for a sequence of Packet instances"""
 
     __slots__ = "packets"
@@ -120,7 +147,7 @@ class PacketCollection:
     __bytes_string_ = to_bytes
 
 
-class Packet:
+class Packet(NetworkPacketBase):
     """Interface class for packets sent over the network.
 
     Supports protocol and length header
@@ -179,6 +206,18 @@ class Packet:
         packet = cls()
         packet.take_from(bytes_string)
         return packet
+
+    def to_reliable(self):
+        if self.reliable:
+            return self
+
+        return None
+
+    def to_unreliable(self):
+        if not self.reliable:
+            return self
+
+        return None
 
     def take_from(self, bytes_string):
         """Populates packet instance with data.

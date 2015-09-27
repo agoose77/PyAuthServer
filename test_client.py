@@ -1,6 +1,25 @@
 from network.simple_network import SimpleNetworkManager
-from network.enums import Netmodes
+from network.enums import Netmodes, Roles
 from network.world import World
+from network.descriptors import Attribute
+from network.replicable import Replicable
+
+
+class MyReplicable(Replicable):
+
+    roles = Roles(Roles.authority, Roles.autonomous_proxy)
+    name = Attribute("", notify=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        print("INIT")
+
+    def conditions(self, is_owner, is_complaint, is_initial):
+        yield "name"
+
+    def on_notify(self, name):
+        print(self.name)
 
 
 from time import clock

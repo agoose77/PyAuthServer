@@ -99,10 +99,6 @@ class ServerHandshakeManager(HandshakeManagerBase):
         self.state = ConnectionStates.received_handshake
         self.send_handshake_result()
 
-    def on_handshake_success(self):
-        # Create replication stream TODO fix this
-        self.replication_manager = ServerReplicationManager(self.connection, self.network_manager.rules)
-
     def send_handshake_result(self):
         connection_failed = self.handshake_error is not None
 

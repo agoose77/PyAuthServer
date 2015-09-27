@@ -276,7 +276,7 @@ class NetworkManager:
             connection = self._create_or_return(address)
 
             # Dispatch data to connection
-            connection.receive(data)
+            connection.receive_message(data)
 
         # Update multi-cast listeners
         self.multicast.receive()
@@ -291,11 +291,11 @@ class NetworkManager:
         # Send all queued data
         for connection in list(Connection):
             # Give the option to send nothing
-            data = connection.send(full_update)
+            messages = connection.request_messages(full_update)
 
             # If returns data, send it
-            if data:
-                send_func(data, connection.instance_id)
+            for message in messages:
+                send_func(message, connection.instance_id)
 
     def send_to(self, data, address):
         """Send data to remote peer
