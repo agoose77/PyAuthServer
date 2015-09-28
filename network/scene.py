@@ -4,8 +4,6 @@ from .descriptors import ContextMember
 from .replicable import Replicable
 from .signals import Signal, SceneRegisteredSignal, SceneUnregisteredSignal
 
-from contextlib import contextmanager
-
 
 class CurrentSceneContext:
 

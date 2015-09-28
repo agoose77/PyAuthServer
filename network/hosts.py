@@ -11,6 +11,9 @@ def exists(hostname):
     if 'linux' in sys.platform:
         filename = '/etc/hosts'
 
+    elif "darwin" in sys.platform:
+        filename = '/private/etc/hosts'
+
     else:
         filename = 'c:\windows\system32\drivers\etc\hosts'
 
