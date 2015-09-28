@@ -17,8 +17,6 @@ class _WorldInfo(Replicable):
     elapsed = Attribute(0.0, complain=False)
     tick_rate = Attribute(60, complain=True, notify=True)
 
-    netmode = Netmodes.server
-
     def on_initialised(self):
         self.always_relevant = True
 
@@ -54,4 +52,4 @@ class _WorldInfo(Replicable):
         self.elapsed += delta_time
 
 
-WorldInfo = _WorldInfo(_WorldInfo._ID)
+#WorldInfo = _WorldInfo(_WorldInfo._ID)

@@ -4,6 +4,7 @@ from network.world import World
 from network.descriptors import Attribute
 from network.rules import ReplicationRulesBase
 from network.replicable import Replicable
+from network.type_flag import TypeFlag
 from network.scene import NetworkScene
 
 
@@ -20,6 +21,9 @@ class MyReplicable(Replicable):
     def conditions(self, is_owner, is_complaint, is_initial):
         yield "name"
 
+    def say(self, message: TypeFlag(str)) -> Netmodes.client:
+        print("YO", message)
+
 
 class Rules(ReplicationRulesBase):
 
@@ -29,11 +33,13 @@ class Rules(ReplicationRulesBase):
     def pre_initialise(self, address):
         print("Welcoming address", address)
 
-    def post_initialise(self, replication_manager):
+    def post_initialise(self, replication_manager): #, replication_manager.associate_replicables
         with self.scene:
             player = MyReplicable()
+            replication_manager.take_ownership(player)
 
         player.name = "Alex"
+        player.say("HIYA BYUBBA")
         return player
 
     def post_disconnected(self, replication_manager, root_replicable):

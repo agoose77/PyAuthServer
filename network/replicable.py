@@ -84,7 +84,7 @@ class Replicable(metaclass=ReplicableRegister):
 
         # Walk the parent tree until no parent
         try:
-            while replicable:
+            while replicable is not None:
                 last, replicable = replicable, replicable.owner
 
         except AttributeError:

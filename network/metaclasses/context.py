@@ -1,3 +1,26 @@
+class InvalidContextDict:
+
+    def __getitem__(self, item):
+        raise RuntimeError("Cannot retrieve item from invalid context")
+
+    def __setitem__(self, item, value):
+        raise RuntimeError("Cannot set item on invalid context")
+
+
+class InvalidContextManager:
+
+    data = InvalidContextDict()
+
+    def __enter__(self):
+        raise RuntimeError("Cannot enter invalid context")
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        raise RuntimeError("Cannot exit invalid context")
+
+    def __repr__(self):
+        return "Invalid Context"
+
+
 class BoundContextManager:
     """Context manager for ContextMemberMeta objects"""
 
@@ -31,11 +54,17 @@ class ContextMemberMeta(type):
     (metaclasses, derived classes) will be dependent upon a global context
     """
 
+    create_default_context = True
+
     def __new__(metacls, name, bases, attrs):
         cls = super().__new__(metacls, name, bases, attrs)
 
         if not hasattr(cls, "current_context_manager"):
-            cls.current_context_manager = BoundContextManager(cls, "<DEFAULT>")
+            if cls.create_default_context:
+                cls.current_context_manager = BoundContextManager(cls, "<DEFAULT>")
+
+            else:
+                cls.current_context_manager = InvalidContextManager()
 
         return cls
 

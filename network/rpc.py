@@ -82,27 +82,25 @@ class RPCInterface:
         # Store serialised argument data for later sending
         arguments = self._binder(*args, **kwargs).arguments
 
-        try:
-            packed_data = self._serialiser.pack(arguments)
-            self._interface.set(packed_data)
-
-        except Exception:
-            logger.exception("Could not package RPC call: '{}'".format(self._function_name))
+        packed_data = self._serialiser.pack(arguments)
+        self._interface.set(packed_data)
 
     def __repr__(self):
         return "<RPC Interface {}>".format(self._function_name)
 
-    def execute(self, bytes_string):
-        """Execute RPC from bytes_string
+    def ignore(self, bytes_string, offset):
+        unpacked_data, unpacked_size = self._serialiser.unpack(bytes_string, offset)
+        return unpacked_size
+
+    def invoke(self, bytes_string, offset):
+        """Unpack RPC from bytes_string
+
         :param bytes_string: Byte stream of RPC call data
         """
         # Unpack RPC
-        try:
-            unpacked_data, unpacked_size = self._serialiser.unpack(bytes_string)
-            self._function_call(**dict(unpacked_data))
-
-        except Exception:
-            logger.exception("Could not invoke RPC call: '{}'".format(self._function_name))
+        unpacked_data, unpacked_size = self._serialiser.unpack(bytes_string, offset=offset)
+        data = dict(unpacked_data)
+        self._function_call(**data)
 
         return unpacked_size
 

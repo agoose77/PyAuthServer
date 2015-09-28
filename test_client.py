@@ -2,6 +2,7 @@ from network.simple_network import SimpleNetworkManager
 from network.enums import Netmodes, Roles
 from network.world import World
 from network.descriptors import Attribute
+from network.type_flag import TypeFlag
 from network.replicable import Replicable
 
 
@@ -14,6 +15,9 @@ class MyReplicable(Replicable):
         super().__init__(*args, **kwargs)
 
         print("INIT")
+
+    def say(self, message: TypeFlag(str)) -> Netmodes.client:
+        print("YO", message)
 
     def conditions(self, is_owner, is_complaint, is_initial):
         yield "name"

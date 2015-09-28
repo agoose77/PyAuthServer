@@ -10,10 +10,6 @@ from ...scene import NetworkScene
 from ..helpers import on_protocol, register_protocol_listeners
 
 from collections import defaultdict
-from operator import attrgetter
-
-
-priority_getter = attrgetter("replication_priority")
 
 
 class ReplicationManagerBase(SignalListener):
@@ -24,8 +20,7 @@ class ReplicationManagerBase(SignalListener):
         self.connection = connection
 
         self.scene_channels = {}
-
-        self.root_replicable = None
+        self.root_replicables = set()
 
         # Listen to packets from connection
         register_protocol_listeners(self, connection.dispatcher)
@@ -33,6 +28,29 @@ class ReplicationManagerBase(SignalListener):
 
         self.register_signals()
         self.register_existing_scenes()
+
+    @on_protocol(PacketProtocols.invoke_method)
+    def on_invoke_methods(self, packet):
+        payload = packet.payload
+
+        scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
+        scene = NetworkScene[scene_id]
+
+        scene_channel = self.scene_channels[scene_id]
+        replicable_channels = scene_channel.replicable_channels
+        root_replicables = self.root_replicables
+
+        with scene:
+            while offset < len(payload):
+                instance_id, id_size = ReplicableChannelBase.id_handler.unpack_id(payload, offset)
+                offset += id_size
+
+                replicable_channel = replicable_channels[instance_id]
+                replicable = replicable_channel.replicable
+
+                allow_execute = replicable.relevant_to_owner and replicable.uppermost in root_replicables
+                read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
+                offset += read_bytes
 
     def register_existing_scenes(self):
         """Load existing registered scenes"""
@@ -59,122 +77,151 @@ class ServerReplicationManager(ReplicationManagerBase):
         super().__init__(connection)
 
         self.rules = rules
-        self.root_replicable = rules.post_initialise(self)
+
+        self.deleted_channels = []
 
         self._string_handler = get_handler(TypeFlag(str))
         self._bool_handler = get_handler(TypeFlag(bool))
 
-    def _replicate_channel(self, scene_channel):
+        rules.post_initialise(self)
+
+    @SceneUnregisteredSignal.on_global
+    def on_scene_unregistered(self, target):
+        channel = self.scene_channels.pop(target.instance_id)
+        self.deleted_channels.append(channel)
+
+    def take_ownership(self, replicable):
+        self.root_replicables.add(replicable)
+
+    def send(self, is_network_tick):
         pack_string = self._string_handler.pack
         pack_bool = self._bool_handler.pack
 
-        # Reliable
-        creation_data = []
-        deletion_data = []
-
-        # Reliable packets
-        reliable_invoke_method_data = []
-
-        # Unreliable packets
-        unreliable_invoke_method_data = []
-        attribute_data = []
-
-        root_replicable = self.root_replicable
+        root_replicables = self.root_replicables
         is_relevant = self.rules.is_relevant
 
-        no_role = Roles.none
+        queue_packet = self.connection.queue_packet
 
-        # TODO move this
-        for replicable_channel in sorted(scene_channel.replicable_channels.values(), reverse=True, key=priority_getter):
-            replicable = replicable_channel.replicable
+        for scene_channel in self.scene_channels.values():
 
-            # Check if remote role is permitted
-            if replicable.roles.remote == no_role:
-                continue
+            # Reliable
+            creation_data = []
+            deleted_data = []
 
-            is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost == root_replicable
+            # Reliable packets
+            reliable_invoke_method_data = []
 
-            # Write RPC calls
-            if is_and_relevant_to_owner:
-                reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
+            # Unreliable packets
+            unreliable_invoke_method_data = []
+            attribute_data = []
 
-                if reliable_rpc_calls:
-                    reliable_invoke_method_data.append(replicable_channel.packed_id + reliable_rpc_calls)
+            no_role = Roles.none
 
-                if unreliable_rpc_calls:
-                    unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
+            # TODO move this
+            for replicable_channel in scene_channel.prioritised_channels:
+                replicable = replicable_channel.replicable
 
-            replicable = replicable_channel.replicable
+                # Check if remote role is permitted
+                if replicable.roles.remote == no_role:
+                    continue
 
-            if replicable_channel.is_awaiting_replication and (is_and_relevant_to_owner
-                    or is_relevant(root_replicable, replicable)):
-                # Channel just created
-                if replicable_channel.is_initial:
-                    packed_class = pack_string(replicable.__class__.type_name)
-                    packed_is_host = pack_bool(replicable == root_replicable)
+                is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost in root_replicables
 
-                    # Send the protocol, class name and owner status to client
-                    creation_payload = replicable_channel.packed_id + packed_class + packed_is_host
-                    creation_data.append(creation_payload)
+                # Write RPC calls
+                if is_and_relevant_to_owner:
+                    reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
 
-                # Channel attributes
-                serialised_attributes = replicable_channel.get_attributes(is_and_relevant_to_owner)
-                if serialised_attributes:
-                    attribute_payload = replicable_channel.packed_id + serialised_attributes
-                    attribute_data.append(attribute_payload)
+                    if reliable_rpc_calls:
+                        reliable_invoke_method_data.append(replicable_channel.packed_id + reliable_rpc_calls)
 
-            # Stop replication this replicable
-            if replicable.replicate_temporarily:
-                replicable_channel.replicable_channels.pop(replicable)
+                    if unreliable_rpc_calls:
+                        unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
 
-        # Now send packets
-        queued_packets = []
+                if replicable_channel.is_awaiting_replication and \
+                        (is_and_relevant_to_owner or is_relevant(replicable)):
 
-        is_new_scene = scene_channel.is_initial
+                    # Channel just created
+                    if replicable_channel.is_initial:
+                        packed_class = pack_string(replicable.__class__.type_name)
+                        packed_is_host = pack_bool(replicable in root_replicables)
 
-        if is_new_scene:
-            packed_name = self._string_handler.pack(scene_channel.scene.name)
-            payload = scene_channel.packed_id + packed_name
-            packet = Packet(protocol=PacketProtocols.create_scene, payload=payload)
-            queued_packets.append(packet)
+                        # Send the protocol, class name and owner status to client
+                        creation_payload = replicable_channel.packed_id + packed_class + packed_is_host
+                        creation_data.append(creation_payload)
 
-            scene_channel.is_initial = False
+                    # Channel attributes
+                    serialised_attributes = replicable_channel.get_attributes(is_and_relevant_to_owner)
+                    if serialised_attributes:
+                        attribute_payload = replicable_channel.packed_id + serialised_attributes
+                        attribute_data.append(attribute_payload)
 
-        if creation_data:
-            creation_payload = scene_channel.packed_id + b''.join(creation_data)
-            creation_packet = Packet(PacketProtocols.create_replicable, payload=creation_payload, reliable=True)
-            queued_packets.append(creation_packet)
+                # Stop replication this replicable
+                if replicable.replicate_temporarily:
+                    replicable_channel.replicable_channels.pop(replicable)
 
-        if reliable_invoke_method_data:
-            reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
-            reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload, reliable=True)
-            queued_packets.append(reliable_method_packet)
+            for replicable_channel in scene_channel.deleted_channels:
+                # Send the replicable
+                destroyed_payload = replicable_channel.packed_id
+                deleted_data.append(destroyed_payload)
 
-        if unreliable_invoke_method_data:
-            unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
-            unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
-            queued_packets.append(unreliable_method_packet)
+            # Clear channels
+            scene_channel.deleted_channels.clear()
 
-        if attribute_data:
-            attribute_payload = scene_channel.packed_id + b''.join(attribute_data)
-            attribute_packet = Packet(PacketProtocols.update_attributes, payload=attribute_payload)
-            queued_packets.append(attribute_packet)
+            # Now construct and ultimately queue packets
+            queued_packets = []
 
-        # Force joined packet
-        if creation_data or is_new_scene:
-            collection = PacketCollection(queued_packets)
-            self.connection.queue_packet(collection)
+            is_new_scene = scene_channel.is_initial
+            if is_new_scene:
+                packed_name = pack_string(scene_channel.scene.name)
+                payload = scene_channel.packed_id + packed_name
+                packet = Packet(protocol=PacketProtocols.create_scene, payload=payload)
+                queued_packets.append(packet)
 
-        # Else normal queuing
-        else:
-            queue_packet = self.connection.queue_packet
+                scene_channel.is_initial = False
 
-            for packet in queued_packets:
-                queue_packet(packet)
+            if deleted_data:
+                deletion_payload = scene_channel.packed_id + b''.join(deleted_data)
+                deletion_packet = Packet(PacketProtocols.delete_replicable, payload=deletion_payload, reliable=True)
+                queued_packets.append(deletion_packet)
 
-    def send(self, is_network_tick):
-        for channel in self.scene_channels.values():
-            self._replicate_channel(channel)
+            if creation_data:
+                creation_payload = scene_channel.packed_id + b''.join(creation_data)
+                creation_packet = Packet(PacketProtocols.create_replicable, payload=creation_payload, reliable=True)
+                queued_packets.append(creation_packet)
+
+            if reliable_invoke_method_data:
+                reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
+                reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload,
+                                                reliable=True)
+                queued_packets.append(reliable_method_packet)
+
+            if unreliable_invoke_method_data:
+                unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
+                unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
+                queued_packets.append(unreliable_method_packet)
+
+            if attribute_data:
+                attribute_payload = scene_channel.packed_id + b''.join(attribute_data)
+                attribute_packet = Packet(PacketProtocols.update_attributes, payload=attribute_payload)
+                queued_packets.append(attribute_packet)
+
+            # Force joined packet
+            if creation_data or is_new_scene:
+                collection = PacketCollection(queued_packets)
+                queue_packet(collection)
+
+            # Else normal queuing
+            else:
+                for packet in queued_packets:
+                    queue_packet(packet)
+
+        # Send scene deletions
+        for scene_channel in self.deleted_channels:
+            payload = scene_channel.packed_id
+            deletion_packet = Packet(protocol=PacketProtocols.delete_scene, payload=payload)
+            queue_packet.append(deletion_packet)
+
+        self.deleted_channels.clear()
 
 
 class ClientReplicationManager(ReplicationManagerBase):
@@ -231,7 +278,7 @@ class ClientReplicationManager(ReplicationManagerBase):
                 # If replicable is parent (top owner)
                 if is_connection_host:
                     # Register as own replicable
-                    self.root_replicable = replicable
+                    self.root_replicables.add(replicable)
 
     @on_protocol(PacketProtocols.delete_replicable)
     def on_delete_replicable(self, packet):
@@ -266,47 +313,44 @@ class ClientReplicationManager(ReplicationManagerBase):
 
         self._pending_notifications.clear()
 
-    def _replicate_channel(self, scene_channel):
-        # Reliable packets
-        reliable_invoke_method_data = []
-
-        # Unreliable packets
-        unreliable_invoke_method_data = []
-
-        root_replicable = self.root_replicable
-        no_role = Roles.none
-
-        # TODO move this
-        for replicable_channel in sorted(scene_channel.replicable_channels.values(), reverse=True, key=priority_getter):
-            replicable = replicable_channel.replicable
-
-            # Check if remote role is permitted
-            if replicable.roles.remote == no_role:
-                continue
-
-            is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost == root_replicable
-            # Write RPC calls
-            if is_and_relevant_to_owner:
-                reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
-
-                if reliable_rpc_calls:
-                    reliable_invoke_method_data.append(replicable_channel.packed_id + reliable_rpc_calls)
-
-                if unreliable_rpc_calls:
-                    unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
-
-        # Now send packets
-        if reliable_invoke_method_data:
-            reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
-            reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload,
-                                            reliable=True)
-            self.connection.queue_packet(reliable_method_packet)
-
-        if unreliable_invoke_method_data:
-            unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
-            unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
-            self.connection.queue_packet(unreliable_method_packet)
-
     def send(self, is_network_tick):
-        for channel in self.scene_channels.values():
-            self._replicate_channel(channel)
+        for scene_channel in self.scene_channels.values():
+            # Reliable packets
+            reliable_invoke_method_data = []
+
+            # Unreliable packets
+            unreliable_invoke_method_data = []
+
+            root_replicables = self.root_replicables
+            no_role = Roles.none
+
+            # TODO move this
+            for replicable_channel in scene_channel.prioritised_channels:
+                replicable = replicable_channel.replicable
+
+                # Check if remote role is permitted
+                if replicable.roles.remote == no_role:
+                    continue
+
+                is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost in root_replicables
+                # Write RPC calls
+                if is_and_relevant_to_owner:
+                    reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
+
+                    if reliable_rpc_calls:
+                        reliable_invoke_method_data.append(replicable_channel.packed_id + reliable_rpc_calls)
+
+                    if unreliable_rpc_calls:
+                        unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
+
+            # Now send packets
+            if reliable_invoke_method_data:
+                reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
+                reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload,
+                                                reliable=True)
+                self.connection.queue_packet(reliable_method_packet)
+
+            if unreliable_invoke_method_data:
+                unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
+                unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
+                self.connection.queue_packet(unreliable_method_packet)

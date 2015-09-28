@@ -76,8 +76,8 @@ class EnumerationMeta(type):
         # Add ability to lookup name
         return cls._values_to_identifiers[value]
 
-    def __contains__(cls, index):
-        return index in cls.identifiers
+    def __contains__(cls, value):
+        return value in cls._values_to_identifiers
 
     def __len__(cls):
         return len(cls.identifiers)

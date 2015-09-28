@@ -21,6 +21,8 @@ class ReplicableRegister(AttributeMeta, RPCMeta, InstanceRegister):
 
     _forced_redefinitions = {}
 
+    create_default_context = False
+
     _of_type_cache = ContextMember({})
     _of_subclass_cache = ContextMember({})
 

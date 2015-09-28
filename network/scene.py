@@ -47,6 +47,41 @@ class NetworkScene(metaclass=InstanceRegister):
     def __repr__(self):
         return "<NetworkScene '{}'>".format(self.name)
 
+    # @classmethod
+    # def create_or_return(cls, instance_id):
+    #     """Creates a replicable if it is not already registered.
+    #
+    #     Called by the replication system to establish
+    #     :py:class:`network.replicable.Replicable` references.
+    #
+    #     If the instance_id is registered, take precedence over non-static
+    #     instances.
+    #     """
+    #     # Try and match an existing instance
+    #     try:
+    #         existing = cls[instance_id]
+    #
+    #     # If we don't find one, make one
+    #     except KeyError:
+    #         existing = None
+    #
+    #     else:
+    #         # If we find a locally defined replicable
+    #         # If instance_id was None when created -> not static
+    #         # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
+    #         if existing._local_authority:
+    #             # Make the class and overwrite the id
+    #             existing = None
+    #
+    #     if existing is None:
+    #         existing = cls(instance_id=instance_id, static=False)
+    #
+    #     # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
+    #     roles = existing.roles
+    #     roles.local, roles.remote = roles.remote, roles.local
+    #
+    #     return existing
+
     def on_registered(self):
         super().on_registered()
 

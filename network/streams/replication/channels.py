@@ -1,5 +1,6 @@
 from functools import partial
 from time import clock
+from operator import attrgetter
 
 from ...annotations.conditions import is_reliable
 from ...type_flag import TypeFlag
@@ -8,7 +9,11 @@ from ...handlers import static_description, get_handler
 from ...replicable import Replicable
 from ...signals import SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal
 
+
 __all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
+
+
+priority_getter = attrgetter("replication_priority")
 
 
 class ReplicableChannelBase:
@@ -73,29 +78,51 @@ class ReplicableChannelBase:
                 unreliable_rpc_calls.append(packed_rpc_call)
 
         storage_data.clear()
-        return reliable_rpc_calls, unreliable_rpc_calls
 
-    def invoke_rpc_calls(self, data):
+        reliable_data = b''.join(reliable_rpc_calls)
+        unreliable_data = b''.join(unreliable_rpc_calls)
+
+        return reliable_data, unreliable_data
+
+    def process_rpc_calls(self, data, offset, allow_execute=True):
         """Invoke an RPC call from packaged format
 
         :param rpc_call: rpc data (see take_rpc_calls)
         """
-        while data:
-            rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data)
+        start_offset = offset
 
-            unpacked_bytes = 0
+        if allow_execute:
+            while offset < len(data):
+                rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
+                offset += rpc_header_size
 
-            try:
-                method = self._rpc_storage.functions[rpc_id]
+                try:
+                    rpc_instance = self._rpc_storage.functions[rpc_id]
 
-            except IndexError:
-                self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
-                break
+                except IndexError:
+                    self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+                    break
 
-            else:
-                unpacked_bytes = method.execute(data[rpc_header_size:])
+                else:
+                    offset += rpc_instance.invoke(data, offset)
 
-            data = data[unpacked_bytes:]
+        else:
+            while offset < len(data):
+                rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
+                offset += rpc_header_size
+
+                try:
+                    rpc_instance = self._rpc_storage.functions[rpc_id]
+
+                except IndexError:
+                    self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+                    break
+
+                else:
+                    offset += rpc_instance.ignore(data, offset)
+
+        unpacked_bytes = offset - start_offset
+        return unpacked_bytes
 
 
 class ClientReplicableChannel(ReplicableChannelBase):
@@ -260,6 +287,10 @@ class SceneChannelBase(SignalListener):
         for replicable in Replicable:
             self.on_replicable_registered(replicable)
 
+    @property
+    def prioritised_channels(self):
+        return sorted(self.replicable_channels.values(), reverse=True, key=priority_getter)
+
     @ReplicableRegisteredSignal.on_global
     def on_replicable_registered(self, target):
         self.replicable_channels[target.instance_id] = self.channel_class(self, target)
@@ -277,6 +308,13 @@ class ServerSceneChannel(SceneChannelBase):
         super().__init__(connection, scene)
 
         self.is_initial = True
+
+        self.deleted_channels = []
+
+    @ReplicableUnregisteredSignal.on_global
+    def on_replicable_unregistered(self, target):
+        channel = self.replicable_channels.pop(target.instance_id)
+        self.deleted_channels.append(channel)
 
 
 class ClientSceneChannel(SceneChannelBase):
