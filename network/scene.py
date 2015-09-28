@@ -57,4 +57,8 @@ class NetworkScene(metaclass=InstanceRegister):
     def on_deregistered(self):
         SceneUnregisteredSignal.invoke(target=self)
 
+        with self._context:
+            Replicable.clear_graph()
+            Signal.clear_graph()
+
         super().on_deregistered()
