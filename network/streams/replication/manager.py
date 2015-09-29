@@ -34,9 +34,9 @@ class ReplicationManagerBase(SignalListener):
         payload = packet.payload
 
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
-        scene = NetworkScene[scene_id]
-
         scene_channel = self.scene_channels[scene_id]
+        scene = scene_channel.scene
+
         replicable_channels = scene_channel.replicable_channels
         root_replicables = self.root_replicables
 
@@ -171,7 +171,7 @@ class ServerReplicationManager(ReplicationManagerBase):
             is_new_scene = scene_channel.is_initial
             if is_new_scene:
                 packed_name = pack_string(scene_channel.scene.name)
-                payload = scene_channel.packed_id + packed_name
+                payload = scene_channel.packed_network_id + packed_name
                 packet = Packet(protocol=PacketProtocols.create_scene, payload=payload)
                 queued_packets.append(packet)
 
@@ -241,12 +241,15 @@ class ClientReplicationManager(ReplicationManagerBase):
         scene_name, name_size = self._string_handler.unpack_from(packet.payload, offset=id_size)
 
         # Create scene
-        scene = NetworkScene(scene_name, instance_id=scene_id)
+        scene = NetworkScene(scene_name)
 
     @on_protocol(PacketProtocols.delete_scene)
     def on_delete_scene(self, packet):
         scene_id, id_size = SceneChannelBase.id_handler.unpack_from(packet.payload)
-        scene = NetworkScene[scene_id]
+
+        scene_channel = self.scene_channels[scene_id]
+        scene = scene_channel.scene
+
         scene.deregister()
 
     @on_protocol(PacketProtocols.create_replicable)
@@ -254,7 +257,9 @@ class ClientReplicationManager(ReplicationManagerBase):
         payload = packet.payload
 
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
-        scene = NetworkScene[scene_id]
+
+        scene_channel = self.scene_channels[scene_id]
+        scene = scene_channel.scene
 
         with scene:
             while offset < len(payload):
@@ -283,7 +288,9 @@ class ClientReplicationManager(ReplicationManagerBase):
         payload = packet.payload
 
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
-        scene = NetworkScene[scene_id]
+
+        scene_channel = self.scene_channels[scene_id]
+        scene = scene_channel.scene
 
         with scene:
             while offset < len(payload):
@@ -297,9 +304,10 @@ class ClientReplicationManager(ReplicationManagerBase):
         payload = packet.payload
 
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
-        scene = NetworkScene[scene_id]
 
         scene_channel = self.scene_channels[scene_id]
+        scene = scene_channel.scene
+
         replicable_channels = scene_channel.replicable_channels
 
         with scene:
