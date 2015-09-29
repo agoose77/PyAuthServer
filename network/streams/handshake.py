@@ -33,6 +33,7 @@ class HandshakeManagerBase:
         self._last_received_time = clock()
 
         # Additional data
+        self.netmode_packer = get_handler(TypeFlag(int))
         self.string_packer = get_handler(TypeFlag(str))
 
         # Register listeners
@@ -45,8 +46,7 @@ class HandshakeManagerBase:
         return (clock() - self.connection.last_received_time) > self.timeout_duration
 
     def _cleanup(self):
-        if callable(self.remove_connection):
-            self.remove_connection()
+        self.connection.deregister()
 
         if self.replication_manager is not None:
             self.replication_manager.on_disconnected()
@@ -117,6 +117,9 @@ class ServerHandshakeManager(HandshakeManagerBase):
                             on_success=self.on_ack_handshake_failed)
 
         else:
+            # Create replication stream TODO fix this
+            self.replication_manager = ServerReplicationManager(self.connection)
+
             # Set success state
             self.state = ConnectionStates.connected
             ConnectionSuccessSignal.invoke(target=self)
@@ -155,6 +158,7 @@ class ClientHandshakeManager(HandshakeManagerBase):
             return
 
         self.state = ConnectionStates.connected
+        # Create replication stream TODO fix this
         self.replication_manager = ClientReplicationManager(self.connection)
 
         ConnectionSuccessSignal.invoke(target=self)

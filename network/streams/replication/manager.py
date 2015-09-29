@@ -102,8 +102,7 @@ class ServerReplicationManager(ReplicationManagerBase):
 
         queue_packet = self.connection.queue_packet
 
-        for scene_channel in self.scene_channels.values():
-
+        for scene, scene_channel in self.scene_channels.items():
             # Reliable
             creation_data = []
             deleted_data = []
@@ -117,7 +116,6 @@ class ServerReplicationManager(ReplicationManagerBase):
 
             no_role = Roles.none
 
-            # TODO move this
             for replicable_channel in scene_channel.prioritised_channels:
                 replicable = replicable_channel.replicable
 
@@ -138,7 +136,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                         unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
 
                 if replicable_channel.is_awaiting_replication and \
-                        (is_and_relevant_to_owner or is_relevant(replicable)):
+                        (is_and_relevant_to_owner or is_relevant(scene, replicable)):
 
                     # Channel just created
                     if replicable_channel.is_initial:
@@ -282,7 +280,17 @@ class ClientReplicationManager(ReplicationManagerBase):
 
     @on_protocol(PacketProtocols.delete_replicable)
     def on_delete_replicable(self, packet):
-        raise NotImplementedError()
+        payload = packet.payload
+
+        scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
+        scene = NetworkScene[scene_id]
+
+        with scene:
+            while offset < len(payload):
+                replicable, id_size = ReplicableChannelBase.id_handler.unpack_from(payload, offset)
+                offset += id_size
+
+                replicable.deregister()
 
     @on_protocol(PacketProtocols.update_attributes)
     def on_update_attributes(self, packet):

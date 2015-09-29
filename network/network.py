@@ -325,3 +325,7 @@ class NetworkManager:
         """Close network socket"""
         self._socket.close()
         self.multicast.stop()
+
+
+#TODO netmode on worldinfo OR connection???????
+#ADD HERE

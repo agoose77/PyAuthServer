@@ -27,6 +27,7 @@ class Connection(metaclass=InstanceRegister):
     Mediates a connection between local and remote peer.
     """
 
+    create_default_context = False
     subclasses = {}
 
     def __repr__(self):
