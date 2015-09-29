@@ -268,15 +268,13 @@ class SceneChannelBase(SignalListener):
     channel_class = None
     id_handler = get_handler(TypeFlag(int))
 
-    def __init__(self, connection, scene, network_id):
+    def __init__(self, connection, scene):
         self.scene = scene
         self.connection = connection
 
         self.logger = connection.logger.getChild("SceneChannel")
 
-        self.network_id = network_id
-        self.packed_network_id = self.__class__.id_handler.pack(network_id)
-
+        self.packed_id = self.__class__.id_handler.pack(scene.instance_id)
         self.replicable_channels = {}
 
         # Channels may be created after replicables were instantiated
