@@ -1,4 +1,5 @@
 from .connection import Connection
+from .enums import Netmodes
 from .streams import create_handshake_manager
 
 from random import random
@@ -6,11 +7,27 @@ from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostnam
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
 
-__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketWrapper', 'NetworkManager', 'NetworkMetrics']
+__all__ = ['BaseTransport', 'UnreliableSocketWrapper', 'NetworkManager', 'NetworkMetrics']
 
 
-class NonBlockingSocketUDP(socket):
+class TransportBase:
+
+    TransportEmptyError = None
+
+    def close(self):
+        raise NotImplementedError()
+
+    def receive(self, buff_szie):
+        raise NotImplementedError()
+
+    def send(self, data, address):
+        raise NotImplementedError()
+
+
+class DefaultTransport(socket, TransportBase):
     """Non blocking socket class"""
+
+    TransportEmptyError = SOCK_ERROR
 
     def __init__(self, addr, port):
         """Network socket initialiser"""
@@ -18,6 +35,12 @@ class NonBlockingSocketUDP(socket):
 
         self.bind((addr, port))
         self.setblocking(False)
+
+        self.address, self.port = self.getsockname()
+
+    close = socket.close
+    receive = socket.recvfrom
+    send = socket.sendto
 
 
 class UnreliableSocketWrapper:
@@ -153,7 +176,7 @@ class MulticastDiscovery:
         address, port = multicast_host
         intf = gethostbyname(gethostname())
 
-        multicast_socket = NonBlockingSocketUDP("", port)
+        multicast_socket = BaseTransport("", port)
 
         multicast_socket.setsockopt(SOL_IP, IP_MULTICAST_IF, inet_aton(intf))
         multicast_socket.setsockopt(SOL_IP, IP_ADD_MEMBERSHIP,
@@ -203,10 +226,13 @@ class MulticastDiscovery:
 class NetworkManager:
     """Network management class"""
 
-    def __init__(self, socket):
-        self._socket = socket
+    def __init__(self, address, port, netmode, transport_cls=DefaultTransport):
+        transport = transport_cls()
+        self._transport = DefaultTransport(address, port)
 
-        self.address, self.port = socket.getsockname()
+        self.address = transport.address
+        self.port = transport.port
+        self.netmode = netmode
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
@@ -217,16 +243,6 @@ class NetworkManager:
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
 
-    @classmethod
-    def from_address_info(cls, address="localhost", port=0):
-        """Create Network object from address and port
-
-        :param address: address for socket
-        :param port: port to bind to, 0 for any
-        """
-        sock = NonBlockingSocketUDP(address, port)
-        return cls(sock)
-
     def connect_to(self, address, port):
         """Return connection interface to remote peer.
 
@@ -236,16 +252,17 @@ class NetworkManager:
         :param port: port of remote peer
         """
         address = gethostbyname(address)
-        return self._create_or_return((address, port))
+        return self._create_or_return_connection((address, port))
 
-    def _create_or_return(self, connection_info):
+    def _create_or_return_connection(self, connection_info):
         try:
             return Connection[connection_info]
 
         except KeyError:
             connection = Connection(connection_info, self)
-            self.on_new_connection(connection)
-            return connection
+
+        self.on_new_connection(connection)
+        return connection
 
     @property
     def received_data(self):
@@ -253,11 +270,14 @@ class NetworkManager:
         buff_size = self.receive_buffer_size
         on_received_bytes = self.metrics.on_received_bytes
 
+        receive = self._transport.receive
+        TransportEmptyError = self._transport.TransportEmptyError
+
         while True:
             try:
-                data = self._socket.recvfrom(buff_size)
+                address, data = receive(buff_size)
 
-            except SOCK_ERROR:
+            except TransportEmptyError:
                 return
 
             payload, _ = data
@@ -266,14 +286,14 @@ class NetworkManager:
             yield data
 
     def on_new_connection(self, connection):
-        connection.handshake_manager = create_handshake_manager(connection)
+        connection.handshake_manager = create_handshake_manager(self.netmode, connection)
 
     def receive(self):
         """Receive all data from socket"""
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
-            connection = self._create_or_return(address)
+            connection = self._create_or_return_connection(address)
 
             # Dispatch data to connection
             connection.receive_message(data)
@@ -303,7 +323,7 @@ class NetworkManager:
         :param data: data to send
         :param address: address of remote peer
         """
-        data_length = self._socket.sendto(data, address)
+        data_length = self._transport.send(data, address)
         self.metrics.on_sent_bytes(data_length)
 
         return data_length
@@ -323,9 +343,10 @@ class NetworkManager:
 
     def stop(self):
         """Close network socket"""
-        self._socket.close()
+        self._transport.close()
         self.multicast.stop()
 
 
-#TODO netmode on worldinfo OR connection???????
-#ADD HERE
+def create_network_manager(world, address="", port=0):
+    netmode = world.netmode
+    return NetworkManager(address, port, netmode)

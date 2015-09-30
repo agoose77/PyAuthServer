@@ -1,11 +1,13 @@
-from network.simple_network import SimpleNetworkManager
 from network.enums import Netmodes, Roles
+from network.network import create_network_manager
 from network.world import World
 from network.descriptors import Attribute
 from network.rules import ReplicationRulesBase
 from network.replicable import Replicable
 from network.type_flag import TypeFlag
 from network.scene import NetworkScene
+
+from time import monotonic
 
 
 class MyReplicable(Replicable):
@@ -49,27 +51,31 @@ class Rules(ReplicationRulesBase):
         return True
 
 
-from time import clock
-started = clock()
-i = 0
-
-def on_update(app):
-    now = clock()
-
-    if now - started > 20:
-        app.stop()
-        print("STOP")
-
-    global i
-    i += 1
-    return not (i % 3)
-
-
 world = World(Netmodes.server)
 with world:
-    # Simple network loop
-    net_manager = SimpleNetworkManager.from_address_info(port=1200)
-    net_manager.rules = Rules()
+    network_manager = create_network_manager(world, port=1200)
+    network_manager.rules = Rules()
 
-    net_manager.on_update = lambda: on_update(net_manager)
-    net_manager.run(timeout=None, update_rate=1/60)
+    last_time = monotonic()
+    accumulator = 0.0
+    time_step = 1 / 60
+    current_tick = 0
+
+    update_frequency = 60
+    update_interval = round(update_frequency * time_step)
+
+    while True:
+        now = monotonic()
+
+        dt = now - last_time
+        last_time = now
+
+        accumulator += dt
+
+        while accumulator >= time_step:
+            accumulator -= time_step
+            current_tick += 1
+
+            network_manager.send(full_update=current_tick % update_interval)
+
+            network_manager.receive()

@@ -7,7 +7,6 @@ from ..handlers import get_handler
 from ..packet import Packet
 from ..signals import ConnectionErrorSignal, ConnectionSuccessSignal, ConnectionDeletedSignal, ConnectionTimeoutSignal
 from ..type_flag import TypeFlag
-from ..world import get_current_netmode
 
 from time import clock
 
@@ -181,9 +180,7 @@ class ClientHandshakeManager(HandshakeManagerBase):
         ConnectionErrorSignal.invoke(raised_error, target=self)
 
 
-def create_handshake_manager(connection):
-    netmode = get_current_netmode()
-
+def create_handshake_manager(netmode, connection):
     if netmode == Netmodes.server:
         return ServerHandshakeManager(connection)
 
