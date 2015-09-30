@@ -230,6 +230,8 @@ class NetworkManager:
         transport = transport_cls()
         self._transport = DefaultTransport(address, port)
 
+        self.connections = {}
+
         self.address = transport.address
         self.port = transport.port
         self.netmode = netmode
