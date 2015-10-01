@@ -6,7 +6,7 @@ from collections import OrderedDict, deque, namedtuple
 from functools import partial
 from inspect import getmembers
 
-__all__ = ['StorageInterface', 'RPCStorageInterface', 'AttributeStorageInterface', 'AbstractStorageContainer',
+__all__ = ['StorageInterface', 'RPCStorageInterface', 'AttributeStorageInterface', 'StorageContainerBase',
            'RPCStorageContainer', 'AttributeStorageContainer']
 
 
@@ -15,7 +15,7 @@ RPCStorageInterface = namedtuple("RPCStorageInterface", "set")
 StorageInterface = namedtuple("StorageInterface", "get set")
 
 
-class AbstractStorageContainer:
+class StorageContainerBase:
     """Abstract base class for reading and writing data values belonging an object"""
 
     def __init__(self, instance, mapping=None, ordered_mapping=None):
@@ -91,7 +91,7 @@ class AbstractStorageContainer:
             store_interface(member, new_interface(name, member))
 
 
-class RPCStorageContainer(AbstractStorageContainer):
+class RPCStorageContainer(StorageContainerBase):
     """Storage container for RPC calls.
 
     Handles stored data only.
@@ -139,7 +139,7 @@ class RPCStorageContainer(AbstractStorageContainer):
         return interface
 
 
-class AttributeStorageContainer(AbstractStorageContainer):
+class AttributeStorageContainer(StorageContainerBase):
     """Storage container for Attributes.
 
     Handles data storage, access and complaints.

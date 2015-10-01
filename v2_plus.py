@@ -1,24 +1,27 @@
 from network_2.world import World
+from network_2.handlers import TypeFlag
 from network_2.replicable import Replicable
+from network_2.enums import Netmodes
 
 
-class Replicable2(Replicable):
-    pass
+class Replicable1(Replicable):
+
+    def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
+        print("PARENT WORK")
 
 
-class Network:
+class Replicable2(Replicable1):
 
-    def __init__(self, world):
-        self.world = world
-
-    def receive(self):
-        pass
-
-    def send(self):
-        pass
+    def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
+        print("WORK", x, y)
+        super().do_work(x, y)
 
 
-world = World()
+world = World(Netmodes.client)
 scene = world.add_scene("Scene")
 replicable = scene.add_replicable("Replicable2")
+replicable.do_work(1, "hi")
+
+
+print(replicable.replicated_function_queue)
 

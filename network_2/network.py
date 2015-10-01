@@ -226,7 +226,7 @@ class MulticastDiscovery:
 class NetworkManager:
     """Network management class"""
 
-    def __init__(self, address, port, netmode, transport_cls=DefaultTransport):
+    def __init__(self, world, address, port, transport_cls=DefaultTransport):
         transport = transport_cls()
         self._transport = DefaultTransport(address, port)
 
@@ -234,13 +234,11 @@ class NetworkManager:
 
         self.address = transport.address
         self.port = transport.port
-        self.netmode = netmode
+        self.world = world
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
         self.receive_buffer_size = 63553
-
-        self.rules = None
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
@@ -258,10 +256,10 @@ class NetworkManager:
 
     def _create_or_return_connection(self, connection_info):
         try:
-            return Connection[connection_info]
+            return self.connections[connection_info]
 
         except KeyError:
-            connection = Connection(connection_info, self)
+            connection = self.connections[connection_info] = Connection(connection_info, self)
 
         self.on_new_connection(connection)
         return connection
@@ -288,7 +286,7 @@ class NetworkManager:
             yield data
 
     def on_new_connection(self, connection):
-        connection.handshake_manager = create_handshake_manager(self.netmode, connection)
+        connection.handshake_manager = create_handshake_manager(self.world, connection)
 
     def receive(self):
         """Receive all data from socket"""
@@ -347,8 +345,3 @@ class NetworkManager:
         """Close network socket"""
         self._transport.close()
         self.multicast.stop()
-
-
-def create_network_manager(world, address="", port=0):
-    netmode = world.netmode
-    return NetworkManager(address, port, netmode)

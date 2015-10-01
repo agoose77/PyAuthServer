@@ -1,5 +1,4 @@
-from .handlers import get_handler
-from .type_flag import TypeFlag
+from .handlers import get_handler, TypeFlag
 from .serialiser import bits_to_bytes, next_or_equal_power_of_two
 
 __all__ = ["BitField", "NamedBitField"]

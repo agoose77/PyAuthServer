@@ -15,16 +15,17 @@ __all__ = 'ServerHandshakeManager', 'ClientHandshakeManager'
 # Handshake Streams
 class HandshakeManagerBase:
 
-    def __init__(self, connection):
+    def __init__(self, world, connection):
         self.state = ConnectionStates.init
 
+        self.world = world
         self.connection = connection
         self.logger = connection.logger.getChild("HandshakeManager")
 
         self.network_manager = connection.network_manager
 
         self.replication_manager = None
-        self.connection_info = connection.instance_id
+        self.connection_info = connection.connection_info
         self.remove_connection = None
 
         self.timeout_duration = 10
@@ -63,8 +64,8 @@ class HandshakeManagerBase:
 class ServerHandshakeManager(HandshakeManagerBase):
     """Manages connection state for the server"""
 
-    def __init__(self, connection):
-        super().__init__(connection)
+    def __init__(self, world, connection):
+        super().__init__(world, connection)
 
         self.handshake_error = None
 
@@ -73,7 +74,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
     def on_ack_handshake_failed(self, packet):
         self._cleanup()
 
-        self.network_manager.world.messenger.send("connection_error", self)
+        self.world.messenger.send("connection_error", self)
 
     @on_protocol(PacketProtocols.request_disconnect)
     def receive_disconnect_request(self, data):
@@ -108,21 +109,18 @@ class ServerHandshakeManager(HandshakeManagerBase):
 
             # Set failed state
             self.state = ConnectionStates.failed
-            self.network_manager.world.messenger.send("connection_error", self)
+            self.world.messenger.send("connection_error", self)
 
             # Send result
             packet = Packet(protocol=PacketProtocols.handshake_failed, payload=error_data,
                             on_success=self.on_ack_handshake_failed)
 
         else:
-            # Create replication stream TODO fix this
-            self.replication_manager = ServerReplicationManager(self.connection)
-
             # Set success state
             self.state = ConnectionStates.connected
             self.network_manager.world.messenger.send("connection_success", self)
 
-            self.replication_manager = ServerReplicationManager(self.connection, self.network_manager.rules)
+            self.replication_manager = ServerReplicationManager(self.world, self.connection)
 
             # Send result
             packet = Packet(protocol=PacketProtocols.handshake_success, reliable=True)
@@ -140,8 +138,8 @@ class ServerHandshakeManager(HandshakeManagerBase):
 
 class ClientHandshakeManager(HandshakeManagerBase):
 
-    def __init__(self, connection):
-        super().__init__(connection)
+    def __init__(self, world, connection):
+        super().__init__(world, connection)
 
         self.invoke_handshake()
 
@@ -156,10 +154,10 @@ class ClientHandshakeManager(HandshakeManagerBase):
             return
 
         self.state = ConnectionStates.connected
-        # Create replication stream TODO fix this
-        self.replication_manager = ClientReplicationManager(self.connection)
+        # Create replication stream
+        self.replication_manager = ClientReplicationManager(self.world, self.connection)
 
-        self.network_manager.world.messenger.send("connection_success", self)
+        self.world.messenger.send("connection_success", self)
 
     @on_protocol(PacketProtocols.invoke_handshake)
     def receive_multicast_ping(self, data):
@@ -176,12 +174,12 @@ class ClientHandshakeManager(HandshakeManagerBase):
         self.logger.error("Authentication failed: {}".format(raised_error))
         self.state = ConnectionStates.failed
 
-        self.network_manager.world.messenger.send("connection_error", self)
+        self.world.messenger.send("connection_error", self)
 
 
-def create_handshake_manager(netmode, connection):
-    if netmode == Netmodes.server:
-        return ServerHandshakeManager(connection)
+def create_handshake_manager(world, connection):
+    if world.netmode == Netmodes.server:
+        return ServerHandshakeManager(world, connection)
 
     else:
-        return ClientHandshakeManager(connection)
+        return ClientHandshakeManager(world, connection)

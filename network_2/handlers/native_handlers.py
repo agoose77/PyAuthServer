@@ -1,17 +1,20 @@
-from network_2.bitfield import BitField
-from .type_flag import TypeFlag
-from .enums import IterableCompressionType, Roles
-from network_2.handlers import *
-from .iterators import partition_iterable
-from network_2.replicable import Replicable
-from .encoding import RunLengthCodec
-from network_2.serialiser import *
+__all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableHandler', 'StructHandler', 'BitFieldHandler',
+           'class_type_description', 'iterable_description', 'is_variable_sized']
 
+
+from ..bitfield import BitField
+from ..enums import IterableCompressionType, Roles
+from ..replicable import Replicable
+from .handlers import TypeFlag, get_handler, register_description, register_handler, IHandler
+# from .iterators import partition_iterable
+# from .encoding import RunLengthCodec
+
+from contextlib import contextmanager
 from inspect import signature
 from itertools import chain
 
-__all__ = ['ReplicableTypeHandler', 'RolesHandler', 'ReplicableHandler', 'StructHandler', 'BitFieldHandler',
-           'class_type_description', 'iterable_description', 'is_variable_sized']
+
+MAXIMUM_REPLICABLES = 255
 
 
 def class_type_description(cls):
@@ -397,18 +400,27 @@ class ReplicableHandler(IHandler):
     """Handler for packing replicable proxy
     Packs replicable references and unpacks to reference
     """
+    scene = None
 
     def __init__(self, flag, logger):
-        id_flag = TypeFlag(int, max_value=Replicable.MAXIMUM_REPLICABLES)
+        id_flag = TypeFlag(int, max_value=MAXIMUM_REPLICABLES)
         self._packer = get_handler(id_flag)
         self._logger = logger
+
+    @classmethod
+    @contextmanager
+    def current_scene_as(cls, scene):
+        scene_old = cls.scene
+        cls.scene = scene
+        yield
+        cls.scene = scene_old
 
     def pack(self, replicable):
         """Pack replicable using its instance ID
 
         :param replicable: :py:class:`network.replicble.Replicable` instance
         """
-        return self.pack_id(replicable.instance_id)
+        return self.pack_id(replicable.unique_id)
 
     def pack_id(self, id_):
         """Pack replicable instance ID
@@ -418,7 +430,7 @@ class ReplicableHandler(IHandler):
         return self._packer.pack(id_)
 
     def pack_multiple(self, replicables, count):
-        instance_ids = [r.instance_id for r in replicables]
+        instance_ids = [r.unique_id for r in replicables]
         return self._packer.pack_multiple(instance_ids, count)
 
     def unpack_id(self, bytes_string, offset=0):
@@ -433,28 +445,28 @@ class ReplicableHandler(IHandler):
 
         :param bytes_string: packed ID string
         """
-        instance_id, id_size = self.unpack_id(bytes_string, offset)
+        unique_id, id_size = self.unpack_id(bytes_string, offset)
 
         # Return only a replicable that was created by the network
         try:
-            replicable = Replicable[instance_id]
+            replicable = self.__class__.scene.replicables[unique_id]
             return replicable, id_size
 
         except KeyError:
-            self._logger.error("Couldn't find replicable with ID '{}'".format(instance_id))
+            self._logger.error("Couldn't find replicable with ID '{}'".format(unique_id))
             return None, id_size
 
     def unpack_multiple(self, bytes_string, count, offset=0):
         instance_ids, offset = self._packer.unpack_multiple(bytes_string, count, offset)
 
         replicables = []
-        for instance_id in instance_ids:
+        for unique_id in instance_ids:
             try:
-                replicable = Replicable[instance_id]
+                replicable = self.__class__.scene.replicables[unique_id]
 
             except KeyError:
                 replicable = None
-                self._logger.error("Couldn't find replicable with ID '{}'".format(instance_id))
+                self._logger.error("Couldn't find replicable with ID '{}'".format(unique_id))
 
             replicables.append(replicable)
 
@@ -601,8 +613,8 @@ class BitFieldHandler(IHandler):
 register_handler(BitField, BitFieldHandler)
 
 # Handle circular dependancy
-from .struct import Struct
-register_handler(Struct, StructHandler)
+# from .struct import Struct
+# register_handler(Struct, StructHandler)
 
 register_handler(Roles, RolesHandler)
 register_handler(list, ListHandler)

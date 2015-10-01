@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from functools import wraps
 
 
 class NamedSubclassTracker(type):
@@ -29,26 +30,39 @@ class UniqueIDPool:
         return self._id_set.pop()
 
 
+def protected_method(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.__class__._is_restricted:
+            raise RuntimeError("Cannot call protected method")
+
+        return func.__get__(self)(*args, **kwargs)
+
+    return wrapper
+
+
+def protected_classmethod(func):
+    @wraps(func)
+    def wrapper(cls, *args, **kwargs):
+        if cls._is_restricted:
+            raise RuntimeError("Cannot call protected method")
+
+        return func.__get__(cls)(*args, **kwargs)
+
+    return wrapper
+
+
 class ProtectedInstance:
 
-    _is_allowed_creation = False
-    creation_path_name = ""
+    _is_restricted = True
 
     @classmethod
     @contextmanager
-    def _allow_creation(cls):
-        is_allowed, cls._is_allowed_creation = cls._is_allowed_creation, True
+    def _grant_authority(cls):
+        is_restricted, cls._is_restricted = cls._is_restricted, False
         yield
-        cls._is_allowed_creation = is_allowed
+        cls._is_restricted = is_restricted
 
+    @protected_classmethod
     def __new__(cls, *args, **kwargs):
-        if not cls._is_allowed_creation:
-            raise RuntimeError("Must instantiate '{}' from '{}'"
-                               .format(cls.__name__, cls.creation_path_name))
-
         return super().__new__(cls)
-
-    @classmethod
-    def _create_protected(cls, *args, **kwargs):
-        with cls._allow_creation():
-            return cls(*args, **kwargs)

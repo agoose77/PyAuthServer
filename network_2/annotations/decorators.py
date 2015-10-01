@@ -173,7 +173,7 @@ def requires_permission(func):
 
         # Permission checks
         if local_role > simulated_proxy or (func_is_simulated and local_role == simulated_proxy):
-            return func(self, *args, **kwargs)
+            return func.__get__(self)(*args, **kwargs)
 
     return func_wrapper
 

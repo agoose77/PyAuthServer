@@ -1,16 +1,13 @@
+__all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
+
+
 from functools import partial
 from time import clock
 from operator import attrgetter
 
 from ...annotations.conditions import is_reliable
-from ...type_flag import TypeFlag
-from ...flag_serialiser import FlagSerialiser
-from ...handlers import static_description, get_handler
+from ...handlers import TypeFlag, get_handler, static_description, FlagSerialiser
 from ...replicable import Replicable
-from ...signals import SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal
-
-
-__all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
 
 
 priority_getter = attrgetter("replication_priority")
@@ -263,57 +260,55 @@ class ServerReplicableChannel(ReplicableChannelBase):
         return data
 
 
-class SceneChannelBase(SignalListener):
+class SceneChannelBase:
 
     channel_class = None
     id_handler = get_handler(TypeFlag(int))
 
-    def __init__(self, connection, scene):
+    def __init__(self, manager, scene, scene_id):
         self.scene = scene
-        self.connection = connection
+        self.scene_id = scene_id
+        self.manager = manager
 
-        self.logger = connection.logger.getChild("SceneChannel")
+        self.logger = manager.logger.getChild("SceneChannel")
 
-        self.packed_id = self.__class__.id_handler.pack(scene.instance_id)
+        self.packed_id = self.__class__.id_handler.pack(scene_id)
         self.replicable_channels = {}
 
         # Channels may be created after replicables were instantiated
-        with scene:
-            self.register_signals()
-            self.register_existing_replicables()
+        self.register_existing_replicables()
+
+        scene.messenger.add_subscriber("replicable_added", self.on_replicable_added)
+        scene.messenger.add_subscriber("replicable_remove", self.on_replicable_removed)
 
     def register_existing_replicables(self):
         """Load existing registered replicables"""
-        for replicable in Replicable:
-            self.on_replicable_registered(replicable)
+        for replicable in self.scene.replicables.values():
+            self.on_replicable_added(replicable)
 
     @property
     def prioritised_channels(self):
         return sorted(self.replicable_channels.values(), reverse=True, key=priority_getter)
 
-    @ReplicableRegisteredSignal.on_global
-    def on_replicable_registered(self, target):
-        self.replicable_channels[target.instance_id] = self.channel_class(self, target)
+    def on_replicable_added(self, target):
+        self.replicable_channels[target.unique_id] = self.channel_class(self, target)
 
-    @ReplicableUnregisteredSignal.on_global
-    def on_replicable_unregistered(self, target):
-        self.replicable_channels.pop(target.instance_id)
+    def on_replicable_removed(self, target):
+        self.replicable_channels.pop(target.unique_id)
 
 
 class ServerSceneChannel(SceneChannelBase):
 
     channel_class = ServerReplicableChannel
 
-    def __init__(self, connection, scene):
-        super().__init__(connection, scene)
+    def __init__(self, manager, scene, scene_id):
+        super().__init__(manager, scene, scene_id)
 
         self.is_initial = True
-
         self.deleted_channels = []
 
-    @ReplicableUnregisteredSignal.on_global
-    def on_replicable_unregistered(self, target):
-        channel = self.replicable_channels.pop(target.instance_id)
+    def on_replicable_removed(self, replicable):
+        channel = self.replicable_channels.pop(replicable.unique_id)
         self.deleted_channels.append(channel)
 
 

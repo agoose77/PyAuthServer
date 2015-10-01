@@ -1,8 +1,6 @@
-from contextlib import contextmanager
-
-from .metaclasses.enumeration import EnumerationMeta
-
 __all__ = ['Enum', 'ConnectionStates', 'Netmodes', 'PacketProtocols', 'Roles', 'IterableCompressionType']
+
+from contextlib import contextmanager
 
 
 class _EnumDict(dict):
