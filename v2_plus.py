@@ -2,6 +2,7 @@ from network_2.world import World
 from network_2.handlers import TypeFlag
 from network_2.replicable import Replicable
 from network_2.enums import Netmodes
+from network_2.replication import Serialisable
 
 
 class Replicable1(Replicable):
@@ -11,9 +12,9 @@ class Replicable1(Replicable):
 
 
 class Replicable2(Replicable1):
+    score = Serialisable(data_type=int)
 
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
-        print("WORK", x, y)
         super().do_work(x, y)
 
 
@@ -25,3 +26,4 @@ replicable.do_work(1, "hi")
 
 print(replicable.replicated_function_queue)
 
+replicable.score = 12

@@ -4,7 +4,7 @@ from inspect import signature, Parameter
 
 from ..annotations.conditions import is_annotatable
 from ..annotations.decorators import get_annotation
-from ..handlers import FlagSerialiser, TypeFlag, get_handler
+from ..handlers import FlagSerialiser, TypeFlag
 
 
 class Pointer:
@@ -54,26 +54,6 @@ def is_replicated_function(func):
     return is_annotatable(func) and get_return_annotation(func) is not None
 
 
-class RPCScraper(type):
-
-    def __prepare__(name, bases):
-        return OrderedDict()
-
-    def __new__(metacls, name, bases, namespace):
-        function_index = 0
-
-        namespace['replicated_functions'] = replicated_functions = {}
-        namespace['replicated_function_queue'] = ReplicatedFunctionQueue()
-
-        for attr_name, value in namespace.items():
-            if is_replicated_function(value):
-                namespace[attr_name] = descriptor = ReplicatedFunctionDescriptor(value, function_index)
-                replicated_functions[function_index] = descriptor
-                function_index += 1
-
-        return super().__new__(metacls, name, bases, namespace)
-
-
 class ReplicatedFunctionQueue:
 
     def __init__(self):
@@ -82,7 +62,7 @@ class ReplicatedFunctionQueue:
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        print(instance, self._queues)
+
         return self._queues[instance]
 
     def bind_instance(self, instance):
