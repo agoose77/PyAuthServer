@@ -1,10 +1,11 @@
 from .annotations.decorators import requires_permission
-from .factory import ProtectedInstance, NamedSubclassTracker, protected_method
+from .enums import Roles
+from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
 from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
-    SerialisableValueDescriptor, SerialisableDescriptionDescriptor, Serialisable
+    SerialisableDataStoreDescriptor, Serialisable
 
 from collections import OrderedDict
-from inspect import isfunction
+from inspect import isfunction, getmembers
 
 
 def enforce_call_roles(namespace):
@@ -26,8 +27,7 @@ class ReplicableMetacls(NamedSubclassTracker):
         function_index = 0
 
         replicated_functions = namespace['replicated_functions'] = {}
-        serialisable_data = namespace['serialisable_data'] = SerialisableValueDescriptor()
-        serialisable_descriptions = namespace['serialisable_descriptions'] = SerialisableDescriptionDescriptor()
+        serialisable_data = namespace['serialisable_data'] = SerialisableDataStoreDescriptor()
 
         namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
 
@@ -37,45 +37,58 @@ class ReplicableMetacls(NamedSubclassTracker):
                 replicated_functions[function_index] = descriptor
                 function_index += 1
 
+            # Only register new names (not required explicity, but safe)
             if isinstance(value, Serialisable):
                 value.name = attr_name
 
-                serialisable_data.add_serialisable(value)
-                serialisable_descriptions.add_serialisable(value)
+        cls = super().__new__(metacls, name, bases, namespace)
 
-        return super().__new__(metacls, name, bases, namespace)
+        # Register serialisables, including parent-class members
+        for attr_name, value in getmembers(cls):
+            if isinstance(value, Serialisable):
+                serialisable_data.add_serialisable(value)
+
+        return cls
 
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
+    roles = Serialisable(Roles(Roles.authority, Roles.none))
 
     def __init__(self, scene, unique_id, is_static=False):
         self._scene = scene
         self._unique_id = unique_id
         self._is_static = is_static
 
+        self._bind_descriptors()
+
+    def _bind_descriptors(self):
+        """Bind instance to class descriptors for replication"""
         cls = self.__class__
 
         cls.replicated_function_queue.bind_instance(self)
         cls.serialisable_data.bind_instance(self)
-        cls.serialisable_descriptions.bind_instance(self)
 
         for descriptor in cls.replicated_functions.values():
             descriptor.bind_instance(self)
 
-    @protected_method
-    def on_destroyed(self):
+    def _unbind_descriptors(self):
         cls = self.__class__
         for descriptor in cls.replicated_functions.values():
             descriptor.unbind_instance(self)
 
         cls.replicated_function_queue.unbind_instance(self)
         cls.serialisable_data.unbind_instance(self)
-        cls.serialisable_descriptions.unbind_instance(self)
 
+    def can_replicate(self, is_owner, is_initial):
+        if is_initial:
+            yield "roles"
+
+    @restricted_method
+    def on_destroyed(self):
+        self._unbind_descriptors()
+
+    @restricted_method
     def change_unique_id(self, unique_id):
-        if self.__class__._is_restricted:
-            raise RuntimeError("Only internal scene can change unique id")
-
         self._unique_id = unique_id
 
     @property

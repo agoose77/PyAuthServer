@@ -142,8 +142,7 @@ class Roles(Enum):
         return hash((self._context, self.local, self.remote))
 
     def __repr__(self):
-        return "Roles: Local: {}, Remote: {}".format(self.__class__[self.local],
-                                                     self.__class__[self.remote])
+        return "Roles(local=Roles.{}, remote=Roles.{})".format(self.__class__[self.local], self.__class__[self.remote])
 
     @contextmanager
     def set_context(self, is_owner):

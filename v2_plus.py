@@ -25,7 +25,6 @@ replicable.do_work(1, "hi")
 
 
 print(replicable.replicated_function_queue)
-print(replicable.serialisable_descriptions)
 
 #replicable.score = 12
-print(replicable.score)
+print(replicable.score, replicable.roles)

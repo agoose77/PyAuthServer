@@ -175,9 +175,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
         super().__init__(*args, **kwargs)
 
         self._last_replicated_descriptions = {serialisable: static_description(serialisable.initial_value)
-                                      for serialisable in self._serialisable_data}
-        self._last_replicated_flagged_descriptions = {serialisable: description for serialisable, description
-                                        in self._last_replicated_descriptions.items() if serialisable.complain}
+                                              for serialisable in self._serialisable_data}
         self._name_to_serialisable = {serialisable.name: serialisable
                                       for serialisable in self._serialisable_data}
         self._serialisable_descriptions = self.replicable.serialisable_descriptions
@@ -210,10 +208,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
         # Local access
         last_replicated_descriptions = self._last_replicated_descriptions
-        last_replicated_flagged_descriptions = self._last_replicated_flagged_descriptions
-
         current_flagged_descriptions = self._serialisable_descriptions
-        is_complaining = last_replicated_flagged_descriptions != current_flagged_descriptions
 
         # Store dict of attribute-> value
         to_serialise = {}
@@ -221,7 +216,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
         # Set role context
         with replicable.roles.set_context(is_owner):
             # Get names of Replicable attributes
-            can_replicate = replicable.conditions(is_owner, is_complaining, self.is_initial)
+            can_replicate = replicable.can_replicate(is_owner, self.is_initial)
 
             # Iterate over attributes
             for name in can_replicate:
@@ -233,13 +228,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
                 # Get value hash
                 # Use the complaint hash if it is there to save computation
-                flag_on_assignment = serialisable.flag_on_assignment
-
-                if flag_on_assignment:
-                    new_description = current_flagged_descriptions[serialisable]
-
-                else:
-                    new_description = get_description(value)
+                new_description = get_description(value)
 
                 # If values match, don't update
                 if last_description == new_description:
@@ -250,10 +239,6 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
                 # Remember hash of value
                 last_replicated_descriptions[serialisable] = new_description
-
-                # Set new complaint hash if it was complaining (for above is_complaint check next replication)
-                if flag_on_assignment:
-                    last_replicated_flagged_descriptions[serialisable] = new_description
 
             # We must have now replicated
             self._last_replication_time = clock()

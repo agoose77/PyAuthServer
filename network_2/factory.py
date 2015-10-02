@@ -30,7 +30,7 @@ class UniqueIDPool:
         return self._id_set.pop()
 
 
-def protected_method(func):
+def restricted_method(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.__class__._is_restricted:
@@ -41,7 +41,7 @@ def protected_method(func):
     return wrapper
 
 
-def protected_classmethod(func):
+def restricted_classmethod(func):
     @wraps(func)
     def wrapper(cls, *args, **kwargs):
         if cls._is_restricted:
@@ -63,6 +63,6 @@ class ProtectedInstance:
         yield
         cls._is_restricted = is_restricted
 
-    @protected_classmethod
+    @restricted_classmethod
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
