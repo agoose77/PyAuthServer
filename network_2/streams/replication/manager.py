@@ -20,8 +20,10 @@ class ReplicationManagerBase:
         self.scene_channels = {}
         self.root_replicables = set()
 
+        self.logger = connection.logger.getChild("ReplicationManager")
+
         # Listen to packets from connection
-        register_protocol_listeners(self, connection.dispatcher)
+        register_protocol_listeners(self, connection.messenger)
         connection.pre_send_callbacks.append(self.send)
 
     @on_protocol(PacketProtocols.invoke_method)
@@ -46,7 +48,7 @@ class ReplicationManagerBase:
                 replicable_channel = replicable_channels[unique_id]
                 replicable = replicable_channel.replicable
 
-                allow_execute = replicable.relevant_to_owner and replicable.uppermost in root_replicables
+                allow_execute = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
                 read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
                 offset += read_bytes
 
@@ -126,7 +128,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost in root_replicables
+                is_and_relevant_to_owner = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
 
                 # Write RPC calls
                 if is_and_relevant_to_owner:
@@ -143,7 +145,7 @@ class ServerReplicationManager(ReplicationManagerBase):
 
                     # Channel just created
                     if replicable_channel.is_initial:
-                        packed_class = pack_string(replicable.__class__.type_name)
+                        packed_class = pack_string(replicable.__class__.__name__)
                         packed_is_host = pack_bool(replicable in root_replicables)
 
                         # Send the protocol, class name and owner status to client
@@ -280,11 +282,8 @@ class ClientReplicationManager(ReplicationManagerBase):
             is_connection_host, bool_size = self._bool_handler.unpack_from(payload, offset=offset)
             offset += bool_size
 
-            # Find replicable class
-            replicable_cls = Replicable.subclasses[type_name]
-
             # Create replicable of same type
-            replicable = replicable_cls.create_or_return(unique_id)#TODO
+            replicable = scene.add_replicable(type_name, unique_id)
 
             # If replicable is parent (top owner)
             if is_connection_host:
@@ -355,7 +354,7 @@ class ClientReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.relevant_to_owner and replicable.uppermost in root_replicables
+                is_and_relevant_to_owner = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
                 # Write RPC calls
                 if is_and_relevant_to_owner:
                     reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()

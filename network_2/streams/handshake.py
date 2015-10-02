@@ -22,8 +22,6 @@ class HandshakeManagerBase:
         self.connection = connection
         self.logger = connection.logger.getChild("HandshakeManager")
 
-        self.network_manager = connection.network_manager
-
         self.replication_manager = None
         self.connection_info = connection.connection_info
         self.remove_connection = None
@@ -36,7 +34,7 @@ class HandshakeManagerBase:
         self.string_packer = get_handler(TypeFlag(str))
 
         # Register listeners
-        register_protocol_listeners(self, connection.dispatcher)
+        register_protocol_listeners(self, connection.messenger)
         self.senders = get_state_senders(self)
 
     @property
@@ -54,7 +52,7 @@ class HandshakeManagerBase:
         self._cleanup()
 
         self.logger.info("Timed out after {} seconds".format(self.timeout_duration))
-        self.network_manager.world.messenger.send("connection_time_out", self)
+        self.world.messenger.send("connection_time_out", self)
 
     def pull_packets(self, network_tick, bandwidth):
         if self.timed_out:
@@ -89,7 +87,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
             return
 
         try:
-            self.network_manager.rules.pre_initialise(self.connection_info)
+            self.world.rules.pre_initialise(self.connection_info)
 
         except NetworkError as err:
             self.logger.error("Connection was refused: {}".format(err))
@@ -118,7 +116,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
         else:
             # Set success state
             self.state = ConnectionStates.connected
-            self.network_manager.world.messenger.send("connection_success", self)
+            self.world.messenger.send("connection_success", self)
 
             self.replication_manager = ServerReplicationManager(self.world, self.connection)
 

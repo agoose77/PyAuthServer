@@ -25,11 +25,8 @@ class Connection(ProtectedInstance):
     Mediates a connection between local and remote peer.
     """
 
-    create_default_context = False
-
-    def __init__(self, connection_info, network_manager):
+    def __init__(self, connection_info):
         self.connection_info = connection_info
-        self.network_manager = network_manager
 
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1

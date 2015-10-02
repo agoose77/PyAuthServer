@@ -11,6 +11,8 @@ class World:
         self.messenger = MessagePasser()
         self.netmode = netmode
 
+        self.rules = None
+
     def add_scene(self, name):
         if name in self.scenes:
             raise ValueError("Scene with name '{}' already exists".format(name))
@@ -24,5 +26,8 @@ class World:
         return scene
 
     def remove_scene(self, scene):
+        with Scene._grant_authority():
+            scene.on_destroyed()
+
         self.messenger.send("scene_removed", scene)
         self.scenes.pop(scene.name)

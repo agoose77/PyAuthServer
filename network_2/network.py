@@ -227,8 +227,7 @@ class NetworkManager:
     """Network management class"""
 
     def __init__(self, world, address, port, transport_cls=DefaultTransport):
-        transport = transport_cls()
-        self._transport = DefaultTransport(address, port)
+        self._transport = transport = transport_cls(address, port)
 
         self.connections = {}
 
@@ -259,7 +258,8 @@ class NetworkManager:
             return self.connections[connection_info]
 
         except KeyError:
-            connection = self.connections[connection_info] = Connection(connection_info, self)
+            with Connection._grant_authority():
+                connection = self.connections[connection_info] = Connection(connection_info)
 
         self.on_new_connection(connection)
         return connection
@@ -275,15 +275,14 @@ class NetworkManager:
 
         while True:
             try:
-                address, data = receive(buff_size)
+                data, address = receive(buff_size)
 
             except TransportEmptyError:
                 return
 
-            payload, _ = data
             on_received_bytes(len(data))
 
-            yield data
+            yield data, address
 
     def on_new_connection(self, connection):
         connection.handshake_manager = create_handshake_manager(self.world, connection)
@@ -307,7 +306,6 @@ class NetworkManager:
         :param full_update: whether this is a full send call
         """
         send_func = self.send_to
-
         # Send all queued data
         for address, connection in list(self.connections.items()):
             # Give the option to send nothing

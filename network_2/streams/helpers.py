@@ -27,12 +27,12 @@ def _get_unbound_listeners(cls):
     return _find_with_annotation(cls, "on_protocol")
 
 
-def register_protocol_listeners(stream, dispatcher):
+def register_protocol_listeners(stream, messenger):
     unbound_listeners = _get_unbound_listeners(stream.__class__)
 
     for protocol, listener in unbound_listeners.items():
         func = listener.__get__(stream)
-        dispatcher.set_listener(protocol, func)
+        messenger.add_subscriber(protocol, func)
 
 
 @lru_cache()

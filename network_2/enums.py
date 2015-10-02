@@ -29,7 +29,6 @@ class _EnumDict(dict):
         # Int values
         elif isinstance(value, int):
             if self._member_names and not self._has_real_values:
-                print(self._member_names, value)
                 raise SyntaxError("An explicit definition cannot follow an implicit one")
 
             self._has_real_values = True

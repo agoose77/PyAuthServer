@@ -77,12 +77,20 @@ class ReplicableMetacls(NamedSubclassTracker):
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
 
+    replication_update_period = 1 / 30
+    replication_priority = 1
+    replicate_to_owner = True
+    replicate_temporarily = False
+
     def __init__(self, scene, unique_id, is_static=False):
         self._scene = scene
         self._unique_id = unique_id
         self._is_static = is_static
 
         self._bind_descriptors()
+
+    def on_replicated(self, name):
+        pass
 
     def _bind_descriptors(self):
         """Bind instance to class descriptors for replication"""

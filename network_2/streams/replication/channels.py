@@ -1,11 +1,11 @@
 __all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
 
 
+from collections import OrderedDict
 from functools import partial
 from time import clock
 from operator import attrgetter
 
-from ...annotations.conditions import is_reliable
 from ...handlers import TypeFlag, get_handler, static_description, FlagSerialiser
 from ...replicable import Replicable
 
@@ -32,12 +32,15 @@ class ReplicableChannelBase:
 
         # Get network attributes
         self._serialisable_data = replicable.serialisable_data
+        self._name_to_serialisable = {serialisable.name: serialisable for serialisable in self._serialisable_data}
         self._replicated_functions = replicable.replicated_functions
         self._replicated_function_queue = replicable.replicated_function_queue
 
         # Create a serialiser instance
         self.logger = scene_channel.logger.getChild("<Channel: {}>".format(repr(replicable)))
-        self._serialiser = FlagSerialiser(self._serialisable_data, logger=self.logger.getChild("<FlagSerialiser>"))
+
+        serialiser_args = OrderedDict(((serialiser.name, serialiser) for serialiser in self._serialisable_data))
+        self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
         self._rpc_id_handler = get_handler(TypeFlag(int))
         self.packed_id = self.__class__.id_handler.pack(replicable)
@@ -130,7 +133,8 @@ class ReplicableChannelBase:
 class ClientReplicableChannel(ReplicableChannelBase):
 
     def notify_callback(self, notifications):
-        invoke_notify = self.replicable.on_notify
+        invoke_notify = self.replicable.on_replicated
+
         for attribute_name in notifications:
             invoke_notify(attribute_name)
 
@@ -149,7 +153,8 @@ class ClientReplicableChannel(ReplicableChannelBase):
         :param bytes\_: byte stream of attribute
         """
         # Create local references outside loop
-        replicable_data = self._serialisable_data
+        serialisable_data = self._serialisable_data
+        name_to_serialisable = self._name_to_serialisable
 
         notifications = []
         queue_notification = notifications.append
@@ -157,13 +162,15 @@ class ClientReplicableChannel(ReplicableChannelBase):
         # Notify after all values are set
         notifier_callback = partial(self.notify_callback, notifications)
 
-        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, replicable_data, offset=offset)
-        for serialisable, value in unpacked_items:
+        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, serialisable_data, offset=offset)
+        for name, value in unpacked_items:
+            serialisable = name_to_serialisable[name]
+
             # Store new value
-            replicable_data[serialisable] = value
+            serialisable_data[serialisable] = value
 
             # Check if needs notification
-            if serialisable.notify:
+            if serialisable.notify_on_replicated:
                 queue_notification(serialisable.name)
 
         return notifier_callback, read_bytes
@@ -176,9 +183,6 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
         self._last_replicated_descriptions = {serialisable: static_description(serialisable.initial_value)
                                               for serialisable in self._serialisable_data}
-        self._name_to_serialisable = {serialisable.name: serialisable
-                                      for serialisable in self._serialisable_data}
-        self._serialisable_descriptions = self.replicable.serialisable_descriptions
 
     @property
     def replication_priority(self):
@@ -208,7 +212,6 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
         # Local access
         last_replicated_descriptions = self._last_replicated_descriptions
-        current_flagged_descriptions = self._serialisable_descriptions
 
         # Store dict of attribute-> value
         to_serialise = {}
@@ -235,7 +238,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
                     continue
 
                 # Add value to data dict
-                to_serialise[serialisable] = value
+                to_serialise[name] = value
 
                 # Remember hash of value
                 last_replicated_descriptions[serialisable] = new_description

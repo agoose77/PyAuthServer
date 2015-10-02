@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from .factory import ProtectedInstance, UniqueIDPool
+from .factory import ProtectedInstance, UniqueIDPool, restricted_method
 from .messages import MessagePasser
 from .replicable import Replicable
 
@@ -16,7 +16,8 @@ class Scene(ProtectedInstance):
 
         self._unique_ids = UniqueIDPool(255)
 
-    def _contest_id(self, unique_id, contestant, existing):
+    @restricted_method
+    def contest_id(self, unique_id, contestant, existing):
         self.replicables[unique_id] = contestant
 
         # Re-associate existing
@@ -29,17 +30,21 @@ class Scene(ProtectedInstance):
     def add_replicable(self, cls_name, unique_id=None):
         replicable_cls = Replicable.subclasses[cls_name]
 
-        if unique_id is None:
+        is_static = unique_id is not None
+        if not is_static:
             unique_id = self._unique_ids.take()
-            is_static = False
-        
-        else:
-            is_static = True
 
         with Replicable._grant_authority():
             replicable = replicable_cls(self, unique_id, is_static)
 
-        self.replicables[unique_id] = replicable
+        # Contest id if already in use
+        if unique_id in self.replicables:
+            existing = self.replicables[unique_id]
+            self.contest_id(unique_id, replicable, existing)
+
+        else:
+            self.replicables[unique_id] = replicable
+
         self.messenger.send("replicable_added", replicable)
 
         return replicable
@@ -52,6 +57,13 @@ class Scene(ProtectedInstance):
         self._unique_ids.retire(unique_id)
 
         replicable.on_destroyed()
+
+    @restricted_method
+    def on_destroyed(self):
+        # Release all replicables
+        while self.replicables:
+            replicable = next(iter(self.replicables.values()))
+            self.remove_replicable(replicable)
 
     def __repr__(self):
         return "<'{}' scene>".format(self.name)
