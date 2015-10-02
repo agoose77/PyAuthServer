@@ -12,7 +12,7 @@ class Replicable1(Replicable):
 
 
 class Replicable2(Replicable1):
-    score = Serialisable(data_type=int)
+    score = Serialisable(data_type=int, flag_on_assignment=True)
 
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
         super().do_work(x, y)
@@ -25,5 +25,7 @@ replicable.do_work(1, "hi")
 
 
 print(replicable.replicated_function_queue)
+print(replicable.serialisable_descriptions)
 
-replicable.score = 12
+#replicable.score = 12
+print(replicable.score)

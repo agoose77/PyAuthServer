@@ -2,7 +2,7 @@ from collections import OrderedDict
 from functools import update_wrapper
 from inspect import signature, Parameter
 
-from ..annotations.conditions import is_annotatable
+from ..annotations.conditions import is_annotatable, is_reliable
 from ..annotations.decorators import get_annotation
 from ..handlers import FlagSerialiser, TypeFlag
 
@@ -54,7 +54,7 @@ def is_replicated_function(func):
     return is_annotatable(func) and get_return_annotation(func) is not None
 
 
-class ReplicatedFunctionQueue:
+class ReplicatedFunctionQueueDescriptor:
 
     def __init__(self):
         self._queues = {}
@@ -94,8 +94,7 @@ class ReplicatedFunctionDeserialiser(ReplicatedFunctionBase):
     def deserialise(self, data, offset=0):
         items, bytes_read = self._serialiser.unpack(data, offset)
         arguments = dict(items)
-        self.function(**arguments)
-        return bytes_read
+        return arguments, bytes_read
 
 
 class ReplicatedFunctionSerialiser(ReplicatedFunctionBase):
@@ -104,13 +103,14 @@ class ReplicatedFunctionSerialiser(ReplicatedFunctionBase):
         super().__init__(function, index, serialiser)
 
         self._bind = bind
+        self._is_reliable = is_reliable(function)
 
     def on_serialised(self, data):
         pass
 
     def serialise(self, *args, **kwargs):
         arguments = self._bind(args, kwargs)
-        data = self.index, self._serialiser.pack(arguments)
+        data = self.index, self._is_reliable, self._serialiser.pack(arguments)
         self.on_serialised(data)
 
     __call__ = serialise

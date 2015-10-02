@@ -26,7 +26,7 @@ class TypeFlag:
         self.data = kwargs
 
     def __repr__(self):
-        return "<TypeFlag: type={}>".format(self.data_type)
+        return "<TypeFlag({}, {})>".format(self.data_type, self.data)
 
 
 @contextmanager

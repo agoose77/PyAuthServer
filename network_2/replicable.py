@@ -1,7 +1,7 @@
 from .annotations.decorators import requires_permission
 from .factory import ProtectedInstance, NamedSubclassTracker, protected_method
-from .replication import is_replicated_function, ReplicatedFunctionQueue, ReplicatedFunctionDescriptor, \
-    SerialisableData, Serialisable
+from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
+    SerialisableValueDescriptor, SerialisableDescriptionDescriptor, Serialisable
 
 from collections import OrderedDict
 from inspect import isfunction
@@ -26,13 +26,10 @@ class ReplicableMetacls(NamedSubclassTracker):
         function_index = 0
 
         replicated_functions = namespace['replicated_functions'] = {}
-        serialisables = namespace['serialisables'] = OrderedDict()
+        serialisable_data = namespace['serialisable_data'] = SerialisableValueDescriptor()
+        serialisable_descriptions = namespace['serialisable_descriptions'] = SerialisableDescriptionDescriptor()
 
-        serialisable_data = namespace['serialisable_data'] = SerialisableData()
-        replicated_function_queue = namespace['replicated_function_queue'] = ReplicatedFunctionQueue()
-
-        # TODO register attr names for notifier
-        # TODO just use serialisable_data for dedicated_to_serialisable mapping (o
+        namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
 
         for attr_name, value in namespace.items():
             if is_replicated_function(value):
@@ -41,7 +38,10 @@ class ReplicableMetacls(NamedSubclassTracker):
                 function_index += 1
 
             if isinstance(value, Serialisable):
-                serialisables[attr_name] = value
+                value.name = attr_name
+
+                serialisable_data.add_serialisable(value)
+                serialisable_descriptions.add_serialisable(value)
 
         return super().__new__(metacls, name, bases, namespace)
 
@@ -56,7 +56,8 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         cls = self.__class__
 
         cls.replicated_function_queue.bind_instance(self)
-        self.serialisable_data.bind_instance(self)
+        cls.serialisable_data.bind_instance(self)
+        cls.serialisable_descriptions.bind_instance(self)
 
         for descriptor in cls.replicated_functions.values():
             descriptor.bind_instance(self)
@@ -68,7 +69,8 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
             descriptor.unbind_instance(self)
 
         cls.replicated_function_queue.unbind_instance(self)
-        self.serialisable_data.unbind_instance(self)
+        cls.serialisable_data.unbind_instance(self)
+        cls.serialisable_descriptions.unbind_instance(self)
 
     def change_unique_id(self, unique_id):
         if self.__class__._is_restricted:
