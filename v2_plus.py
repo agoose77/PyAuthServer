@@ -34,26 +34,29 @@ class Rules:
         return True
 
 
-world2 = World(Netmodes.server)
-world2.rules = Rules()
-scene2 = world2.add_scene("Scene")
-replicable2 = scene2.add_replicable("Replicable2")
-net2 = NetworkManager(world2, "localhost", 1200)
+server_world = World(Netmodes.server)
+server_world.rules = Rules()
+server_scene = server_world.add_scene("Scene")
+server_replicable = server_scene.add_replicable("Replicable2")
+server_network = NetworkManager(server_world, "localhost", 1200)
 
-world = World(Netmodes.client)
-scene = world.add_scene("Scene")
-net = NetworkManager(world, "localhost", 0)
-net.connect_to("localhost", 1200)
+client_world = World(Netmodes.client)
+client_scene = client_world.add_scene("Scene")
+client_network = NetworkManager(client_world, "localhost", 0)
+client_network.connect_to("localhost", 1200)
 
-scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
+# Test clash ID
+client_scene.add_replicable("Replicable2")
 
-replicable2.score = 15
+client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
+
+server_replicable.score = 15
 
 import time
-net.send(True)
-net2.receive()
-net2.send(True)
-net.receive()
+client_network.send(True)
+server_network.receive()
+server_network.send(True)
+client_network.receive()
 
-print(scene.replicables[0].score)
+print(client_scene.replicables[0].score)
 

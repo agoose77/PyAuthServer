@@ -40,7 +40,9 @@ class Scene(ProtectedInstance):
         # Contest id if already in use
         if unique_id in self.replicables:
             existing = self.replicables[unique_id]
-            self.contest_id(unique_id, replicable, existing)
+
+            with Scene._grant_authority():
+                self.contest_id(unique_id, replicable, existing)
 
         else:
             self.replicables[unique_id] = replicable
