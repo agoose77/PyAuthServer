@@ -1,7 +1,6 @@
 from network_2.world import World
-from network_2.handlers import TypeFlag
 from network_2.replicable import Replicable
-from network_2.enums import Netmodes
+from network_2.enums import Netmodes, Roles
 from network_2.replication import Serialisable
 
 
@@ -21,10 +20,7 @@ class Replicable2(Replicable1):
 world = World(Netmodes.client)
 scene = world.add_scene("Scene")
 replicable = scene.add_replicable("Replicable2")
+replicable.roles.local = Roles.simulated_proxy
 replicable.do_work(1, "hi")
 
-
-print(replicable.replicated_function_queue)
-
-#replicable.score = 12
-print(replicable.score, replicable.roles)
+replicable.score = 12

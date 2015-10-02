@@ -36,12 +36,12 @@ def restricted_method(func):
         if self.__class__._is_restricted:
             raise RuntimeError("Cannot call protected method")
 
-        return func.__get__(self)(*args, **kwargs)
+        return func.__get__(self, self.__class__)(*args, **kwargs)
 
     return wrapper
 
 
-def restricted_classmethod(func):
+def restricted_new(func):
     @wraps(func)
     def wrapper(cls, *args, **kwargs):
         if cls._is_restricted:
@@ -63,6 +63,6 @@ class ProtectedInstance:
         yield
         cls._is_restricted = is_restricted
 
-    @restricted_classmethod
+    @restricted_new
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)

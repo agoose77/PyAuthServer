@@ -51,7 +51,7 @@ get_return_annotation = get_annotation("return")
 
 
 def is_replicated_function(func):
-    return is_annotatable(func) and get_return_annotation(func) is not None
+    return get_return_annotation(func) is not None
 
 
 class ReplicatedFunctionQueueDescriptor:

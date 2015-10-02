@@ -23,6 +23,14 @@ class ReplicableMetacls(NamedSubclassTracker):
     def __prepare__(name, bases):
         return OrderedDict()
 
+    @classmethod
+    def is_not_root(metacls, bases):
+        for base_cls in bases:
+            if isinstance(base_cls, metacls):
+                return True
+
+        return False
+
     def __new__(metacls, name, bases, namespace):
         function_index = 0
 
@@ -31,14 +39,29 @@ class ReplicableMetacls(NamedSubclassTracker):
 
         namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
 
+        # If this class is the root class, allow all methods to be called
+        is_not_root = metacls.is_not_root(bases)
+
         for attr_name, value in namespace.items():
-            if is_replicated_function(value):
-                namespace[attr_name] = descriptor = ReplicatedFunctionDescriptor(value, function_index)
-                replicated_functions[function_index] = descriptor
-                function_index += 1
+            if attr_name.startswith("__"):
+                continue
+
+            if isfunction(value):
+                if is_replicated_function(value):
+                    descriptor = ReplicatedFunctionDescriptor(value, function_index)
+                    replicated_functions[function_index] = descriptor
+                    function_index += 1
+
+                    value = descriptor
+
+                if is_not_root:
+                    # Wrap function with permission wrapper
+                    value = requires_permission(value)
+
+                namespace[attr_name] = value
 
             # Only register new names (not required explicity, but safe)
-            if isinstance(value, Serialisable):
+            elif isinstance(value, Serialisable):
                 value.name = attr_name
 
         cls = super().__new__(metacls, name, bases, namespace)
