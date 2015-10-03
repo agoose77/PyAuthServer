@@ -10,6 +10,9 @@ class Replicable1(Replicable):
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
         print("PARENT WORK", x, y)
 
+    def do_work2(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.client:
+        super().do_work(x, y)
+
 
 class Replicable2(Replicable1):
     score = Serialisable(data_type=int, flag_on_assignment=True)
@@ -57,5 +60,5 @@ server_network.receive()
 server_network.send(True)
 client_network.receive()
 
-print(client_scene.replicables[0].score)
+print(client_scene.replicables[0].replicated_functions)
 

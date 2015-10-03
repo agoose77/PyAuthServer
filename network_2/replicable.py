@@ -1,11 +1,10 @@
+from inspect import isfunction, getmembers
+
 from .annotations.decorators import requires_permission
 from .enums import Roles
 from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
 from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
     ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
-
-from collections import OrderedDict
-from inspect import isfunction, getmembers
 
 
 def enforce_call_roles(namespace):
@@ -20,9 +19,6 @@ def enforce_call_roles(namespace):
 
 class ReplicableMetacls(NamedSubclassTracker):
 
-    def __prepare__(name, bases):
-        return OrderedDict()
-
     @classmethod
     def is_not_root(metacls, bases):
         for base_cls in bases:
@@ -32,17 +28,26 @@ class ReplicableMetacls(NamedSubclassTracker):
         return False
 
     def __new__(metacls, name, bases, namespace):
-        function_index = 0
+        # Only register new names (not required explicitly, but safe)
+        for attr_name, value in namespace.items():
+            if isinstance(value, Serialisable):
+                value.name = attr_name
 
-        replicated_functions = namespace['replicated_functions'] = ReplicatedFunctionsDescriptor()
-        serialisable_data = namespace['serialisable_data'] = SerialisableDataStoreDescriptor()
+        return super().__new__(metacls, name, bases, namespace)
 
-        namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
+    def __init__(cls, name, bases, namespace):
+        super().__init__(name, bases, namespace)
+
+        replicated_functions = cls.replicated_functions = ReplicatedFunctionsDescriptor()
+        serialisable_data = cls.serialisable_data = SerialisableDataStoreDescriptor()
+        cls.replicated_function_queue = ReplicatedFunctionQueueDescriptor()
 
         # If this class is the root class, allow all methods to be called
-        is_not_root = metacls.is_not_root(bases)
+        is_not_root = cls.is_not_root(bases)
+        function_index = 0
 
-        for attr_name, value in namespace.items():
+        # Register serialisables, including parent-class members
+        for attr_name, value in sorted(getmembers(cls)):
             if attr_name.startswith("__"):
                 continue
 
@@ -54,24 +59,14 @@ class ReplicableMetacls(NamedSubclassTracker):
 
                     value = descriptor
 
+                # Wrap function with permission wrapper
                 if is_not_root:
-                    # Wrap function with permission wrapper
                     value = requires_permission(value)
 
                 namespace[attr_name] = value
 
-            # Only register new names (not required explicity, but safe)
-            elif isinstance(value, Serialisable):
-                value.name = attr_name
-
-        cls = super().__new__(metacls, name, bases, namespace)
-
-        # Register serialisables, including parent-class members
-        for attr_name, value in getmembers(cls):
             if isinstance(value, Serialisable):
                 serialisable_data.add_serialisable(value)
-
-        return cls
 
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
