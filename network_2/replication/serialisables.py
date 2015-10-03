@@ -1,7 +1,7 @@
-from ..handlers import TypeFlag, static_description
-
 from collections import OrderedDict
 from copy import deepcopy
+
+from ..handlers import TypeFlag
 
 
 class SerialisableDataStoreDescriptor:
@@ -58,7 +58,6 @@ class Serialisable(TypeFlag):
         return instance.serialisable_data[self]
 
     def __set__(self, instance, value):
-
         if value is not None and not isinstance(value, self.data_type):
             raise TypeError("{}: Cannot set value to {} value" .format(self, value.__class__.__name__))
 

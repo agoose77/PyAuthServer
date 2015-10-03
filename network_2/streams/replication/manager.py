@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, \
     ReplicableChannelBase
 from ...enums import PacketProtocols, Roles
@@ -5,8 +7,6 @@ from ...handlers import get_handler, TypeFlag
 from ...packet import Packet, PacketCollection
 from ...replicable import Replicable
 from ..helpers import on_protocol, register_protocol_listeners
-
-from collections import defaultdict
 
 
 class ReplicationManagerBase:
@@ -18,7 +18,7 @@ class ReplicationManagerBase:
         self.world = world
 
         self.scene_channels = {}
-        self.root_replicables = set()
+        self.root_replicables = defaultdict(set)
 
         self.logger = connection.logger.getChild("ReplicationManager")
 
@@ -36,7 +36,7 @@ class ReplicationManagerBase:
         scene = scene_channel.scene
 
         replicable_channels = scene_channel.replicable_channels
-        root_replicables = self.root_replicables
+        root_replicables = self.root_replicables[scene_id]
 
         replicable_id_handler = ReplicableChannelBase.id_handler
 
@@ -48,7 +48,7 @@ class ReplicationManagerBase:
                 replicable_channel = replicable_channels[unique_id]
                 replicable = replicable_channel.replicable
 
-                allow_execute = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
+                allow_execute = replicable.replicate_to_to_owner and replicable.root in root_replicables
                 read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
                 offset += read_bytes
 
@@ -76,7 +76,12 @@ class ServerReplicationManager(ReplicationManagerBase):
         world.messenger.add_subscriber("scene_added", self.on_scene_added)
         world.messenger.add_subscriber("scene_removed", self.on_scene_removed)
 
-        world.rules.post_initialise(self)
+        # Register root replicables
+        flat_root_replicables = set()
+        world.rules.post_initialise(self, flat_root_replicables)
+
+        for replicable in flat_root_replicables:
+            self.root_replicables[replicable.scene] = replicable
 
     def register_existing_scenes(self):
         """Load existing registered scenes"""
@@ -283,7 +288,8 @@ class ClientReplicationManager(ReplicationManagerBase):
             offset += bool_size
 
             # Create replicable of same type
-            replicable = scene.add_replicable(type_name, unique_id)
+            replicable_cls = Replicable.subclasses[type_name]
+            replicable = scene.add_replicable(replicable_cls, unique_id)
 
             # If replicable is parent (top owner)
             if is_connection_host:

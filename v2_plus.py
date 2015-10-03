@@ -27,11 +27,16 @@ class Replicable2(Replicable1):
 
 
 class Rules:
+
     def pre_initialise(self, connection_info):
         pass
 
-    def post_initialise(self, replication_manager):
-        pass
+    def post_initialise(self, replication_manager, root_replicables):
+        world = replication_manager.world
+        scene = world.scenes["Scene"]
+
+        replicable = scene.add_replicable(Replicable2)
+        root_replicables.add(replicable)
 
     def is_relevant(self, replicable):
         return True
@@ -40,16 +45,13 @@ class Rules:
 server_world = World(Netmodes.server)
 server_world.rules = Rules()
 server_scene = server_world.add_scene("Scene")
-server_replicable = server_scene.add_replicable("Replicable2")
+server_replicable = server_scene.add_replicable(Replicable2)
 server_network = NetworkManager(server_world, "localhost", 1200)
 
 client_world = World(Netmodes.client)
 client_scene = client_world.add_scene("Scene")
 client_network = NetworkManager(client_world, "localhost", 0)
 client_network.connect_to("localhost", 1200)
-
-# Test clash ID
-client_scene.add_replicable("Replicable2")
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
 server_replicable.score = 15

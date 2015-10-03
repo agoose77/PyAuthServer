@@ -71,6 +71,7 @@ class ReplicableMetacls(NamedSubclassTracker):
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
+    owner = Serialisable(object)
 
     replication_update_period = 1 / 30
     replication_priority = 1
@@ -106,6 +107,16 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         if is_initial:
             yield "roles"
 
+        yield "owner"
+
+    @property
+    def root(self):
+        replicable = self
+        while replicable.owner:
+            replicable = replicable.owner
+
+        return replicable
+
     @restricted_method
     def on_destroyed(self):
         self._unbind_descriptors()
@@ -129,3 +140,6 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     def __repr__(self):
         return "<{}.{}::{} replicable>".format(self.scene, self.__class__.__name__, self.unique_id)
 
+
+# Circular dependency
+Replicable.owner.data_type = Replicable

@@ -27,9 +27,7 @@ class Scene(ProtectedInstance):
 
         self.replicables[unique_id] = existing
 
-    def add_replicable(self, cls_name, unique_id=None):
-        replicable_cls = Replicable.subclasses[cls_name]
-
+    def add_replicable(self, replicable_cls, unique_id=None):
         is_static = unique_id is not None
         if not is_static:
             unique_id = self._unique_ids.take()
