@@ -48,7 +48,7 @@ class ReplicationManagerBase:
                 replicable_channel = replicable_channels[unique_id]
                 replicable = replicable_channel.replicable
 
-                allow_execute = replicable.replicate_to_to_owner and replicable.root in root_replicables
+                allow_execute = replicable.replicate_to_owner and replicable.root in root_replicables
                 read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
                 offset += read_bytes
 
@@ -133,7 +133,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
+                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root in root_replicables
 
                 # Write RPC calls
                 if is_and_relevant_to_owner:
@@ -146,7 +146,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                         unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
 
                 if replicable_channel.is_awaiting_replication and \
-                        (is_and_relevant_to_owner or is_relevant(scene, replicable)):
+                        (is_and_relevant_to_owner or is_relevant(replicable)):
 
                     # Channel just created
                     if replicable_channel.is_initial:
@@ -360,7 +360,7 @@ class ClientReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = True#replicable.replicate_to_to_owner and replicable.uppermost in root_replicables
+                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root in root_replicables
                 # Write RPC calls
                 if is_and_relevant_to_owner:
                     reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()

@@ -71,7 +71,7 @@ class ReplicableMetacls(NamedSubclassTracker):
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
-    owner = Serialisable(object)
+    owner = Serialisable(data_type="<Replicable>") # Temp data type
 
     replication_update_period = 1 / 30
     replication_priority = 1
@@ -84,9 +84,6 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         self._is_static = is_static
 
         self._bind_descriptors()
-
-    def on_replicated(self, name):
-        pass
 
     def _bind_descriptors(self):
         """Bind instance to class descriptors for replication"""
@@ -103,12 +100,6 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         cls.replicated_function_queue.unbind_instance(self)
         cls.serialisable_data.unbind_instance(self)
 
-    def can_replicate(self, is_owner, is_initial):
-        if is_initial:
-            yield "roles"
-
-        yield "owner"
-
     @property
     def root(self):
         replicable = self
@@ -116,6 +107,15 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
             replicable = replicable.owner
 
         return replicable
+
+    def can_replicate(self, is_owner, is_initial):
+        if is_initial:
+            yield "roles"
+
+        yield "owner"
+
+    def on_replicated(self, name):
+        pass
 
     @restricted_method
     def on_destroyed(self):

@@ -1,13 +1,13 @@
+from time import clock
+
 from .helpers import register_protocol_listeners, get_state_senders, on_protocol
 from .replication import ClientReplicationManager, ServerReplicationManager
-
 from ..errors import NetworkError
 from ..enums import ConnectionStates, PacketProtocols, Netmodes
 from ..handlers import get_handler
 from ..packet import Packet
 from ..handlers import TypeFlag
 
-from time import clock
 
 __all__ = 'ServerHandshakeManager', 'ClientHandshakeManager'
 
@@ -90,7 +90,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
             self.world.rules.pre_initialise(self.connection_info)
 
         except NetworkError as err:
-            self.logger.error("Connection was refused: {}".format(err))
+            self.logger.error("Connection was refused: {}".format(repr(err)))
             self.handshake_error = err
 
         self.state = ConnectionStates.received_handshake
@@ -101,8 +101,13 @@ class ServerHandshakeManager(HandshakeManagerBase):
 
         if connection_failed:
             pack_string = self.string_packer.pack
-            error_type = type(self.handshake_error).type_name
-            error_body = self.handshake_error.args[0]
+            error_type = self.handshake_error.__class__.__name__
+
+            try:
+                error_body = self.handshake_error.args[0]
+            except IndexError:
+                error_body = ''
+
             error_data = pack_string(error_type) + pack_string(error_body)
 
             # Set failed state
@@ -162,17 +167,19 @@ class ClientHandshakeManager(HandshakeManagerBase):
         self.invoke_handshake()
 
     @on_protocol(PacketProtocols.handshake_failed)
-    def receive_handshake_failed(self, data):
+    def receive_handshake_failed(self, packet):
+        data = packet.payload
+
         error_type, type_size = self.string_packer.unpack_from(data)
         error_message, message_size = self.string_packer.unpack_from(data, type_size)
 
         error_class = NetworkError.subclasses[error_type]
         raised_error = error_class(error_message)
 
-        self.logger.error("Authentication failed: {}".format(raised_error))
+        self.logger.error("Authentication failed: {}".format(repr(raised_error)))
         self.state = ConnectionStates.failed
 
-        self.world.messenger.send("connection_error", self)
+        self.world.messenger.send("connection_error", {'error': raised_error, 'connection': self.connection})
 
 
 def create_handshake_manager(world, connection):

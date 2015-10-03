@@ -26,10 +26,15 @@ class Replicable2(Replicable1):
         super().do_work(x, y)
 
 
+from network_2.errors import NetworkError
+class SomeError(NetworkError):
+    pass
+
+
 class Rules:
 
     def pre_initialise(self, connection_info):
-        pass
+        raise SomeError()
 
     def post_initialise(self, replication_manager, root_replicables):
         world = replication_manager.world
@@ -39,6 +44,7 @@ class Rules:
         root_replicables.add(replicable)
 
     def is_relevant(self, replicable):
+        print(replicable, "REL?")
         return True
 
 
