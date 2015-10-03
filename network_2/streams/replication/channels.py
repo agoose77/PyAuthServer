@@ -32,14 +32,13 @@ class ReplicableChannelBase:
 
         # Get network attributes
         self._serialisable_data = replicable.serialisable_data
-        self._name_to_serialisable = {serialisable.name: serialisable for serialisable in self._serialisable_data}
         self._replicated_functions = replicable.replicated_functions
         self._replicated_function_queue = replicable.replicated_function_queue
 
         # Create a serialiser instance
         self.logger = scene_channel.logger.getChild("<Channel: {}>".format(repr(replicable)))
 
-        serialiser_args = OrderedDict(((serialiser.name, serialiser) for serialiser in self._serialisable_data))
+        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
         self._rpc_id_handler = get_handler(TypeFlag(int))
@@ -103,6 +102,7 @@ class ReplicableChannelBase:
                     break
 
                 else:
+                    print(data, offset, "DES")
                     arguments, bytes_read = rpc_instance.deserialise(data, offset)
                     offset += bytes_read
 
@@ -154,7 +154,6 @@ class ClientReplicableChannel(ReplicableChannelBase):
         """
         # Create local references outside loop
         serialisable_data = self._serialisable_data
-        name_to_serialisable = self._name_to_serialisable
 
         notifications = []
         queue_notification = notifications.append
@@ -162,9 +161,8 @@ class ClientReplicableChannel(ReplicableChannelBase):
         # Notify after all values are set
         notifier_callback = partial(self.notify_callback, notifications)
 
-        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, serialisable_data, offset=offset)
-        for name, value in unpacked_items:
-            serialisable = name_to_serialisable[name]
+        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, offset, serialisable_data)
+        for serialisable, value in unpacked_items:
 
             # Store new value
             serialisable_data[serialisable] = value
@@ -183,6 +181,8 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
         self._last_replicated_descriptions = {serialisable: static_description(serialisable.initial_value)
                                               for serialisable in self._serialisable_data}
+
+        self._name_to_serialisable = {serialisable.name: serialisable for serialisable in self._serialisable_data}
 
     @property
     def replication_priority(self):
@@ -238,7 +238,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
                     continue
 
                 # Add value to data dict
-                to_serialise[name] = value
+                to_serialise[serialisable] = value
 
                 # Remember hash of value
                 last_replicated_descriptions[serialisable] = new_description

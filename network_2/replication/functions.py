@@ -72,6 +72,36 @@ class ReplicatedFunctionQueueDescriptor:
         del self._queues[instance]
 
 
+class ReplicatedFunctionsDescriptor:
+
+    def __init__(self):
+        self._descriptor_stores = {}
+        self._descriptors = []
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+
+        return self._descriptor_stores[instance]
+
+    def add_descriptor(self, descriptor):
+        self._descriptors.append(descriptor)
+
+    def bind_instance(self, instance):
+        cls = instance.__class__
+
+        # Bind child descriptors
+        descriptor_store = {}
+        for descriptor in self._descriptors:
+            descriptor.bind_instance(instance)
+            descriptor_store[descriptor.index] = descriptor.__get__(instance, cls)
+
+        self._descriptor_stores[instance] = descriptor_store
+
+    def unbind_instance(self, instance):
+        del self._descriptor_stores[instance]
+
+
 class ReplicatedFunctionBase:
 
     def __init__(self, function, index, serialiser):
@@ -92,8 +122,9 @@ class ReplicatedFunctionDeserialiser(ReplicatedFunctionBase):
         return self.function(*args, **kwargs)
 
     def deserialise(self, data, offset=0):
-        items, bytes_read = self._serialiser.unpack(data, offset)
+        items, bytes_read = self._serialiser.unpack(data, offset=offset)
         arguments = dict(items)
+
         return arguments, bytes_read
 
 
@@ -119,8 +150,8 @@ class ReplicatedFunctionSerialiser(ReplicatedFunctionBase):
 class ReplicatedFunctionDescriptor:
 
     def __init__(self, function, index):
-        self._function = function
-        self._index = index
+        self.function = function
+        self.index = index
         self._bound_instances = {}
 
         # Get RPC info (ignore self)
@@ -149,10 +180,10 @@ class ReplicatedFunctionDescriptor:
             return self._bound_instances[instance]
 
         except KeyError:
-            return self._function.__get__(instance, cls)
+            return self.function.__get__(instance, cls)
 
     def __repr__(self):
-        return "<ReplicatedFunctionDescriptor '{}'>".format(self._function.__qualname__)
+        return "<ReplicatedFunctionDescriptor '{}'>".format(self.function.__qualname__)
 
     def create_mapping_from_arguments(self, args, kwargs):
         return self._binder(*args, **kwargs).arguments
@@ -203,15 +234,15 @@ class ReplicatedFunctionDescriptor:
         else:
             serialiser = self._root_serialiser
 
-        function = self._function.__get__(instance)
+        function = self.function.__get__(instance)
 
         # Execute this locally
         if instance.scene.world.netmode == self._target_netmode:
-            replicated_function = ReplicatedFunctionDeserialiser(function, self._index, serialiser)
+            replicated_function = ReplicatedFunctionDeserialiser(function, self.index, serialiser)
 
         # Execute this remotely
         else:
-            replicated_function = ReplicatedFunctionSerialiser(function, self._index, serialiser,
+            replicated_function = ReplicatedFunctionSerialiser(function, self.index, serialiser,
                                                                self.create_mapping_from_arguments)
             replicated_function.on_serialised = instance.replicated_function_queue.append
 

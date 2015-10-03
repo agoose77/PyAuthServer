@@ -21,7 +21,7 @@ class FlagSerialiser:
         """
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
         self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
-        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(key) if logger else None))
+        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(repr(key)) if logger else None))
                                   for key, flag in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
@@ -83,6 +83,7 @@ class FlagSerialiser:
         :param bytes_string: packed data
         """
         contents_packer = self.contents_packer
+        print(bytes_string,offset)
         contents_size = contents_packer.unpack_merge(self.content_bits, bytes_string, offset)
         return contents_size
 
@@ -95,7 +96,7 @@ class FlagSerialiser:
         contents_size = contents_packer.unpack_merge(self.none_bits, bytes_string, offset)
         return contents_size
 
-    def unpack(self, bytes_string, previous_values={}, offset=0):
+    def unpack(self, bytes_string, offset=0, previous_values={}):
         """Unpack bytes into Python objects
 
         :param bytes_string: packed data

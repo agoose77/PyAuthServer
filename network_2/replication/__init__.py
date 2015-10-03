@@ -1,3 +1,3 @@
 from .functions import is_replicated_function, resolve_pointers, Pointer, ReplicatedFunctionQueueDescriptor, \
-    ReplicatedFunctionDescriptor
+    ReplicatedFunctionDescriptor, ReplicatedFunctionsDescriptor
 from .serialisables import Serialisable, SerialisableDataStoreDescriptor

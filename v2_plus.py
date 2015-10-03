@@ -8,7 +8,7 @@ from network_2.network import NetworkManager
 class Replicable1(Replicable):
 
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
-        print("PARENT WORK")
+        print("PARENT WORK", x, y)
 
 
 class Replicable2(Replicable1):
@@ -19,7 +19,7 @@ class Replicable2(Replicable1):
         yield "score"
         yield "roles"
 
-    def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
+    def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.client:
         super().do_work(x, y)
 
 
@@ -49,10 +49,9 @@ client_network.connect_to("localhost", 1200)
 client_scene.add_replicable("Replicable2")
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
-
 server_replicable.score = 15
+server_replicable.do_work(1, "JAMES")
 
-import time
 client_network.send(True)
 server_network.receive()
 server_network.send(True)

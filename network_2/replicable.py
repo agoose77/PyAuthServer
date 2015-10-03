@@ -2,7 +2,7 @@ from .annotations.decorators import requires_permission
 from .enums import Roles
 from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
 from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
-    SerialisableDataStoreDescriptor, Serialisable
+    ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
 
 from collections import OrderedDict
 from inspect import isfunction, getmembers
@@ -34,7 +34,7 @@ class ReplicableMetacls(NamedSubclassTracker):
     def __new__(metacls, name, bases, namespace):
         function_index = 0
 
-        replicated_functions = namespace['replicated_functions'] = {}
+        replicated_functions = namespace['replicated_functions'] = ReplicatedFunctionsDescriptor()
         serialisable_data = namespace['serialisable_data'] = SerialisableDataStoreDescriptor()
 
         namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
@@ -49,7 +49,7 @@ class ReplicableMetacls(NamedSubclassTracker):
             if isfunction(value):
                 if is_replicated_function(value):
                     descriptor = ReplicatedFunctionDescriptor(value, function_index)
-                    replicated_functions[function_index] = descriptor
+                    replicated_functions.add_descriptor(descriptor)
                     function_index += 1
 
                     value = descriptor
@@ -98,15 +98,12 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
 
         cls.replicated_function_queue.bind_instance(self)
         cls.serialisable_data.bind_instance(self)
-
-        for descriptor in cls.replicated_functions.values():
-            descriptor.bind_instance(self)
+        cls.replicated_functions.bind_instance(self)
 
     def _unbind_descriptors(self):
         cls = self.__class__
-        for descriptor in cls.replicated_functions.values():
-            descriptor.unbind_instance(self)
 
+        cls.replicated_functions.unbind_instance(self)
         cls.replicated_function_queue.unbind_instance(self)
         cls.serialisable_data.unbind_instance(self)
 
