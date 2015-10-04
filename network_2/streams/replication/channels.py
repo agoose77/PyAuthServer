@@ -302,6 +302,13 @@ class ServerSceneChannel(SceneChannelBase):
         self.is_initial = True
         self.deleted_channels = []
 
+    def on_replicable_added(self, replicable):
+        # Don't replicate torn off
+        if replicable.torn_off:
+            return
+
+        super().on_replicable_added(replicable)
+
     def on_replicable_removed(self, replicable):
         channel = self.replicable_channels.pop(replicable.unique_id)
         self.deleted_channels.append(channel)

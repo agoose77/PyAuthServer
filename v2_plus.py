@@ -39,6 +39,9 @@ class Replicable2(Replicable1):
         yield "struct"
         yield "roles"
 
+    def on_replicated(self, name):
+        print(name)
+
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.client:
         super().do_work(x, y)
 
@@ -60,6 +63,10 @@ class Rules:
         return True
 
 
+# TODO: enable actor-like replicables cross-platform
+# How do resources fit into world-paradigm? (Environment?)
+#
+
 server_world = World(Netmodes.server)
 server_world.rules = Rules()
 server_scene = server_world.add_scene("Scene")
@@ -75,7 +82,6 @@ client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Repli
 server_replicable.score = 15
 server_replicable.struct = ManyVectors()
 server_replicable.struct.a.x = 12
-#server_replicable.struct.x = 12
 server_replicable.do_work(1, "JAMES")
 
 client_network.send(True)
@@ -84,7 +90,4 @@ server_network.send(True)
 client_network.receive()
 
 struct = client_scene.replicables[0].struct
-
-from network_2.type_serialisers import get_serialiser_for
-serialiser = get_serialiser_for(struct.__class__)
-print(serialiser.pack(struct))
+print(struct)

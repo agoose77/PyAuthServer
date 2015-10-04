@@ -21,12 +21,10 @@ def enforce_call_roles(namespace):
 class ReplicableMetacls(NamedSubclassTracker):
 
     @classmethod
-    def is_not_root(metacls, bases):
-        for base_cls in bases:
+    def get_root(metacls, bases):
+        for base_cls in reversed(bases):
             if isinstance(base_cls, metacls):
-                return True
-
-        return False
+                return base_cls
 
     def __prepare__(name, bases):
         return OrderedDict()
@@ -48,7 +46,8 @@ class ReplicableMetacls(NamedSubclassTracker):
             function_descriptors.extend(cls.replicated_functions.function_descriptors)
 
         # Check this is not the root class
-        is_not_root = metacls.is_not_root(bases)
+        root = metacls.get_root(bases)
+
         function_index = 0
 
         # Register serialisables, including parent-class members
@@ -69,7 +68,7 @@ class ReplicableMetacls(NamedSubclassTracker):
                     value = descriptor
 
                 # Wrap function with permission wrapper
-                if is_not_root:
+                if root and not hasattr(root, attr_name):
                     value = requires_permission(value)
 
                 namespace[attr_name] = value
@@ -80,6 +79,7 @@ class ReplicableMetacls(NamedSubclassTracker):
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
     owner = Serialisable(data_type="<Replicable>") # Temp data type
+    torn_off = Serialisable(False, notify_on_replicated=True)
 
     replication_update_period = 1 / 30
     replication_priority = 1
@@ -121,9 +121,12 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
             yield "roles"
 
         yield "owner"
+        yield "torn_off"
 
     def on_replicated(self, name):
-        pass
+        if name == "torn_off":
+            if self.torn_off:
+                self.roles.local = Roles.authority
 
     @restricted_method
     def on_destroyed(self):
