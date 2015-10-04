@@ -1,3 +1,4 @@
+from network_2.type_serialisers import TypeInfo
 from network_2.world import World
 from network_2.replicable import Replicable
 from network_2.enums import Netmodes, Roles
@@ -18,6 +19,8 @@ class Replicable2(Replicable1):
     score = Serialisable(data_type=int, flag_on_assignment=True)
     roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
 
+    dates = Serialisable([], element_flag=TypeInfo(int))
+
     def can_replicate(self, is_owner, is_initial):
         yield "score"
         yield "roles"
@@ -34,7 +37,7 @@ class SomeError(NetworkError):
 class Rules:
 
     def pre_initialise(self, connection_info):
-        raise SomeError()
+        pass
 
     def post_initialise(self, replication_manager, root_replicables):
         world = replication_manager.world
@@ -68,5 +71,5 @@ server_network.receive()
 server_network.send(True)
 client_network.receive()
 
-print(client_scene.replicables[0].replicated_functions)
+print(client_scene.replicables[0].dates)
 

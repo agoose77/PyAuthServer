@@ -5,7 +5,7 @@ from time import strftime, clock
 from .bitfield import BitField
 from .messages import MessagePasser
 from .enums import PacketProtocols
-from .handlers import get_handler, TypeFlag
+from .type_serialisers import get_handler_for
 from .packet import PacketCollection, Packet
 from .factory import ProtectedInstance
 
@@ -30,7 +30,7 @@ class Connection(ProtectedInstance):
 
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1
-        self.sequence_handler = get_handler(TypeFlag(int, max_value=self.sequence_max_size))
+        self.sequence_handler = get_handler_for(int, max_value=self.sequence_max_size)
 
         # Number of packets to ack per packet
         self.ack_window = 32
@@ -38,7 +38,7 @@ class Connection(ProtectedInstance):
         # BitField and bitfield size
         self.incoming_ack_bitfield = BitField(self.ack_window)
         self.outgoing_ack_bitfield = BitField(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(BitField, fields=self.ack_window))
+        self.ack_packer = get_handler_for(BitField, fields=self.ack_window)
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}

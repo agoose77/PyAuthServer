@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from copy import deepcopy
 
-from ..handlers import TypeFlag
+from ..type_serialisers import TypeInfo
 
 
 class SerialisableDataStoreDescriptor:
@@ -34,7 +34,7 @@ class SerialisableDataStoreDescriptor:
         return data_store
 
 
-class Serialisable(TypeFlag):
+class Serialisable(TypeInfo):
 
     __slots__ = ("notify_on_replicated", "initial_value", "name")
 

@@ -1,5 +1,5 @@
 from network_2.bitfield import BitField
-from network_2.handlers import get_handler, TypeFlag
+from network_2.type_serialisers import get_handler, get_handler_for
 
 __all__ = ["FlagSerialiser"]
 
@@ -16,7 +16,7 @@ class FlagSerialiser:
     def __init__(self, arguments, logger=None):
         """FlagSerialiser initialiser
 
-        :param arguments: ordered dict of named TypeFlag instances
+        :param arguments: ordered dict of named TypeInfo instances
         :param logger: logger instance for handlers
         """
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
@@ -39,8 +39,8 @@ class FlagSerialiser:
         # Additional two bits when including NoneType and Boolean values
         self.content_bits = BitField(self.total_contents + 2)
 
-        self.boolean_packer = get_handler(TypeFlag(BitField, fields=self.total_booleans))
-        self.contents_packer = get_handler(TypeFlag(BitField, fields=len(self.content_bits)))
+        self.boolean_packer = get_handler_for(BitField, fields=self.total_booleans)
+        self.contents_packer = get_handler_for(BitField, fields=len(self.content_bits))
 
     def report_information(self, bytes_string, offset=0):
         """Display the contents of a serialised stream

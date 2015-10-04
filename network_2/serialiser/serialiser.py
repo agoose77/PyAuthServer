@@ -1,7 +1,8 @@
 from math import ceil
-from struct import Struct, pack, unpack_from
+from struct import Struct
 
-from ..handlers import register_handler
+from ..type_serialisers import register_handler
+
 
 __all__ = ['bits_to_bytes', 'next_or_equal_power_of_two']
 
@@ -110,7 +111,7 @@ def _handler_from_byte_length(total_bytes):
     """Return the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IDataHandler`
+    :rtype: :py:class:`network.serialiser.IDataSerialiser`
     """
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
@@ -131,8 +132,8 @@ def _handler_from_int(value):
     return _handler_from_bit_length(value.bit_length())
 
 
-class BoolHandler(UInt8):
-    """Handler for boolean type"""
+class BoolSerialiser(UInt8):
+    """Serialiser for boolean type"""
 
     @classmethod
     def unpack_from(self, bytes_string, offset=0, unpack_from=UInt8.unpack_from):
@@ -145,7 +146,7 @@ class BoolHandler(UInt8):
         return [bool(x) for x in value], size
 
 
-class _BytesHandler:
+class _BytesSerialiser:
 
     classes = {}
 
@@ -182,13 +183,13 @@ class _BytesHandler:
 
                 cls_dict[value_name] = value
 
-            new_cls = type("BytesHandler", (), cls_dict)
+            new_cls = type("BytesSerialiser", (), cls_dict)
             cls.classes[header_max_value] = new_cls
 
         return new_cls
 
 
-class _StringHandler:
+class _StringSerialiser:
 
     classes = {}
 
@@ -223,7 +224,7 @@ class _StringHandler:
 
                 cls_dict[value_name] = value
 
-            new_cls = type("StringHandler", (), cls_dict)
+            new_cls = type("StringSerialiser", (), cls_dict)
             cls.classes[header_max_value] = new_cls
 
         return new_cls
@@ -246,13 +247,13 @@ def _int_handler(flag, logger):
 
 
 def _bool_handler(flag, logger):
-    return BoolHandler
+    return BoolSerialiser
 
 
 
 # Register handlers for native types
-register_handler(str, _StringHandler)
-register_handler(bytes, _BytesHandler)
+register_handler(str, _StringSerialiser)
+register_handler(bytes, _BytesSerialiser)
 register_handler(int, _int_handler)
 register_handler(bool, _bool_handler)
 register_handler(float, _float_handler)

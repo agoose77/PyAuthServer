@@ -1,12 +1,11 @@
 __all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
 
-
 from collections import OrderedDict
 from functools import partial
 from time import clock
 from operator import attrgetter
 
-from ...handlers import TypeFlag, get_handler, static_description, FlagSerialiser
+from ...type_serialisers import get_handler_for, static_description, FlagSerialiser
 from ...replicable import Replicable
 
 
@@ -19,7 +18,7 @@ class ReplicableChannelBase:
     Belongs to an instance of Replicable and a connection
     """
 
-    id_handler = get_handler(TypeFlag(Replicable))
+    id_handler = get_handler_for(Replicable)
 
     def __init__(self, scene_channel, replicable):
         # Store important info
@@ -41,7 +40,7 @@ class ReplicableChannelBase:
         serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
-        self._rpc_id_handler = get_handler(TypeFlag(int))
+        self._rpc_id_handler = get_handler_for(int)
         self.packed_id = self.__class__.id_handler.pack(replicable)
 
     @property
@@ -261,7 +260,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 class SceneChannelBase:
 
     channel_class = None
-    id_handler = get_handler(TypeFlag(int))
+    id_handler = get_handler_for(int)
 
     def __init__(self, manager, scene, scene_id):
         self.scene = scene

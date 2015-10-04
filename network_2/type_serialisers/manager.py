@@ -5,14 +5,14 @@ handlers = {}
 descriptions = {}
 
 __all__ = ['static_description', 'register_handler', 'register_description',
-           'get_handler', 'default_logger_as', 'IHandler']
+           'get_handler', 'default_logger_as', 'TypeSerialiserAbstract']
 
 # Default loggers for handlers, handlers can be a class or an instance, so don't force user to set the logger
-_DEFAULT_LOGGER = getLogger("<Default Handler Logger>")
+_DEFAULT_LOGGER = getLogger("<Default Serialiser Logger>")
 LOGGER = _DEFAULT_LOGGER
 
 
-class TypeFlag:
+class TypeInfo:
     """Container for static type information.
 
     Holds type for value and additional keyword arguments.
@@ -26,7 +26,7 @@ class TypeFlag:
         self.data = kwargs
 
     def __repr__(self):
-        return "<TypeFlag({}, {})>".format(self.data_type, self.data)
+        return "<TypeInfo({}, {})>".format(self.data_type, self.data)
 
 
 @contextmanager
@@ -78,7 +78,7 @@ def register_handler(value_type, handler):
 
     :param value_type: type of object
     :param handler: handler object for value_type
-    :param is_callable: whether handler should be called with the TypeFlag that
+    :param is_callable: whether handler should be called with the TypeInfo that
     requests it
     """
     handlers[value_type] = handler
@@ -95,17 +95,17 @@ def register_description(value_type, callback):
     descriptions[value_type] = callback
 
 
-def get_handler(type_flag, logger=None):
-    """Takes a TypeFlag (or subclass thereof) and return handler.
+def get_handler(type_info, logger=None):
+    """Takes a TypeInfo (or subclass thereof) and return handler.
 
     If a handler cannot be found for the provided type, look for a handled
     superclass, assign it to the requested type and return it.
 
-    :param type_flag: TypeFlag subclass
+    :param type_info: TypeInfo subclass
     :returns: handler object
     """
 
-    value_type = type_flag.data_type
+    value_type = type_info.data_type
 
     try:
         handler = handlers[value_type]
@@ -116,10 +116,10 @@ def get_handler(type_flag, logger=None):
             handled_type = next(handled_superclasses)
 
         except StopIteration as err:
-            raise TypeError("No handler found for object with type {}".format(value_type)) from err
+            raise TypeError("No handler found for object with type '{}'".format(value_type)) from err
 
         except AttributeError as err:
-            raise TypeError("Invalid handler type provided: {}".format(value_type)) from err
+            raise TypeError("TypeInfo.data_type: expected class object, not '{}'".format(value_type)) from err
 
         else:
             # Remember this for later call
@@ -129,12 +129,17 @@ def get_handler(type_flag, logger=None):
     if logger is None:
         logger = LOGGER
 
-    return handler(type_flag, logger=logger)
+    return handler(type_info, logger=logger)
 
 
-class IHandler:
+def get_handler_for(data_type, logger=None, **data):
+    info = TypeInfo(data_type, **data)
+    return get_handler(info)
 
-    def __init__(self, flag, logger=None):
+
+class TypeSerialiserAbstract:
+
+    def __init__(self, type_info, logger=None):
         pass
 
     def pack(self, value):

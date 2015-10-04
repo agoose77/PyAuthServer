@@ -2,9 +2,9 @@ from collections import OrderedDict
 from functools import update_wrapper
 from inspect import signature, Parameter
 
-from ..annotations.conditions import is_annotatable, is_reliable
+from ..annotations.conditions import is_reliable
 from ..annotations.decorators import get_annotation
-from ..handlers import FlagSerialiser, TypeFlag
+from ..type_serialisers import FlagSerialiser, TypeInfo
 
 
 class Pointer:
@@ -30,7 +30,7 @@ def _resolve_pointers(cls, flag):
     data = flag.data
 
     for arg_name, arg_value in data.items():
-        if isinstance(arg_value, TypeFlag):
+        if isinstance(arg_value, TypeInfo):
             _resolve_pointers(cls, arg_value)
 
         if not isinstance(arg_value, Pointer):
@@ -208,7 +208,7 @@ class ReplicatedFunctionDescriptor:
                 data_type = annotation
                 data = {}
 
-            arguments[parameter.name] = TypeFlag(data_type, **data)
+            arguments[parameter.name] = TypeInfo(data_type, **data)
 
         return arguments
 

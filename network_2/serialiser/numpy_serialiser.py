@@ -1,12 +1,12 @@
 from math import ceil
 
 from numpy import uint8, uint16, uint32, uint64, float32, float64, fromstring
-from network_2.handlers import register_handler
+from network_2.type_serialisers import register_handler
 
 
 __all__ = ['NumpyStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes',
-           'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringHandler',
-           'BytesHandler', 'int_selector', 'next_or_equal_power_of_two', 'BoolHandler']
+           'handler_from_bit_length', 'handler_from_int', 'handler_from_byte_length', 'StringSerialiser',
+           'BytesSerialiser', 'int_selector', 'next_or_equal_power_of_two', 'BoolSerialiser']
 
 
 class NumpyStruct:
@@ -28,7 +28,7 @@ class NumpyStruct:
         return obj.tostring()
 
     def __str__(self):
-        return "<{} Byte Handler>"
+        return "<{} Byte Serialiser>"
 
 
 UInt8 = NumpyStruct(uint8, 1)
@@ -76,7 +76,7 @@ def handler_from_byte_length(total_bytes):
     """Find the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IDataHandler`"""
+    :rtype: :py:class:`network.serialiser.IDataSerialiser`"""
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:
@@ -99,7 +99,7 @@ def int_selector(type_flag):
     return handler_from_bit_length(type_flag.data.get('max_bits', 8))
 
 
-class BoolHandler:
+class BoolSerialiser:
     unpacker = UInt8.unpack_from
 
     @classmethod
@@ -111,7 +111,7 @@ class BoolHandler:
     pack = UInt8.pack
 
 
-class BytesHandler:
+class BytesSerialiser:
 
     def __init__(self, type_flag):
         header_max_value = type_flag.data.get("max_length", 255)
@@ -133,7 +133,7 @@ class BytesHandler:
         return value, end_index
 
 
-class StringHandler(BytesHandler):
+class StringSerialiser(BytesSerialiser):
 
     def pack(self, str_):
         return super().pack(str_.encode())
@@ -145,8 +145,8 @@ class StringHandler(BytesHandler):
 
 
 # Register handlers for native types
-register_handler(bool, BoolHandler)
-register_handler(str, StringHandler, is_callable=True)
-register_handler(bytes, BytesHandler, is_callable=True)
+register_handler(bool, BoolSerialiser)
+register_handler(str, StringSerialiser, is_callable=True)
+register_handler(bytes, BytesSerialiser, is_callable=True)
 register_handler(int, int_selector, is_callable=True)
 register_handler(float, float_selector, is_callable=True)
