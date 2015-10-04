@@ -27,7 +27,7 @@ def execute_and_return_pair(function_string, locals_dict):
     return new_key, original_locals[new_key]
 
 
-def build_struct_handler(name, character_format, order_format="!"):
+def build_struct_serialiser(name, character_format, order_format="!"):
     """Create handler for data with struct formatting
 
     :param name: name of handler class
@@ -60,16 +60,16 @@ def build_struct_handler(name, character_format, order_format="!"):
     return type(name, (), cls_dict)
 
 
-UInt32 = build_struct_handler("UInt32", "I")
-UInt16 = build_struct_handler("UInt16", "H")
-UInt64 = build_struct_handler("UInt64", "Q")
-UInt8 = build_struct_handler("UInt8", "B")
-Int32 = build_struct_handler("UInt32", "i")
-Int16 = build_struct_handler("UInt16", "h")
-Int64 = build_struct_handler("UInt64", "q")
-Int8 = build_struct_handler("UInt8", "b")
-Float32 = build_struct_handler("Float32", "f")
-Float64 = build_struct_handler("Float64", "d")
+UInt32 = build_struct_serialiser("UInt32", "I")
+UInt16 = build_struct_serialiser("UInt16", "H")
+UInt64 = build_struct_serialiser("UInt64", "Q")
+UInt8 = build_struct_serialiser("UInt8", "B")
+Int32 = build_struct_serialiser("UInt32", "i")
+Int16 = build_struct_serialiser("UInt16", "h")
+Int64 = build_struct_serialiser("UInt64", "q")
+Int8 = build_struct_serialiser("UInt8", "b")
+Float32 = build_struct_serialiser("Float32", "f")
+Float64 = build_struct_serialiser("Float64", "d")
 
 
 int_handlers = [UInt8, UInt16, UInt32, UInt64]

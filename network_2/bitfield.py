@@ -190,7 +190,7 @@ class NamedBitField:
 
     def __new__(cls, *names):
 
-        class BitField_(BitField):
+        class _BitField(BitField):
 
             def __init__(self):
                 super().__init__(len(names))
@@ -205,6 +205,6 @@ class NamedBitField:
             def set(self, value, i=i):
                 self[i] = value
 
-            setattr(BitField_, name, property(get, set))
+            setattr(_BitField, name, property(get, set))
 
-        return BitField_
+        return _BitField
