@@ -1,11 +1,11 @@
 from contextlib import contextmanager
 from logging import getLogger
 
-handlers = {}
-descriptions = {}
+serialisers = {}
+describers = {}
 
-__all__ = ['static_description', 'register_handler', 'register_description',
-           'get_handler', 'default_logger_as', 'TypeSerialiserAbstract']
+__all__ = ['get_describer', 'register_serialiser', 'register_describer',
+           'get_serialiser', 'default_logger_as', 'TypeSerialiserAbstract']
 
 # Default loggers for handlers, handlers can be a class or an instance, so don't force user to set the logger
 _DEFAULT_LOGGER = getLogger("<Default Serialiser Logger>")
@@ -37,43 +37,7 @@ def default_logger_as(logger):
     LOGGER = _DEFAULT_LOGGER
 
 
-def static_description(value):
-    """"A Hash-like representation of a data type.
-
-    Will default to hash() when no function is registered for value type
-
-    :param value: object to describe
-    :rtype: int
-    """
-    value_type = type(value)
-
-    # First handle registered descriptions
-    try:
-        description_func = descriptions[value_type]
-
-    except KeyError:
-        # Now handle object attribute descriptions
-        try:
-            return value.__description__()
-
-        # Now search for handled superclass descriptions
-        except AttributeError:
-            try:
-                handled_superclasses = (cls for cls in value_type.__mro__ if cls in descriptions)
-                handled_type = next(handled_superclasses)
-
-            # Default to Python hashing, remember for next call (optimisation)
-            except (AttributeError, StopIteration):
-                description_func = descriptions[value_type] = hash
-
-            # Remember description for next call (optimisation)
-            else:
-                description_func = descriptions[value_type] = descriptions[handled_type]
-
-    return description_func(value)
-
-
-def register_handler(value_type, handler):
+def register_serialiser(value_type, handler):
     """Registers new handler for custom serialisers
 
     :param value_type: type of object
@@ -81,21 +45,21 @@ def register_handler(value_type, handler):
     :param is_callable: whether handler should be called with the TypeInfo that
     requests it
     """
-    handlers[value_type] = handler
+    serialisers[value_type] = handler
 
 
-def register_description(value_type, callback):
+def register_describer(value_type, describer):
     """Registers description callback for types which cannot define
     __description__
     and are not directly hash-able
 
     :param value_type: type of object
-    :param callback: description function
+    :param describer: description function
     """
-    descriptions[value_type] = callback
+    describers[value_type] = describer
 
 
-def get_handler(type_info, logger=None):
+def get_serialiser(type_info, logger=None):
     """Takes a TypeInfo (or subclass thereof) and return handler.
 
     If a handler cannot be found for the provided type, look for a handled
@@ -108,11 +72,11 @@ def get_handler(type_info, logger=None):
     value_type = type_info.data_type
 
     try:
-        handler = handlers[value_type]
+        handler = serialisers[value_type]
 
     except KeyError:
         try:
-            handled_superclasses = (cls for cls in value_type.__mro__ if cls in handlers)
+            handled_superclasses = (cls for cls in value_type.__mro__ if cls in serialisers)
             handled_type = next(handled_superclasses)
 
         except StopIteration as err:
@@ -123,7 +87,7 @@ def get_handler(type_info, logger=None):
 
         else:
             # Remember this for later call
-            handler = handlers[value_type] = handlers[handled_type]
+            handler = serialisers[value_type] = serialisers[handled_type]
 
     # Add default logger
     if logger is None:
@@ -132,12 +96,49 @@ def get_handler(type_info, logger=None):
     return handler(type_info, logger=logger)
 
 
-def get_handler_for(data_type, logger=None, **data):
+def get_serialiser_for(data_type, logger=None, **data):
     info = TypeInfo(data_type, **data)
-    return get_handler(info)
+    return get_serialiser(info)
+
+
+class DefaultDescriber:
+    __slots__ = ()
+
+    def __init__(self, type_info):
+        pass
+
+    def __call__(self, value):
+        try:
+            return value.__description__()
+
+        except AttributeError:
+            return hash(value)
+
+
+def get_describer(type_info):
+    value_type = type_info.data_type
+
+    # First handle registered descriptions
+    try:
+        describer = describers[value_type]
+
+    except KeyError:
+        try:
+            handled_superclasses = (cls for cls in value_type.__mro__ if cls in describers)
+            handled_type = next(handled_superclasses)
+
+        # Default to Python hashing
+        except (AttributeError, StopIteration):
+            describer = DefaultDescriber
+
+        else:
+            describer = describers[handled_type]
+
+    return describer(type_info)
 
 
 class TypeSerialiserAbstract:
+    is_mutable = False
 
     def __init__(self, type_info, logger=None):
         pass
@@ -152,6 +153,9 @@ class TypeSerialiserAbstract:
         raise NotImplementedError
 
     def unpack_multiple(self, bytes_string, count, offset=0):
+        raise NotImplementedError
+
+    def unpack_merge(self, previous_value, bytes_string, offset=0):
         raise NotImplementedError
 
     def size(self, bytes_string):

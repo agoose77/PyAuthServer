@@ -76,7 +76,8 @@ class ReplicatedFunctionsDescriptor:
 
     def __init__(self):
         self._descriptor_stores = {}
-        self._descriptors = []
+
+        self.function_descriptors = []
 
     def __get__(self, instance, owner):
         if instance is None:
@@ -84,15 +85,12 @@ class ReplicatedFunctionsDescriptor:
 
         return self._descriptor_stores[instance]
 
-    def add_descriptor(self, descriptor):
-        self._descriptors.append(descriptor)
-
     def bind_instance(self, instance):
         cls = instance.__class__
 
         # Bind child descriptors
         descriptor_store = {}
-        for descriptor in self._descriptors:
+        for descriptor in self.function_descriptors:
             descriptor.bind_instance(instance)
             descriptor_store[descriptor.index] = descriptor.__get__(instance, cls)
 
@@ -100,6 +98,9 @@ class ReplicatedFunctionsDescriptor:
 
     def unbind_instance(self, instance):
         del self._descriptor_stores[instance]
+
+        for descriptor in self.function_descriptors:
+            descriptor.unbind_instance(instance)
 
 
 class ReplicatedFunctionBase:

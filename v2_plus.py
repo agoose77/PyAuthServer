@@ -1,9 +1,23 @@
-from network_2.type_serialisers import TypeInfo
 from network_2.world import World
 from network_2.replicable import Replicable
 from network_2.enums import Netmodes, Roles
 from network_2.replication import Serialisable
 from network_2.network import NetworkManager
+from network_2.struct import Struct
+
+
+class Vector(Struct):
+
+    x = Serialisable(0)
+    y = Serialisable(0)
+    z = Serialisable(0)
+
+
+class ManyVectors(Struct):
+    a = Serialisable(Vector())
+    b = Serialisable(Vector())
+    c = Serialisable(Vector())
+    d = Serialisable(Vector())
 
 
 class Replicable1(Replicable):
@@ -18,20 +32,15 @@ class Replicable1(Replicable):
 class Replicable2(Replicable1):
     score = Serialisable(data_type=int, flag_on_assignment=True)
     roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
-
-    dates = Serialisable([], element_flag=TypeInfo(int))
+    struct = Serialisable(data_type=ManyVectors)
 
     def can_replicate(self, is_owner, is_initial):
         yield "score"
+        yield "struct"
         yield "roles"
 
     def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.client:
         super().do_work(x, y)
-
-
-from network_2.errors import NetworkError
-class SomeError(NetworkError):
-    pass
 
 
 class Rules:
@@ -64,6 +73,9 @@ client_network.connect_to("localhost", 1200)
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
 server_replicable.score = 15
+server_replicable.struct = ManyVectors()
+server_replicable.struct.a.x = 12
+#server_replicable.struct.x = 12
 server_replicable.do_work(1, "JAMES")
 
 client_network.send(True)
@@ -71,5 +83,8 @@ server_network.receive()
 server_network.send(True)
 client_network.receive()
 
-print(client_scene.replicables[0].dates)
+struct = client_scene.replicables[0].struct
 
+from network_2.type_serialisers import get_serialiser_for
+serialiser = get_serialiser_for(struct.__class__)
+print(serialiser.pack(struct))

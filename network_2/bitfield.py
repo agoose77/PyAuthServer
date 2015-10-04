@@ -1,4 +1,4 @@
-from .type_serialisers import get_handler_for
+from .type_serialisers import get_serialiser_for
 from .serialiser import bits_to_bytes, next_or_equal_power_of_two
 
 __all__ = ["BitField", "NamedBitField"]
@@ -178,7 +178,7 @@ else:
                 self._handler = _cached_handlers[size]
 
             except KeyError:
-                self._handler = _cached_handlers[size] = get_handler_for(int, max_bits=size)
+                self._handler = _cached_handlers[size] = get_serialiser_for(int, max_bits=size)
 
         def to_bytes(self):
             """Represent bitfield as bytes"""

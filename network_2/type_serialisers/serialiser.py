@@ -1,5 +1,5 @@
 from network_2.bitfield import BitField
-from network_2.type_serialisers import get_handler, get_handler_for
+from network_2.type_serialisers import get_serialiser, get_serialiser_for
 
 __all__ = ["FlagSerialiser"]
 
@@ -21,7 +21,7 @@ class FlagSerialiser:
         """
         self.bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is bool]
         self.non_bool_args = [(key, flag) for key, flag in arguments.items() if flag.data_type is not bool]
-        self.non_bool_handlers = [(key, get_handler(flag, logger=logger.getChild(repr(key)) if logger else None))
+        self.non_bool_handlers = [(key, get_serialiser(flag, logger=logger.getChild(repr(key)) if logger else None))
                                   for key, flag in self.non_bool_args]
 
         self.enumerated_non_bool_handlers = list(enumerate(self.non_bool_handlers))
@@ -39,8 +39,8 @@ class FlagSerialiser:
         # Additional two bits when including NoneType and Boolean values
         self.content_bits = BitField(self.total_contents + 2)
 
-        self.boolean_packer = get_handler_for(BitField, fields=self.total_booleans)
-        self.contents_packer = get_handler_for(BitField, fields=len(self.content_bits))
+        self.boolean_packer = get_serialiser_for(BitField, fields=self.total_booleans)
+        self.contents_packer = get_serialiser_for(BitField, fields=len(self.content_bits))
 
     def report_information(self, bytes_string, offset=0):
         """Display the contents of a serialised stream
@@ -83,7 +83,6 @@ class FlagSerialiser:
         :param bytes_string: packed data
         """
         contents_packer = self.contents_packer
-        print(bytes_string,offset)
         contents_size = contents_packer.unpack_merge(self.content_bits, bytes_string, offset)
         return contents_size
 
@@ -135,7 +134,7 @@ class FlagSerialiser:
 
             else:
                 previous_value = previous_values.get(key)
-                if previous_value is not None and hasattr(handler, "unpack_merge"):
+                if previous_value is not None and handler.is_mutable:
                     # If we can't merge use default unpack
                     value_size = handler.unpack_merge(previous_value, bytes_string, offset)
                     value = previous_value

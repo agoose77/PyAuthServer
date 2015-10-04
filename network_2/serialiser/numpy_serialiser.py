@@ -1,7 +1,7 @@
 from math import ceil
 
 from numpy import uint8, uint16, uint32, uint64, float32, float64, fromstring
-from network_2.type_serialisers import register_handler
+from network_2.type_serialisers import register_serialiser
 
 
 __all__ = ['NumpyStruct', 'UInt16', 'UInt32', 'UInt64', 'UInt8', 'Float32', 'Float64', 'bits_to_bytes',
@@ -145,8 +145,8 @@ class StringSerialiser(BytesSerialiser):
 
 
 # Register handlers for native types
-register_handler(bool, BoolSerialiser)
-register_handler(str, StringSerialiser, is_callable=True)
-register_handler(bytes, BytesSerialiser, is_callable=True)
-register_handler(int, int_selector, is_callable=True)
-register_handler(float, float_selector, is_callable=True)
+register_serialiser(bool, BoolSerialiser)
+register_serialiser(str, StringSerialiser, is_callable=True)
+register_serialiser(bytes, BytesSerialiser, is_callable=True)
+register_serialiser(int, int_selector, is_callable=True)
+register_serialiser(float, float_selector, is_callable=True)

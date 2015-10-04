@@ -1,3 +1,3 @@
-from .manager import TypeInfo, get_handler, get_handler_for, register_handler, register_description, TypeSerialiserAbstract, \
-    static_description
+from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_serialiser, register_describer, \
+    TypeSerialiserAbstract, get_describer
 from .serialiser import FlagSerialiser

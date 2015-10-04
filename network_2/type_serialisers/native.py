@@ -5,11 +5,15 @@ __all__ = ['ReplicableTypeSerialiser', 'RolesSerialiser', 'ReplicableSerialiser'
 from ..bitfield import BitField
 from ..enums import IterableCompressionType, Roles
 from ..replicable import Replicable
+from ..struct import Struct
 
-from .manager import TypeInfo, get_handler, get_handler_for, register_description, register_handler, TypeSerialiserAbstract
+from .serialiser import FlagSerialiser
+from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_describer, register_serialiser, \
+    get_describer, TypeSerialiserAbstract
 # from .iterators import partition_iterable
 # from .encoding import RunLengthCodec
 
+from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import signature
 from itertools import chain
@@ -36,7 +40,7 @@ def is_variable_sized(packer):
 
 class ReplicableTypeSerialiser(TypeSerialiserAbstract):
 
-    string_packer = get_handler_for(str)
+    string_packer = get_serialiser_for(str)
 
     def pack(self, cls):
         return self.string_packer.pack(cls.__name__)
@@ -59,7 +63,7 @@ class ReplicableTypeSerialiser(TypeSerialiserAbstract):
 
 
 class RolesSerialiser(TypeSerialiserAbstract):
-    packer = get_handler_for(int)
+    packer = get_serialiser_for(int)
 
     def pack(self, roles):
         """Pack roles for client.
@@ -98,6 +102,8 @@ class IterableSerialiser(TypeSerialiserAbstract):
     iterable_update = None
     unique_members = False
 
+    is_mutable = True
+
     def __init__(self, type_info, logger):
         try:
             element_flag = type_info.data['element_flag']
@@ -110,9 +116,9 @@ class IterableSerialiser(TypeSerialiserAbstract):
         variable_bitfield_flag = TypeInfo(BitField)
 
         self.element_type = element_flag.data_type
-        self.element_packer = get_handler(element_flag)
-        self.count_packer = get_handler(count_flag)
-        self.bitfield_packer = get_handler(variable_bitfield_flag)
+        self.element_packer = get_serialiser(element_flag)
+        self.count_packer = get_serialiser(count_flag)
+        self.bitfield_packer = get_serialiser(variable_bitfield_flag)
 
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
@@ -405,7 +411,7 @@ class ReplicableSerialiser(TypeSerialiserAbstract):
 
     def __init__(self, type_info, logger):
         id_flag = TypeInfo(int, max_value=MAXIMUM_REPLICABLES)
-        self._packer = get_handler(id_flag)
+        self._packer = get_serialiser(id_flag)
         self._logger = logger
 
     @classmethod
@@ -478,48 +484,68 @@ class ReplicableSerialiser(TypeSerialiserAbstract):
 
 
 class StructSerialiser(TypeSerialiserAbstract):
+    is_mutable = True
 
     def __init__(self, type_info, logger):
-        self.struct_cls = type_info.data_type
+        struct_cls = type_info.data_type
+        if struct_cls is Struct:
+            raise TypeError("Struct class has no members, cannot be serialised")
 
-        if self.struct_cls is Struct:
-            raise TypeError("A Serialiser has been requested for the Struct base type, not enough information to \
-            deserialise")
+        self._struct_cls = struct_cls
 
-        self.size_packer = get_handler_for(int, max_value=1000)
+        serialisable_map = OrderedDict([(s, s) for s in struct_cls.serialisable_data.serialisables])
+        self._serialiser = FlagSerialiser(serialisable_map)
+        # To avoid packing all state
+        self._describers = OrderedDict([(s, get_describer(s)) for s in struct_cls.serialisable_data.serialisables])
+        self._default_descriptions = {s: d(s.initial_value) for s, d in self._describers.items()}
 
     def pack(self, struct):
-        bytes_string = struct.to_bytes()
-        return self.size_packer.pack(len(bytes_string)) + bytes_string
+        describers = self._describers
+        initial_descriptions = self._default_descriptions
+        # Values for data which is different to defaults
+        data = {s: v for s, v in struct.serialisable_data.items() if describers[s](v) != initial_descriptions[s]}
+        as_bytes = self._serialiser.pack(data)
+        return as_bytes
 
     def pack_multiple(self, structs, count):
-        struct_data = [struct.to_bytes() for struct in structs]
-        lengths = [len(x) for x in struct_data]
-        size_data = self.size_packer.pack_multiple(lengths, count)
-        return b''.join(size_data + struct_data)
+        pack = self._serialiser.pack
 
-    def unpack_from(self, bytes_string, offset=0):
-        struct = self.struct_cls()
-        struct_size = self.unpack_merge(struct, bytes_string, offset)
-        return struct, struct_size
+        as_bytes = []
+        for struct in structs:
+            as_bytes.append(pack(struct.serialisable_data))
 
-    def unpack_merge(self, struct, bytes_string, offset=0):
-        struct_size, length_size = self.size_packer.unpack_from(bytes_string, offset)
-        struct.read_bytes(bytes_string, length_size + offset)
-        return length_size + struct_size
+        return ''.join(as_bytes)
 
     def unpack_multiple(self, bytes_string, count, offset=0):
-        structs = []
-        for _ in range(count):
-            struct = self.struct_cls()
-            structs.append(struct)
-            struct_size, length_size = self.size_packer.unpack_from(bytes_string, offset)
-            struct.read_bytes(bytes_string, length_size + offset)
-            offset += length_size + struct_size
+        start_offset = offset
 
-    def size(self, bytes_string):
-        struct_size, length_size = self.size_packer.unpack_from(bytes_string)
-        return struct_size + length_size
+        struct_cls = self._struct_cls
+        new = struct_cls.__new__
+
+        unpack = self._serialiser.unpack
+
+        structs = []
+        for i in range(count):
+            data, read_bytes = unpack(bytes_string, offset)
+
+            struct = new(struct_cls)
+            struct.serialisable_data.update(data)
+            struct.append(struct)
+
+            offset += read_bytes
+
+        return structs, offset - start_offset
+
+    def unpack_merge(self, struct, bytes_string, offset=0):
+        data, read_bytes = self._serialiser.unpack(bytes_string, offset)
+        struct.serialisable_data.update(data)
+        return read_bytes
+
+    def unpack_from(self, bytes_string, offset=0):
+        struct = self._struct_cls.__new__(self._struct_cls)
+        data, read_bytes = self._serialiser.unpack(bytes_string, offset)
+        struct.serialisable_data.update(data)
+        return struct, read_bytes
 
 
 class BitFieldSerialiser(TypeSerialiserAbstract):
@@ -537,7 +563,7 @@ class BitFieldSerialiser(TypeSerialiserAbstract):
             self.size = self.variable_size
 
             # packer used to pack the length of the fields, not the field values themselves
-            self._packer = get_handler_for(int, max_bits=8)
+            self._packer = get_serialiser_for(int, max_bits=8)
 
         else:
             self.pack = self.fixed_pack
@@ -546,7 +572,7 @@ class BitFieldSerialiser(TypeSerialiserAbstract):
             self.unpack_multiple = self.fixed_pack_multiple
             self.size = self.fixed_size
             self._size = fields
-            self._packer = get_handler_for(int, max_bits=fields)
+            self._packer = get_serialiser_for(int, max_bits=fields)
             self._packed_size = BitField.calculate_footprint(fields)
 
     def fixed_pack(self, field):
@@ -610,21 +636,36 @@ class BitFieldSerialiser(TypeSerialiserAbstract):
         return self.field_cls.calculate_footprint(field_size) + packed_size
 
 
-# Define this before Struct
-register_handler(BitField, BitFieldSerialiser)
+register_serialiser(BitField, BitFieldSerialiser)
+register_serialiser(Struct, StructSerialiser)
+register_serialiser(Roles, RolesSerialiser)
+register_serialiser(list, ListSerialiser)
+register_serialiser(set, SetSerialiser)
+register_serialiser(Replicable, ReplicableSerialiser)
 
-# Handle circular dependancy
-# from .struct import Struct
-# register_handler(Struct, StructSerialiser)
 
-register_handler(Roles, RolesSerialiser)
-register_handler(list, ListSerialiser)
-register_handler(set, SetSerialiser)
+class StructDescriber:
+
+    def __init__(self, type_info):
+        struct_cls = type_info.data_type
+        if struct_cls is Struct:
+            raise TypeError("Struct class has no members, cannot be described")
+
+        self._struct_cls = struct_cls
+
+        self._describers = OrderedDict([(s, get_describer(s)) for s in struct_cls.serialisable_data.serialisables])
+
+    def __call__(self, struct):
+        if struct is None:
+            descriptions = ()
+        else:
+            data = struct.serialisable_data
+            descriptions = [d(data[s]) for s, d in self._describers.items()]
+        return hash(tuple(descriptions))
 
 # Below need fixing
-register_handler(Replicable, ReplicableSerialiser)
-register_handler(type(Replicable), ReplicableTypeSerialiser)
-
-register_description(type(Replicable), class_type_description)
-register_description(list, iterable_description)
-register_description(set, iterable_description)
+# register_serialiser(type(Replicable), ReplicableTypeSerialiser)
+# register_describer(type(Replicable), class_type_description)
+# register_describer(list, iterable_description)
+# register_describer(set, iterable_description)
+register_describer(Struct, StructDescriber)

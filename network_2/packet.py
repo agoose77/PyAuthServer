@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from .type_serialisers import get_handler_for
+from .type_serialisers import get_serialiser_for
 
 __all__ = ['PacketCollection', 'Packet']
 
@@ -153,7 +153,7 @@ class Packet(NetworkPacketBase):
     """
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
-    _protocol_handler = get_handler_for(int)
+    _protocol_handler = get_serialiser_for(int)
 
     def __init__(self, protocol=None, payload=b'', *, reliable=False, on_success=None, on_failure=None):
         # Force reliability for callbacks
@@ -262,7 +262,7 @@ class Packet(NetworkPacketBase):
     __bytes__ = to_bytes
 
 
-_size_handler = get_handler_for(int, max_value=1000)
+_size_handler = get_serialiser_for(int, max_value=1000)
 
 
 def create_group(payload):

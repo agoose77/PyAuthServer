@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
+from weakref import WeakKeyDictionary
 
 from ..type_serialisers import TypeInfo
 
@@ -7,17 +8,14 @@ from ..type_serialisers import TypeInfo
 class SerialisableDataStoreDescriptor:
 
     def __init__(self):
-        self._data_stores = {}
-        self._serialisables = []
+        self._data_stores = WeakKeyDictionary()
+        self.serialisables = []
 
     def __get__(self, instance, cls):
         if instance is None:
             return self
 
         return self._data_stores[instance]
-
-    def add_serialisable(self, serialisable):
-        self._serialisables.append(serialisable)
 
     def bind_instance(self, instance):
         self._data_stores[instance] = self._initialise_data_store()
@@ -28,7 +26,7 @@ class SerialisableDataStoreDescriptor:
     def _initialise_data_store(self):
         data_store = OrderedDict()
 
-        for serialisable in self._serialisables:
+        for serialisable in self.serialisables:
             data_store[serialisable] = deepcopy(serialisable.initial_value)
 
         return data_store

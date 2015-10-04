@@ -4,7 +4,7 @@ from .helpers import register_protocol_listeners, get_state_senders, on_protocol
 from .replication import ClientReplicationManager, ServerReplicationManager
 from ..errors import NetworkError
 from ..enums import ConnectionStates, PacketProtocols, Netmodes
-from ..type_serialisers import get_handler_for
+from ..type_serialisers import get_serialiser_for
 from ..packet import Packet
 
 
@@ -29,8 +29,8 @@ class HandshakeManagerBase:
         self._last_received_time = clock()
 
         # Additional data
-        self.netmode_packer = get_handler_for(int)
-        self.string_packer = get_handler_for(str)
+        self.netmode_packer = get_serialiser_for(int)
+        self.string_packer = get_serialiser_for(str)
 
         # Register listeners
         register_protocol_listeners(self, connection.messenger)

@@ -3,7 +3,7 @@ from collections import defaultdict
 from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, \
     ReplicableChannelBase
 from ...enums import PacketProtocols, Roles
-from ...type_serialisers import get_handler_for
+from ...type_serialisers import get_serialiser_for
 from ...packet import Packet, PacketCollection
 from ...replicable import Replicable
 from ..helpers import on_protocol, register_protocol_listeners
@@ -65,8 +65,8 @@ class ServerReplicationManager(ReplicationManagerBase):
 
         self.deleted_channels = []
 
-        self._string_handler = get_handler_for(str)
-        self._bool_handler = get_handler_for(bool)
+        self._string_handler = get_serialiser_for(str)
+        self._bool_handler = get_serialiser_for(bool)
 
         self.scene_id_counter = 0
         self.scene_to_scene_id = {}
@@ -239,8 +239,8 @@ class ClientReplicationManager(ReplicationManagerBase):
     def __init__(self, world, connection):
         super().__init__(world, connection)
 
-        self._string_handler = get_handler_for(str)
-        self._bool_handler = get_handler_for(bool)
+        self._string_handler = get_serialiser_for(str)
+        self._bool_handler = get_serialiser_for(bool)
 
         self._pending_notifications = defaultdict(list)
         connection.post_receive_callbacks.append(self._dispatch_notifications)

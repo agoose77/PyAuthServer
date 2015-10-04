@@ -5,7 +5,7 @@ from functools import partial
 from time import clock
 from operator import attrgetter
 
-from ...type_serialisers import get_handler_for, static_description, FlagSerialiser
+from ...type_serialisers import get_serialiser_for, get_describer, FlagSerialiser
 from ...replicable import Replicable
 
 
@@ -18,7 +18,7 @@ class ReplicableChannelBase:
     Belongs to an instance of Replicable and a connection
     """
 
-    id_handler = get_handler_for(Replicable)
+    id_handler = get_serialiser_for(Replicable)
 
     def __init__(self, scene_channel, replicable):
         # Store important info
@@ -40,7 +40,7 @@ class ReplicableChannelBase:
         serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
-        self._rpc_id_handler = get_handler_for(int)
+        self._rpc_id_handler = get_serialiser_for(int)
         self.packed_id = self.__class__.id_handler.pack(replicable)
 
     @property
@@ -177,11 +177,9 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._last_replicated_descriptions = {serialisable: static_description(serialisable.initial_value)
-                                              for serialisable in self._serialisable_data}
-
-        self._name_to_serialisable = {serialisable.name: serialisable for serialisable in self._serialisable_data}
+        self._name_to_serialisable = {s.name: s for s in self._serialisable_data}
+        self._serialisable_to_describer = describers = {s: get_describer(s) for s in self._serialisable_data}
+        self._last_replicated_descriptions = {s: describers[s](s.initial_value) for s in self._serialisable_data}
 
     @property
     def replication_priority(self):
@@ -206,7 +204,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
         replicable = self.replicable
         name_to_serialisable = self._name_to_serialisable
 
-        get_description = static_description
+        describers = self._serialisable_to_describer
         serialisable_data = self._serialisable_data
 
         # Local access
@@ -230,7 +228,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
                 # Get value hash
                 # Use the complaint hash if it is there to save computation
-                new_description = get_description(value)
+                new_description = describers[serialisable](value)
 
                 # If values match, don't update
                 if last_description == new_description:
@@ -260,7 +258,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 class SceneChannelBase:
 
     channel_class = None
-    id_handler = get_handler_for(int)
+    id_handler = get_serialiser_for(int)
 
     def __init__(self, manager, scene, scene_id):
         self.scene = scene

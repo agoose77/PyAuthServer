@@ -1,7 +1,7 @@
 from math import ceil
 from struct import Struct
 
-from ..type_serialisers import register_handler
+from ..type_serialisers import register_serialiser
 
 
 __all__ = ['bits_to_bytes', 'next_or_equal_power_of_two']
@@ -250,10 +250,9 @@ def _bool_handler(flag, logger):
     return BoolSerialiser
 
 
-
 # Register handlers for native types
-register_handler(str, _StringSerialiser)
-register_handler(bytes, _BytesSerialiser)
-register_handler(int, _int_handler)
-register_handler(bool, _bool_handler)
-register_handler(float, _float_handler)
+register_serialiser(str, _StringSerialiser)
+register_serialiser(bytes, _BytesSerialiser)
+register_serialiser(int, _int_handler)
+register_serialiser(bool, _bool_handler)
+register_serialiser(float, _float_handler)
