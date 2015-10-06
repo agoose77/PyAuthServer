@@ -32,8 +32,14 @@ class Scene(ProtectedInstance):
         if not is_static:
             unique_id = self._unique_ids.take()
 
+        # Just create replicable
         with Replicable._grant_authority():
-            replicable = replicable_cls(self, unique_id, is_static)
+            replicable = replicable_cls.__new__(replicable_cls, self, unique_id, is_static)
+
+        self.messenger.send("replicable_created", replicable)
+
+        # Now initialise replicable
+        replicable.__init__(self, unique_id, is_static)
 
         # Contest id if already in use
         if unique_id in self.replicables:
@@ -50,13 +56,14 @@ class Scene(ProtectedInstance):
         return replicable
 
     def remove_replicable(self, replicable):
-        self.messenger.send("replicable_removed", replicable)
-
         unique_id = replicable.unique_id
         self.replicables.pop(unique_id)
         self._unique_ids.retire(unique_id)
 
+        self.messenger.send("replicable_removed", replicable)
+
         replicable.on_destroyed()
+        self.messenger.send("replicable_destroyed", replicable)
 
     @restricted_method
     def on_destroyed(self):

@@ -67,15 +67,79 @@ class Rules:
 # How do resources fit into world-paradigm? (Environment?)
 #
 
+
+class ITransformComponent:
+
+    position = None
+    rotation = None
+    parent = None
+
+
+class IPhysicsComponent:
+
+    velocity = None
+    angular = None
+    collision_group = None
+    collision_mask = None
+
+
+class Actor(Replicable):
+    components = ()
+
+
+class ReplicableFactory:
+
+    def __init__(self, environment):
+        self._environment = environment
+
+    def on_created_actor(self, replicable):
+        # 1. Load config
+        # 2. create components
+        pass
+
+    def on_destroyed_actor(self, replicable):
+        pass
+
+    def on_created(self, replicable):
+        if isinstance(replicable, Actor):
+            self.on_created_actor(replicable)
+
+    def on_destroyed(self, replicable):
+        if isinstance(replicable, Actor):
+            self.on_destroyed_actor(replicable)
+
+
+class Game:
+
+    def __init__(self, world, network_manager):
+        self.world = world
+        self.network_manager = network_manager
+
+        self.factories = {}
+
+        world.messenger.add_subscriber("scene_added", self.configure_scene)
+
+    def configure_scene(self, scene):
+        self.factories[scene] = factory = ReplicableFactory('panda')
+
+        scene.messenger.add_subscriber("replicable_created", factory.on_created)
+        scene.messenger.add_subscriber("replicable_destroyed", factory.on_destroyed)
+
+
 server_world = World(Netmodes.server)
 server_world.rules = Rules()
+server_network = NetworkManager(server_world, "localhost", 1200)
+server_game = Game(server_world, server_network)
+
 server_scene = server_world.add_scene("Scene")
 server_replicable = server_scene.add_replicable(Replicable2)
-server_network = NetworkManager(server_world, "localhost", 1200)
+server_actor = server_scene.add_replicable(Actor)
 
 client_world = World(Netmodes.client)
-client_scene = client_world.add_scene("Scene")
 client_network = NetworkManager(client_world, "localhost", 0)
+client_game = Game(client_world, client_network)
+
+client_scene = client_world.add_scene("Scene")
 client_network.connect_to("localhost", 1200)
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))

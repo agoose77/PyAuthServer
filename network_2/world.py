@@ -29,5 +29,5 @@ class World:
         with Scene._grant_authority():
             scene.on_destroyed()
 
-        self.messenger.send("scene_removed", scene)
         self.scenes.pop(scene.name)
+        self.messenger.send("scene_removed", scene)

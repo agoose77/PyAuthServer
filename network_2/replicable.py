@@ -8,16 +8,6 @@ from .replication import is_replicated_function, ReplicatedFunctionQueueDescript
     ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
 
 
-def enforce_call_roles(namespace):
-    result = namespace.copy()
-
-    for name, value in namespace.items():
-        if isfunction(value):
-            result[name] = requires_permission(value)
-
-    return result
-
-
 class ReplicableMetacls(NamedSubclassTracker):
 
     @classmethod
@@ -86,12 +76,16 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     replicate_to_owner = True
     replicate_temporarily = False
 
-    def __init__(self, scene, unique_id, is_static=False):
+    def __new__(cls, scene, unique_id, is_static=False):
+        self = super().__new__(cls)
+
         self._scene = scene
         self._unique_id = unique_id
         self._is_static = is_static
 
         self._bind_descriptors()
+
+        return self
 
     def _bind_descriptors(self):
         """Bind instance to class descriptors for replication"""
@@ -131,6 +125,9 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     @restricted_method
     def on_destroyed(self):
         self._unbind_descriptors()
+
+        self._scene = None
+        self._unique_id = None
 
     @restricted_method
     def change_unique_id(self, unique_id):
