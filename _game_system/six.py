@@ -20,15 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from __future__ import absolute_import
-
 import functools
 import operator
 import sys
 import types
 
 __author__ = "Benjamin Peterson <benjamin@python.org>"
-__version__ = "1.8.0"
+__version__ = "1.7.3"
 
 
 # Useful for very coarse version differentiation.
@@ -70,12 +68,12 @@ else:
 
 
 def _add_doc(func, doc):
-    """Add documentation to a function."""
+    """Add documentation to a function"""
     func.__doc__ = doc
 
 
 def _import_module(name):
-    """Import module, returning the module after the last dot."""
+    """Import module, returning the module after the last dot"""
     __import__(name)
     return sys.modules[name]
 
@@ -227,12 +225,10 @@ _moved_attributes = [
     MovedAttribute("filter", "itertools", "builtins", "ifilter", "filter"),
     MovedAttribute("filterfalse", "itertools", "itertools", "ifilterfalse", "filterfalse"),
     MovedAttribute("input", "__builtin__", "builtins", "raw_input", "input"),
-    MovedAttribute("intern", "__builtin__", "sys"),
     MovedAttribute("map", "itertools", "builtins", "imap", "map"),
     MovedAttribute("range", "__builtin__", "builtins", "xrange", "range"),
     MovedAttribute("reload_module", "__builtin__", "imp", "reload"),
     MovedAttribute("reduce", "__builtin__", "functools"),
-    MovedAttribute("shlex_quote", "pipes", "shlex", "quote"),
     MovedAttribute("StringIO", "StringIO", "io"),
     MovedAttribute("UserDict", "UserDict", "collections"),
     MovedAttribute("UserList", "UserList", "collections"),
@@ -252,7 +248,6 @@ _moved_attributes = [
     MovedModule("html_parser", "HTMLParser", "html.parser"),
     MovedModule("http_client", "httplib", "http.client"),
     MovedModule("email_mime_multipart", "email.MIMEMultipart", "email.mime.multipart"),
-    MovedModule("email_mime_nonmultipart", "email.MIMENonMultipart", "email.mime.nonmultipart"),
     MovedModule("email_mime_text", "email.MIMEText", "email.mime.text"),
     MovedModule("email_mime_base", "email.MIMEBase", "email.mime.base"),
     MovedModule("BaseHTTPServer", "BaseHTTPServer", "http.server"),
@@ -322,13 +317,6 @@ _urllib_parse_moved_attributes = [
     MovedAttribute("unquote_plus", "urllib", "urllib.parse"),
     MovedAttribute("urlencode", "urllib", "urllib.parse"),
     MovedAttribute("splitquery", "urllib", "urllib.parse"),
-    MovedAttribute("splittag", "urllib", "urllib.parse"),
-    MovedAttribute("splituser", "urllib", "urllib.parse"),
-    MovedAttribute("uses_fragment", "urlparse", "urllib.parse"),
-    MovedAttribute("uses_netloc", "urlparse", "urllib.parse"),
-    MovedAttribute("uses_params", "urlparse", "urllib.parse"),
-    MovedAttribute("uses_query", "urlparse", "urllib.parse"),
-    MovedAttribute("uses_relative", "urlparse", "urllib.parse"),
 ]
 for attr in _urllib_parse_moved_attributes:
     setattr(Module_six_moves_urllib_parse, attr.name, attr)
@@ -462,12 +450,12 @@ _importer._add_module(Module_six_moves_urllib(__name__ + ".moves.urllib"),
 
 
 def add_move(move):
-    """Add an item to six.moves."""
+    """Add an item to six.moves"""
     setattr(_MovedItems, move.name, move)
 
 
 def remove_move(name):
-    """Remove item from six.moves."""
+    """Remove item from six.moves"""
     try:
         delattr(_MovedItems, name)
     except AttributeError:
@@ -618,15 +606,13 @@ if PY3:
 
 
     def reraise(tp, value, tb=None):
-        if value is None:
-            value = tp()
         if value.__traceback__ is not tb:
             raise value.with_traceback(tb)
         raise value
 
 else:
     def exec_(_code_, _globs_=None, _locs_=None):
-        """Execute code in a namespace."""
+        """Execute code in a namespace"""
         if _globs_ is None:
             frame = sys._getframe(1)
             _globs_ = frame.f_globals
@@ -646,7 +632,7 @@ else:
 print_ = getattr(moves.builtins, "print", None)
 if print_ is None:
     def print_(*args, **kwargs):
-        """The new-style print function for Python 2.4 and 2.5."""
+        """The new-style print function for Python 2.4 and 2.5"""
         fp = kwargs.pop("file", sys.stdout)
         if fp is None:
             return
@@ -698,11 +684,10 @@ if print_ is None:
             write(arg)
         write(end)
 
-_add_doc(reraise, """Reraise an exception.""")
+_add_doc(reraise, """Reraise an exception""")
 
 if sys.version_info[0:2] < (3, 4):
-    def wraps(wrapped, assigned=functools.WRAPPER_ASSIGNMENTS,
-              updated=functools.WRAPPER_UPDATES):
+    def wraps(wrapped):
         def wrapper(f):
             f = functools.wraps(wrapped)(f)
             f.__wrapped__ = wrapped
@@ -712,7 +697,7 @@ else:
     wraps = functools.wraps
 
 def with_metaclass(meta, *bases):
-    """Create a base class with a metaclass."""
+    """Create a base class with a metaclass"""
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with
     # the actual metaclass.
@@ -723,17 +708,17 @@ def with_metaclass(meta, *bases):
 
 
 def add_metaclass(metaclass):
-    """Class decorator for creating a class with a metaclass."""
+    """Class decorator for creating a class with a metaclass"""
     def wrapper(cls):
         orig_vars = cls.__dict__.copy()
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
         slots = orig_vars.get('__slots__')
         if slots is not None:
             if isinstance(slots, str):
                 slots = [slots]
             for slots_var in slots:
                 orig_vars.pop(slots_var)
-        orig_vars.pop('__dict__', None)
-        orig_vars.pop('__weakref__', None)
         return metaclass(cls.__name__, cls.__bases__, orig_vars)
     return wrapper
 

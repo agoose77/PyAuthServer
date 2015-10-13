@@ -1,5 +1,5 @@
 from math import ceil
-from struct import Struct
+from struct import Struct, pack, unpack_from
 
 from ..type_serialisers import register_serialiser
 

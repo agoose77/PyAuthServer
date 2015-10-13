@@ -28,6 +28,10 @@ class Scene(ProtectedInstance):
         self.replicables[unique_id] = existing
 
     def add_replicable(self, replicable_cls, unique_id=None):
+        # Check type of replicable
+        if not issubclass(replicable_cls, Replicable):
+            raise TypeError("Expected Replicable subclass, received '{}'".format(replicable_cls.__name__))
+
         is_static = unique_id is not None
         if not is_static:
             unique_id = self._unique_ids.take()
