@@ -33,6 +33,7 @@ class SerialisableDataStoreDescriptor:
 
 
 class Serialisable(TypeInfo):
+    """Serialisable data attribute"""
 
     __slots__ = ("notify_on_replicated", "initial_value", "name")
 

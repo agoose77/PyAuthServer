@@ -89,6 +89,14 @@ class SomeEntity(Entity):
     mesh = MeshComponent("player")
     transform = TransformComponent(position=(0, 0, 0), orientation=(0, 0, 0))
 
+    def on_replicated(self, name):
+        print(name, "replicated!")
+
+    def on_score_replicated(self):
+        print(self.score, "Updated")
+
+    score = Serialisable(data_type=int, notify_on_replicated=True, on_replicated=on_score_replicated)
+
 
 class SomeEntityBuilder(EntityBuilderBase):
     component_classes = {}
@@ -111,6 +119,7 @@ SomeEntityBuilder.register_class(MeshComponent, SomeMeshComponent)
 
 eb = SomeEntityBuilder()
 
+
 def on_new_replicable(replicable):
     if isinstance(replicable, Entity):
         eb.load_entity(replicable)
@@ -124,6 +133,7 @@ server_game = Game(server_world, server_network)
 server_scene = server_world.add_scene("Scene")
 server_scene.messenger.add_subscriber("replicable_created", on_new_replicable)
 server_replicable = server_scene.add_replicable(SomeEntity)
+server_replicable.score = 100
 
 client_world = World(Netmodes.client)
 client_network = NetworkManager(client_world, "localhost", 0)
