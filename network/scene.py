@@ -1,97 +1,78 @@
-from .metaclasses.register import InstanceRegister
-from .metaclasses.context import AggregateContext
-from .descriptors import ContextMember
+from collections import OrderedDict
+
+from .factory import ProtectedInstance, UniqueIDPool, restricted_method
+from .messages import MessagePasser
 from .replicable import Replicable
-from .signals import Signal, SceneRegisteredSignal, SceneUnregisteredSignal
 
 
-class CurrentSceneContext:
+class Scene(ProtectedInstance):
 
-    def __init__(self, scene):
-        self.scene = scene
-        self._current_scene = None
-
-    def __enter__(self):
-        cls = self.scene.__class__
-        self._current_scene = cls.current_scene
-        cls.current_scene = self.scene
-
-    def __exit__(self, *exc_args):
-        cls = self.scene.__class__
-        cls.current_scene = self._current_scene
-        self._current_scene = None
-
-
-class NetworkScene(metaclass=InstanceRegister):
-
-    current_scene = ContextMember(None)
-    allow_random_key = True
-
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, world, name):
+        self.world = world
         self.name = name
 
-        # Create context
-        replicable_context = Replicable.create_context_manager(name)
-        signal_context = Signal.create_context_manager(name)
-        set_current_scene = CurrentSceneContext(self)
-        self._context = AggregateContext(replicable_context, signal_context, set_current_scene)
+        self.messenger = MessagePasser()
+        self.replicables = OrderedDict()
 
-        super().__init__(*args, **kwargs)
+        self._unique_ids = UniqueIDPool(255)
 
-    def __enter__(self):
-        return self._context.__enter__()
+    @restricted_method
+    def contest_id(self, unique_id, contestant, existing):
+        self.replicables[unique_id] = contestant
 
-    def __exit__(self, *exc_args):
-        self._context.__exit__(*exc_args)
+        # Re-associate existing
+        unique_id = self._unique_ids.take()
+        with Replicable._grant_authority():
+            existing.change_unique_id(unique_id)
+
+        self.replicables[unique_id] = existing
+
+    def add_replicable(self, replicable_cls, unique_id=None):
+        is_static = unique_id is not None
+        if not is_static:
+            unique_id = self._unique_ids.take()
+
+        # Just create replicable
+        with Replicable._grant_authority():
+            replicable = replicable_cls.__new__(replicable_cls, self, unique_id, is_static)
+
+        self.messenger.send("replicable_created", replicable)
+
+        # Now initialise replicable
+        replicable.__init__(self, unique_id, is_static)
+
+        # Contest id if already in use
+        if unique_id in self.replicables:
+            existing = self.replicables[unique_id]
+
+            with Scene._grant_authority():
+                self.contest_id(unique_id, replicable, existing)
+
+        else:
+            self.replicables[unique_id] = replicable
+
+        self.messenger.send("replicable_added", replicable)
+
+        return replicable
+
+    def remove_replicable(self, replicable):
+        unique_id = replicable.unique_id
+        self.replicables.pop(unique_id)
+        self._unique_ids.retire(unique_id)
+
+        self.messenger.send("replicable_removed", replicable)
+
+        replicable.on_destroyed()
+        self.messenger.send("replicable_destroyed", replicable)
+
+    @restricted_method
+    def on_destroyed(self):
+        # Release all replicables
+        while self.replicables:
+            replicable = next(iter(self.replicables.values()))
+            self.remove_replicable(replicable)
 
     def __repr__(self):
-        return "<NetworkScene '{}'>".format(self.name)
+        return "<'{}' scene>".format(self.name)
 
-    # @classmethod
-    # def create_or_return(cls, instance_id):
-    #     """Creates a replicable if it is not already registered.
-    #
-    #     Called by the replication system to establish
-    #     :py:class:`network.replicable.Replicable` references.
-    #
-    #     If the instance_id is registered, take precedence over non-static
-    #     instances.
-    #     """
-    #     # Try and match an existing instance
-    #     try:
-    #         existing = cls[instance_id]
-    #
-    #     # If we don't find one, make one
-    #     except KeyError:
-    #         existing = None
-    #
-    #     else:
-    #         # If we find a locally defined replicable
-    #         # If instance_id was None when created -> not static
-    #         # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
-    #         if existing._local_authority:
-    #             # Make the class and overwrite the id
-    #             existing = None
-    #
-    #     if existing is None:
-    #         existing = cls(instance_id=instance_id, static=False)
-    #
-    #     # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
-    #     roles = existing.roles
-    #     roles.local, roles.remote = roles.remote, roles.local
-    #
-    #     return existing
 
-    def on_registered(self):
-        super().on_registered()
-
-        SceneRegisteredSignal.invoke(target=self)
-
-    def on_deregistered(self):
-        SceneUnregisteredSignal.invoke(target=self)
-
-        with self._context:
-            Replicable.clear_graph()
-            Signal.clear_graph()
-
-        super().on_deregistered()

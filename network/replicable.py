@@ -1,265 +1,153 @@
-from collections import defaultdict
+from collections import OrderedDict
+from inspect import isfunction
 
-from .descriptors import Attribute
+from .annotations.decorators import requires_permission
 from .enums import Roles
-from .logger import logger
-from .metaclasses.register import ReplicableRegister
-from .signals import ReplicableRegisteredSignal, ReplicableUnregisteredSignal
+from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
+from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
+    ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
 
 
-__all__ = ['Replicable']
+class ReplicableMetacls(NamedSubclassTracker):
+
+    @classmethod
+    def get_root(metacls, bases):
+        for base_cls in reversed(bases):
+            if isinstance(base_cls, metacls):
+                return base_cls
+
+    def __prepare__(name, bases):
+        return OrderedDict()
+
+    def __new__(metacls, name, bases, namespace):
+        replicated_function_queue = namespace['replicated_function_queue'] = ReplicatedFunctionQueueDescriptor()
+        replicated_functions = namespace['replicated_functions'] = ReplicatedFunctionsDescriptor()
+        serialisable_data = namespace['serialisable_data'] = SerialisableDataStoreDescriptor()
+
+        serialisables = serialisable_data.serialisables
+        function_descriptors = replicated_functions.function_descriptors
+
+        # Inherit from parent classes
+        for cls in reversed(bases):
+            if not isinstance(cls, ReplicableMetacls):
+                continue
+
+            serialisables.extend(cls.serialisable_data.serialisables)
+            function_descriptors.extend(cls.replicated_functions.function_descriptors)
+
+        # Check this is not the root class
+        root = metacls.get_root(bases)
+
+        function_index = 0
+
+        # Register serialisables, including parent-class members
+        for attr_name, value in namespace.items():
+            if attr_name.startswith("__"):
+                continue
+
+            if isinstance(value, Serialisable):
+                value.name = attr_name
+                serialisables.append(value)
+
+            if isfunction(value):
+                if is_replicated_function(value):
+                    descriptor = ReplicatedFunctionDescriptor(value, function_index)
+                    function_descriptors.append(descriptor)
+
+                    function_index += 1
+                    value = descriptor
+
+                # Wrap function with permission wrapper
+                if root and not hasattr(root, attr_name):
+                    value = requires_permission(value)
+
+                namespace[attr_name] = value
+
+        return super().__new__(metacls, name, bases, namespace)
 
 
-class Replicable(metaclass=ReplicableRegister):
+class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
+    roles = Serialisable(Roles(Roles.authority, Roles.none))
+    owner = Serialisable(data_type="<Replicable>") # Temp data type
+    torn_off = Serialisable(False, notify_on_replicated=True)
 
-    """Base class for all network involved objects
-    Supports Replicated Function calls, Attribute replication
-    and Signal subscription"""
+    replication_update_period = 1 / 30
+    replication_priority = 1
+    replicate_to_owner = True
+    replicate_temporarily = False
 
-    MAXIMUM_REPLICABLES = 255
+    def __new__(cls, scene, unique_id, is_static=False):
+        self = super().__new__(cls)
 
-    roles = Attribute(Roles(Roles.authority, Roles.none), notify=True)
-    owner = Attribute(complain=True, notify=True)
-    torn_off = Attribute(False, complain=True, notify=True)
+        self._scene = scene
+        self._unique_id = unique_id
+        self._is_static = is_static
 
-    allow_random_key = True
+        self._bind_descriptors()
 
-    # Dictionary of class-owned instances
-    subclasses = {}
+        return self
 
-    def __init__(self, instance_id=None, static=True, **kwargs):
-        # If this is a locally authoritative
-        self._local_authority = False
+    def _bind_descriptors(self):
+        """Bind instance to class descriptors for replication"""
+        cls = self.__class__
 
-        # If this is a static mapping (requires static flag and a matchable ID)
-        self._static = static and instance_id is not None
+        cls.replicated_function_queue.bind_instance(self)
+        cls.serialisable_data.bind_instance(self)
+        cls.replicated_functions.bind_instance(self)
 
-        # Setup the attribute storage
-        self._attribute_container.register_storage_interfaces()
-        self._rpc_container.register_storage_interfaces()
+    def _unbind_descriptors(self):
+        cls = self.__class__
 
-        self.owner = None
+        cls.replicated_functions.unbind_instance(self)
+        cls.replicated_function_queue.unbind_instance(self)
+        cls.serialisable_data.unbind_instance(self)
 
-        # Replication properties
-        self.relevant_to_owner = True
-        self.always_relevant = False
+    @property
+    def root(self):
+        replicable = self
+        while replicable.owner:
+            replicable = replicable.owner
 
-        self.replicate_temporarily = False
-        self.replication_priority = 1.0
-        self.replication_update_period = 1 / 20
+        return replicable
 
-        # Instantiate parent (this is when the creation callback may be called)
-        super().__init__(instance_id=instance_id, **kwargs)
+    def can_replicate(self, is_owner, is_initial):
+        if is_initial:
+            yield "roles"
 
-        # TODO maybe save construction context, and warn if attempt to modify graph from different context!
+        yield "owner"
+        yield "torn_off"
 
-    def __description__(self):
-        """Returns a hash-like description for this replicable.
+    def on_replicated(self, name):
+        if name == "torn_off":
+            if self.torn_off:
+                self.roles.local = Roles.authority
 
-        Used by replication system to determine if reference has changed
-        :rtype: int"""
-        return id(self)
+    @restricted_method
+    def on_destroyed(self):
+        self._unbind_descriptors()
 
-    def __repr__(self):
-        class_name = self.__class__.__name__
+        self._scene = None
+        self._unique_id = None
 
-        if not self.registered:
-            return "(Replicable {})".format(class_name)
+    @restricted_method
+    def change_unique_id(self, unique_id):
+        self._unique_id = unique_id
 
-        return "(Replicable {0}: id={1.instance_id})".format(class_name, self)
+    @property
+    def unique_id(self):
+        return self._unique_id
 
     @property
     def is_static(self):
-        return self._static
+        return self._is_static
 
     @property
-    def uppermost(self):
-        """Walks the successive owner of each Replicable to find highest parent
+    def scene(self):
+        return self._scene
 
-        :returns: uppermost parent
-        :rtype: :py:class:`network.replicable.Replicable` or :py:class:`None`
-        """
-        last = None
-        replicable = self
-
-        # Walk the parent tree until no parent
-        try:
-            while replicable is not None:
-                last, replicable = replicable, replicable.owner
-
-        except AttributeError:
-            pass
-
-        return last
-
-    def conditions(self, is_owner, is_complaint, is_initial):
-        """Condition generator that determines replicated attributes.
-
-        Attributes yielded are still subject to conditions before sending
-
-        :param is_owner: if the current :py:class:`network.channel.Channel`\
-        is the owner
-        :param is_complaint: if any complaining variables have been changed
-        :param is_initial: if this is the first replication for this target
-        """
-        if is_complaint or is_initial:
-            yield "roles"
-            yield "owner"
-            yield "torn_off"
-
-    @classmethod
-    def create_or_return(cls, instance_id):
-        """Creates a replicable if it is not already registered.
-
-        Called by the replication system to establish
-        :py:class:`network.replicable.Replicable` references.
-
-        If the instance_id is registered, take precedence over non-static
-        instances.
-        """
-        # Try and match an existing instance
-        try:
-            existing = cls[instance_id]
-
-        # If we don't find one, make one
-        except KeyError:
-            existing = None
-
-        else:
-            # If we find a locally defined replicable
-            # If instance_id was None when created -> not static
-            # This may cause issues if IDs are recycled before torn_off / temporary entities are destroyed
-            if existing._local_authority:
-                # Make the class and overwrite the id
-                existing = None
-
-        if existing is None:
-            existing = cls(instance_id=instance_id, static=False)
-
-        # Perform incomplete role switch when spawning (later set by server, to include autonomous->simulated conversion)
-        roles = existing.roles
-        roles.local, roles.remote = roles.remote, roles.local
-
-        return existing
-
-    @classmethod
-    def get_id_iterable(cls):
-        """Create iterator up to maximum replicable count
-
-        :returns: range up to maximum ID
-        :rtype: iterable
-        """
-        return range(cls.MAXIMUM_REPLICABLES)
-
-    def on_registered(self):
-        """Called on registered of replicable.
-
-        Registers instance to type list
-        """
-        super().on_registered()
-
-        # Register type information
-        cls = self.__class__
-
-        subclass_cache = cls._of_subclass_cache
-        type_cache = cls._of_type_cache
-
-        # Cache subtypes
-        for base_cls in cls.__mro__:
-            try:
-                instances = subclass_cache[base_cls]
-
-            except KeyError:
-                instances = subclass_cache[base_cls] = set()
-
-            instances.add(self)
-
-        # Cache the type
-        try:
-            instances = type_cache[cls]
-
-        except KeyError:
-            instances = type_cache[cls] = set()
-
-        instances.add(self)
-
-        ReplicableRegisteredSignal.invoke(target=self)
-
-    def on_deregistered(self):
-        """Called on unregistered of replicable.
-
-        Removes instance from type list
-        """
-        self.unpossessed()
-
-        # Register type information
-        cls = self.__class__
-
-        subclass_cache = cls._of_subclass_cache
-        type_cache = cls._of_type_cache
-
-        # Uncache subtypes
-        for base_cls in cls.__mro__:
-            instances = subclass_cache[base_cls]
-            instances.remove(self)
-
-            if not instances:
-                subclass_cache.pop(base_cls)
-
-        # Uncache the type
-        instances = type_cache[cls]
-        instances.remove(self)
-
-        if not instances:
-            type_cache.pop(cls)
-
-        ReplicableUnregisteredSignal.invoke(target=self)
-
-        super().on_deregistered()
-
-    def on_notify(self, name):
-        """Called on notifier attribute change
-
-        :param name: name of attribute that has changed
-        """
-        pass
-
-    def register(self):
-        # If replicable instantiated without ID, must be local, cannot be static
-        if self.instance_id is None:
-            self._local_authority = True
-            self._static = False
-
-        super().register()
-
-    def resolve_id_conflict(self, instance_id, conflicting_instance):
-        # If the instance is not local, then we have a conflict
-        error_message = "Authority over instance id {} cannot be resolved".format(instance_id)
-        assert conflicting_instance._local_authority, error_message
-
-        # Forces reassignment of instance id
-        conflicting_instance.on_deregistered()
-
-        logger.info("Resolved Replicable instance ID conflict")
-
-        # Re register
-        conflicting_instance.instance_id = None
-        conflicting_instance.register()
-
-    def possessed_by(self, other):
-        """Called on possession by other replicable
-
-        :param other: other replicable (owner)
-        """
-        self.owner = other
-
-    def unpossessed(self):
-        """Called on unpossession by replicable.
-
-        May be due to death of replicable
-        """
-        self.owner = None
+    def __repr__(self):
+        return "<{}.{}::{} replicable>".format(self.scene, self.__class__.__name__, self.unique_id)
 
 
-# Circular Reference on attribute
+# Circular dependency
 Replicable.owner.data_type = Replicable

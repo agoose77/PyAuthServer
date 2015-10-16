@@ -14,6 +14,7 @@ __all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'with
 
 _get_current_netmode = None
 
+
 def set_netmode_getter(func):
     global _get_current_netmode
     _get_current_netmode = func
@@ -136,11 +137,12 @@ def requires_netmode(netmode):
 
     def wrapper(func):
         @wraps(func)
-        def _wrapper(*args, **kwargs):
-            if _get_current_netmode() != netmode:
+        def _wrapper(self, *args, **kwargs):
+            if self.scene.world.netmode != netmode:
                 return
 
-            return func(*args, **kwargs)
+            bound_func = func.__get__(self, self.__class__)
+            return bound_func(*args, **kwargs)
 
         return _wrapper
 
@@ -158,7 +160,7 @@ def requires_permission(func):
     func_is_simulated = is_simulated(func)
 
     @wraps(func)
-    def func_wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         # Check that the assumed instance/class has roles
         try:
             arg_roles = self.roles
@@ -171,9 +173,9 @@ def requires_permission(func):
 
         # Permission checks
         if local_role > simulated_proxy or (func_is_simulated and local_role == simulated_proxy):
-            return func(self, *args, **kwargs)
+            return func.__get__(self, self.__class__)(*args, **kwargs)
 
-    return func_wrapper
+    return wrapper
 
 
 class IgnoredArgumentsDescriptor:

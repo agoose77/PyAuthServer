@@ -1,8 +1,7 @@
-from game_system.geometry.utilities import quad_area, point_in_polygon
-
-from network.utilities import mean
-
 from functools import lru_cache
+
+from _game_system.geometry.utilities import quad_area, point_in_polygon
+from network.utilities import mean
 
 
 class PandaPolygon:

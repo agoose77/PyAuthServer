@@ -10,14 +10,15 @@ from network.enums import Netmodes, Roles
 from network.tagged_delegate import DelegateByNetmode
 from network.replicable import Replicable
 from network.signals import SignalListener, ReplicableUnregisteredSignal
-from game_system.controllers import PlayerPawnController
-from game_system.entities import Actor
-from game_system.enums import CollisionState, PhysicsType
-from game_system.latency_compensation import PhysicsExtrapolator
-from game_system.physics import CollisionContact, LazyCollisionResult
-from game_system.signals import *
+from _game_system.controllers import PlayerPawnController
+from _game_system.entities import Actor
+from _game_system.enums import CollisionState, PhysicsType
+from _game_system.latency_compensation import PhysicsExtrapolator
+from _game_system.physics import CollisionContact, LazyCollisionResult
+from _game_system.signals import *
 from .definitions import entity_from_nodepath
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
+
 
 loadPrcFileData('', 'bullet-enable-contact-events true')
 

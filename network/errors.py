@@ -1,10 +1,10 @@
-from .metaclasses.register import TypeRegister
+from .factory import NamedSubclassTracker
 
 __all__ = ['NetworkError', 'ConnectionTimeoutError', 'ReplicableAccessError']
 
 
-class NetworkError(Exception, metaclass=TypeRegister):
-    subclasses = {}
+class NetworkError(Exception, metaclass=NamedSubclassTracker):
+    pass
 
 
 class ConnectionTimeoutError(NetworkError):

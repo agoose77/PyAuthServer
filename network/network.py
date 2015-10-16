@@ -1,11 +1,11 @@
-from .connection import Connection
-from .enums import Netmodes
-from .streams import create_handshake_manager
-
 from random import random
 from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
+
+from .connection import Connection
+from .streams import create_handshake_manager
+
 
 __all__ = ['BaseTransport', 'UnreliableSocketWrapper', 'NetworkManager', 'NetworkMetrics']
 
@@ -176,7 +176,7 @@ class MulticastDiscovery:
         address, port = multicast_host
         intf = gethostbyname(gethostname())
 
-        multicast_socket = BaseTransport("", port)
+        multicast_socket = DefaultTransport("", port)
 
         multicast_socket.setsockopt(SOL_IP, IP_MULTICAST_IF, inet_aton(intf))
         multicast_socket.setsockopt(SOL_IP, IP_ADD_MEMBERSHIP,
@@ -226,21 +226,18 @@ class MulticastDiscovery:
 class NetworkManager:
     """Network management class"""
 
-    def __init__(self, address, port, netmode, transport_cls=DefaultTransport):
-        transport = transport_cls()
-        self._transport = DefaultTransport(address, port)
+    def __init__(self, world, address, port, transport_cls=DefaultTransport):
+        self._transport = transport = transport_cls(address, port)
 
         self.connections = {}
 
         self.address = transport.address
         self.port = transport.port
-        self.netmode = netmode
+        self.world = world
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
         self.receive_buffer_size = 63553
-
-        self.rules = None
 
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
@@ -258,10 +255,11 @@ class NetworkManager:
 
     def _create_or_return_connection(self, connection_info):
         try:
-            return Connection[connection_info]
+            return self.connections[connection_info]
 
         except KeyError:
-            connection = Connection(connection_info, self)
+            with Connection._grant_authority():
+                connection = self.connections[connection_info] = Connection(connection_info)
 
         self.on_new_connection(connection)
         return connection
@@ -277,18 +275,17 @@ class NetworkManager:
 
         while True:
             try:
-                address, data = receive(buff_size)
+                data, address = receive(buff_size)
 
             except TransportEmptyError:
                 return
 
-            payload, _ = data
             on_received_bytes(len(data))
 
-            yield data
+            yield data, address
 
     def on_new_connection(self, connection):
-        connection.handshake_manager = create_handshake_manager(self.netmode, connection)
+        connection.handshake_manager = create_handshake_manager(self.world, connection)
 
     def receive(self):
         """Receive all data from socket"""
@@ -309,15 +306,14 @@ class NetworkManager:
         :param full_update: whether this is a full send call
         """
         send_func = self.send_to
-
         # Send all queued data
-        for connection in list(Connection):
+        for address, connection in list(self.connections.items()):
             # Give the option to send nothing
             messages = connection.request_messages(full_update)
 
             # If returns data, send it
             for message in messages:
-                send_func(message, connection.instance_id)
+                send_func(message, address)
 
     def send_to(self, data, address):
         """Send data to remote peer
@@ -347,8 +343,3 @@ class NetworkManager:
         """Close network socket"""
         self._transport.close()
         self.multicast.stop()
-
-
-def create_network_manager(world, address="", port=0):
-    netmode = world.netmode
-    return NetworkManager(address, port, netmode)

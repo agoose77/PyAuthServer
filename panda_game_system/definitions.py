@@ -9,14 +9,14 @@ from panda3d.core import Filename, Vec3, GeomVertexReader, BitMask32, Point3, Bo
 from network.annotations.decorators import with_tag
 from network.signals import SignalListener
 from network.tagged_delegate import FindByTag
-from game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, NavigationPath
-from game_system.coordinates import Euler, Vector
-from game_system.definitions import ComponentLoader, ComponentLoaderResult
-from game_system.geometry.kdtree import KDTree
-from game_system.geometry.utilities import get_random_point, get_random_polygon
-from game_system.enums import Axis, CollisionGroups, PhysicsType
-from game_system.physics import RayTestResult
-from game_system.resources import ResourceManager
+from _game_system.pathfinding.algorithm import NavmeshAStarAlgorithm, FunnelAlgorithm, NavigationPath
+from _game_system.coordinates import Euler, Vector
+from _game_system.definitions import ComponentLoader, ComponentLoaderResult
+from _game_system.geometry.kdtree import KDTree
+from _game_system.geometry.utilities import get_random_point, get_random_polygon
+from _game_system.enums import Axis, CollisionGroups, PhysicsType
+from _game_system.physics import RayTestResult
+from _game_system.resources import ResourceManager
 from .pathfinding import PandaNavmeshNode
 from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
 

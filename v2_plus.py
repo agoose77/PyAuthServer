@@ -1,9 +1,9 @@
-from network_2.world import World
-from network_2.replicable import Replicable
-from network_2.enums import Netmodes, Roles
-from network_2.replication import Serialisable
-from network_2.network import NetworkManager
-from network_2.struct import Struct
+from network.world import World
+from network.replicable import Replicable
+from network.enums import Netmodes, Roles
+from network.replication import Serialisable
+from network.network import NetworkManager
+from network.struct import Struct
 
 
 class Vector(Struct):
@@ -68,47 +68,6 @@ class Rules:
 #
 
 
-class ITransformComponent:
-
-    position = None
-    rotation = None
-    parent = None
-
-
-class IPhysicsComponent:
-
-    velocity = None
-    angular = None
-    collision_group = None
-    collision_mask = None
-
-
-class Actor(Replicable):
-    components = ()
-
-
-class ReplicableFactory:
-
-    def __init__(self, environment):
-        self._environment = environment
-
-    def on_created_actor(self, replicable):
-        # 1. Load config
-        # 2. create components
-        pass
-
-    def on_destroyed_actor(self, replicable):
-        pass
-
-    def on_created(self, replicable):
-        if isinstance(replicable, Actor):
-            self.on_created_actor(replicable)
-
-    def on_destroyed(self, replicable):
-        if isinstance(replicable, Actor):
-            self.on_destroyed_actor(replicable)
-
-
 class Game:
 
     def __init__(self, world, network_manager):
@@ -120,10 +79,41 @@ class Game:
         world.messenger.add_subscriber("scene_added", self.configure_scene)
 
     def configure_scene(self, scene):
-        self.factories[scene] = factory = ReplicableFactory('panda')
+        pass
 
-        scene.messenger.add_subscriber("replicable_created", factory.on_created)
-        scene.messenger.add_subscriber("replicable_destroyed", factory.on_destroyed)
+from game_system.entities import Entity, MeshComponent, TransformComponent, EntityBuilderBase
+
+
+class SomeEntity(Entity):
+
+    mesh = MeshComponent("player")
+    transform = TransformComponent(position=(0, 0, 0), orientation=(0, 0, 0))
+
+
+class SomeEntityBuilder(EntityBuilderBase):
+    component_classes = {}
+
+
+class SomeTransformComponent:
+
+    def __init__(self, entity, transform):
+        print("Set position", transform.position, entity)
+
+
+class SomeMeshComponent:
+
+    def __init__(self, entity, mesh):
+        print("Set mesh", mesh.mesh_name, entity)
+
+SomeEntityBuilder.register_class(TransformComponent, SomeTransformComponent)
+SomeEntityBuilder.register_class(MeshComponent, SomeMeshComponent)
+
+
+eb = SomeEntityBuilder()
+
+def on_new_replicable(replicable):
+    if isinstance(replicable, Entity):
+        eb.load_entity(replicable)
 
 
 server_world = World(Netmodes.server)
@@ -132,8 +122,8 @@ server_network = NetworkManager(server_world, "localhost", 1200)
 server_game = Game(server_world, server_network)
 
 server_scene = server_world.add_scene("Scene")
-server_replicable = server_scene.add_replicable(Replicable2)
-server_actor = server_scene.add_replicable(Actor)
+server_scene.messenger.add_subscriber("replicable_created", on_new_replicable)
+server_replicable = server_scene.add_replicable(SomeEntity)
 
 client_world = World(Netmodes.client)
 client_network = NetworkManager(client_world, "localhost", 0)
@@ -143,15 +133,12 @@ client_scene = client_world.add_scene("Scene")
 client_network.connect_to("localhost", 1200)
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
-server_replicable.score = 15
-server_replicable.struct = ManyVectors()
-server_replicable.struct.a.x = 12
-server_replicable.do_work(1, "JAMES")
+# server_replicable.score = 15
+# server_replicable.struct = ManyVectors()
+# server_replicable.struct.a.x = 12
+# server_replicable.do_work(1, "JAMES")
 
 client_network.send(True)
 server_network.receive()
 server_network.send(True)
 client_network.receive()
-
-struct = client_scene.replicables[0].struct
-print(struct)

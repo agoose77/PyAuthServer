@@ -1,8 +1,8 @@
-from game_system.enums import ButtonState, InputButtons
-from game_system.coordinates import Vector
-from game_system.inputs import InputState
-
 from direct.showbase import DirectObject
+
+from _game_system.enums import ButtonState, InputButtons
+from _game_system.coordinates import Vector
+from _game_system.inputs import InputState
 
 
 __all__ = ['PandaInputManager', 'PandaMouseManager']
