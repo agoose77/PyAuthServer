@@ -55,8 +55,8 @@ class Rules:
         world = replication_manager.world
         scene = world.scenes["Scene"]
 
-        replicable = scene.add_replicable(Replicable2)
-        root_replicables.add(replicable)
+        # replicable = scene.add_replicable(Replicable2)
+        # root_replicables.add(replicable)
 
     def is_relevant(self, replicable):
         print(replicable, "REL?")
@@ -81,7 +81,7 @@ class Game:
     def configure_scene(self, scene):
         pass
 
-from game_system.entities import Entity, MeshComponent, TransformComponent, EntityBuilderBase
+from game_system.entity import Entity, MeshComponent, TransformComponent
 
 
 class SomeEntity(Entity):
@@ -89,41 +89,21 @@ class SomeEntity(Entity):
     mesh = MeshComponent("player")
     transform = TransformComponent(position=(0, 0, 0), orientation=(0, 0, 0))
 
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+        yield "score"
+
     def on_replicated(self, name):
         print(name, "replicated!")
 
     def on_score_replicated(self):
         print(self.score, "Updated")
 
-    score = Serialisable(data_type=int, notify_on_replicated=True, on_replicated=on_score_replicated)
+    score = Serialisable(data_type=int, notify_on_replicated=True)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
 
 
-class SomeEntityBuilder(EntityBuilderBase):
-    component_classes = {}
-
-
-class SomeTransformComponent:
-
-    def __init__(self, entity, transform):
-        print("Set position", transform.position, entity)
-
-
-class SomeMeshComponent:
-
-    def __init__(self, entity, mesh):
-        print("Set mesh", mesh.mesh_name, entity)
-
-SomeEntityBuilder.register_class(TransformComponent, SomeTransformComponent)
-SomeEntityBuilder.register_class(MeshComponent, SomeMeshComponent)
-
-
-eb = SomeEntityBuilder()
-
-
-def on_new_replicable(replicable):
-    if isinstance(replicable, Entity):
-        eb.load_entity(replicable)
-
+from bge_game_system.game import Game
 
 server_world = World(Netmodes.server)
 server_world.rules = Rules()
@@ -131,7 +111,6 @@ server_network = NetworkManager(server_world, "localhost", 1200)
 server_game = Game(server_world, server_network)
 
 server_scene = server_world.add_scene("Scene")
-server_scene.messenger.add_subscriber("replicable_created", on_new_replicable)
 server_replicable = server_scene.add_replicable(SomeEntity)
 server_replicable.score = 100
 
@@ -143,10 +122,6 @@ client_scene = client_world.add_scene("Scene")
 client_network.connect_to("localhost", 1200)
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
-# server_replicable.score = 15
-# server_replicable.struct = ManyVectors()
-# server_replicable.struct.a.x = 12
-# server_replicable.do_work(1, "JAMES")
 
 client_network.send(True)
 server_network.receive()

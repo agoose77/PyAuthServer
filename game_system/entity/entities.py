@@ -1,5 +1,7 @@
 from network.replicable import ReplicableMetacls, Replicable
 
+from .components import ClassComponent
+
 
 class EntityMetacls(ReplicableMetacls):
 
@@ -14,7 +16,7 @@ class EntityMetacls(ReplicableMetacls):
             components.update(cls.components)
 
         for attr_name, value in namespace.items():
-            if isinstance(value, GenericComponent):
+            if isinstance(value, ClassComponent):
                 components[attr_name] = value
 
         return super().__new__(metacls, name, bases, namespace)
@@ -34,34 +36,18 @@ class EntityBuilderBase:
             instance_component = instance_component_cls(entity, component)
             setattr(entity, component_name, instance_component)
 
+    def unload_entity(self, entity):
+        for component_name, component in entity.components.items():
+            instance_component = getattr(entity, component_name)
+            instance_component.on_destroyed()
+
+            delattr(entity, component_name)
 
     @classmethod
     def register_class(cls, generic_class, specific_class):
         cls.component_classes[generic_class] = specific_class
 
 
-class GenericComponent:
-
-    pass
-
-
-class GraphicsComponent(GenericComponent):
-    pass
-
-
-class MeshComponent(GraphicsComponent):
-
-    def __init__(self, mesh_name):
-        self.mesh_name = mesh_name
-
-
-class TransformComponent(GenericComponent):
-
-    def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0)):
-        self.position = position
-        self.orientation = orientation
-
-
 class Entity(Replicable, metaclass=EntityMetacls):
 
-    pass
+    """Base class for networked component holders"""
