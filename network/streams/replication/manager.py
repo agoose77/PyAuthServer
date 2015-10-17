@@ -316,7 +316,6 @@ class ClientReplicationManager(ReplicationManagerBase):
     @on_protocol(PacketProtocols.update_attributes)
     def on_update_attributes(self, packet):
         payload = packet.payload
-
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
 
         scene_channel = self.scene_channels[scene_id]

@@ -1,8 +1,7 @@
-__all__ = "ClassComponent", "GraphicsComponent", "MeshComponent", "TransformComponent"
+__all__ = "ClassComponent", "GraphicsComponent", "MeshComponent", "TransformComponent", "Inst"
 
 
 class ClassComponent:
-
     pass
 
 

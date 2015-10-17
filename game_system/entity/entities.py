@@ -26,17 +26,26 @@ class EntityBuilderBase:
 
     component_classes = None
 
+    def create_component(self, entity, class_component, component_cls):
+        raise NotImplementedError()
+
     def load_entity(self, entity):
+        self.load_components(entity)
+
+    def load_components(self, entity):
         for component_name, component in entity.components.items():
             try:
                 instance_component_cls = self.component_classes[component.__class__]
             except KeyError:
                 raise RuntimeError("No component class is registered for ({}){}.{}"
                                    .format(component.__class__.__name__, entity.__class__.__name__, component_name))
-            instance_component = instance_component_cls(entity, component)
+            instance_component = self.create_component(entity, component, instance_component_cls)
             setattr(entity, component_name, instance_component)
 
     def unload_entity(self, entity):
+        self.unload_components(entity)
+
+    def unload_components(self, entity):
         for component_name, component in entity.components.items():
             instance_component = getattr(entity, component_name)
             instance_component.on_destroyed()

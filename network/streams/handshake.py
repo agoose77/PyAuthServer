@@ -178,7 +178,7 @@ class ClientHandshakeManager(HandshakeManagerBase):
         self.logger.error("Authentication failed: {}".format(repr(raised_error)))
         self.state = ConnectionStates.failed
 
-        self.world.messenger.send("connection_error", {'error': raised_error, 'connection': self.connection})
+        self.world.messenger.send("connection_error", error=raised_error, connection=self.connection)
 
 
 def create_handshake_manager(world, connection):

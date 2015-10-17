@@ -248,6 +248,8 @@ class ServerReplicableChannel(ReplicableChannelBase):
             if to_serialise:
                 # Returns packed data
                 data = self._serialiser.pack(to_serialise)
+                print("PACKED", data, to_serialise)
+                print("UNPACKED", self._serialiser.unpack(data))
 
             else:
                 data = None

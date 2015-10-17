@@ -31,3 +31,9 @@ class World:
 
         self.scenes.pop(scene.name)
         self.messenger.send("scene_removed", scene)
+
+    def tick(self):
+        self.messenger.send("tick")
+
+        for scene in self.scenes.values():
+            scene.tick()

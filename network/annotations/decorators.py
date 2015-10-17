@@ -5,19 +5,11 @@ from .conditions import is_simulated, is_annotatable
 from ..enums import Roles
 
 
-__all__ = ['reliable', 'simulated', 'signal_listener', 'requires_netmode', 'with_tag', 'ignore_arguments',
-           'set_annotation', 'set_annotation', 'get_annotation', 'IgnoredArgumentsDescriptor', 'simulate_methods']
+__all__ = ['reliable', 'simulated', 'requires_netmode', 'ignore_arguments', 'set_annotation', 'set_annotation',
+           'get_annotation', 'IgnoredArgumentsDescriptor', 'simulate_methods']
 
 
 """API functions to modify function behaviour"""
-
-
-_get_current_netmode = None
-
-
-def set_netmode_getter(func):
-    global _get_current_netmode
-    _get_current_netmode = func
 
 
 def set_annotation(name):
@@ -81,19 +73,6 @@ def get_annotation(name, default=None, modify=False):
     return wrapper
 
 
-def with_tag(value):
-
-    def wrapper(func):
-        func._tag = value
-        func.update_cache()
-        return func
-
-    return wrapper
-
-has_tag = lambda func: hasattr(func, '_tag')
-get_tag = lambda func: func._tag
-
-
 def reliable(func):
     """Mark a function to be reliably replicated
 
@@ -110,21 +89,6 @@ def simulated(func):
     :returns: function that was passed as func
     """
     return set_annotation("simulated")(True)(func)
-
-
-def signal_listener(signal_type, global_listener):
-    """Create a closure decorator that marks the function as a signal on_context
-
-    :param signal_type: signal class
-    :param global_listener: flag that allows global invocation
-    :returns: decorator function
-    """
-    def wrapper(func):
-        signals = get_annotation('signals', default=[], modify=True)(func)
-        signals.append((signal_type, not global_listener))
-        return func
-
-    return wrapper
 
 
 def requires_netmode(netmode):
