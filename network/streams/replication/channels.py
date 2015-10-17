@@ -1,16 +1,12 @@
+__all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
+
+from collections import OrderedDict
 from functools import partial
 from time import clock
 from operator import attrgetter
 
-from ...annotations.conditions import is_reliable
-from ...type_flag import TypeFlag
-from ...flag_serialiser import FlagSerialiser
-from ...handlers import static_description, get_handler
+from ...type_serialisers import get_serialiser_for, get_describer, FlagSerialiser
 from ...replicable import Replicable
-from ...signals import SignalListener, ReplicableRegisteredSignal, ReplicableUnregisteredSignal
-
-
-__all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
 
 
 priority_getter = attrgetter("replication_priority")
@@ -22,7 +18,7 @@ class ReplicableChannelBase:
     Belongs to an instance of Replicable and a connection
     """
 
-    id_handler = get_handler(TypeFlag(Replicable))
+    id_handler = get_serialiser_for(Replicable)
 
     def __init__(self, scene_channel, replicable):
         # Store important info
@@ -34,22 +30,24 @@ class ReplicableChannelBase:
         self.is_initial = True
 
         # Get network attributes
-        self._attribute_storage = replicable._attribute_container
-        self._rpc_storage = replicable._rpc_container
+        self._serialisable_data = replicable.serialisable_data
+        self._replicated_functions = replicable.replicated_functions
+        self._replicated_function_queue = replicable.replicated_function_queue
 
         # Create a serialiser instance
         self.logger = scene_channel.logger.getChild("<Channel: {}>".format(repr(replicable)))
-        self._serialiser = FlagSerialiser(self._attribute_storage._ordered_mapping,
-                                         logger=self.logger.getChild("<FlagSerialiser>"))
 
-        self._rpc_id_handler = get_handler(TypeFlag(int))
+        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
+        self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
+
+        self._rpc_id_handler = get_serialiser_for(int)
         self.packed_id = self.__class__.id_handler.pack(replicable)
 
     @property
     def is_owner(self):
         """Return True if this channel is in the ownership tree of the connection replicable"""
         parent = self.replicable.uppermost
-
+        # TODO
         try:
             return parent == self.scene_channel.replicable
 
@@ -61,23 +59,22 @@ class ReplicableChannelBase:
 
         rpc_id (bytes) + body (bytes), reliable status (bool)
         """
-        id_packer = self._rpc_id_handler.pack
-        get_reliable = is_reliable
-
-        storage_data = self._rpc_storage.data
+        replicated_function_queue = self._replicated_function_queue
 
         reliable_rpc_calls = []
         unreliable_rpc_calls = []
 
-        for (method, data) in storage_data:
-            packed_rpc_call = id_packer(method.rpc_id) + data
+        id_packer = self._rpc_id_handler.pack
+        for (index, is_reliable, data) in replicated_function_queue:
+            packed_rpc_call = id_packer(index) + data
 
-            if get_reliable(method):
+            if is_reliable:
                 reliable_rpc_calls.append(packed_rpc_call)
+
             else:
                 unreliable_rpc_calls.append(packed_rpc_call)
 
-        storage_data.clear()
+        replicated_function_queue.clear()
 
         reliable_data = b''.join(reliable_rpc_calls)
         unreliable_data = b''.join(unreliable_rpc_calls)
@@ -97,29 +94,36 @@ class ReplicableChannelBase:
                 offset += rpc_header_size
 
                 try:
-                    rpc_instance = self._rpc_storage.functions[rpc_id]
+                    rpc_instance = self._replicated_functions[rpc_id]
 
                 except IndexError:
                     self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
                     break
 
                 else:
-                    offset += rpc_instance.invoke(data, offset)
+                    print(data, offset, "DES")
+                    arguments, bytes_read = rpc_instance.deserialise(data, offset)
+                    offset += bytes_read
 
+                    # Call RPC
+                    rpc_instance.function(**arguments)
+
+        # We don't have permission to execute this!
         else:
             while offset < len(data):
                 rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
                 offset += rpc_header_size
 
                 try:
-                    rpc_instance = self._rpc_storage.functions[rpc_id]
+                    rpc_instance = self._replicated_functions[rpc_id]
 
                 except IndexError:
                     self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
                     break
 
                 else:
-                    offset += rpc_instance.ignore(data, offset)
+                    arguments, bytes_read = rpc_instance.deserialise(data, offset)
+                    offset += bytes_read
 
         unpacked_bytes = offset - start_offset
         return unpacked_bytes
@@ -128,7 +132,8 @@ class ReplicableChannelBase:
 class ClientReplicableChannel(ReplicableChannelBase):
 
     def notify_callback(self, notifications):
-        invoke_notify = self.replicable.on_notify
+        invoke_notify = self.replicable.on_replicated
+
         for attribute_name in notifications:
             invoke_notify(attribute_name)
 
@@ -147,37 +152,34 @@ class ClientReplicableChannel(ReplicableChannelBase):
         :param bytes\_: byte stream of attribute
         """
         # Create local references outside loop
-        replicable_data = self._attribute_storage.data
-        get_attribute = self._attribute_storage.get_member_by_name
+        serialisable_data = self._serialisable_data
 
         notifications = []
-        notify = notifications.append
-
-        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, replicable_data, offset=offset)
-
-        for attribute_name, value in unpacked_items:
-            attribute = get_attribute(attribute_name)
-
-            # Store new value
-            replicable_data[attribute] = value
-
-            # Check if needs notification
-            if attribute.notify:
-                notify(attribute_name)
+        queue_notification = notifications.append
 
         # Notify after all values are set
-        notifier = partial(self.notify_callback, notifications)
+        notifier_callback = partial(self.notify_callback, notifications)
 
-        return notifier, read_bytes
+        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, offset, serialisable_data)
+        for serialisable, value in unpacked_items:
+
+            # Store new value
+            serialisable_data[serialisable] = value
+
+            # Check if needs notification
+            if serialisable.notify_on_replicated:
+                queue_notification(serialisable.name)
+
+        return notifier_callback, read_bytes
 
 
 class ServerReplicableChannel(ReplicableChannelBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.hash_dict = self._attribute_storage.get_default_descriptions()
-        self.complaint_dict = self._attribute_storage.get_default_complaints()
+        self._name_to_serialisable = {s.name: s for s in self._serialisable_data}
+        self._serialisable_to_describer = describers = {s: get_describer(s) for s in self._serialisable_data}
+        self._last_replicated_descriptions = {s: describers[s](s.initial_value) for s in self._serialisable_data}
 
     @property
     def replication_priority(self):
@@ -200,53 +202,43 @@ class ServerReplicableChannel(ReplicableChannelBase):
         """Return the serialised state of the managed network object"""
         # Get Replicable and its class
         replicable = self.replicable
+        name_to_serialisable = self._name_to_serialisable
+
+        describers = self._serialisable_to_describer
+        serialisable_data = self._serialisable_data
+
+        # Local access
+        last_replicated_descriptions = self._last_replicated_descriptions
+
+        # Store dict of attribute-> value
+        to_serialise = {}
 
         # Set role context
         with replicable.roles.set_context(is_owner):
-
-            # Local access
-            previous_hashes = self.hash_dict
-            previous_complaints = self.complaint_dict
-
-            complaint_hashes = self._attribute_storage.complaints
-            is_complaining = previous_complaints != complaint_hashes
-
             # Get names of Replicable attributes
-            can_replicate = replicable.conditions(is_owner, is_complaining, self.is_initial)
-
-            get_description = static_description
-            get_attribute = self._attribute_storage.get_member_by_name
-            attribute_data = self._attribute_storage.data
-
-            # Store dict of attribute-> value
-            to_serialise = {}
+            can_replicate = replicable.can_replicate(is_owner, self.is_initial)
 
             # Iterate over attributes
             for name in can_replicate:
-                # Get current value
-                attribute = get_attribute(name)
-                value = attribute_data[attribute]
+                serialisable = name_to_serialisable[name]
+                value = serialisable_data[serialisable]
 
                 # Check if the last hash is the same
-                last_hash = previous_hashes[attribute]
+                last_description = last_replicated_descriptions[serialisable]
 
                 # Get value hash
                 # Use the complaint hash if it is there to save computation
-                new_hash = complaint_hashes[attribute] if (attribute in complaint_hashes) else get_description(value)
+                new_description = describers[serialisable](value)
 
                 # If values match, don't update
-                if last_hash == new_hash:
+                if last_description == new_description:
                     continue
 
                 # Add value to data dict
-                to_serialise[name] = value
+                to_serialise[serialisable] = value
 
                 # Remember hash of value
-                previous_hashes[attribute] = new_hash
-
-                # Set new complaint hash if it was complaining
-                if attribute.complain and attribute in complaint_hashes:
-                    previous_complaints[attribute] = new_hash
+                last_replicated_descriptions[serialisable] = new_description
 
             # We must have now replicated
             self._last_replication_time = clock()
@@ -263,57 +255,62 @@ class ServerReplicableChannel(ReplicableChannelBase):
         return data
 
 
-class SceneChannelBase(SignalListener):
+class SceneChannelBase:
 
     channel_class = None
-    id_handler = get_handler(TypeFlag(int))
+    id_handler = get_serialiser_for(int)
 
-    def __init__(self, connection, scene):
+    def __init__(self, manager, scene, scene_id):
         self.scene = scene
-        self.connection = connection
+        self.scene_id = scene_id
+        self.manager = manager
 
-        self.logger = connection.logger.getChild("SceneChannel")
+        self.logger = manager.logger.getChild("SceneChannel")
 
-        self.packed_id = self.__class__.id_handler.pack(scene.instance_id)
+        self.packed_id = self.__class__.id_handler.pack(scene_id)
         self.replicable_channels = {}
 
         # Channels may be created after replicables were instantiated
-        with scene:
-            self.register_signals()
-            self.register_existing_replicables()
+        self.register_existing_replicables()
+
+        scene.messenger.add_subscriber("replicable_added", self.on_replicable_added)
+        scene.messenger.add_subscriber("replicable_remove", self.on_replicable_removed)
 
     def register_existing_replicables(self):
         """Load existing registered replicables"""
-        for replicable in Replicable:
-            self.on_replicable_registered(replicable)
+        for replicable in self.scene.replicables.values():
+            self.on_replicable_added(replicable)
 
     @property
     def prioritised_channels(self):
         return sorted(self.replicable_channels.values(), reverse=True, key=priority_getter)
 
-    @ReplicableRegisteredSignal.on_global
-    def on_replicable_registered(self, target):
-        self.replicable_channels[target.instance_id] = self.channel_class(self, target)
+    def on_replicable_added(self, target):
+        self.replicable_channels[target.unique_id] = self.channel_class(self, target)
 
-    @ReplicableUnregisteredSignal.on_global
-    def on_replicable_unregistered(self, target):
-        self.replicable_channels.pop(target.instance_id)
+    def on_replicable_removed(self, target):
+        self.replicable_channels.pop(target.unique_id)
 
 
 class ServerSceneChannel(SceneChannelBase):
 
     channel_class = ServerReplicableChannel
 
-    def __init__(self, connection, scene):
-        super().__init__(connection, scene)
+    def __init__(self, manager, scene, scene_id):
+        super().__init__(manager, scene, scene_id)
 
         self.is_initial = True
-
         self.deleted_channels = []
 
-    @ReplicableUnregisteredSignal.on_global
-    def on_replicable_unregistered(self, target):
-        channel = self.replicable_channels.pop(target.instance_id)
+    def on_replicable_added(self, replicable):
+        # Don't replicate torn off
+        if replicable.torn_off:
+            return
+
+        super().on_replicable_added(replicable)
+
+    def on_replicable_removed(self, replicable):
+        channel = self.replicable_channels.pop(replicable.unique_id)
         self.deleted_channels.append(channel)
 
 

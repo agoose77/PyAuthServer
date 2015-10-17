@@ -1,10 +1,9 @@
-from network.type_flag import TypeFlag
-from network.handlers import get_handler, register_description, register_handler, IHandler
-
-from functools import partial
 from itertools import chain
 
+from network.type_flag import TypeFlag
+from network.handlers import get_handler, register_description, register_handler, IHandler
 from .coordinates import Vector, Euler, Quaternion, Matrix
+
 
 __all__ = ["EulerHandler", "VectorHandler", "QuaternionHandler", "MatrixHandler"]
 

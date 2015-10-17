@@ -1,8 +1,7 @@
-from network.iterators import look_ahead
-
-from itertools import cycle
 from math import sqrt
 from random import random
+
+from network.iterators import look_ahead
 
 __all__ = ["quad_area", "point_in_polygon", "get_random_point"]
 

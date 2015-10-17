@@ -1,9 +1,9 @@
 """Export armature sockets from Blender"""
 
-import bpy
 import io
 
-from game_system.configobj import ConfigObj
+import bpy
+from _game_system.configobj import ConfigObj
 
 
 def get_sockets(obj):

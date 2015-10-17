@@ -2,9 +2,9 @@ from operator import attrgetter
 from sys import float_info
 from logging import getLogger
 
-from game_system.enums import EvaluationState
-from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
-from game_system.pathfinding.priority_queue import PriorityQueue
+from _game_system.enums import EvaluationState
+from _game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
+from _game_system.pathfinding.priority_queue import PriorityQueue
 
 
 __all__ = "Goal", "Action", "GOAPPlanner", "GOAPActionPlanManager", "GOAPAStarActionNode", "GOAPAStarGoalNode", "Goal"

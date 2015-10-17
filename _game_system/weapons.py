@@ -1,8 +1,8 @@
 from network.annotations.decorators import requires_netmode
-from network.descriptors import Attribute
+from network.replication import Serialisable
 from network.enums import Netmodes, Roles
 from network.replicable import Replicable
-from network.world_info import WorldInfo
+#from network.world_info import WorldInfo
 
 from .enums import Axis
 from .resources import ResourceManager
@@ -16,8 +16,8 @@ __all__ = ['Weapon', 'TraceWeapon', 'ProjectileWeapon']
 
 class Weapon(Replicable):
 
-    ammo = Attribute(70, notify=True)
-    roles = Attribute(Roles(Roles.authority, Roles.autonomous_proxy))
+    ammo = Serialisable(70, notify=True)
+    roles = Serialisable(Roles(Roles.authority, Roles.autonomous_proxy))
 
     @property
     def can_fire(self):

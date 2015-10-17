@@ -1,51 +1,33 @@
-from .metaclasses.context import AggregateContext
-from .connection import Connection
-from .scene import NetworkScene
-from .annotations.decorators import set_netmode_getter
+from collections import OrderedDict
 
-from contextlib import contextmanager
+from .scene import Scene
+from .messages import MessagePasser
 
 
 class World:
 
-    current_world = None
-
     def __init__(self, netmode):
-        self._netmode = netmode
+        self.scenes = OrderedDict()
+        self.messenger = MessagePasser()
+        self.netmode = netmode
 
-        scene_context = NetworkScene.create_context_manager()
-        connection_context = Connection.create_context_manager()
-        set_current_world = self._set_current_world(self)
-        self._context = AggregateContext(scene_context, set_current_world, connection_context)
+        self.rules = None
 
-    def __enter__(self):
-        return self._context.__enter__()
+    def add_scene(self, name):
+        if name in self.scenes:
+            raise ValueError("Scene with name '{}' already exists".format(name))
 
-    def __exit__(self, *exc_args):
-        self._context.__exit__(*exc_args)
+        with Scene._grant_authority():
+            scene = Scene(self, name)
 
-    @property
-    def netmode(self):
-        return self._netmode
+        self.scenes[name] = scene
+        self.messenger.send("scene_added", scene)
 
-    @property
-    def scenes(self):
-        return list(NetworkScene)
+        return scene
 
-    @contextmanager
-    def _set_current_world(self, world):
-        """When using this world, set the current world for the class"""
-        cls = self.__class__
+    def remove_scene(self, scene):
+        with Scene._grant_authority():
+            scene.on_destroyed()
 
-        old_world = cls.current_world
-        cls.current_world = world
-        yield
-        cls.current_world = old_world
-
-
-# Global access to current netmode
-def get_current_netmode():
-    return World.current_world.netmode
-
-
-set_netmode_getter(get_current_netmode)
+        self.scenes.pop(scene.name)
+        self.messenger.send("scene_removed", scene)

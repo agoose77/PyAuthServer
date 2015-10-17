@@ -1,12 +1,10 @@
-from network.signals import SignalListener
-
-from ...enums import EvaluationState
-
 from functools import wraps
 from random import shuffle
 
+from ...enums import EvaluationState
+
 __all__ = "CompositeNode", "DecoratorNode", "SequenceNode", "SelectorNode", "SucceederNode", "RepeaterNodeBase",\
-          "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "SignalListenerNode", "Node"
+          "RepeatForNode", "RepeatUntilFailNode", "RandomiserNode", "InverterNode", "MessageListenerNode", "Node"
 
 
 class StateManager(type):
@@ -230,39 +228,19 @@ class InverterNode(DecoratorNode):
         return EvaluationState.running
 
 
-class SignalListenerNode(Node, SignalListener):
+class MessageListenerNode(Node):
     """Returns success state if appropriate signal is received."""
 
     def __init__(self, signal_cls):
         super().__init__()
 
-        self._parent_identifier = None
         self._received_signal = False
 
-        signal_cls.subscribe(self, self._handle_signal)
+        #signal_cls.subscribe(self, self._handle_signal)
         self.signal_cls = signal_cls
-
-    @property
-    def parent_identifier(self):
-        return self._parent_identifier
-
-    @parent_identifier.setter
-    def parent_identifier(self, identifier):
-        old_id, self._parent_identifier = self._parent_identifier, identifier
-
-        self.change_signal_handler(old_id, identifier)
 
     def _handle_signal(self):
         self._received_signal = True
-
-    def change_signal_handler(self, old_id, id_):
-        """Change parent dispatcher for signaller
-
-        :param old_id: previous parent identifier
-        :param id_: new parent identifier
-        """
-        self.signal_cls.remove_parent(self, old_id)
-        self.signal_cls.set_parent(self, id_)
 
     def evaluate(self, blackboard):
         return EvaluationState.success if self._received_signal else EvaluationState.failure

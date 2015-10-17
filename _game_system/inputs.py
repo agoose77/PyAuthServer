@@ -3,9 +3,7 @@ from network.descriptors import Attribute
 from network.type_flag import TypeFlag
 from network.struct import Struct
 
-from collections import defaultdict
-
-from .enums import ButtonState, InputButtons
+from .enums import ButtonState
 
 
 __all__ = ['InputState', 'lInputContext', 'NetworkInputContext']

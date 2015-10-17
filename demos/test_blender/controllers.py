@@ -1,10 +1,10 @@
 from network.annotations.decorators import requires_netmode
 from network.enums import Netmodes
 
-from game_system.controllers import PlayerPawnController
-from game_system.coordinates import Vector
-from game_system.enums import ButtonState
-from game_system.inputs import InputContext
+from _game_system.controllers import PlayerPawnController
+from _game_system.coordinates import Vector
+from _game_system.enums import ButtonState
+from _game_system.inputs import InputContext
 
 from .actors import TestActor
 

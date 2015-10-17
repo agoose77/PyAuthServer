@@ -1,8 +1,7 @@
-from network.signals import SignalListener
-
 from operator import (add as add_func, sub as sub_func,
                       lt as less_func, gt as more_func)
 
+from network.signals import SignalListener
 from .signals import TimerUpdateSignal
 
 

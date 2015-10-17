@@ -27,6 +27,7 @@ from .replication_info import PlayerReplicationInfo
 from .signals import PlayerInputSignal, LogicUpdateSignal, PostPhysicsSignal, PhysicsSingleUpdateSignal, \
     MessageReceivedSignal
 
+
 __all__ = ['PawnController', 'PlayerPawnController', 'AIPawnController']
 
 

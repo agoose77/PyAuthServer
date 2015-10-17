@@ -3,9 +3,7 @@ from collections import namedtuple
 from ..geometry.utilities import quad_area
 from ..coordinates import Vector
 from ..iterators import BidirectionalIterator
-
 from .priority_queue import PriorityQueue
-
 from network.iterators import look_ahead
 
 __all__ = "Funnel", "PathNotFoundException", "AStarAlgorithm", "FunnelAlgorithm", "NavmeshAStarAlgorithm"

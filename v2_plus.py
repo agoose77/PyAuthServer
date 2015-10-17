@@ -1,17 +1,42 @@
-from network_2.world import World
-from network_2.replicable import Replicable
-from network_2.enums import Netmodes, Roles
-from network_2.replication import Serialisable
-from network_2.network import NetworkManager
-from network_2.struct import Struct
+from network.world import World
+from network.replicable import Replicable
+from network.enums import Netmodes, Roles
+from network.replication import Serialisable
+from network.network import NetworkManager
+from network.struct import Struct
 
 
-class Replicable2(Replicable):
+class Vector(Struct):
+
+    x = Serialisable(0)
+    y = Serialisable(0)
+    z = Serialisable(0)
+
+
+class ManyVectors(Struct):
+    a = Serialisable(Vector())
+    b = Serialisable(Vector())
+    c = Serialisable(Vector())
+    d = Serialisable(Vector())
+
+
+class Replicable1(Replicable):
+
+    def do_work(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.server:
+        print("PARENT WORK", x, y)
+
+    def do_work2(self, x: int, y: (str, dict(max_length=255))) -> Netmodes.client:
+        super().do_work(x, y)
+
+
+class Replicable2(Replicable1):
     score = Serialisable(data_type=int, flag_on_assignment=True)
     roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
+    struct = Serialisable(data_type=ManyVectors)
 
     def can_replicate(self, is_owner, is_initial):
         yield "score"
+        yield "struct"
         yield "roles"
 
     def on_replicated(self, name):
@@ -30,8 +55,8 @@ class Rules:
         world = replication_manager.world
         scene = world.scenes["Scene"]
 
-        replicable = scene.add_replicable(Replicable2)
-        root_replicables.add(replicable)
+        # replicable = scene.add_replicable(Replicable2)
+        # root_replicables.add(replicable)
 
     def is_relevant(self, replicable):
         print(replicable, "REL?")
@@ -40,37 +65,7 @@ class Rules:
 
 # TODO: enable actor-like replicables cross-platform
 # How do resources fit into world-paradigm? (Environment?)
-# How to make this one-click importable without manually typing / hacky global lookups
-
-
-from bge_game_system.entity import BGEConfigurationManager
-
-
-# from bge import logic
-from os import path, getcwd
-
-
-class ResourceManager:
-
-    def __init__(self, root_path):
-        self._root_path = root_path
-
-    def open(self, file_path, mode='r'):
-        full_path = path.join(self._root_path, file_path)
-        return open(full_path, mode)
-
-
-
-from game_system.entity import Entity
-from functools import partial
-
-def call_if_is_entity(replicable, func):
-    if isinstance(replicable, Entity):
-        func(replicable)
-
-
-class Rep3(Replicable2, Entity):
-    pass
+#
 
 
 class Game:
@@ -79,24 +74,36 @@ class Game:
         self.world = world
         self.network_manager = network_manager
 
-        self.entity_configuration_managers = {}
+        self.factories = {}
 
         world.messenger.add_subscriber("scene_added", self.configure_scene)
 
-        self._root = path.join(getcwd(), "demos/v2/data")
-
     def configure_scene(self, scene):
-        bge_scene = "SomeScene"#logic.getSceneList()[scene.name]
+        pass
 
-        scene_resource_manager = ResourceManager(path.join(self._root, scene.name))
-        self.entity_configuration_managers[scene] = configuration = BGEConfigurationManager(bge_scene,
-                                                                                            scene_resource_manager)
-        configure = partial(call_if_is_entity, func=configuration.configure_entity)
-        deconfigure = partial(call_if_is_entity, func=configuration.deconfigure_entity)
+from game_system.entity import Entity, MeshComponent, TransformComponent
 
-        scene.messenger.add_subscriber("replicable_created", configure)
-        scene.messenger.add_subscriber("replicable_destroyed", deconfigure)
 
+class SomeEntity(Entity):
+
+    mesh = MeshComponent("player")
+    transform = TransformComponent(position=(0, 0, 0), orientation=(0, 0, 0))
+
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+        yield "score"
+
+    def on_replicated(self, name):
+        print(name, "replicated!")
+
+    def on_score_replicated(self):
+        print(self.score, "Updated")
+
+    score = Serialisable(data_type=int, notify_on_replicated=True)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
+
+
+from bge_game_system.game import Game
 
 server_world = World(Netmodes.server)
 server_world.rules = Rules()
@@ -104,8 +111,8 @@ server_network = NetworkManager(server_world, "localhost", 1200)
 server_game = Game(server_world, server_network)
 
 server_scene = server_world.add_scene("Scene")
-server_replicable = server_scene.add_replicable(Replicable2)
-server_actor = server_scene.add_replicable(Rep3)
+server_replicable = server_scene.add_replicable(SomeEntity)
+server_replicable.score = 100
 
 client_world = World(Netmodes.client)
 client_network = NetworkManager(client_world, "localhost", 0)
@@ -115,8 +122,6 @@ client_scene = client_world.add_scene("Scene")
 client_network.connect_to("localhost", 1200)
 
 client_scene.messenger.add_subscriber("replicable_added", lambda p: print("Replicable created", p))
-server_replicable.score = 15
-server_replicable.do_work(1, "JAMES")
 
 client_network.send(True)
 server_network.receive()

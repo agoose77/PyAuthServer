@@ -3,13 +3,11 @@ from logging import getLogger, Formatter, StreamHandler
 from time import strftime, clock
 
 from .bitfield import BitField
-from .conversions import conversion
-from .dispatcher import UniqueMessageDispatcher
+from .messages import MessagePasser
 from .enums import PacketProtocols
-from .handlers import get_handler
-from .metaclasses.register import InstanceRegister
+from .type_serialisers import get_serialiser_for
 from .packet import PacketCollection, Packet
-from .type_flag import TypeFlag
+from .factory import ProtectedInstance
 
 
 __all__ = "Connection",
@@ -21,30 +19,18 @@ class ConnectionLoggerFormatter(Formatter):
         return strftime("%H:%M:%S")
 
 
-class Connection(metaclass=InstanceRegister):
+class Connection(ProtectedInstance):
     """Interface for remote peer.
 
     Mediates a connection between local and remote peer.
     """
 
-    create_default_context = False
-    subclasses = {}
-
-    def __repr__(self):
-        if self.registered:
-            return "<Connection: <{}>>".format(self.instance_id)
-
-        return "<Connection>"
-
-    def __init__(self, connection_info, network_manager):
-        super().__init__(connection_info)
-
-        # TODO should this be stored like this?
-        self.network_manager = network_manager
+    def __init__(self, connection_info):
+        self.connection_info = connection_info
 
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1
-        self.sequence_handler = get_handler(TypeFlag(int, max_value=self.sequence_max_size))
+        self.sequence_handler = get_serialiser_for(int, max_value=self.sequence_max_size)
 
         # Number of packets to ack per packet
         self.ack_window = 32
@@ -52,7 +38,7 @@ class Connection(metaclass=InstanceRegister):
         # BitField and bitfield size
         self.incoming_ack_bitfield = BitField(self.ack_window)
         self.outgoing_ack_bitfield = BitField(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(BitField, fields=self.ack_window))
+        self.ack_packer = get_serialiser_for(BitField, fields=self.ack_window)
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -63,8 +49,8 @@ class Connection(metaclass=InstanceRegister):
         self.remote_sequence = 0
 
         # Estimate available bandwidth
-        self.bandwidth = conversion(1, "Mb", "B")
-        self.packet_growth = conversion(0.5, "KB", "B")
+        self.bandwidth = 1000
+        self.packet_growth = 500
 
         # Bandwidth throttling
         self.tagged_throttle_sequence = None
@@ -82,9 +68,9 @@ class Connection(metaclass=InstanceRegister):
         self.post_receive_callbacks = []
         self.pre_send_callbacks = []
 
-        self.dispatcher = UniqueMessageDispatcher()
+        self.messenger = MessagePasser()
         # Ignore heartbeat packet
-        self.dispatcher.set_listener(PacketProtocols.heartbeat, lambda packet: None)
+        self.messenger.add_subscriber(PacketProtocols.heartbeat, lambda packet: None)
 
     def _is_more_recent(self, base, sequence):
         """Compare two sequence identifiers and determine if one is newer than the other
@@ -239,7 +225,7 @@ class Connection(metaclass=InstanceRegister):
         # Handle received packets, allow possible multiple packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
 
-        dispatch = self.dispatcher.send
+        dispatch = self.messenger.send
         for packet in packet_collection.packets:
             dispatch(packet.protocol, packet)
 

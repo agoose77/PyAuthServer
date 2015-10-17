@@ -1,5 +1,5 @@
-from game_system.entities import Actor
-from game_system.signals import LogicUpdateSignal, CollisionSignal
+from _game_system.entities import Actor
+from _game_system.signals import LogicUpdateSignal, CollisionSignal
 
 from network.descriptors import Attribute
 from network.annotations.decorators import simulated

@@ -1,115 +1,79 @@
-from copy import deepcopy
+from collections import OrderedDict
 
-from .metaclasses.struct import StructMeta
+from .factory import NamedSubclassTracker
+from .replication import Serialisable, SerialisableDataStoreDescriptor
 
-__all__ = ['Struct']
+
+def is_serialisable(obj):
+    return isinstance(obj, Serialisable)
 
 
-class Struct(metaclass=StructMeta):
-    """Serialisable object with individual fields"""
-
-    def __init__(self):
-        self._attribute_container.register_storage_interfaces()
-
-    def __deepcopy__(self, memo):
-        """Serialiser description of tuple
-
-        :returns: new struct instance
-        """
-        new_struct = self.__class__()
-        source_container = self._attribute_container
-        target_container = new_struct._attribute_container
-
-        # Local lookups
-        old_attribute_container_data = source_container.data
-        new_attribute_container_data = target_container.data
-        get_new_member = target_container.get_member_by_name
-
-        for name, member in source_container._ordered_mapping.items():
-            old_value = old_attribute_container_data[member]
-            new_member = get_new_member(name)
-            new_attribute_container_data[new_member] = deepcopy(old_value)
-
-        return new_struct
-
-    def __description__(self):
-        """Serialiser description of tuple"""
-        return hash(self._attribute_container.get_ordered_descriptions())
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        attributes = self._attribute_container.data
-        associated_values = "".join(["\n    {} = {}".format(k, v) for k, v in attributes.items()])
-        return "<Struct {}>{}".format(class_name, associated_values)
+class StructMetacls(NamedSubclassTracker):
 
     @classmethod
-    def from_bytes(cls, bytes_string, offset=0):
-        """Create a struct from bytes
+    def is_not_root(metacls, bases):
+        for base_cls in bases:
+            if isinstance(base_cls, metacls):
+                return True
 
-        :param bytes_string: Packed byte representation of struct contents
-        :returns: Struct instance
-        """
-        struct = cls()
-        struct.read_bytes(bytes_string, offset)
+        return False
 
-        return struct
+    def __prepare__(name, bases):
+        return OrderedDict()
 
-    @classmethod
-    def from_list(cls, list_):
-        """Create a struct from a list
+    def __new__(metacls, name, bases, namespace):
+        serialisable_data = namespace['serialisable_data'] = SerialisableDataStoreDescriptor()
+        serialisables = serialisable_data.serialisables
 
-        :param list_: List representation of struct contents
-        :returns: Struct instance
-        """
-        struct = cls()
-        struct.read_list(list_)
+        # Inherit from parent classes
+        for cls in reversed(bases):
+            if not isinstance(cls, metacls):
+                continue
 
-        return struct
+            serialisables.extend(cls.serialisable_data.serialisables)
 
-    def read_bytes(self, bytes_string, offset=0):
-        """Update struct contents with bytes
+        # Register serialisables, including parent-class members
+        for attr_name, value in namespace.items():
+            if attr_name.startswith("__"):
+                continue
 
-        :param bytes_string: Packed byte representation of struct contents
-        :param offset: offset to start reading from
-        """
-        replicable_data = self._attribute_container.data
-        get_attribute = self._attribute_container.get_member_by_name
+            if isinstance(value, Serialisable):
+                value.name = attr_name
+                serialisables.append(value)
 
-        # Process and store new values
-        for attribute_name, value in self._serialiser.unpack(bytes_string, previous_values=replicable_data,
-                                                             offset=offset):
-            attribute = get_attribute(attribute_name)
-            # Store new value
-            replicable_data[attribute] = value
+        return super().__new__(metacls, name, bases, namespace)
 
-    def read_list(self, list_):
-        """Update struct contents with a list
 
-        :param list_: List representation of struct contents
-        """
-        data = self._attribute_container.data
-        members = self._attribute_container._ordered_mapping.values()
+class Struct(metaclass=StructMetacls):
 
-        for member, value in zip(members, list_):
-            data[member] = value
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        cls.serialisable_data.bind_instance(self)
 
-    def to_bytes(self):
-        """Write struct contents to bytes
+        return self
 
-        :returns: packed contents
-        """
-        return self._serialiser.pack({a.name: v for a, v in self._attribute_container.data.items()})
+    def __init__(self, **kwargs):
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
     def to_list(self):
-        """Write struct contents to a list
+        data = self.serialisable_data
+        return [data[s] for s in self.__class__.serialisable_data.serialisables]
 
-        :returns: contents tuple
-        """
-        attribute_data = self._attribute_container.data
-        attributes = self._attribute_container._ordered_mapping.values()
-        return [attribute_data[attribute] for attribute in attributes]
+    def update_list(self, values):
+        data = self.serialisable_data
 
-    def __iter__(self):
-        return iter(self.to_list())
+        for serialisable, value in zip(self.__class__.serialisable_data.serialisables, values):
+            data[serialisable] = value
 
-    __bytes__ = to_bytes
+        return self
+
+    @classmethod
+    def from_list(cls, values):
+        self = cls.__new__(cls)
+        self.update_list(values)
+        return self
+
+    def __repr__(self):
+        as_string = ", ".join(("{}={}".format(s.name, v) for s, v in self.serialisable_data.items()))
+        return "{}({})".format(self.__class__.__name__, as_string)

@@ -1,7 +1,5 @@
 from collections import deque
 
-from .state import State
-
 
 class PushdownAutomaton:
 

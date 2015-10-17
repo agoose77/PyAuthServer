@@ -1,20 +1,16 @@
-from network.enums import Netmodes
-from network.network import NetworkManager
-from network.signals import SignalListener, Signal
-from network.world_info import WorldInfo
-from network.signals import DisconnectSignal
-from network.replicable import Replicable
-
-from game_system.timer import Timer
-from game_system.signals import ConnectToSignal, TimerUpdateSignal, UIUpdateSignal, PlayerInputSignal, \
-    LogicUpdateSignal, PhysicsTickSignal, PostPhysicsSignal
-from game_system.game_loop import FixedTimeStepManager, OnExitUpdate
-from game_system.enums import ButtonState, InputButtons
-
-from panda_game_system.physics import PandaPhysicsSystem
-
 from direct.showbase.ShowBase import ShowBase
 
+from network.enums import Netmodes
+from network.network import NetworkManager
+from network.signals import SignalListener
+from network.world_info import WorldInfo
+from network.signals import DisconnectSignal
+from _game_system.timer import Timer
+from _game_system.signals import ConnectToSignal, TimerUpdateSignal, UIUpdateSignal, PlayerInputSignal, \
+    LogicUpdateSignal, PhysicsTickSignal, PostPhysicsSignal
+from _game_system.game_loop import FixedTimeStepManager, OnExitUpdate
+from _game_system.enums import ButtonState, InputButtons
+from panda_game_system.physics import PandaPhysicsSystem
 from .inputs import PandaInputManager
 
 

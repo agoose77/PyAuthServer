@@ -1,10 +1,9 @@
 from network.annotations.decorators import requires_netmode, simulated
-from network.descriptors import Attribute
+from network.replication import Serialisable
 from network.enums import Netmodes, Roles
 from network.utilities import mean
 from network.replicable import Replicable
-from network.signals import SignalListener
-from network.world_info import WorldInfo
+#from network.world_info import WorldInfo
 
 from .configobj import ConfigObj
 from .definitions import ComponentLoader
@@ -98,11 +97,10 @@ class Actor(ReplicableComponentEntity):
     component_tags = ("physics", "transform")
 
     # Network data
-    rigid_body_state = Attribute(RigidBodyState())
-    rigid_body_info = Attribute(RigidBodyInfo(), notify=True)
-    rigid_body_time = Attribute(data_type=float, notify=True)
-
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
+    rigid_body_state = Serialisable(RigidBodyState())
+    rigid_body_info = Serialisable(RigidBodyInfo(), notify=True)
+    rigid_body_time = Serialisable(data_type=float, notify=True)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy), notify=True)
 
     # Replicated physics parameters
     MAX_POSITION_DIFFERENCE_SQUARED = 4
@@ -113,8 +111,8 @@ class Actor(ReplicableComponentEntity):
     replicate_physics_to_owner = False
     replicate_simulated_physics = True
 
-    def conditions(self, is_owner, is_complaint, is_initial):
-        yield from super().conditions(is_owner, is_complaint, is_initial)
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
 
         remote_role = self.roles.remote
 
@@ -141,7 +139,7 @@ class Actor(ReplicableComponentEntity):
         info_state.collision_mask = self.physics.collision_mask
         info_state.mass = self.physics.mass
 
-        self.rigid_body_time = WorldInfo.elapsed
+        # self.rigid_body_time = WorldInfo.elapsed
 
     def on_initialised(self):
         super().on_initialised()
@@ -149,12 +147,7 @@ class Actor(ReplicableComponentEntity):
         self.camera_radius = 1.0
         self.indestructible = False
 
-    def on_deregistered(self):
-        self.unload_components()
-
-        super().on_deregistered()
-
-    def on_notify(self, name):
+    def on_replicated(self, name):
         if name == "rigid_body_time":
             PhysicsReplicatedSignal.invoke(self.rigid_body_time, target=self)
 
@@ -166,7 +159,7 @@ class Actor(ReplicableComponentEntity):
             self.physics.collision_mask = info.collision_mask
 
         else:
-            super().on_notify(name)
+            super().on_replicated(name)
 
 
 class Camera(ReplicableComponentEntity):
