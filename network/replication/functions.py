@@ -202,14 +202,17 @@ class ReplicatedFunctionDescriptor:
             if annotation is empty_parameter:
                 raise ValueError("Invalid parameter")
 
-            if isinstance(annotation, tuple):
+            if isinstance(annotation, TypeInfo):
+                arg_info = annotation
+
+            elif isinstance(annotation, tuple):
                 data_type, data = annotation
+                arg_info = TypeInfo(data_type, **data)
 
             else:
-                data_type = annotation
-                data = {}
+                arg_info = TypeInfo(annotation)
 
-            arguments[parameter.name] = TypeInfo(data_type, **data)
+            arguments[parameter.name] = arg_info
 
         return arguments
 
