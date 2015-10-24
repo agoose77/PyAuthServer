@@ -8,6 +8,7 @@ from .enums import PacketProtocols
 from .type_serialisers import get_serialiser_for
 from .packet import PacketCollection, Packet
 from .factory import ProtectedInstance
+from .utilities import LatencyCalculator
 
 
 __all__ = "Connection",
@@ -58,6 +59,7 @@ class Connection(ProtectedInstance):
 
         # Support logging
         self.logger = self._create_logger()
+        self.latency_calculator = LatencyCalculator()
 
         self.last_received_time = None
         self.send_heartbeat_when_idle = True

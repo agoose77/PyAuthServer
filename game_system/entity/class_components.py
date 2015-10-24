@@ -1,16 +1,12 @@
-__all__ = "ClassComponent", "GraphicsComponent", "MeshComponent", "TransformComponent", "Inst"
+__all__ = "ClassComponent", "GraphicsComponent", "MeshComponent", "TransformComponent", "PhysicsComponent", \
+    "AnimationComponent", "CameraComponent"
 
 
 class ClassComponent:
     pass
 
 
-class InstanceComponent:
-
-    def on_unloaded(self):
-        pass
-
-
+# Class components
 class GraphicsComponent(ClassComponent):
     pass
 
@@ -29,4 +25,12 @@ class TransformComponent(ClassComponent):
 
 
 class AnimationComponent(ClassComponent):
+    pass
+
+
+class CameraComponent(ClassComponent):
+    pass
+
+
+class PhysicsComponent(ClassComponent):
     pass

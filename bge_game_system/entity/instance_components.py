@@ -1,9 +1,11 @@
 from game_system.coordinates import Vector
+from game_system.entity import AbstractTransformInstanceComponent, AbstractPhysicsInstanceComponent
 
-__all__ = "TransformComponent", "MeshComponent", "AnimationComponent"
+__all__ = "TransformInstanceComponent", "PhysicsInstanceComponent", "MeshInstanceComponent", \
+          "AnimationInstanceComponent", "CameraInstanceComponent"
 
 
-class TransformComponent:
+class TransformInstanceComponent(AbstractTransformInstanceComponent):
 
     def __init__(self, entity, game_object, component):
         self._game_object = game_object
@@ -35,13 +37,23 @@ class TransformComponent:
         self._game_object.worldOrientation = orientation
 
 
-class MeshComponent:
+class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent):
+    pass
+
+
+class MeshInstanceComponent:
 
     def __init__(self, entity, game_object, component):
         print("Mesh", component)
 
 
-class AnimationComponent:
+class AnimationInstanceComponent:
 
     def __init__(self, entity, game_object, component):
         print("Animation", component)
+
+
+class CameraInstanceComponent:
+
+    def __init__(self, entity, game_object, component):
+        print("Camera", component)

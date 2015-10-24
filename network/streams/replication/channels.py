@@ -43,17 +43,6 @@ class ReplicableChannelBase:
         self._rpc_id_handler = get_serialiser_for(int)
         self.packed_id = self.__class__.id_handler.pack(replicable)
 
-    @property
-    def is_owner(self):
-        """Return True if this channel is in the ownership tree of the connection replicable"""
-        parent = self.replicable.uppermost
-        # TODO
-        try:
-            return parent == self.scene_channel.replicable
-
-        except AttributeError:
-            return False
-
     def dump_rpc_calls(self):
         """Return the requested RPC calls in a packaged format:
 
@@ -101,7 +90,6 @@ class ReplicableChannelBase:
                     break
 
                 else:
-                    print(data, offset, "DES")
                     arguments, bytes_read = rpc_instance.deserialise(data, offset)
                     offset += bytes_read
 
@@ -177,6 +165,7 @@ class ServerReplicableChannel(ReplicableChannelBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self._name_to_serialisable = {s.name: s for s in self._serialisable_data}
         self._serialisable_to_describer = describers = {s: get_describer(s) for s in self._serialisable_data}
         self._last_replicated_descriptions = {s: describers[s](s.initial_value) for s in self._serialisable_data}
