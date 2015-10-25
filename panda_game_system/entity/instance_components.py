@@ -72,8 +72,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         self._class_component = component
 
     def set_root_nodepath(self, nodepath):
-        scene = self._entity.scene
-        scene.physics_manager.add_component(self._entity, self)
+        self._entity.scene.physics_manager.add_component(self._entity, self)
 
     def update_root_nodepath(self, nodepath):
         entity = self._entity
@@ -94,15 +93,14 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         else:
             physics_node = self._node_from_bam_name(entity, mesh_name)
 
-        physics_nodepath = NodePath(physics_node)
+        # Set mass
+        if component.mass is not None:
+            physics_node.set_mass(component.mass)
 
-        # Reparent to
+        physics_nodepath = NodePath(physics_node)
         nodepath.reparent_to(physics_nodepath)
 
         self._nodepath = physics_nodepath
-        self._old_nodepath = nodepath
-
-        physics_node.set_mass(10)
         self.body = physics_node
 
         return physics_nodepath
@@ -143,6 +141,14 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         return BulletTriangleMeshShape(mesh, dynamic=False)
 
     @property
+    def mass(self):
+        return self.body.get_mass()
+
+    @mass.setter
+    def mass(self, value):
+        self.body.set_mass(value)
+
+    @property
     def world_velocity(self):
         return Vector(self.body.get_linear_velocity())
 
@@ -159,9 +165,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         self.body.set_angular_velocity(value)
 
     def on_destroyed(self):
-        root = self._nodepath.getParent()
-        self._old_nodepath.reparent_wrt(root)
-        self._nodepath.remove_node()
+        self._entity.scene.physics_manager.remove_component(self._entity, self)
 
 
 class MeshInstanceComponent(PandaInstanceComponent):

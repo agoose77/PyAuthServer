@@ -7,6 +7,7 @@ from network.enums import Roles
 class SomeEntity(Actor):
 
     mesh = MeshComponent("Suzanne")
+    physics = PhysicsComponent("Cube", mass=10)
     transform = TransformComponent(position=(0, 10, 0), orientation=(0, 0, 0))
 
     def __init__(self, scene, unique_id, is_static=False):

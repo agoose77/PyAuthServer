@@ -49,5 +49,12 @@ def main():
 loop = main()
 next(loop)
 
+# from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
+# n = BulletRigidBodyNode()
+# n.addShape(BulletBoxShape((2, 2, 2)))
+# from panda3d.core import NodePath
+# n = NodePath(n)
+# n.writeBamFile("Cube.bam")
+
 game_loop.on_step = loop.send
 game_loop.run()

@@ -34,5 +34,8 @@ class CameraComponent(ClassComponent):
 
 class PhysicsComponent(ClassComponent):
 
-    def __init__(self, mesh_name=None):
+    def __init__(self, mesh_name=None, mass=None, collision_group=0, collision_mask=0):
         self.mesh_name = mesh_name
+        self.mass = mass
+        self.collision_group = collision_group
+        self.collision_mask = collision_mask
