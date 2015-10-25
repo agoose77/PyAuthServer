@@ -72,7 +72,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         self._class_component = component
 
     def set_root_nodepath(self, nodepath):
-        self._entity.scene.physics_manager.add_component(self._entity, self)
+        self._entity.scene.physics_manager.add_entity(self._entity, self)
 
     def update_root_nodepath(self, nodepath):
         entity = self._entity
@@ -97,11 +97,14 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         if component.mass is not None:
             physics_node.set_mass(component.mass)
 
+        physics_node.notify_collisions(True)
+        physics_node.set_deactivation_enabled(False)
+
         physics_nodepath = NodePath(physics_node)
         nodepath.reparent_to(physics_nodepath)
 
-        self._nodepath = physics_nodepath
         self.body = physics_node
+        self._nodepath = physics_nodepath
 
         return physics_nodepath
 
@@ -165,7 +168,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         self.body.set_angular_velocity(value)
 
     def on_destroyed(self):
-        self._entity.scene.physics_manager.remove_component(self._entity, self)
+        self._entity.scene.physics_manager.remove_entity(self._entity, self)
 
 
 class MeshInstanceComponent(PandaInstanceComponent):

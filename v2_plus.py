@@ -33,7 +33,14 @@ server_network = NetworkManager(server_world, "localhost", 1200)
 
 server_scene = server_world.add_scene("Scene")
 server_replicable = server_scene.add_replicable(SomeEntity)
-server_replicable.score = 100
+
+box = server_scene.add_replicable(SomeEntity)
+box.transform.world_position = (0, 10, -5)
+box.physics.mass = 0
+
+# Timer
+timer = server_scene.add_timer(3)
+timer.on_elapsed = lambda: server_scene.remove_replicable(box)
 
 
 def main():

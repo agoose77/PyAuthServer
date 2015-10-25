@@ -62,7 +62,9 @@ class Scene(ProtectedInstance):
 
         self.messenger.send("replicable_removed", replicable)
 
-        replicable.on_destroyed()
+        with Replicable._grant_authority():
+            replicable.on_destroyed()
+
         self.messenger.send("replicable_destroyed", replicable)
 
     @restricted_method

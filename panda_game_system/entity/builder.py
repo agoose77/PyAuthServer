@@ -38,6 +38,7 @@ class EntityBuilder(EntityBuilderBase):
 
     def unload_entity(self, entity):
         nodepath = self.entity_to_nodepath.pop(entity)
+
         super().unload_entity(entity)
 
         nodepath.remove_node()

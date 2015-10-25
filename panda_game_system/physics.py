@@ -1,4 +1,7 @@
 from panda3d.bullet import BulletWorld, BulletDebugNode
+from panda3d.core import loadPrcFileData
+loadPrcFileData('', 'bullet-enable-contact-events true')
+
 from direct.showbase.DirectObject import DirectObject
 
 from collections import defaultdict, namedtuple
@@ -8,6 +11,7 @@ from network.utilities import LazyIterable
 
 
 CollisionContact = namedtuple("CollisionContact", "position normal impulse")
+loadPrcFileData('', 'bullet-enable-contact-events true')
 
 
 class ContactResult:
@@ -119,10 +123,8 @@ class PhysicsManager:
                     continue
 
                 contact_result = ContactResult(self.world, entity_a, entity_b)
-                entity_a.messenger.send_message("collision_started", entity=entity_b,
-                                                contacts=contact_result.contacts_a)
-                entity_b.messenger.send_message("collision_started", entity=entity_a,
-                                                contacts=contact_result.contacts_b)
+                entity_a.messenger.send("collision_started", entity=entity_b, contacts=contact_result.contacts_a)
+                entity_b.messenger.send("collision_started", entity=entity_a, contacts=contact_result.contacts_b)
 
             # Ended collision
             elif contact_count == 0 and pair in existing_collisions:
@@ -140,7 +142,7 @@ class PhysicsManager:
                 entity_a.messenger.send_message("collision_stopped", entity_b)
                 entity_b.messenger.send_message("collision_stopped", entity_a)
 
-    def add_component(self, entity, component):
+    def add_entity(self, entity, component):
         body = component.body
         self.world.attach_rigid_body(body)
         body.set_python_tag("entity", entity)
@@ -148,7 +150,8 @@ class PhysicsManager:
     def remove_entity(self, entity, component):
         body = component.body
         self.world.remove_rigid_body(body)
-        body.remove_python_tag("entity")
+        body.clear_python_tag("entity")
 
     def tick(self):
         self.world.do_physics(self._timestep)
+        self.dispatch_collisions()
