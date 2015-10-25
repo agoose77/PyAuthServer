@@ -33,4 +33,6 @@ class CameraComponent(ClassComponent):
 
 
 class PhysicsComponent(ClassComponent):
-    pass
+
+    def __init__(self, mesh_name=None):
+        self.mesh_name = mesh_name

@@ -17,17 +17,14 @@ class EntityBuilder(EntityBuilderBase):
         self._camera_name = camera_name
 
     def load_entity(self, entity):
-        object_names = []
+        object_name = None
 
         for component_name, component in entity.components.items():
             if isinstance(component, MeshComponent):
-                object_names.append(component.mesh_name)
+                object_name = component.mesh_name
 
             elif isinstance(component, CameraComponent):
-                object_names.append(self._camera_name)
-
-        if len(object_names) > 1:
-            raise RuntimeError("Invalid components for BGE: Can't use Mesh AND camera")
+                object_name = self._camera_name
 
         if object_name is None:
             object_name = self._empty_name

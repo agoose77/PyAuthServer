@@ -4,7 +4,7 @@ __all__ = "InstanceComponent", "AbstractPhysicsInstanceComponent", "AbstractTran
 
 class InstanceComponent:
 
-    def on_unloaded(self):
+    def on_destroyed(self):
         pass
 
 
@@ -20,7 +20,7 @@ class NotImplementedProperty:
         raise NotImplementedError
 
 
-class AbstractTransformInstanceComponent:
+class AbstractTransformInstanceComponent(InstanceComponent):
     """Abstract base class for physics instance component"""
 
     world_position = NotImplementedProperty()
@@ -29,7 +29,7 @@ class AbstractTransformInstanceComponent:
     local_orientation = NotImplementedProperty()
 
 
-class AbstractPhysicsInstanceComponent:
+class AbstractPhysicsInstanceComponent(InstanceComponent):
     """Abstract base class for physics instance component"""
 
     world_velocity = NotImplementedProperty()
@@ -39,3 +39,7 @@ class AbstractPhysicsInstanceComponent:
 
     def integrate_tick(self):
         raise NotImplemented
+
+
+class AbstractMeshInstanceComponent(InstanceComponent):
+    pass

@@ -30,9 +30,6 @@ class EntityBuilderBase:
         raise NotImplementedError()
 
     def load_entity(self, entity):
-        self.load_components(entity)
-
-    def load_components(self, entity):
         for component_name, component in entity.components.items():
             try:
                 instance_component_cls = self.component_classes[component.__class__]
@@ -44,9 +41,6 @@ class EntityBuilderBase:
             setattr(entity, component_name, instance_component)
 
     def unload_entity(self, entity):
-        self.unload_components(entity)
-
-    def unload_components(self, entity):
         for component_name, component in entity.components.items():
             instance_component = getattr(entity, component_name)
             instance_component.on_destroyed()

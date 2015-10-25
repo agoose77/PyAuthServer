@@ -4,6 +4,7 @@ from inspect import isfunction
 from .annotations.decorators import requires_permission
 from .enums import Roles
 from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
+from .messages import MessagePasser
 from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
     ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
 
@@ -68,7 +69,9 @@ class ReplicableMetacls(NamedSubclassTracker):
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
-    owner = Serialisable(data_type="<Replicable>") # Temp data type
+
+    # Temp data type
+    owner = Serialisable(data_type="<Replicable>")
     torn_off = Serialisable(False, notify_on_replicated=True)
 
     replication_update_period = 1 / 30
@@ -82,6 +85,8 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         self._scene = scene
         self._unique_id = unique_id
         self._is_static = is_static
+
+        self.messenger = MessagePasser()
 
         self._bind_descriptors()
 

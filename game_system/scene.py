@@ -10,4 +10,9 @@ class Scene(_Scene):
         super().__init__(world, name)
 
         self.resource_manager = ResourceManager(world.root_filepath)
-        self.network_physics_manager = NetworkPhysicsManager()
+        self.network_physics_manager = NetworkPhysicsManager(world)
+
+    def tick(self):
+        super().tick()
+
+        self.network_physics_manager.tick()
