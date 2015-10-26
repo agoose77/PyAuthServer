@@ -16,11 +16,11 @@ loadPrcFileData('', 'bullet-enable-contact-events true')
 
 class ContactResult:
 
-    def __init__(self, world, entity_a, entity_b):
+    def __init__(self, world, body_a, body_b):
         self.world = world
 
-        self.entity_a = entity_a
-        self.entity_b = entity_b
+        self.body_a = body_a
+        self.body_b = body_b
 
         self.contacts_a = LazyIterable(partial(self.create_contacts, for_a=True))
         self.contacts_b = LazyIterable(partial(self.create_contacts, for_a=False))
@@ -31,7 +31,7 @@ class ContactResult:
             result = self._contact_result
 
         except AttributeError:
-            self._contact_result = result = self.world.contact_test_pair(self.entity_a, self.entity_b)
+            self._contact_result = result = self.world.contact_test_pair(self.body_a, self.body_b)
 
         return result
 
@@ -40,10 +40,10 @@ class ContactResult:
         contacts = []
 
         if for_a:
-            requesting_node = self.entity_a
+            requesting_node = self.body_a
 
         else:
-            requesting_node = self.entity_b
+            requesting_node = self.body_b
 
         for contact in self.contact_result.get_contacts():
             if contact.get_node0() == requesting_node:
@@ -122,7 +122,7 @@ class PhysicsManager:
                 if not (entity_a and entity_b):
                     continue
 
-                contact_result = ContactResult(self.world, entity_a, entity_b)
+                contact_result = ContactResult(self.world, node_a, node_b)
                 entity_a.messenger.send("collision_started", entity=entity_b, contacts=contact_result.contacts_a)
                 entity_b.messenger.send("collision_started", entity=entity_a, contacts=contact_result.contacts_b)
 

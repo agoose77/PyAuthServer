@@ -174,15 +174,28 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
 class MeshInstanceComponent(PandaInstanceComponent):
 
     def __init__(self, entity, component):
-        mesh_filename = "{}.egg".format(component.mesh_name)
+        self._root_path = entity.scene.resource_manager.root_path
+        self._root_nodepath = None
 
-        root_path = entity.scene.resource_manager.root_path
+        self._entity = entity
+        self._model = self._load_mesh_from_name(component.mesh_name, self._root_path)
+
+    def _load_mesh_from_name(self, mesh_name, root_path):
+        mesh_filename = "{}.egg".format(mesh_name)
         model_path = path.join(root_path, "meshes", mesh_filename)
 
         filename = Filename.from_os_specific(model_path)
-        self._model = loader.loadModel(filename)
+        return loader.loadModel(filename)
+
+    def change_mesh(self, mesh_name):
+        nodepath = self._load_mesh_from_name(mesh_name, self._root_path)
+        nodepath.reparent_to(self._root_nodepath)
+
+        self._model.remove_node()
+        self._model = nodepath
 
     def set_root_nodepath(self, nodepath):
+        self._root_nodepath = nodepath
         self._model.reparent_to(nodepath)
 
     def on_destroyed(self):

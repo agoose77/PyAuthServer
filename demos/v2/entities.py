@@ -5,7 +5,6 @@ from network.enums import Roles
 
 
 class SomeEntity(Actor):
-
     mesh = MeshComponent("Suzanne")
     physics = PhysicsComponent("Cube", mass=100)
     transform = TransformComponent(position=(0, 10, 0), orientation=(0, 0, 0))
@@ -31,7 +30,7 @@ class SomeEntity(Actor):
         print(self.score, "Updated")
 
     def on_collide(self, entity, contacts):
-        print("COLLIDED", entity)
+        print("COLLIDED", list(contacts))
 
     def on_update(self):
         pass

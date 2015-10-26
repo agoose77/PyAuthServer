@@ -16,6 +16,11 @@ class Scene(_Scene):
         self.timers = []
 
     def add_timer(self, delay, repeat=False):
+        """Create timer object
+
+        :param delay: delay until timer is finished
+        :param repeat: prevents timer from expiring
+        """
         timer = Timer(delay, repeat)
         self.timers.append(timer)
         return timer
@@ -27,10 +32,10 @@ class Scene(_Scene):
         super().tick()
 
         self.update_timers()
-
         self.network_physics_manager.tick()
 
     def update_timers(self):
+        """Update Timer objects"""
         dt = 1 / self.world.tick_rate
 
         finished_timers = set()

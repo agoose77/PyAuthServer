@@ -42,6 +42,9 @@ box.physics.mass = 0
 timer = server_scene.add_timer(3)
 timer.on_elapsed = lambda: server_scene.remove_replicable(box)
 
+timer = server_scene.add_timer(1)
+timer.on_elapsed = lambda: server_replicable.mesh.change_mesh("Sphere")
+
 
 def main():
     i = 0
