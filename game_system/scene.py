@@ -1,5 +1,6 @@
 from network.scene import Scene as _Scene
 
+from .entity import Actor
 from .resources import ResourceManager
 from .timer import Timer
 from .physics import NetworkPhysicsManager
@@ -10,10 +11,13 @@ class Scene(_Scene):
     def __init__(self, world, name):
         super().__init__(world, name)
 
+        self.timers = []
+
         self.resource_manager = ResourceManager(world.root_filepath)
         self.network_physics_manager = NetworkPhysicsManager(world)
 
-        self.timers = []
+        self.messenger.add_subscriber("replicable_created", self._on_replicable_created)
+        self.messenger.add_subscriber("replicable_removed", self._on_replicable_destroyed)
 
     def add_timer(self, delay, repeat=False):
         """Create timer object
@@ -31,10 +35,18 @@ class Scene(_Scene):
     def tick(self):
         super().tick()
 
-        self.update_timers()
+        self._update_timers()
         self.network_physics_manager.tick()
 
-    def update_timers(self):
+    def _on_replicable_created(self, replicable):
+        if isinstance(replicable, Actor):
+            self.network_physics_manager.add_actor(replicable)
+
+    def _on_replicable_destroyed(self, replicable):
+        if isinstance(replicable, Actor):
+            self.network_physics_manager.remove_actor(replicable)
+
+    def _update_timers(self):
         """Update Timer objects"""
         dt = 1 / self.world.tick_rate
 

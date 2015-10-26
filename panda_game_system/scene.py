@@ -19,16 +19,17 @@ class Scene(_Scene):
         self.entity_builder = EntityBuilder(self._root_nodepath)
         self.physics_manager = PhysicsManager(self._root_nodepath, world)
 
-        self.messenger.add_subscriber("replicable_created", self.on_replicable_created)
-        self.messenger.add_subscriber("replicable_removed", self.on_replicable_destroyed)
-
-    def on_replicable_created(self, replicable):
+    def _on_replicable_created(self, replicable):
         if isinstance(replicable, Entity):
             self.entity_builder.load_entity(replicable)
 
-    def on_replicable_destroyed(self, replicable):
+        super()._on_replicable_created(replicable)
+
+    def _on_replicable_destroyed(self, replicable):
         if isinstance(replicable, Entity):
             self.entity_builder.unload_entity(replicable)
+
+        super()._on_replicable_destroyed(replicable)
 
     def tick(self):
         super().tick()
