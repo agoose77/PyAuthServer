@@ -139,8 +139,8 @@ class PhysicsManager:
                 if not (entity_a and entity_b):
                     continue
 
-                entity_a.messenger.send_message("collision_stopped", entity_b)
-                entity_b.messenger.send_message("collision_stopped", entity_a)
+                entity_a.messenger.send("collision_stopped", entity_b)
+                entity_b.messenger.send("collision_stopped", entity_a)
 
     def add_entity(self, entity, component):
         body = component.body

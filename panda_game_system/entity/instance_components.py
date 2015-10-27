@@ -167,6 +167,15 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
     def world_angular(self, value):
         self.body.set_angular_velocity(value)
 
+    def apply_force(self, force, position):
+        self.body.apply_force(force[:], position[:])
+
+    def apply_impulse(self, impulse, position):
+        self.body.apply_impulse(impulse[:], position[:])
+
+    def apply_torque(self, torque):
+        self.body.apply_torque(torque[: ])
+
     def on_destroyed(self):
         self._entity.scene.physics_manager.remove_entity(self._entity, self)
 

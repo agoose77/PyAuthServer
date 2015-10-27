@@ -30,7 +30,10 @@ class SomeEntity(Actor):
         print(self.score, "Updated")
 
     def on_collide(self, entity, contacts):
-        print("COLLIDED", list(contacts))
+        if not self.physics.mass:
+            return
+
+        self.physics.apply_impulse((0, 0, 500), (0, 0, 0))
 
     def on_update(self):
         pass
