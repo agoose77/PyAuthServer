@@ -17,39 +17,60 @@ class Scene(ProtectedInstance):
         self._unique_ids = UniqueIDPool(255)
 
     @restricted_method
-    def contest_id(self, unique_id, contestant, existing):
-        self.replicables[unique_id] = contestant
+    def contest_id(self, contested_id):
+        """Contest an existing network ID
+
+        Given that IDs are taken from a pool, any contest of an ID implies that the contestant explicitly requested
+        the ID, which suggests that the contestant is a static replicable
+        """
+        existing_replicable = self.replicables[contested_id]
+
+        if existing_replicable.is_static:
+            raise RuntimeError("Cannot contest the unique ID of a static replicable: {}".format(existing_replicable))
 
         # Re-associate existing
         unique_id = self._unique_ids.take()
         with Replicable._grant_authority():
-            existing.change_unique_id(unique_id)
+            existing_replicable.change_unique_id(unique_id)
 
-        self.replicables[unique_id] = existing
+        self.replicables[unique_id] = existing_replicable
+
+        # Send message
+        existing_replicable.messenger.send("unique_id_changed", old_unique_id=contested_id, new_unique_id=unique_id)
 
     def add_replicable(self, replicable_cls, unique_id=None):
+        """Create a Replicable instance and add it to the replicables dictionary
+
+        :param replicable_cls: class to instantiate for replicable object
+        :param unique_id: unique network ID of replicable
+        """
         is_static = unique_id is not None
+
         if not is_static:
             unique_id = self._unique_ids.take()
+
+        else:
+            # Take unique ID from available set
+            try:
+                self._unique_ids.take(unique_id)
+
+            # ID is already in use
+            except KeyError:
+                # Contest ID
+                with Scene._grant_authority():
+                    self.contest_id(unique_id)
 
         # Just create replicable
         with Replicable._grant_authority():
             replicable = replicable_cls.__new__(replicable_cls, self, unique_id, is_static)
 
+        # Allow notification of creation before initialisation
         self.messenger.send("replicable_created", replicable)
 
         # Now initialise replicable
         replicable.__init__(self, unique_id, is_static)
 
-        # Contest id if already in use
-        if unique_id in self.replicables:
-            existing = self.replicables[unique_id]
-
-            with Scene._grant_authority():
-                self.contest_id(unique_id, replicable, existing)
-
-        else:
-            self.replicables[unique_id] = replicable
+        self.replicables[unique_id] = replicable
 
         self.messenger.send("replicable_added", replicable)
 
@@ -62,7 +83,9 @@ class Scene(ProtectedInstance):
 
         self.messenger.send("replicable_removed", replicable)
 
-        replicable.on_destroyed()
+        with Replicable._grant_authority():
+            replicable.on_destroyed()
+
         self.messenger.send("replicable_destroyed", replicable)
 
     @restricted_method

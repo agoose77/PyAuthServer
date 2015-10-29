@@ -658,9 +658,11 @@ class StructDescriber:
     def __call__(self, struct):
         if struct is None:
             descriptions = ()
+
         else:
             data = struct.serialisable_data
             descriptions = [d(data[s]) for s, d in self._describers.items()]
+
         return hash(tuple(descriptions))
 
 # Below need fixing

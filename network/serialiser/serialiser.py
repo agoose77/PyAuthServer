@@ -39,8 +39,7 @@ def build_struct_serialiser(name, character_format, order_format="!"):
     struct_obj = Struct(order_format + character_format)
     format_size = struct_obj.size
 
-    methods = ("""def __init__(self):\n\tprint('WTF')""",
-               """def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
+    methods = ("""def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
                return unpacker(bytes_string, offset)[0], {format_size}""",
                """def size(bytes_string=None):\n\treturn {format_size}""",
                """def pack_multiple(value, count, pack=pack, character_format=character_format):\n\t"""

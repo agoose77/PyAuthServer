@@ -2,7 +2,7 @@ from collections import deque
 from math import sqrt
 from time import clock
 
-from ..utilities import mean, median
+from . import mean, median
 
 
 class LatencyCalculator:

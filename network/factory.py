@@ -26,8 +26,13 @@ class UniqueIDPool:
     def retire(self, unique_id):
         self._id_set.add(unique_id)
 
-    def take(self):
-        return self._id_set.pop()
+    def take(self, unique_id=None):
+        if unique_id is None:
+            return self._id_set.pop()
+
+        else:
+            self._id_set.remove(unique_id)
+            return unique_id
 
 
 def restricted_method(func):

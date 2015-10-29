@@ -1,70 +1,79 @@
-from network.world import World
-from network.enums import Netmodes, Roles
-from network.replication import Serialisable
+from network.enums import Netmodes
 from network.network import NetworkManager
 
+from demos.v2.entities import SomeEntity
 
-from game_system.entity import Entity, MeshComponent, TransformComponent
+from game_system.fixed_timestep import FixedTimeStepManager
+from panda_game_system.world import World
 
+from direct.showbase.ShowBase import ShowBase
 
-class Rules:
-
-    def pre_initialise(self, connection_info):
-        pass
-
-    def post_initialise(self, replication_manager, root_replicables):
-        world = replication_manager.world
-        scene = world.scenes["Scene"]
-
-        # replicable = scene.add_replicable(Replicable2)
-        # root_replicables.add(replicable)
-
-    def is_relevant(self, replicable):
-        return True
-
-
-class SomeEntity(Entity):
-
-    mesh = MeshComponent("player")
-    transform = TransformComponent(position=(0, 0, 0), orientation=(0, 0, 0))
-
-    def can_replicate(self, is_owner, is_initial):
-        yield from super().can_replicate(is_owner, is_initial)
-        yield "score"
-
-    def on_replicated(self, name):
-        print(name, "replicated!")
-
-    def on_score_replicated(self):
-        print(self.score, "Updated")
-
-    score = Serialisable(data_type=int, notify_on_replicated=True)
-    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
-
-
-server_world = World(Netmodes.server)
-server_world.rules = Rules()
-server_network = NetworkManager(server_world, "localhost", 1200)
-
-server_scene = server_world.add_scene("Scene")
-server_replicable = server_scene.add_replicable(SomeEntity)
-server_replicable.score = 100
-
-from game_system.main_loop import FixedTimeStepManager
 game_loop = FixedTimeStepManager()
+base = ShowBase()
 
+
+netmode = Netmodes.client
+world = World(netmode, 60, "D:/pycharmprojects/pyauthserver/demos/v2/")
+
+if netmode == Netmodes.server:
+
+    class Rules:
+
+        def pre_initialise(self, connection_info):
+            pass
+
+        def post_initialise(self, replication_manager, root_replicables):
+            world = replication_manager.world
+            scene = world.scenes["Scene"]
+
+            replicable = scene.add_replicable(SomeEntity)
+            root_replicables.add(replicable)
+            print("SPAWN")
+
+        def is_relevant(self, replicable):
+            return True
+
+    world.rules = Rules()
+
+    scene = world.add_scene("Scene")
+    replicable = scene.add_replicable(SomeEntity)
+
+    box = scene.add_replicable(SomeEntity)
+    box.transform.world_position = (0, 10, -5)
+    box.physics.mass = 0
+
+    # Timer
+    timer = scene.add_timer(3)
+    #timer.on_elapsed = lambda: server_scene.remove_replicable(box)
+
+    timer = scene.add_timer(1)
+    #timer.on_elapsed = lambda: replicable.mesh.change_mesh("Sphere")
+
+network = NetworkManager(world, "localhost", 1200 if netmode==Netmodes.server else 0)
+base.cam.set_pos(0, -35, 0)
+
+if netmode == Netmodes.client:
+    network.connect_to("localhost", 1200)
 
 def main():
     i = 0
     while True:
-        server_network.receive()
-        server_world.tick()
-        server_network.send(not i % 3)
+        network.receive()
+        base.taskMgr.step()
+        world.tick()
+        network.send(not i % 3)
         i += 1
         dt = yield
 
 loop = main()
 next(loop)
 
+# from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
+# n = BulletRigidBodyNode()
+# n.addShape(BulletBoxShape((2, 2, 2)))
+# from panda3d.core import NodePath
+# n = NodePath(n)
+# n.writeBamFile("Cube.bam")
+
 game_loop.on_step = loop.send
-game_loop.delegate()
+game_loop.run()

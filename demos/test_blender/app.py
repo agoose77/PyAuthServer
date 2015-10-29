@@ -79,5 +79,5 @@ def run(mode):
 
     game_loop = cls()
     init_game()
-    game_loop.delegate()
+    game_loop.run()
     del game_loop

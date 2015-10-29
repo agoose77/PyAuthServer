@@ -10,7 +10,7 @@ class MessagePasser:
         self._subscribers[message_id].append(callback)
 
     def remove_subscriber(self, message_id, callback):
-        self._subscribers[message_id].pop(callback)
+        self._subscribers[message_id].remove(callback)
 
     def send(self, identifier, *args, **kwargs):
         try:

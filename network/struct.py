@@ -56,6 +56,9 @@ class Struct(metaclass=StructMetacls):
         for name, value in kwargs.items():
             setattr(self, name, value)
 
+    def __deepcopy__(self, memodict):
+        return self.from_list(self.to_list())
+
     def to_list(self):
         data = self.serialisable_data
         return [data[s] for s in self.__class__.serialisable_data.serialisables]

@@ -6,6 +6,8 @@ from .messages import MessagePasser
 
 class World:
 
+    scene_class = Scene
+
     def __init__(self, netmode):
         self.scenes = OrderedDict()
         self.messenger = MessagePasser()
@@ -18,7 +20,7 @@ class World:
             raise ValueError("Scene with name '{}' already exists".format(name))
 
         with Scene._grant_authority():
-            scene = Scene(self, name)
+            scene = self.__class__.scene_class(self, name)
 
         self.scenes[name] = scene
         self.messenger.send("scene_added", scene)

@@ -15,9 +15,8 @@ class FixedTimeStepManager:
     maximum_dt = 1 / 5
     
     def __init__(self):
-        self._running = False
-
         self._accumulator = 0.0
+        self._running = False
         self._last_time = None
     
     @property
@@ -63,7 +62,7 @@ class FixedTimeStepManager:
     def cleanup(self):
         pass
 
-    def delegate(self):
+    def run(self):
         """Start blocking execute of update functions at discrete time-step"""
         self._running = True
         
