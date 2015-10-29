@@ -134,7 +134,7 @@ class FlagSerialiser:
 
             else:
                 previous_value = previous_values.get(key)
-                if previous_value is not None and handler.is_mutable:
+                if previous_value is not None and handler.supports_mutable_unpacking:
                     # If we can't merge use default unpack
                     value_size = handler.unpack_merge(previous_value, bytes_string, offset)
                     value = previous_value

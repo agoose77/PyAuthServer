@@ -4,8 +4,8 @@ from logging import getLogger
 serialisers = {}
 describers = {}
 
-__all__ = ['get_describer', 'register_serialiser', 'register_describer',
-           'get_serialiser', 'default_logger_as', 'TypeSerialiserAbstract']
+__all__ = ['get_describer', 'register_serialiser', 'register_describer', 'get_serialiser', 'default_logger_as',
+           'TypeSerialiserAbstract', 'TypeDescriberAbstract']
 
 # Default loggers for handlers, handlers can be a class or an instance, so don't force user to set the logger
 _DEFAULT_LOGGER = getLogger("<Default Serialiser Logger>")
@@ -101,20 +101,6 @@ def get_serialiser_for(data_type, logger=None, **data):
     return get_serialiser(info)
 
 
-class DefaultDescriber:
-    __slots__ = ()
-
-    def __init__(self, type_info):
-        pass
-
-    def __call__(self, value):
-        try:
-            return value.__description__()
-
-        except AttributeError:
-            return hash(value)
-
-
 def get_describer(type_info):
     value_type = type_info.data_type
 
@@ -129,7 +115,7 @@ def get_describer(type_info):
 
         # Default to Python hashing
         except (AttributeError, StopIteration):
-            describer = DefaultDescriber
+            describer = DefaultTypeDescriber
 
         else:
             describer = describers[handled_type]
@@ -137,8 +123,28 @@ def get_describer(type_info):
     return describer(type_info)
 
 
+class TypeDescriberAbstract:
+
+    def __init__(self, type_info):
+        pass
+
+    def __call__(self, value):
+        raise NotImplementedError
+
+
+class DefaultTypeDescriber(TypeDescriberAbstract):
+    __slots__ = ()
+
+    def __call__(self, value):
+        try:
+            return value.__description__()
+
+        except AttributeError:
+            return hash(value)
+
+
 class TypeSerialiserAbstract:
-    is_mutable = False
+    supports_mutable_unpacking = False
 
     def __init__(self, type_info, logger=None):
         pass

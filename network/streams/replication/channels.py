@@ -258,6 +258,7 @@ class SceneChannelBase:
 
         self.packed_id = self.__class__.id_handler.pack(scene_id)
         self.replicable_channels = {}
+        self.root_replicable = None
 
         # Channels may be created after replicables were instantiated
         self.register_existing_replicables()

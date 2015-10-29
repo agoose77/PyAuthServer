@@ -176,7 +176,7 @@ class Packet(NetworkPacketBase):
         Invokes on_success callback
         """
         if callable(self.on_success):
-            self.on_success(self)
+            self.on_success()
 
     def on_not_ack(self):
         """Called when packet is considered dropped.
@@ -184,7 +184,7 @@ class Packet(NetworkPacketBase):
         Invokes on_failure callback if this packet is reliable
         """
         if callable(self.on_failure):
-            self.on_failure(self)
+            self.on_failure()
 
     @lru_cache()
     def to_bytes(self):

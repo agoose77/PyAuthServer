@@ -102,7 +102,7 @@ class IterableSerialiser(TypeSerialiserAbstract):
     iterable_update = None
     unique_members = False
 
-    is_mutable = True
+    supports_mutable_unpacking = True
 
     def __init__(self, type_info, logger):
         try:
@@ -484,7 +484,7 @@ class ReplicableSerialiser(TypeSerialiserAbstract):
 
 
 class StructSerialiser(TypeSerialiserAbstract):
-    is_mutable = True
+    supports_mutable_unpacking = True
 
     def __init__(self, type_info, logger):
         struct_cls = type_info.data_type
@@ -492,9 +492,9 @@ class StructSerialiser(TypeSerialiserAbstract):
             raise TypeError("Struct class has no members, cannot be serialised")
 
         self._struct_cls = struct_cls
-
         serialisable_map = OrderedDict([(s, s) for s in struct_cls.serialisable_data.serialisables])
         self._serialiser = FlagSerialiser(serialisable_map)
+
         # To avoid packing all state
         self._describers = OrderedDict([(s, get_describer(s)) for s in struct_cls.serialisable_data.serialisables])
         self._default_descriptions = {s: d(s.initial_value) for s, d in self._describers.items()}
@@ -520,7 +520,7 @@ class StructSerialiser(TypeSerialiserAbstract):
         start_offset = offset
 
         struct_cls = self._struct_cls
-        new = struct_cls.__new__
+        new = struct_cls.__new__.__get__(struct_cls)
 
         unpack = self._serialiser.unpack
 
@@ -528,7 +528,7 @@ class StructSerialiser(TypeSerialiserAbstract):
         for i in range(count):
             data, read_bytes = unpack(bytes_string, offset)
 
-            struct = new(struct_cls)
+            struct = new()
             struct.serialisable_data.update(data)
             struct.append(struct)
 

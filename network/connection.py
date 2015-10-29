@@ -1,4 +1,5 @@
 from collections import deque
+from functools import partial
 from logging import getLogger, Formatter, StreamHandler
 from time import strftime, clock
 
@@ -62,8 +63,6 @@ class Connection(ProtectedInstance):
         self.latency_calculator = LatencyCalculator()
 
         self.last_received_time = None
-        self.send_heartbeat_when_idle = True
-
         self._queue = []
 
         self.pre_receive_callbacks = []
@@ -248,8 +247,12 @@ class Connection(ProtectedInstance):
             callback(is_network_tick)
 
         # Use heartbeat packet
-        if not self._queue and self.send_heartbeat_when_idle:
-            heartbeat_packet = Packet(PacketProtocols.heartbeat)
+        if is_network_tick:
+            # Start sampling
+            sample_id = self.latency_calculator.start_sample()
+            heartbeat_packet = Packet(PacketProtocols.heartbeat,
+                                      on_success=partial(self.latency_calculator.stop_sample, sample_id),
+                                      on_failure=partial(self.latency_calculator.ignore_sample, sample_id))
             self.queue_packet(heartbeat_packet)
 
         messages = self._queue[:]

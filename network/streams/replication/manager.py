@@ -18,13 +18,17 @@ class ReplicationManagerBase:
         self.world = world
 
         self.scene_channels = {}
-        self.root_replicables = defaultdict(set)
-
         self.logger = connection.logger.getChild("ReplicationManager")
 
         # Listen to packets from connection
         register_protocol_listeners(self, connection.messenger)
         connection.pre_send_callbacks.append(self.send)
+        connection.latency_calculator.on_updated = self.on_latency_estimate_rtt
+
+    def on_latency_estimate_rtt(self, rtt):
+        for scene_channel in self.scene_channels.values():
+            if scene_channel.root_replicable:
+                scene_channel.root_replicable.messenger.send("estimated_rtt", rtt)
 
     @on_protocol(PacketProtocols.invoke_method)
     def on_invoke_methods(self, packet):
@@ -36,7 +40,7 @@ class ReplicationManagerBase:
         scene = scene_channel.scene
 
         replicable_channels = scene_channel.replicable_channels
-        root_replicables = self.root_replicables[scene_id]
+        root_replicable = scene_channel.root_replicable
 
         replicable_id_handler = ReplicableChannelBase.id_handler
 
@@ -48,7 +52,7 @@ class ReplicationManagerBase:
                 replicable_channel = replicable_channels[unique_id]
                 replicable = replicable_channel.replicable
 
-                allow_execute = replicable.replicate_to_owner and replicable.root in root_replicables
+                allow_execute = replicable.replicate_to_owner and replicable.root is root_replicable
                 read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
                 offset += read_bytes
 
@@ -77,11 +81,20 @@ class ServerReplicationManager(ReplicationManagerBase):
         world.messenger.add_subscriber("scene_removed", self.on_scene_removed)
 
         # Register root replicables
-        flat_root_replicables = set()
-        world.rules.post_initialise(self, flat_root_replicables)
+        world.rules.post_initialise(self)
 
-        for replicable in flat_root_replicables:
-            self.root_replicables[replicable.scene] = replicable
+    def set_root_for_scene(self, scene, replicable):
+        """Assign replicable as root for the containing scene
+
+        :param replicable: replicable object or None
+        """
+        if replicable is not None:
+            if scene is not replicable.scene:
+                raise ValueError("Replicable does not belong to given scene")
+
+        scene_id = self.scene_to_scene_id[scene]
+        scene_channel = self.scene_channels[scene_id]
+        scene_channel.root_replicable = replicable
 
     def register_existing_scenes(self):
         """Load existing registered scenes"""
@@ -100,14 +113,10 @@ class ServerReplicationManager(ReplicationManagerBase):
         channel = self.scene_channels.pop(scene_id)
         self.deleted_channels.append(channel)
 
-    def take_ownership(self, replicable):
-        self.root_replicables.add(replicable)
-
     def send(self, is_network_tick):
         pack_string = self._string_handler.pack
         pack_bool = self._bool_handler.pack
 
-        root_replicables = self.root_replicables
         is_relevant = self.world.rules.is_relevant
 
         queue_packet = self.connection.queue_packet
@@ -125,6 +134,7 @@ class ServerReplicationManager(ReplicationManagerBase):
             attribute_data = []
 
             no_role = Roles.none
+            root_replicable = scene_channel.root_replicable
 
             for replicable_channel in scene_channel.prioritised_channels:
                 replicable = replicable_channel.replicable
@@ -133,7 +143,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root in root_replicables
+                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root is root_replicable
 
                 # Write RPC calls
                 if is_and_relevant_to_owner:
@@ -151,7 +161,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                     # Channel just created
                     if replicable_channel.is_initial:
                         packed_class = pack_string(replicable.__class__.__name__)
-                        packed_is_host = pack_bool(replicable in root_replicables)
+                        packed_is_host = pack_bool(replicable is root_replicable)
 
                         # Send the protocol, class name and owner status to client
                         creation_payload = replicable_channel.packed_id + packed_class + packed_is_host
@@ -294,7 +304,7 @@ class ClientReplicationManager(ReplicationManagerBase):
             # If replicable is parent (top owner)
             if is_connection_host:
                 # Register as own replicable
-                self.root_replicables.add(replicable)
+                scene_channel.root_replicable = replicable
 
     @on_protocol(PacketProtocols.delete_replicable)
     def on_delete_replicable(self, packet):
@@ -349,7 +359,7 @@ class ClientReplicationManager(ReplicationManagerBase):
             # Unreliable packets
             unreliable_invoke_method_data = []
 
-            root_replicables = self.root_replicables
+            root_replicable = scene_channel.root_replicable
             no_role = Roles.none
 
             for replicable_channel in scene_channel.prioritised_channels:
@@ -359,7 +369,7 @@ class ClientReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root in root_replicables
+                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root is root_replicable
                 # Write RPC calls
                 if is_and_relevant_to_owner:
                     reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()

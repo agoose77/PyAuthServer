@@ -13,7 +13,12 @@ class SomeEntity(Actor):
 
     def __init__(self, scene, unique_id, is_static=False):
         scene.messenger.add_subscriber("tick", self.on_update)
+
         self.messenger.add_subscriber("collision_started", self.on_collide)
+        self.messenger.add_subscriber("estimated_rtt", self.on_rtt_estimated)
+
+    def on_rtt_estimated(self, rtt):
+        print("RTT estimated", rtt)
 
     def on_destroyed(self):
         self.scene.messenger.remove_subscriber("tick", self.on_update)

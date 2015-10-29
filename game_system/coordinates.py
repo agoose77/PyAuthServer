@@ -1,41 +1,17 @@
-from network.type_serialisers import register_serialiser, register_describer, get_serialiser_for, TypeSerialiserAbstract
+from network.type_serialisers import register_serialiser, register_describer, get_serialiser_for, \
+    TypeSerialiserAbstract, TypeDescriberAbstract
+
+try:
+    from mathutils import *
+
+except ImportError:
+    try:
+        from .mathutils import *
+    except ImportError as err:
+        raise ImportError("Unable to import mathutils library") from err
 
 
-class Vector:
-
-    def __init__(self, obj):
-        self.x, self.y, self.z = obj
-
-    def __add__(self, other):
-        x, y, z = other
-        return Vector((self.x+x, self.y+y, self.z+z))
-
-    def __iter__(self):
-        return iter((self.x, self.y, self.z))
-
-    def __getitem__(self, index):
-        return (self.x, self.y, self.z)[index]
-
-    def __repr__(self):
-        return "<Vector ({})>".format(repr(self[:]))
-
-
-class Euler:
-    def __init__(self, obj):
-        self.x, self.y, self.z = obj
-
-    def __add__(self, other):
-        x, y, z = other
-        return Euler((self.x+x, self.y+y, self.z+z))
-
-    def __iter__(self):
-        return iter((self.x, self.y, self.z))
-
-    def __getitem__(self, index):
-        return (self.x, self.y, self.z)[index]
-
-
-class VectPacker(TypeSerialiserAbstract):
+class VectorPacker(TypeSerialiserAbstract):
     handler = get_serialiser_for(float)
 
     cls = Vector
@@ -57,12 +33,13 @@ class VectPacker(TypeSerialiserAbstract):
         return self.handler.size() * 3
 
 
-class EulerPacker(VectPacker):
+class EulerPacker(VectorPacker):
     cls = Euler
 
 
-class describe_type:
-    def __init__(self, tp):
+class Describe3Vector:
+
+    def __init__(self, type_info):
         pass
 
     def __call__(self, obj):
@@ -73,17 +50,7 @@ class describe_type:
 
 
 register_serialiser(Euler, EulerPacker)
-register_serialiser(Vector, VectPacker)
+register_serialiser(Vector, VectorPacker)
 
-register_describer(Euler, describe_type)
-register_describer(Vector, describe_type)
-
-if 0:
-    try:
-        from mathutils import *
-
-    except ImportError:
-        try:
-            from ._mathutils import *
-        except ImportError as err:
-            raise ImportError("Unable to import mathutils library") from err
+register_describer(Euler, Describe3Vector)
+register_describer(Vector, Describe3Vector)

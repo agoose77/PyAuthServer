@@ -11,7 +11,6 @@ from direct.showbase.ShowBase import ShowBase
 game_loop = FixedTimeStepManager()
 base = ShowBase()
 
-
 netmode = Netmodes.client
 world = World(netmode, 60, "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/v2/")
 
@@ -22,12 +21,12 @@ if netmode == Netmodes.server:
         def pre_initialise(self, connection_info):
             pass
 
-        def post_initialise(self, replication_manager, root_replicables):
+        def post_initialise(self, replication_manager):
             world = replication_manager.world
             scene = world.scenes["Scene"]
 
             replicable = scene.add_replicable(SomeEntity)
-            root_replicables.add(replicable)
+            replication_manager.set_root_for_scene(scene, replicable)
             print("SPAWN")
 
         def is_relevant(self, replicable):
