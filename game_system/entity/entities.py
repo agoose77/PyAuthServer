@@ -1,62 +1,42 @@
-from network.replicable import ReplicableMetacls, Replicable
+from network.replicable import Replicable
+from network.struct import Struct
+from network.replication import Serialisable
 
-from .components import ClassComponent
-
-
-class EntityMetacls(ReplicableMetacls):
-
-    def __new__(metacls, name, bases, namespace):
-        namespace["components"] = components = {}
-
-        # Inherit from parent classes
-        for cls in reversed(bases):
-            if not isinstance(cls, metacls):
-                continue
-
-            components.update(cls.components)
-
-        for attr_name, value in namespace.items():
-            if isinstance(value, ClassComponent):
-                components[attr_name] = value
-
-        return super().__new__(metacls, name, bases, namespace)
-
-
-class EntityBuilderBase:
-
-    component_classes = None
-
-    def create_component(self, entity, class_component, component_cls):
-        raise NotImplementedError()
-
-    def load_entity(self, entity):
-        self.load_components(entity)
-
-    def load_components(self, entity):
-        for component_name, component in entity.components.items():
-            try:
-                instance_component_cls = self.component_classes[component.__class__]
-            except KeyError:
-                raise RuntimeError("No component class is registered for ({}){}.{}"
-                                   .format(component.__class__.__name__, entity.__class__.__name__, component_name))
-            instance_component = self.create_component(entity, component, instance_component_cls)
-            setattr(entity, component_name, instance_component)
-
-    def unload_entity(self, entity):
-        self.unload_components(entity)
-
-    def unload_components(self, entity):
-        for component_name, component in entity.components.items():
-            instance_component = getattr(entity, component_name)
-            instance_component.on_destroyed()
-
-            delattr(entity, component_name)
-
-    @classmethod
-    def register_class(cls, generic_class, specific_class):
-        cls.component_classes[generic_class] = specific_class
+from .builder import EntityMetacls
+from .class_components import TransformComponent, PhysicsComponent
+from ..coordinates import Vector, Euler
 
 
 class Entity(Replicable, metaclass=EntityMetacls):
-
     """Base class for networked component holders"""
+
+
+class PhysicsState(Struct):
+    position = Serialisable(data_type=Vector)
+    velocity = Serialisable(data_type=Vector)
+    orientation = Serialisable(data_type=Euler)
+    angular = Serialisable(data_type=Vector)
+    timestamp = Serialisable(data_type=float)
+
+
+class Actor(Entity):
+    transform = TransformComponent()
+    physics = PhysicsComponent()
+
+    physics_state = Serialisable(PhysicsState(), notify_on_replicated=True)
+
+    on_physics_replicated = None
+
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+
+        yield "physics_state"
+
+    def on_replicated(self, name):
+        if name == "physics_state":
+            print(self, self.on_physics_replicated)
+            if callable(self.on_physics_replicated):
+                self.on_physics_replicated()
+
+        else:
+            super().on_replicated(name)
