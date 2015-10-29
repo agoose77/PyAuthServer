@@ -1,2 +1,4 @@
-from .entities import Entity, EntityBuilderBase
-from .components import TransformComponent, MeshComponent, AnimationComponent, InstanceComponent
+from .entities import Entity, Actor
+from .builder import EntityBuilderBase
+from .instance_components import *
+from .class_components import *
