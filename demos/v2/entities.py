@@ -9,9 +9,9 @@ class SomeEntity(Actor):
     physics = PhysicsComponent("Cube", mass=100)
     transform = TransformComponent(position=(0, 10, 0), orientation=(0, 0, 0))
 
-    def __init__(self, scene, unique_id, is_static=False):
-        super().__init__(scene, unique_id, is_static)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
 
+    def __init__(self, scene, unique_id, is_static=False):
         scene.messenger.add_subscriber("tick", self.on_update)
         self.messenger.add_subscriber("collision_started", self.on_collide)
 
@@ -24,14 +24,14 @@ class SomeEntity(Actor):
     def can_replicate(self, is_owner, is_initial):
         yield from super().can_replicate(is_owner, is_initial)
 
-        yield "score"
-
     def on_score_replicated(self):
         print(self.score, "Updated")
 
     def on_collide(self, entity, contacts):
         if not self.physics.mass:
             return
+
+        return
 
         self.physics.apply_impulse((0, 0, 500), (0, 0, 0))
 

@@ -157,7 +157,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
 
     @world_velocity.setter
     def world_velocity(self, value):
-        self.body.set_linear_velocity(value)
+        self.body.set_linear_velocity(value[:])
 
     @property
     def world_angular(self):
@@ -165,7 +165,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
 
     @world_angular.setter
     def world_angular(self, value):
-        self.body.set_angular_velocity(value)
+        self.body.set_angular_velocity(value[:])
 
     def apply_force(self, force, position):
         self.body.apply_force(force[:], position[:])

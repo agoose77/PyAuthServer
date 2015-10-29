@@ -156,10 +156,12 @@ class Connection(ProtectedInstance):
         for absolute_sequence in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
             reliable_packet = requested_ack.pop(absolute_sequence).to_reliable()
-            reliable_packet.on_not_ack()
 
-            missed_ack = True
-            queue_packet(reliable_packet)
+            if reliable_packet is not None:
+                reliable_packet.on_not_ack()
+
+                missed_ack = True
+                queue_packet(reliable_packet)
 
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:

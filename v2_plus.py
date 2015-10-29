@@ -8,51 +8,60 @@ from panda_game_system.world import World
 
 from direct.showbase.ShowBase import ShowBase
 
-
-class Rules:
-
-    def pre_initialise(self, connection_info):
-        pass
-
-    def post_initialise(self, replication_manager, root_replicables):
-        world = replication_manager.world
-        scene = world.scenes["Scene"]
-
-        # replicable = scene.add_replicable(Replicable2)
-        # root_replicables.add(replicable)
-
-    def is_relevant(self, replicable):
-        return True
-
 game_loop = FixedTimeStepManager()
 base = ShowBase()
 
-server_world = World(Netmodes.server, 60, "D:/pycharmprojects/pyauthserver/demos/v2/")
-server_world.rules = Rules()
-server_network = NetworkManager(server_world, "localhost", 1200)
 
-server_scene = server_world.add_scene("Scene")
-server_replicable = server_scene.add_replicable(SomeEntity)
+netmode = Netmodes.client
+world = World(netmode, 60, "D:/pycharmprojects/pyauthserver/demos/v2/")
 
-box = server_scene.add_replicable(SomeEntity)
-box.transform.world_position = (0, 10, -5)
-box.physics.mass = 0
+if netmode == Netmodes.server:
 
-# Timer
-timer = server_scene.add_timer(3)
-#timer.on_elapsed = lambda: server_scene.remove_replicable(box)
+    class Rules:
 
-timer = server_scene.add_timer(1)
-timer.on_elapsed = lambda: server_replicable.mesh.change_mesh("Sphere")
+        def pre_initialise(self, connection_info):
+            pass
 
+        def post_initialise(self, replication_manager, root_replicables):
+            world = replication_manager.world
+            scene = world.scenes["Scene"]
+
+            replicable = scene.add_replicable(SomeEntity)
+            root_replicables.add(replicable)
+            print("SPAWN")
+
+        def is_relevant(self, replicable):
+            return True
+
+    world.rules = Rules()
+
+    scene = world.add_scene("Scene")
+    replicable = scene.add_replicable(SomeEntity)
+
+    box = scene.add_replicable(SomeEntity)
+    box.transform.world_position = (0, 10, -5)
+    box.physics.mass = 0
+
+    # Timer
+    timer = scene.add_timer(3)
+    #timer.on_elapsed = lambda: server_scene.remove_replicable(box)
+
+    timer = scene.add_timer(1)
+    #timer.on_elapsed = lambda: replicable.mesh.change_mesh("Sphere")
+
+network = NetworkManager(world, "localhost", 1200 if netmode==Netmodes.server else 0)
+base.cam.set_pos(0, -35, 0)
+
+if netmode == Netmodes.client:
+    network.connect_to("localhost", 1200)
 
 def main():
     i = 0
     while True:
-        server_network.receive()
+        network.receive()
         base.taskMgr.step()
-        server_world.tick()
-        server_network.send(not i % 3)
+        world.tick()
+        network.send(not i % 3)
         i += 1
         dt = yield
 
