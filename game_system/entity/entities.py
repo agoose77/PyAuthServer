@@ -34,7 +34,7 @@ class Actor(Entity):
 
     def on_replicated(self, name):
         if name == "physics_state":
-            print(self, self.on_physics_replicated)
+
             if callable(self.on_physics_replicated):
                 self.on_physics_replicated()
 

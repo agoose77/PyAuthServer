@@ -13,7 +13,7 @@ base = ShowBase()
 
 
 netmode = Netmodes.client
-world = World(netmode, 60, "D:/pycharmprojects/pyauthserver/demos/v2/")
+world = World(netmode, 60, "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/v2/")
 
 if netmode == Netmodes.server:
 

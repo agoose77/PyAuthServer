@@ -7,11 +7,17 @@ class Vector:
         self.x, self.y, self.z = obj
 
     def __add__(self, other):
-        x,y,z=other
+        x, y, z = other
         return Vector((self.x+x, self.y+y, self.z+z))
 
     def __iter__(self):
         return iter((self.x, self.y, self.z))
+
+    def __getitem__(self, index):
+        return (self.x, self.y, self.z)[index]
+
+    def __repr__(self):
+        return "<Vector ({})>".format(repr(self[:]))
 
 
 class Euler:
@@ -19,11 +25,14 @@ class Euler:
         self.x, self.y, self.z = obj
 
     def __add__(self, other):
-        x,y,z=other
-        return Vector((self.x+x, self.y+y, self.z+z))
+        x, y, z = other
+        return Euler((self.x+x, self.y+y, self.z+z))
 
     def __iter__(self):
         return iter((self.x, self.y, self.z))
+
+    def __getitem__(self, index):
+        return (self.x, self.y, self.z)[index]
 
 
 class VectPacker(TypeSerialiserAbstract):
