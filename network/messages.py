@@ -9,6 +9,9 @@ class MessagePasser:
     def add_subscriber(self, message_id, callback):
         self._subscribers[message_id].append(callback)
 
+    def clear_subscribers(self):
+        self._subscribers.clear()
+
     def remove_subscriber(self, message_id, callback):
         self._subscribers[message_id].remove(callback)
 

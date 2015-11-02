@@ -7,11 +7,13 @@ from network.annotations.decorators import reliable, requires_netmode
 from .coordinates import Vector
 from .entity import Actor
 from .enums import InputButtons
+from .latency_compensation import JitterBuffer
 
 from collections import OrderedDict, deque
 from logging import getLogger
 from math import radians, pi
 from os import path
+from time import time
 
 
 class PawnController(Replicable):
@@ -72,12 +74,6 @@ class PlayerPawnController(PawnController):
 
     # input_context = InputContext()
     # info_cls = PlayerReplicationInfo TODO
-
-    def can_replicate(self, is_owner, is_initial):
-        yield from super().can_replicate(is_owner, is_initial)
-
-        yield "clock"
-
     def __init__(self, scene, unique_id, is_static=False):
         """Initialisation method"""
         super().__init__(scene, unique_id, is_static)
@@ -85,11 +81,8 @@ class PlayerPawnController(PawnController):
         self.initialise_client()
         self.initialise_server()
 
-    @requires_netmode(Netmodes.client)
-    def on_pawn_possessed_camera(self, camera):
-        """Callback from pawn to set camera"""
-        # camera.camera.set_active()
-        # self.scene.active_camera = camera
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
 
     @reliable
     def client_correct_move(self, move_id: (int, {'max_value': 1000}), position: Vector, yaw: float, velocity: Vector,
@@ -183,12 +176,8 @@ class PlayerPawnController(PawnController):
     @requires_netmode(Netmodes.server)
     def initialise_server(self):
         """Initialise server-specific player controller state"""
-        self.info = self.__class__.info_cls()
+        self.info = self.__class__.info()
         self.info.possessed_by(self)
-
-        # Network clock
-        self.clock = Clock()
-        self.clock.possessed_by(self)
 
         # Network jitter compensation
         ticks = round(0.1 * self.scene.world.tick_rate)

@@ -3,7 +3,7 @@ from network.scene import Scene as _Scene
 from .entity import Actor
 from .resources import ResourceManager
 from .timer import Timer
-from .physics import NetworkPhysicsManager
+from .physics import create_network_physics_manager
 
 
 class Scene(_Scene):
@@ -14,7 +14,7 @@ class Scene(_Scene):
         self.timers = []
 
         self.resource_manager = ResourceManager(world.root_filepath)
-        self.network_physics_manager = NetworkPhysicsManager(world)
+        self.network_physics_manager = create_network_physics_manager(world)
 
         self.messenger.add_subscriber("replicable_created", self._on_replicable_created)
         self.messenger.add_subscriber("replicable_removed", self._on_replicable_destroyed)

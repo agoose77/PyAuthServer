@@ -86,7 +86,7 @@ class UnreliableSocketWrapper:
 
         self._last_sent_bytes += sent_bytes
 
-    def sendto(self, *args, **kwargs):
+    def send(self, *args, **kwargs):
         # Send count from actual send call
         sent_bytes, self._last_sent_bytes = self._last_sent_bytes, 0
 

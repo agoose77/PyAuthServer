@@ -4,7 +4,7 @@ from network.replication import Serialisable
 
 from .builder import EntityMetacls
 from .class_components import TransformComponent, PhysicsComponent
-from ..coordinates import Vector, Euler
+from ..coordinates import Vector, Quaternion
 
 
 class Entity(Replicable, metaclass=EntityMetacls):
@@ -12,11 +12,12 @@ class Entity(Replicable, metaclass=EntityMetacls):
 
 
 class PhysicsState(Struct):
+    mass = Serialisable(data_type=float)
     position = Serialisable(data_type=Vector)
-    velocity = Serialisable(data_type=Vector)
-    orientation = Serialisable(data_type=Euler)
-    angular = Serialisable(data_type=Vector)
-    timestamp = Serialisable(data_type=float)
+    orientation = Serialisable(data_type=Quaternion)
+    tick = Serialisable(data_type=int, max_value=1000000)
+    # TODO dont send vel / angular
+    # TODO use quaternions instead of euler - compress them
 
 
 class Actor(Entity):

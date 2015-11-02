@@ -1,5 +1,5 @@
 from network.enums import Netmodes
-from network.network import NetworkManager
+from network.network import NetworkManager, DefaultTransport, UnreliableSocketWrapper
 
 from demos.v2.entities import SomeEntity
 
@@ -11,10 +11,9 @@ from direct.showbase.ShowBase import ShowBase
 game_loop = FixedTimeStepManager()
 base = ShowBase()
 
-netmode = Netmodes.client
-world = World(netmode, 60, "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/v2/")
 
-if netmode == Netmodes.server:
+def server():
+    world = World(Netmodes.server, 60, "D:/PyCharmProjects/PyAuthServer/demos/v2/")
 
     class Rules:
 
@@ -35,32 +34,51 @@ if netmode == Netmodes.server:
     world.rules = Rules()
 
     scene = world.add_scene("Scene")
-    replicable = scene.add_replicable(SomeEntity)
 
     box = scene.add_replicable(SomeEntity)
     box.transform.world_position = (0, 10, -5)
     box.physics.mass = 0
 
-    # Timer
-    timer = scene.add_timer(3)
-    #timer.on_elapsed = lambda: server_scene.remove_replicable(box)
+    network = NetworkManager(world, "localhost", 1200)
 
-    timer = scene.add_timer(1)
-    #timer.on_elapsed = lambda: replicable.mesh.change_mesh("Sphere")
+    # network._transport = UnreliableSocketWrapper(network._transport)
+    # world.messenger.add_subscriber("tick", network._transport.update)
 
-network = NetworkManager(world, "localhost", 1200 if netmode==Netmodes.server else 0)
-base.cam.set_pos(0, -35, 0)
+    base.cam.set_pos(0, -35, 0)
 
-if netmode == Netmodes.client:
+    return network, world
+
+
+def client():
+    world = World(Netmodes.client, 60, "D:/PyCharmProjects/PyAuthServer/demos/v2/")
+    network = NetworkManager(world, "localhost", 0)
+
+    # network._transport = UnreliableSocketWrapper(network._transport)
+    # world.messenger.add_subscriber("tick", network._transport.update)
+
+    base.cam.set_pos(0, -35, 0)
     network.connect_to("localhost", 1200)
+
+    return network, world
+
 
 def main():
     i = 0
+
+    cnet, cworld = client()
+    snet, sworld = server()
+
     while True:
-        network.receive()
+        cnet.receive()
+        snet.receive()
         base.taskMgr.step()
-        world.tick()
-        network.send(not i % 3)
+
+        cworld.tick()
+        sworld.tick()
+
+        is_net_tick = not i % 3
+        snet.send(is_net_tick)
+        cnet.send(is_net_tick)
         i += 1
         dt = yield
 

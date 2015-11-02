@@ -328,6 +328,7 @@ class ClientReplicationManager(ReplicationManagerBase):
         payload = packet.payload
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
 
+        # Latency may cause this to fail TODO - add queue to handle RPC calls + init/del
         scene_channel = self.scene_channels[scene_id]
         scene = scene_channel.scene
 

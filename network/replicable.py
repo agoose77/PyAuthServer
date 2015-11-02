@@ -133,6 +133,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
 
         self._scene = None
         self._unique_id = None
+        self.messenger.clear_subscribers()
 
     @restricted_method
     def change_unique_id(self, unique_id):

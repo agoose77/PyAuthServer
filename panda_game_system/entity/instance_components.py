@@ -1,4 +1,4 @@
-from game_system.coordinates import Euler, Vector
+from game_system.coordinates import Quaternion, Vector
 from game_system.entity import AbstractTransformInstanceComponent, AbstractPhysicsInstanceComponent, MeshComponent, \
     InstanceComponent
 
@@ -27,6 +27,7 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent, PandaInstan
     def __init__(self, entity, component):
         self._class_component = component
         self._nodepath = None
+        self._entity = entity
 
     def set_root_nodepath(self, nodepath):
         self._nodepath = nodepath
@@ -36,7 +37,7 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent, PandaInstan
 
     def move(self, dr, local=False):
         if not local:
-            pos = self._nodepath.get_pos(self._nodepath.get_top())
+            pos = self._nodepath.get_pos(self._entity.scene._root_nodepath)
 
         else:
             pos = self._nodepath.get_pos()
@@ -46,21 +47,21 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent, PandaInstan
 
     @property
     def world_position(self):
-        return Vector(self._nodepath.getPos(self._nodepath.get_top()))
+        return Vector(self._nodepath.get_pos(self._entity.scene._root_nodepath))
 
     @world_position.setter
     def world_position(self, position):
-        self._nodepath.setPos(self._nodepath.get_top(), *position)
+        self._nodepath.set_pos(self._entity.scene._root_nodepath, *position)
 
     @property
     def world_orientation(self):
-        h, p, r = self._nodepath.getHpr(self._nodepath.get_top())
-        return Euler((radians(p), radians(r), radians(h)))
+        l, i, j, k = self._nodepath.get_quat(self._entity.scene._root_nodepath)
+        return Quaternion((l, i, j, k))
 
     @world_orientation.setter
     def world_orientation(self, orientation):
-        p, r, h = orientation
-        self._nodepath.setHpr(self._nodepath.get_top(), degrees(h), degrees(p), degrees(r))
+        l, i, j, k = orientation
+        self._nodepath.set_quat(self._entity.scene._root_nodepath, (l, i, j, k))
 
 
 class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceComponent):
@@ -174,7 +175,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent, PandaInstanceCo
         self.body.apply_impulse(impulse[:], position[:])
 
     def apply_torque(self, torque):
-        self.body.apply_torque(torque[: ])
+        self.body.apply_torque(torque[:])
 
     def on_destroyed(self):
         self._entity.scene.physics_manager.remove_entity(self._entity, self)

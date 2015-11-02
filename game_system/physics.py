@@ -1,26 +1,40 @@
 from network.enums import Netmodes
 from functools import partial
 
+from .latency_compensation import InterpolationWindow
 
-class NetworkPhysicsManager:
+
+class INetworkPhysicsManager:
 
     def __init__(self, world):
-        self._entities = set()
-        self._time = 0.0
+        pass
 
-        self._world = world
+    def add_actor(self, actor):
+        raise NotImplementedError
+
+    def remove_actor(self, actor):
+        raise NotImplementedError
+
+    def tick(self):
+        raise NotImplementedError
+
+
+class ServerNetworkPhysicsManager(INetworkPhysicsManager):
+
+    def __init__(self, world):
         self._timestep = 1 / world.tick_rate
+        self._world = world
+
+        self._entities = set()
 
     def add_actor(self, actor):
         self._entities.add(actor)
-        actor.on_physics_replicated = partial(self.on_replicated, actor)
 
     def remove_actor(self, actor):
         self._entities.remove(actor)
-        actor.on_physics_replicated = None
 
-    def write_to_network(self):
-        timestamp = self._time
+    def tick(self):
+        current_tick = self._world.current_tick
 
         for entity in self._entities:
             physics_state = entity.physics_state
@@ -28,17 +42,63 @@ class NetworkPhysicsManager:
             physics_state.orientation = entity.transform.world_orientation
             physics_state.velocity = entity.physics.world_velocity
             physics_state.angular = entity.physics.world_angular
-            physics_state.timestamp = timestamp
+            physics_state.tick = current_tick
+            physics_state.mass = entity.physics.mass
 
-    def on_replicated(self, entity):
-        physics_state = entity.physics_state
-        entity.transform.world_position = physics_state.position
-        entity.transform.world_orientation = physics_state.orientation
-        entity.physics.world_velocity = physics_state.velocity
-        entity.physics.world_angular = physics_state.angular
+
+class ClientNetworkPhysicsManager(INetworkPhysicsManager):
+
+    def __init__(self, world):
+        self._entity_to_interpolator = {}
+
+        self._time = 0.0
+        self._timestep = 1 / world.tick_rate
+        self._world = world
+        self._latency = 0.0
+
+        # Listen for latency message
+        world.messenger.add_subscriber("server_latency_estimate", self.update_latency_estimate)
+
+    def update_latency_estimate(self, latency):
+        self._latency = latency
+
+    def add_actor(self, actor):
+        interpolator = InterpolationWindow()
+        self._entity_to_interpolator[actor] = interpolator
+        actor.on_physics_replicated = partial(self.on_replicated, actor, interpolator)
+
+    def remove_actor(self, actor):
+        del self._entity_to_interpolator[actor]
+        actor.on_physics_replicated = None
+
+    def on_replicated(self, actor, interpolator):
+        physics_state = actor.physics_state
+
+        interpolator.add_frame(physics_state.tick, physics_state.position, physics_state.orientation)
+
+        # Non time varying
+        actor.physics.mass = physics_state.mass
+        #actor.physics.collision_group
+        #actor.physics.collision_mask
 
     def tick(self):
-        if self._world.netmode == Netmodes.server:
-            self.write_to_network()
+        for actor, interpolator in self._entity_to_interpolator.items():
 
-        self._time += self._timestep
+            actor.physics.world_angular = (0, 0, 0)
+            actor.physics.world_velocity = (0, 0, 0)
+
+            try:
+                position, orientation = interpolator.next_sample()
+            except ValueError:
+                continue
+
+            actor.transform.world_position = position
+            actor.transform.world_orientation = orientation
+
+
+def create_network_physics_manager(world):
+    if world.netmode == Netmodes.server:
+        return ServerNetworkPhysicsManager(world)
+
+    else:
+        return ClientNetworkPhysicsManager(world)
