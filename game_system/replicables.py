@@ -1,8 +1,8 @@
 from network.replicable import Replicable
 from network.replication import Serialisable, Pointer
 from network.type_serialisers import TypeInfo
-from network.enums import Roles, Netmodes
-from network.annotations.decorators import reliable, requires_netmode
+from network.annotations.decorators import reliable, requires_netmode, simulated
+from network.enums import Netmodes, Roles
 
 from .coordinates import Vector
 from .entity import Actor
@@ -11,9 +11,109 @@ from .latency_compensation import JitterBuffer
 
 from collections import OrderedDict, deque
 from logging import getLogger
-from math import radians, pi
+from math import radians, pi, floor
 from os import path
 from time import time
+
+
+class ReplicationInfo(Replicable):
+    pawn = Serialisable(data_type=Replicable)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
+
+    def __init__(self, unique_id, scene, is_static=False):
+        self.always_relevant = True
+
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+
+        yield "pawn"
+
+
+class PlayerReplicationInfo(ReplicationInfo):
+    name = Serialisable("")
+    ping = Serialisable(0.0)
+
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+
+        yield "name"
+        yield "ping"
+
+
+class Clock(Replicable):
+
+    roles = Serialisable(Roles(Roles.authority, Roles.autonomous_proxy))
+
+    def __init__(self, scene, unique_id, is_static=False):
+        if scene.world.netmode == Netmodes.server:
+            self.initialise_server()
+        else:
+            self.initialise_client()
+
+    def initialise_client(self):
+        self.nudge_minimum = 0.05
+        self.nudge_maximum = 0.4
+        self.nudge_factor = 0.8
+
+        self.estimated_elapsed_server = 0.0
+
+    def initialise_server(self):
+        self.poll_timer = self.scene.add_timer(1.0, repeat=True)
+        self.poll_timer.on_elapsed = self.server_send_clock
+
+    def destroy_client(self):
+        super().on_destroyed()
+
+    def destroy_server(self):
+        self.scene.remove_timer(self.poll_timer)
+
+        super().on_destroyed()
+
+    def server_send_clock(self):
+        self.client_update_clock(WorldInfo.elapsed)
+
+    def client_update_clock(self, elapsed: float) -> Netmodes.client:
+        controller = self.owner
+        if controller is None:
+            return
+
+        info = controller.info
+
+        # Find difference between local and remote time
+        difference = self.estimated_elapsed_server - (elapsed + info.ping)
+        abs_difference = abs(difference)
+
+        if abs_difference < self.nudge_minimum:
+            return
+
+        if abs_difference > self.nudge_maximum:
+            self.estimated_elapsed_server -= difference
+
+        else:
+            self.estimated_elapsed_server -= difference * self.nudge_factor
+
+    def on_destroyed(self):
+        if self.scene.world.netmode == Netmodes.server:
+            self.destroy_server()
+
+        else:
+            self.destroy_client()
+
+    @property
+    def tick(self):
+        return floor(self.estimated_elapsed_server * self.scene.world.tick_rate)
+
+    @property
+    def sync_interval(self):
+        return self.poll_timer.delay
+
+    @sync_interval.setter
+    def sync_interval(self, delay):
+        self.poll_timer.delay = delay
+
+    @simulated
+    def on_tick(self):
+        self.estimated_elapsed_server += 1 / self.scene.world.tick_rate
 
 
 class PawnController(Replicable):
@@ -23,10 +123,27 @@ class PawnController(Replicable):
     pawn = Serialisable(data_type=Replicable, notify_on_replicated=True)
     info = Serialisable(data_type=Replicable)
 
-    def __init__(self, scene, unique_id, is_static=False):
-        super().__init__(scene, unique_id, is_static)
+    info_class = ReplicationInfo
 
+    def __init__(self, scene, unique_id, is_static=False):
         self.logger = getLogger(repr(self))
+
+        if scene.world.netmode == Netmodes.server:
+            self.initialise_server()
+        else:
+            self.initialise_client()
+
+    def initialise_server(self):
+        self.info = self.scene.add_replicable(self.info_class)
+
+        # When RTT estimate is updated
+        self.messenger.add_subscriber("estimated_rtt", self.server_rtt_estimate_updated)
+
+    def server_rtt_estimate_updated(self, rtt_estimate):
+        self.info.ping = rtt_estimate / 2
+
+    def initialise_client(self):
+        pass
 
     def can_replicate(self, is_owner, is_initial):
         yield from super().can_replicate(is_owner, is_initial)
@@ -67,19 +184,23 @@ class PawnController(Replicable):
 class PlayerPawnController(PawnController):
     """Base class for player pawn controllers"""
 
+    clock = Serialisable(data_type=Replicable)
+
     MAX_POSITION_ERROR_SQUARED = 0.5
     MAX_ORIENTATION_ANGLE_ERROR_SQUARED = radians(5) ** 2
 
-    clock = Serialisable(data_type=Replicable)
-
     # input_context = InputContext()
+    info_class = PlayerReplicationInfo
+
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
+
+        yield "clock"
+
     # info_cls = PlayerReplicationInfo TODO
     def __init__(self, scene, unique_id, is_static=False):
         """Initialisation method"""
         super().__init__(scene, unique_id, is_static)
-
-        self.initialise_client()
-        self.initialise_server()
 
     def can_replicate(self, is_owner, is_initial):
         yield from super().can_replicate(is_owner, is_initial)
@@ -158,11 +279,11 @@ class PlayerPawnController(PawnController):
     def get_input_map(self):
         """Return keybinding mapping (from actions to buttons)"""
         file_path = path.join(self.__class__.__name__, "input_map.cfg")
-        defaults = {k: str(v) for k, v in InputButtons.keys_to_values.items()}
+        defaults = {n: str(v) for n, v in InputButtons}
         configuration = self.scene.resource_manager.open_configuration(file_path, defaults=defaults)
-        return {name: int(binding) for name, binding in configuration.items() if isinstance(binding, str)}
+        bindings = {n: int(v) for n, v in configuration.items() if isinstance(v, str)}
+        return bindings
 
-    @requires_netmode(Netmodes.client)
     def initialise_client(self):
         """Initialise client-specific player controller state"""
 
@@ -172,12 +293,15 @@ class PlayerPawnController(PawnController):
 
         self.sent_states = OrderedDict()
         self.recent_states = deque(maxlen=5)
-
-    @requires_netmode(Netmodes.server)
+        
     def initialise_server(self):
         """Initialise server-specific player controller state"""
         self.info = self.__class__.info()
         self.info.possessed_by(self)
+
+        # Network clock
+        self.clock = Clock()
+        self.clock.possessed_by(self)
 
         # Network jitter compensation
         ticks = round(0.1 * self.scene.world.tick_rate)
@@ -190,8 +314,11 @@ class PlayerPawnController(PawnController):
         self.pending_validation_move_id = None
         self.last_corrected_move_id = 0
 
-        # TODO destroy this
         self.scene.messenger.add_subscriber("tick", self.on_tick)
+
+    def on_destroyed(self):
+        if self.scene.world.netmode == Netmodes.server:
+            self.scene.messenger.remove_subscriber("tick", self.on_tick)
 
     def receive_message(self, message: str, player_info: Replicable) -> Netmodes.client:
         self.scene.messenger.send("message", message=message, player_info=player_info)

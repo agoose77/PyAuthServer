@@ -1,4 +1,4 @@
-from network.descriptors import Attribute
+from network.replication import Serialisable
 from network.enums import Roles
 from network.replicable import Replicable
 
@@ -6,37 +6,26 @@ __all__ = ['AIReplicationInfo', 'PlayerReplicationInfo']
 
 
 class ReplicationInfo(Replicable):
+    pawn = Serialisable(data_type=Replicable)
+    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
 
-    roles = Attribute(Roles(Roles.authority, Roles.simulated_proxy))
-
-    def on_initialised(self):
-        super().on_initialised()
-
+    def __init__(self, unique_id, scene, is_static=False):
         self.always_relevant = True
 
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
 
-class AIReplicationInfo(ReplicationInfo):
-
-    pawn = Attribute(data_type=Replicable, complain=True)
-
-    def conditions(self, is_owner, is_complain, is_initial):
-        yield from super().conditions(is_owner, is_complain, is_initial)
-
-        if is_complain:
-            yield "pawn"
+        yield "pawn"
 
 
-class PlayerReplicationInfo(AIReplicationInfo):
+class PlayerReplicationInfo(ReplicationInfo):
+    name = Serialisable("")
+    ping = Serialisable(0.0)
 
-    name = Attribute("", complain=True)
-    ping = Attribute(0.0)
+    def can_replicate(self, is_owner, is_initial):
+        yield from super().can_replicate(is_owner, is_initial)
 
-    def conditions(self, is_owner, is_complain, is_initial):
-        yield from super().conditions(is_owner, is_complain, is_initial)
-
-        if is_complain:
-            yield "name"
-
+        yield "name"
         yield "ping"
 
 

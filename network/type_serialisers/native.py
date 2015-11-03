@@ -1,5 +1,5 @@
-__all__ = ['ReplicableTypeSerialiser', 'RolesSerialiser', 'ReplicableSerialiser', 'StructSerialiser', 'BitFieldSerialiser',
-           'class_type_description', 'iterable_description', 'is_variable_sized']
+__all__ = ['ReplicableTypeSerialiser', 'RolesSerialiser', 'ReplicableSerialiser', 'StructSerialiser',
+           'BitFieldSerialiser', 'class_type_description', 'iterable_description', 'is_variable_sized']
 
 
 from ..bitfield import BitField
@@ -10,13 +10,12 @@ from ..struct import Struct
 from .serialiser import FlagSerialiser
 from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_describer, register_serialiser, \
     get_describer, TypeSerialiserAbstract
-# from .iterators import partition_iterable
-# from .encoding import RunLengthCodec
+from ..utilities import partition_iterable
 
 from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import signature
-from itertools import chain
+from itertools import chain, groupby
 
 
 MAXIMUM_REPLICABLES = 255
@@ -36,6 +35,22 @@ def is_variable_sized(packer):
     parameter_list = list(size_signature.parameters.keys())
     bytes_arg = size_signature.parameters[parameter_list[-1]]
     return bytes_arg.default is bytes_arg.empty
+
+
+def rle_encode(sequence):
+    """Apply run length encoding to a sequence
+    :returns: list of (count, item) pairs
+    :param sequence: sequence of values to encode
+    """
+    return [(len(list(group)), key) for key, group in groupby(sequence)]
+
+
+def rle_decode(sequence):
+    """Parse run length encoding from a sequence
+    :returns: original sequence as a list
+    :param sequence: sequence of value pairs to decode
+    """
+    return [key for (length, key) in sequence for _ in range(length)]
 
 
 class ReplicableTypeSerialiser(TypeSerialiserAbstract):
@@ -204,7 +219,7 @@ class IterableSerialiser(TypeSerialiserAbstract):
 
         :param iterable: iterable to pack
         """
-        encoded_pairs = RunLengthCodec.encode(iterable)
+        encoded_pairs = rle_encode(iterable)
         total_items = len(encoded_pairs)
 
         pack_length = self.count_packer.pack

@@ -13,7 +13,7 @@ base = ShowBase()
 
 
 def server():
-    world = World(Netmodes.server, 60, "D:/PyCharmProjects/PyAuthServer/demos/v2/")
+    world = World(Netmodes.server, 60, "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/v2/")
 
     class Rules:
 
@@ -40,21 +40,14 @@ def server():
     box.physics.mass = 0
 
     network = NetworkManager(world, "localhost", 1200)
-
-    # network._transport = UnreliableSocketWrapper(network._transport)
-    # world.messenger.add_subscriber("tick", network._transport.update)
-
     base.cam.set_pos(0, -35, 0)
 
     return network, world
 
 
 def client():
-    world = World(Netmodes.client, 60, "D:/PyCharmProjects/PyAuthServer/demos/v2/")
+    world = World(Netmodes.client, 60, "D:/Users/Angus/Documents/PyCharmProjects/PyAuthServer/demos/v2/")
     network = NetworkManager(world, "localhost", 0)
-
-    # network._transport = UnreliableSocketWrapper(network._transport)
-    # world.messenger.add_subscriber("tick", network._transport.update)
 
     base.cam.set_pos(0, -35, 0)
     network.connect_to("localhost", 1200)
