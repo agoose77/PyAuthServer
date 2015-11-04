@@ -1,16 +1,18 @@
-from game_system.entity import Actor, MeshComponent, PhysicsComponent, TransformComponent
+from game_system.entity import MeshComponent, PhysicsComponent, TransformComponent
+from game_system.replicables import PlayerPawnController, Pawn
+from game_system.input import InputContext
 
 from network.annotations.decorators import simulated
 from network.replication import Serialisable
 from network.enums import Roles
 
 
-class SomeEntity(Actor):
+class SomeEntity(Pawn):
     mesh = MeshComponent("Suzanne")
     physics = PhysicsComponent("Cube", mass=200)
     transform = TransformComponent(position=(0, 10, 0))
 
-    roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
+    roles = Serialisable(Roles(Roles.authority, Roles.autonomous_proxy))
 
     def __init__(self, scene, unique_id, is_static=False):
         scene.messenger.add_subscriber("tick", self.on_update)
@@ -34,3 +36,8 @@ class SomeEntity(Actor):
     @simulated
     def on_update(self):
         pass
+
+
+class MyPC(PlayerPawnController):
+
+    input_context = InputContext("left", "right", "up", "down", "debug")

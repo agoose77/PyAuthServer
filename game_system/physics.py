@@ -1,4 +1,4 @@
-from network.enums import Netmodes
+from network.enums import Netmodes, Roles
 from functools import partial
 
 from .latency_compensation import InterpolationWindow
@@ -57,10 +57,7 @@ class ClientNetworkPhysicsManager(INetworkPhysicsManager):
         self._latency = 0.0
 
         # Listen for latency message
-        world.messenger.add_subscriber("server_latency_estimate", self.update_latency_estimate)
-
-    def update_latency_estimate(self, latency):
-        self._latency = latency
+        world.messenger.add_subscriber("server_latency_estimate", self._update_latency_estimate)
 
     def add_actor(self, actor):
         interpolator = InterpolationWindow()
@@ -82,18 +79,26 @@ class ClientNetworkPhysicsManager(INetworkPhysicsManager):
         #actor.physics.collision_mask
 
     def tick(self):
+        simulated_proxy = Roles.simulated_proxy
+
         for actor, interpolator in self._entity_to_interpolator.items():
+            if actor.roles.local != simulated_proxy:
+                continue
 
             actor.physics.world_angular = (0, 0, 0)
             actor.physics.world_velocity = (0, 0, 0)
 
             try:
                 position, orientation = interpolator.next_sample()
+
             except ValueError:
                 continue
 
             actor.transform.world_position = position
             actor.transform.world_orientation = orientation
+
+    def _update_latency_estimate(self, latency):
+        self._latency = latency
 
 
 def create_network_physics_manager(world):

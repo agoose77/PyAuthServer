@@ -27,16 +27,11 @@ class Scene(_Scene):
         """
         timer = Timer(delay, repeat)
         self.timers.append(timer)
+
         return timer
 
     def remove_timer(self, timer):
         self.timers.remove(timer)
-
-    def tick(self):
-        super().tick()
-
-        self._update_timers()
-        self.network_physics_manager.tick()
 
     def _on_replicable_created(self, replicable):
         if isinstance(replicable, Actor):
@@ -60,3 +55,12 @@ class Scene(_Scene):
 
         for timer in finished_timers:
             self.remove_timer(timer)
+
+    def _on_tick(self):
+        self.network_physics_manager.tick()
+        self._update_timers()
+
+    def tick(self):
+        self.messenger.send("tick")
+        self._on_tick()
+        self.messenger.send("post_tick")

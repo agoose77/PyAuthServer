@@ -95,9 +95,6 @@ class Scene(ProtectedInstance):
             replicable = next(iter(self.replicables.values()))
             self.remove_replicable(replicable)
 
-    def tick(self):
-        self.messenger.send("tick")
-
     def __repr__(self):
         return "<'{}' scene>".format(self.name)
 

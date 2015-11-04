@@ -13,21 +13,26 @@ class Pointer:
     def __init__(self, qual_name):
         self._qualname = qual_name
 
-    def __call__(self, obj):
+    def __call__(self, cls):
         """Retrieve member from object
 
-        :param obj: object to traverse
+        :param cls: object to traverse
         """
         parts = self._qualname.split(".")
 
-        for part in parts:
-            obj = getattr(obj, part)
+        try:
+            obj = cls
+            for part in parts:
+                obj = getattr(obj, part)
+
+        except AttributeError:
+            raise AttributeError("Unable to resolve Pointer '{}' for '{}' class".format(self._qualname, cls.__name__))
 
         return obj
 
 
-def _resolve_pointers(cls, flag):
-    data = flag.data
+def _resolve_pointers(cls, type_info):
+    data = type_info.data
 
     for arg_name, arg_value in data.items():
         if isinstance(arg_value, TypeInfo):
@@ -39,12 +44,29 @@ def _resolve_pointers(cls, flag):
         data[arg_name] = arg_value(cls)
 
     # Allow types to be marked
-    if isinstance(flag.data_type, Pointer):
-        flag.data_type = flag.data_type(cls)
+    if isinstance(type_info.data_type, Pointer):
+        type_info.data_type = type_info.data_type(cls)
+
+    return type_info
 
 
 def resolve_pointers(cls, arguments):
     return OrderedDict(((name, _resolve_pointers(cls, value)) for name, value in arguments.items()))
+
+
+def contains_pointer(arguments):
+    for argument in arguments.values():
+        if isinstance(argument, TypeInfo):
+            if isinstance(argument.data_type, Pointer):
+                return True
+
+            if contains_pointer(argument.data):
+                return True
+
+        elif isinstance(argument, Pointer):
+            return True
+
+    return False
 
 
 get_return_annotation = get_annotation("return")
@@ -162,7 +184,7 @@ class ReplicatedFunctionDescriptor:
         self._target_netmode = func_signature.return_annotation
         self._binder = func_signature.bind
 
-        if self.check_has_pointers(self._arguments):
+        if contains_pointer(self._arguments):
             self._root_serialiser = None
 
         else:
@@ -216,23 +238,10 @@ class ReplicatedFunctionDescriptor:
 
         return arguments
 
-    @staticmethod
-    def check_has_pointers(arguments):
-        lookup_type = Pointer
-
-        for argument in arguments.values():
-            if isinstance(argument.data_type, lookup_type):
-                return True
-
-            for arg_value in argument.data.values():
-                if isinstance(arg_value, lookup_type):
-                    return True
-
-        return False
-
     def bind_instance(self, instance):
         if self._root_serialiser is None:
             arguments = resolve_pointers(instance.__class__, self._arguments)
+            print(arguments)
             serialiser = FlagSerialiser(arguments)
 
         else:

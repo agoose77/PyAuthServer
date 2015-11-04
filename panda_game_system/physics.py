@@ -104,7 +104,7 @@ class PhysicsManager:
     def _on_contact_added(self, node_a, node_b):
         self.tracked_contacts[(node_a, node_b)] += 1
 
-    def dispatch_collisions(self):
+    def _dispatch_collisions(self):
         # Dispatch collisions
         existing_collisions = self.existing_collisions
 
@@ -154,4 +154,7 @@ class PhysicsManager:
 
     def tick(self):
         self.world.do_physics(self._timestep)
-        self.dispatch_collisions()
+        self._dispatch_collisions()
+
+    def resimulate_pawn(self, pawn):
+        pass

@@ -1,7 +1,7 @@
 from network.bitfield import BitField
 from network.descriptors import Attribute
 from network.type_flag import TypeFlag
-from network.struct import Struct
+from network.replication import Struct
 
 from .enums import ButtonState
 
@@ -21,14 +21,9 @@ class InputContext:
     """Input context for local inputs"""
 
     def __init__(self, buttons=None, ranges=None):
-        if buttons is None:
-            buttons = []
-
-        if ranges is None:
-            ranges = []
-
-        self.buttons = buttons
-        self.ranges = ranges
+        self.current_events = None
+        self.mouse_position = None
+        self.mouse_delta = None
 
         self.network = NetworkInputContext(self.buttons, self.ranges)
 
@@ -41,16 +36,11 @@ class InputContext:
         range_state = {}
 
         # Update buttons
-        native_button_state = input_manager.buttons
+        native_button_state = input_manager.current_events
+
         for mapped_key in self.buttons:
             native_key = keymap.get(mapped_key, mapped_key)
             button_state[mapped_key] = native_button_state[native_key]
-
-        # Update ranges
-        native_range_state = input_manager.ranges
-        for mapped_key in self.ranges:
-            native_key = keymap.get(mapped_key, mapped_key)
-            range_state[mapped_key] = native_range_state[native_key]
 
         return button_state, range_state
 
@@ -70,18 +60,17 @@ class NetworkInputContext:
         class InputStateStruct(Struct):
             """Struct for packing client inputs"""
 
-            _buttons = Attribute(BitField(state_bits), fields=state_bits)
-            _ranges = Attribute([], element_flag=TypeFlag(float))
+            pressed_actions = Serialisable()
+            _action_states = Attribute(BitField(state_bits), fields=state_bits)
+            _mouse_deltas = Attribute([], element_flag=TypeFlag(float))
 
-            def write(this, remapped_state):
-                button_state = this._buttons
-                range_state = this._ranges
-
-                remapped_button_state, remapped_range_state = remapped_state
+            def write(this, actions_state, mouse_delta):
+                action_ = this._action_states
+                mouse_deltas = this._mouse_deltas
 
                 # Update buttons
                 for button_index, mapped_key in enumerate(buttons):
-                    mapped_state = remapped_button_state[mapped_key]
+                    mapped_state = actions_state[mapped_key]
 
                     if mapped_state in state_to_index:
                         state_index = state_to_index[mapped_state]
@@ -89,11 +78,11 @@ class NetworkInputContext:
                         button_state[bitfield_index] = True
 
                 # Update ranges
-                range_state[:] = [remapped_range_state[key] for key in ranges]
+                mouse_deltas[:] = [remapped_range_state[key] for key in ranges]
 
             def read(this):
-                button_state = this._buttons[:]
-                range_state = this._ranges
+                button_state = this._action_states[:]
+                mouse_deltas = this._mouse_deltas
 
                 # If the button is omitted, assume not pressed
                 NO_STATE = ButtonState.none
@@ -110,7 +99,7 @@ class NetworkInputContext:
                     button_states[mapped_key] = index_to_state[relative_index]
 
                 # Update ranges
-                range_states = {key: range_state[index] for index, key in enumerate(ranges)}
+                range_states = {key: mouse_deltas[index] for index, key in enumerate(ranges)}
                 return button_states, range_states
 
         self.struct_cls = InputStateStruct

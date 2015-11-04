@@ -1,15 +1,17 @@
 from network.enums import Netmodes
 from network.network import NetworkManager, DefaultTransport, UnreliableSocketWrapper
 
-from demos.v2.entities import SomeEntity
+from demos.v2.replicables import SomeEntity, MyPC
 
 from game_system.fixed_timestep import FixedTimeStepManager
+from game_system.replicables import PawnController, ReplicationInfo, Actor
+
 from panda_game_system.world import World
-
 from direct.showbase.ShowBase import ShowBase
+from panda3d.core import PStatClient
 
-game_loop = FixedTimeStepManager()
 base = ShowBase()
+PStatClient.connect()
 
 
 def server():
@@ -24,23 +26,49 @@ def server():
             world = replication_manager.world
             scene = world.scenes["Scene"]
 
+            pc = scene.add_replicable(MyPC)
+            replication_manager.set_root_for_scene(scene, pc)
+
             replicable = scene.add_replicable(SomeEntity)
-            replication_manager.set_root_for_scene(scene, replicable)
+            pc.take_control(replicable)
+            replicable.owner = pc
+
+            def rand():
+                import random
+                return random.randint(-10, 10)
+
+            for i in range(10):
+                def add():
+                    replicable = scene.add_replicable(SomeEntity)
+                    replicable.transform.world_position = (rand(), rand(), 10.0)
+
+                print(i * 0.5)
+                timer = scene.add_timer(i * 0.5)
+                timer.on_elapsed = add
+
             print("SPAWN")
 
         def is_relevant(self, replicable):
-            return True
+            if isinstance(replicable, PawnController):
+                return False
+
+            elif isinstance(replicable, (Actor, ReplicationInfo)):
+                return True
+
+            elif replicable.always_relevant:
+                return True
 
     world.rules = Rules()
 
     scene = world.add_scene("Scene")
+    scene._root_nodepath.hide()
 
     box = scene.add_replicable(SomeEntity)
     box.transform.world_position = (0, 10, -5)
     box.physics.mass = 0
 
     network = NetworkManager(world, "localhost", 1200)
-    base.cam.set_pos(0, -35, 0)
+    base.cam.set_pos(0, -85, 0)
 
     return network, world
 
@@ -55,11 +83,24 @@ def client():
     return network, world
 
 
+game_loop = FixedTimeStepManager()
+
+
+def test_input_exit(input_manager):
+    from game_system.enums import InputButtons, ButtonStates
+
+    if input_manager.buttons_state[InputButtons.ESCKEY] == ButtonStates.pressed:
+        game_loop.stop()
+
+
 def main():
     i = 0
 
     cnet, cworld = client()
     snet, sworld = server()
+
+    cworld.messenger.add_subscriber("input_updated", test_input_exit)
+    sworld.messenger.add_subscriber("input_updated", test_input_exit)
 
     while True:
         cnet.receive()

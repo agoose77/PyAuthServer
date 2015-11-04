@@ -1,22 +1,19 @@
 __all__ = ['ReplicableTypeSerialiser', 'RolesSerialiser', 'ReplicableSerialiser', 'StructSerialiser',
            'BitFieldSerialiser', 'class_type_description', 'iterable_description', 'is_variable_sized']
 
-
-from ..bitfield import BitField
-from ..enums import IterableCompressionType, Roles
-from ..replicable import Replicable
-from ..struct import Struct
-
-from .serialiser import FlagSerialiser
-from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_describer, register_serialiser, \
-    get_describer, TypeSerialiserAbstract
-from ..utilities import partition_iterable
-
 from collections import OrderedDict
 from contextlib import contextmanager
 from inspect import signature
 from itertools import chain, groupby
 
+from ..bitfield import BitField
+from ..enums import IterableCompressionType, Roles
+from ..replicable import Replicable
+from ..replication.struct import Struct
+from .serialiser import FlagSerialiser
+from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_describer, register_serialiser, \
+    get_describer, TypeSerialiserAbstract
+from ..utilities import partition_iterable
 
 MAXIMUM_REPLICABLES = 255
 

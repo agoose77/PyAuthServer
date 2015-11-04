@@ -333,16 +333,18 @@ class ClientReplicationManager(ReplicationManagerBase):
         scene = scene_channel.scene
 
         replicable_channels = scene_channel.replicable_channels
+        replicable_id_handler = ReplicableChannelBase.id_handler
 
-        while offset < len(payload):
-            unique_id, id_size = ReplicableChannelBase.id_handler.unpack_id(payload, offset)
-            offset += id_size
+        with replicable_id_handler.current_scene_as(scene):
+            while offset < len(payload):
+                unique_id, id_size = replicable_id_handler.unpack_id(payload, offset)
+                offset += id_size
 
-            replicable_channel = replicable_channels[unique_id]
-            notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
-            offset += read_bytes
+                replicable_channel = replicable_channels[unique_id]
+                notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
+                offset += read_bytes
 
-            self._pending_notifications[scene].append(notifier)
+                self._pending_notifications[scene].append(notifier)
 
     def _dispatch_notifications(self):
         for scene, notifications in self._pending_notifications.items():

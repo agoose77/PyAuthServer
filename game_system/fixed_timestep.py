@@ -1,9 +1,9 @@
 from time import monotonic
 
-__all__ = "FixedTimeStepManager", "OnExitUpdate"
+__all__ = "FixedTimeStepManager", "ForcedLoopExit"
 
 
-class OnExitUpdate(Exception):
+class ForcedLoopExit(Exception):
     """Safe exit exception"""
     pass
 
@@ -69,7 +69,7 @@ class FixedTimeStepManager:
         try:
             self._run()
          
-        except OnExitUpdate:
+        except ForcedLoopExit:
             pass
         
         finally:
@@ -78,3 +78,6 @@ class FixedTimeStepManager:
 
             finally:
                 self._running = False
+
+    def stop(self):
+        raise ForcedLoopExit()

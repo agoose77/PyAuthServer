@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
-from .factory import NamedSubclassTracker
-from .replication import Serialisable, SerialisableDataStoreDescriptor
+from network.factory import NamedSubclassTracker
+from network.replication import Serialisable, SerialisableDataStoreDescriptor
 
 
 def is_serialisable(obj):

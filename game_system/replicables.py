@@ -7,6 +7,7 @@ from network.enums import Netmodes, Roles
 from .coordinates import Vector
 from .entity import Actor
 from .enums import InputButtons
+from .input import InputContext
 from .latency_compensation import JitterBuffer
 
 from collections import OrderedDict, deque
@@ -189,21 +190,19 @@ class PlayerPawnController(PawnController):
     MAX_POSITION_ERROR_SQUARED = 0.5
     MAX_ORIENTATION_ANGLE_ERROR_SQUARED = radians(5) ** 2
 
-    # input_context = InputContext()
+    input_context = InputContext()
     info_class = PlayerReplicationInfo
+
+    def __init__(self, scene, unique_id, is_static=False):
+        """Initialisation method"""
+        super().__init__(scene, unique_id, is_static)
+
+        self.input_map = self.get_input_map()
 
     def can_replicate(self, is_owner, is_initial):
         yield from super().can_replicate(is_owner, is_initial)
 
         yield "clock"
-
-    # info_cls = PlayerReplicationInfo TODO
-    def __init__(self, scene, unique_id, is_static=False):
-        """Initialisation method"""
-        super().__init__(scene, unique_id, is_static)
-
-    def can_replicate(self, is_owner, is_initial):
-        yield from super().can_replicate(is_owner, is_initial)
 
     @reliable
     def client_correct_move(self, move_id: (int, {'max_value': 1000}), position: Vector, yaw: float, velocity: Vector,
@@ -226,7 +225,7 @@ class PlayerPawnController(PawnController):
 
         # Recreate Z rotation
         orientation = pawn.transform.world_orientation
-        orientation.z = yaw
+        orientation.z = yaw # TODO is this safe for QUATS
         pawn.transform.world_orientation = orientation
 
         # Recreate Z angular rotation
@@ -242,29 +241,14 @@ class PlayerPawnController(PawnController):
 
         for move_id in range(move_id, self.move_id + 1):
             state = sent_states[move_id]
-            buttons, ranges = state.read()
+            action_states, mouse_delta = state.to_input_state()
 
-            process_inputs(buttons, ranges)
-            # self.scene.physics_manager.update_actor(pawn)
+            process_inputs(action_states, mouse_delta)
+            pawn.tick_physics()
 
         # Remember this correction, so that older moves are not corrected
         self.latest_correction_id = move_id
 
-    def on_input(self, delta_time, input_manager):
-        """Handle local inputs from client
-        :param input_manager: input system
-        """
-        remapped_state = self.input_context.remap_state(input_manager, self.input_map)
-        packed_state = self.input_context.network.struct_cls()
-        packed_state.write(remapped_state)
-
-        self.move_id += 1
-        self.sent_states[self.move_id] = packed_state
-        self.recent_states.appendleft(packed_state)
-
-        self.process_inputs(*remapped_state)
-
-    @requires_netmode(Netmodes.client)
     def client_send_move(self):
         """Send inputs, alongside results of applied inputs, to the server"""
         pawn = self.pawn
@@ -293,15 +277,14 @@ class PlayerPawnController(PawnController):
 
         self.sent_states = OrderedDict()
         self.recent_states = deque(maxlen=5)
-        
+
+        self.scene.world.messenger.add_subscriber("input_updated", self.on_input)
+        self.scene.messenger.add_subscriber("post_tick", self.client_send_move)
+
     def initialise_server(self):
         """Initialise server-specific player controller state"""
-        self.info = self.__class__.info()
-        self.info.possessed_by(self)
-
-        # Network clock
-        self.clock = Clock()
-        self.clock.possessed_by(self)
+        self.info = self.scene.add_replicable(self.info_class)
+        #self.info.possessed_by(self)
 
         # Network jitter compensation
         ticks = round(0.1 * self.scene.world.tick_rate)
@@ -315,10 +298,15 @@ class PlayerPawnController(PawnController):
         self.last_corrected_move_id = 0
 
         self.scene.messenger.add_subscriber("tick", self.on_tick)
+        self.scene.messenger.add_subscriber("post_tick", self.server_validate_last_move)
 
     def on_destroyed(self):
         if self.scene.world.netmode == Netmodes.server:
             self.scene.messenger.remove_subscriber("tick", self.on_tick)
+
+        else:
+            self.scene.world.messenger.remove_subscriber("input_updated", self.on_input)
+            self.scene.messenger.remove_subscriber("post_tick", self.client_send_move)
 
     def receive_message(self, message: str, player_info: Replicable) -> Netmodes.client:
         self.scene.messenger.send("message", message=message, player_info=player_info)
@@ -349,8 +337,7 @@ class PlayerPawnController(PawnController):
         self.info.ping = rtt / 2
 
     def server_receive_move(self, move_id: (int, {'max_value': 1000}), latest_correction_id: (int, {'max_value': 1000}),
-                            recent_states: (list, {'element_flag':
-                                                       TypeInfo(Pointer("input_context.network.struct_cls"))
+                            recent_states: (list, {'element_flag': TypeInfo(Pointer("input_context.network_struct_class"))
                             }),
                             position: Vector, yaw: float) -> Netmodes.server:
         """Handle remote client inputs
@@ -374,10 +361,9 @@ class PlayerPawnController(PawnController):
         self.client_send_move()
         self.server_validate_last_move()
 
-    def process_inputs(self, buttons, ranges):
+    def process_inputs(self, actions, mouse_delta):
         pass
 
-    @requires_netmode(Netmodes.server)
     def server_validate_last_move(self):
         """Validate result of applied input states.
         Send correction to client if move was invalid.
@@ -423,8 +409,22 @@ class PlayerPawnController(PawnController):
             self.client_correct_move(move_id, position, yaw, velocity, angular_yaw)
             self.last_corrected_move_id = move_id
 
-    @requires_netmode(Netmodes.server)
-    def on_tick(self, delta_time):
+    def on_input(self, input_manager):
+        """Handle local inputs from client
+
+        :param input_manager: input system
+        """
+        action_states = self.input_context.map_to_actions(input_manager.buttons_state, self.input_map)
+        mouse_delta = input_manager.mouse_delta
+        packed_state = self.input_context.network_struct_class.from_input_state(action_states, mouse_delta)
+
+        self.move_id += 1
+        self.sent_states[self.move_id] = packed_state
+        self.recent_states.appendleft(packed_state)
+
+        self.process_inputs(action_states, mouse_delta)
+
+    def on_tick(self):
         try:
             input_state, move_id = next(self.buffer)
 
@@ -438,16 +438,21 @@ class PlayerPawnController(PawnController):
         if not self.pawn:
             return
 
-        buttons, ranges = input_state.read()
-        self.process_inputs(buttons, ranges)
+        action_states, mouse_delta = input_state.to_input_state()
+        self.process_inputs(action_states, mouse_delta)
 
         self.pending_validation_move_id = move_id
 
 
 class Pawn(Actor):
+    on_tick_physics = None
 
     def released_control(self):
         pass
 
     def controlled_by(self, controller):
         pass
+
+    def tick_physics(self):
+        if callable(self.on_tick_physics):
+            self.on_tick_physics()

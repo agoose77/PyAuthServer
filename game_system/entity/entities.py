@@ -1,6 +1,5 @@
 from network.replicable import Replicable
-from network.struct import Struct
-from network.replication import Serialisable
+from network.replication import Struct, Serialisable
 
 from .builder import EntityMetacls
 from .class_components import TransformComponent, PhysicsComponent

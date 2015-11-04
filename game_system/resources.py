@@ -13,6 +13,7 @@ class ResourceManager:
 
     def open_configuration(self, file_name, defaults=None, interpolation='template'):
         with self.open_file(file_name) as f:
-            parser = ConfigObj(f, options=defaults, interpolation=interpolation)
+            parser = ConfigObj(f, interpolation=interpolation)
 
+        parser['DEFAULT'] = defaults
         return parser
