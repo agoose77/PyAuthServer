@@ -218,6 +218,7 @@ class SortedCollection:
         i = bisect_right(self._keys, k)
         if i != len(self):
             return self._items[i]
+
         raise ValueError('No item found with key above: %r' % (k,))
 
 
