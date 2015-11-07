@@ -20,7 +20,7 @@ class Scene(_Scene):
         self.messenger.add_subscriber("replicable_removed", self._on_replicable_destroyed)
 
     def add_timer(self, delay, repeat=False):
-        """Create timer object
+        """Create timer object with a given delay
 
         :param delay: delay until timer is finished
         :param repeat: prevents timer from expiring
@@ -31,6 +31,10 @@ class Scene(_Scene):
         return timer
 
     def remove_timer(self, timer):
+        """Remove timer from timer list.
+
+        :param timer: Timer object
+        """
         self.timers.remove(timer)
 
     def _on_replicable_created(self, replicable):

@@ -8,7 +8,6 @@ from game_system.fixed_timestep import FixedTimeStepManager
 import demos.v2.entities
 
 
-
 def on_step(delta_time):
     network_manager.receive()
     world.tick()

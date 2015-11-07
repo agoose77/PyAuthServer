@@ -124,14 +124,10 @@ class IterableSerialiser(TypeSerialiserAbstract):
             raise TypeError("Unable to pack iterable without full type information") from err
 
         max_count = type_info.data.get("max_length", 255)
-        count_flag = TypeInfo(int, max_value=max_count)
-        variable_bitfield_flag = TypeInfo(BitField)
-
         self.element_type = item_info.data_type
         self.element_packer = get_serialiser(item_info)
-        self.count_packer = get_serialiser(count_flag)
-        self.bitfield_packer = get_serialiser(variable_bitfield_flag)
-
+        self.count_packer = get_serialiser_for(int, max_value=max_count)
+        self.bitfield_packer = get_serialiser_for(BitField)
         self.is_variable_sized = is_variable_sized(self.element_packer)
 
         compression_type = type_info.data.get("compression", IterableCompressionType.auto)

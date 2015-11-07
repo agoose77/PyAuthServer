@@ -9,6 +9,8 @@ from ...replicable import Replicable
 from ..helpers import on_protocol, register_protocol_listeners
 
 
+# TODO Scene and Replicable channels must use packet ACK to enable further replication
+
 class ReplicationManagerBase:
 
     channel_class = None

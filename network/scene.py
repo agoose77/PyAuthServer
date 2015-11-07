@@ -18,7 +18,7 @@ class Scene(ProtectedInstance):
 
     @restricted_method
     def contest_id(self, contested_id):
-        """Contest an existing network ID
+        """Contest an existing network ID.
 
         Given that IDs are taken from a pool, any contest of an ID implies that the contestant explicitly requested
         the ID, which suggests that the contestant is a static replicable
@@ -39,7 +39,7 @@ class Scene(ProtectedInstance):
         existing_replicable.messenger.send("unique_id_changed", old_unique_id=contested_id, new_unique_id=unique_id)
 
     def add_replicable(self, replicable_cls, unique_id=None):
-        """Create a Replicable instance and add it to the replicables dictionary
+        """Create a Replicable instance and add it to the replicables dictionary.
 
         :param replicable_cls: class to instantiate for replicable object
         :param unique_id: unique network ID of replicable
@@ -77,6 +77,12 @@ class Scene(ProtectedInstance):
         return replicable
 
     def remove_replicable(self, replicable):
+        """Remove Replicable instance from the replicables dictionary.
+
+        Call replicable.on_destroyed() destructor.
+
+        :param replicable: Replicable instance
+        """
         unique_id = replicable.unique_id
         self.replicables.pop(unique_id)
         self._unique_ids.retire(unique_id)
@@ -90,6 +96,10 @@ class Scene(ProtectedInstance):
 
     @restricted_method
     def on_destroyed(self):
+        """Scene destructor.
+
+        Releases all replicables currently tracked.
+        """
         # Release all replicables
         while self.replicables:
             replicable = next(iter(self.replicables.values()))
