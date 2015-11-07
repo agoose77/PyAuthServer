@@ -38,24 +38,23 @@ class ReplicableMetacls(NamedSubclassTracker):
 
         # Check this is not the root class
         root = metacls.get_root(bases)
-
-        function_index = 0
+        function_index = len(function_descriptors)
 
         # Register serialisables, including parent-class members
         for attr_name, value in namespace.items():
             if attr_name.startswith("__"):
                 continue
 
+            # Add Serialisable to serialisables list
             if isinstance(value, Serialisable):
                 value.name = attr_name
                 serialisables.append(value)
 
             if isfunction(value):
+                # Wrap function in ReplicatedFunctionDescriptor
                 if is_replicated_function(value):
                     descriptor = ReplicatedFunctionDescriptor(value, function_index)
                     function_descriptors.append(descriptor)
-
-                    function_index += 1
                     value = descriptor
 
                 # Wrap function with permission wrapper
