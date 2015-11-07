@@ -118,7 +118,7 @@ class IterableSerialiser(TypeSerialiserAbstract):
 
     def __init__(self, type_info, logger):
         try:
-            element_flag = type_info.data['element_flag']
+            item_info = type_info.data['item_info']
 
         except KeyError as err:
             raise TypeError("Unable to pack iterable without full type information") from err
@@ -127,8 +127,8 @@ class IterableSerialiser(TypeSerialiserAbstract):
         count_flag = TypeInfo(int, max_value=max_count)
         variable_bitfield_flag = TypeInfo(BitField)
 
-        self.element_type = element_flag.data_type
-        self.element_packer = get_serialiser(element_flag)
+        self.element_type = item_info.data_type
+        self.element_packer = get_serialiser(item_info)
         self.count_packer = get_serialiser(count_flag)
         self.bitfield_packer = get_serialiser(variable_bitfield_flag)
 

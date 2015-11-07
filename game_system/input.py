@@ -12,7 +12,7 @@ class InputContext:
             raise ValueError("Action names provided contain duplicates: {}".format(action_names))
 
         self.button_names = action_names
-        self.network_struct_class = create_input_struct(action_names)
+        self.struct_class = create_input_struct(action_names)
 
     def map_to_actions(self, buttons, keymap):
         """Remap native state to mapped state"""
