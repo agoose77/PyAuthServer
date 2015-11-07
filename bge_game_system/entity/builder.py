@@ -19,6 +19,7 @@ class EntityBuilder(EntityBuilderBase):
     def load_entity(self, entity):
         object_name = None
 
+        # TODO BGE addObject for each type (create camera and parent it, create mesh and parent, physics requires mesh?)
         for component_name, component in entity.components.items():
             if isinstance(component, MeshComponent):
                 object_name = component.mesh_name
