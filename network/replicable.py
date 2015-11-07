@@ -92,7 +92,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         return self
 
     def _bind_descriptors(self):
-        """Bind instance to class descriptors for replication"""
+        """Bind instance to class replication descriptors."""
         cls = self.__class__
 
         cls.replicated_function_queue.bind_instance(self)
@@ -100,6 +100,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         cls.replicated_functions.bind_instance(self)
 
     def _unbind_descriptors(self):
+        """Unbind instance from class replication descriptors."""
         cls = self.__class__
 
         cls.replicated_functions.unbind_instance(self)
@@ -108,6 +109,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
 
     @property
     def root(self):
+        """Return the top level Replicable for this Replicable."""
         replicable = self
         while replicable.owner:
             replicable = replicable.owner
@@ -115,6 +117,10 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         return replicable
 
     def can_replicate(self, is_owner, is_initial):
+        """Yield names of Serialisable attributes to be tested for replication.
+
+        :param is_initial: True if first replication for this connection
+        """
         if is_initial:
             yield "roles"
 
@@ -122,12 +128,21 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         yield "torn_off"
 
     def on_replicated(self, name):
+        """Invoked for Serialisable attributes instantiated with 'invoke_on_notify' parameter when attribute is
+        received by client.
+
+        :param name: name of Serialisable
+        """
         if name == "torn_off":
             if self.torn_off:
                 self.roles.local = Roles.authority
 
     @restricted_method
     def on_destroyed(self):
+        """Destructor for Replicable.
+
+        Called when Replicable is removed from Scene.
+        """
         self._unbind_descriptors()
 
         self._scene = None
@@ -136,6 +151,10 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
 
     @restricted_method
     def change_unique_id(self, unique_id):
+        """Update internal unique ID.
+
+        :param unique_id: unique scene ID
+        """
         self._unique_id = unique_id
 
     @property
