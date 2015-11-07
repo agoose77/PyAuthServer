@@ -83,41 +83,21 @@ def client():
     return network, world
 
 
+# Create gameloop
 game_loop = FixedTimeStepManager()
 
+cnet, cworld = client()
+snet, sworld = server()
 
+# Exit handling
 def test_input_exit(input_manager):
     from game_system.enums import InputButtons, ButtonStates
 
     if input_manager.buttons_state[InputButtons.ESCKEY] == ButtonStates.pressed:
         game_loop.stop()
 
-
-def main():
-    i = 0
-
-    cnet, cworld = client()
-    snet, sworld = server()
-
-    cworld.messenger.add_subscriber("input_updated", test_input_exit)
-    sworld.messenger.add_subscriber("input_updated", test_input_exit)
-
-    while True:
-        cnet.receive()
-        snet.receive()
-        base.taskMgr.step()
-
-        cworld.tick()
-        sworld.tick()
-
-        is_net_tick = not i % 3
-        snet.send(is_net_tick)
-        cnet.send(is_net_tick)
-        i += 1
-        dt = yield
-
-loop = main()
-next(loop)
+cworld.messenger.add_subscriber("input_updated", test_input_exit)
+sworld.messenger.add_subscriber("input_updated", test_input_exit)
 
 # from panda3d.bullet import BulletRigidBodyNode, BulletBoxShape
 # n = BulletRigidBodyNode()
@@ -126,5 +106,19 @@ next(loop)
 # n = NodePath(n)
 # n.writeBamFile("Cube.bam")
 
-game_loop.on_step = loop.send
+
+def main():
+    cnet.receive()
+    snet.receive()
+    base.taskMgr.step()
+
+    cworld.tick()
+    sworld.tick()
+
+    is_net_tick = not sworld.current_tick % 3
+
+    snet.send(is_net_tick)
+    cnet.send(is_net_tick)
+
+game_loop.on_step = main
 game_loop.run()
