@@ -10,8 +10,11 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent):
     def __init__(self, entity, game_object, component):
         self._game_object = game_object
 
-        self.world_orientation = component.orientation
-        self.world_position = component.position
+        if component.position:
+            self.world_position = component.position
+
+        if component.orientation:
+            self.world_orientation = component.orientation
 
     def move(self, dr, local=False):
         if not local:
@@ -38,22 +41,24 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent):
 
 
 class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent):
-    pass
+
+    def __init__(self, entity, game_object, component):
+        pass
 
 
 class MeshInstanceComponent:
 
     def __init__(self, entity, game_object, component):
-        print("Mesh", component)
+        pass
 
 
 class AnimationInstanceComponent:
 
     def __init__(self, entity, game_object, component):
-        print("Animation", component)
+        pass
 
 
 class CameraInstanceComponent:
 
     def __init__(self, entity, game_object, component):
-        print("Camera", component)
+        pass

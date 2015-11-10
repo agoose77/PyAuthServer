@@ -7,14 +7,28 @@ from . import instance_components
 class EntityBuilder(EntityBuilderBase):
     component_classes = {}
 
-    def __init__(self, bge_scene, input_manager, empty_name="Empty", camera_name="Camera"):
+    def __init__(self, bge_scene, empty_name="Empty", camera_name="Camera"):
         self.entity_to_game_obj = {}
 
         self._empty_name = empty_name
-        self._input_manager = input_manager
 
         self._bge_scene = bge_scene
         self._camera_name = camera_name
+
+    def create_object(self, entity, object_name):
+        try:
+            existing_obj = self._bge_scene.objectsInactive[object_name]
+
+        except KeyError:
+            obj = self._bge_scene.objects[object_name]
+
+        else:
+            obj = self._bge_scene.addObject(object_name, object_name)
+
+            # Prevent double scaling
+            obj.worldTransform = existing_obj.worldTransform.inverted() * obj.worldTransform
+
+        return obj
 
     def load_entity(self, entity):
         object_name = None
@@ -30,13 +44,7 @@ class EntityBuilder(EntityBuilderBase):
         if object_name is None:
             object_name = self._empty_name
 
-        existing_obj = self._bge_scene.objectsInactive[object_name]
-        obj = self._bge_scene.addObject(object_name, object_name)
-
-        # Prevent double scaling
-        obj.worldTransform = existing_obj.worldTransform.inverted() * obj.worldTransform
-
-        self.entity_to_game_obj[entity] = obj
+        self.entity_to_game_obj[entity] = self.create_object(entity, object_name)
         super().load_entity(entity)
 
     def unload_entity(self, entity):

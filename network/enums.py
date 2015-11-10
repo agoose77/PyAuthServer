@@ -35,9 +35,10 @@ class _EnumDict(dict):
 
         else:
             super().__setitem__(name, value)
+            return
 
-        self._member_names.append(name)
         super().__setitem__(name, value)
+        self._member_names.append(name)
 
 
 def default_numbering(i):

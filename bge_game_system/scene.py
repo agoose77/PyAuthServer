@@ -9,15 +9,18 @@ from bge import logic
 
 class Scene(_Scene):
 
-    def __init__(self, world, name, input_manager):
+    def __init__(self, world, name):
         super().__init__(world, name)
 
-        self._bge_scene = next(s for s in logic.getSceneList() if s.name == name)
-        self._entity_builder = EntityBuilder(self._bge_scene, input_manager)
+        try:
+            scene = next(s for s in logic.getSceneList() if s.name == name)
 
+        except StopIteration:
+            scene = logic.addScene(name)
+
+        self.bge_scene = scene
+        self.entity_builder = EntityBuilder(self.bge_scene)
         self.physics_manager = PhysicsManager()
-
-        self.messenger.add_subscriber("replicable_created", self.on_replicable_created)
 
     @property
     def active_camera(self):
@@ -27,9 +30,9 @@ class Scene(_Scene):
     def active_camera(self, camera):
         self.active_camera = camera
 
-    def on_replicable_created(self, replicable):
+    def _on_replicable_created(self, replicable):
         if isinstance(replicable, Entity):
-            self._entity_builder.load_entity(replicable)
+            self.entity_builder.load_entity(replicable)
 
             if isinstance(replicable, Actor):
                 pass

@@ -32,8 +32,13 @@ class TransformInstanceComponent(AbstractTransformInstanceComponent, PandaInstan
     def set_root_nodepath(self, nodepath):
         self._nodepath = nodepath
 
-        self.world_orientation = self._class_component.orientation
-        self.world_position = self._class_component.position
+        original_position = self._class_component.position
+        if original_position:
+            self.world_position = original_position
+
+        original_orientation = self._class_component.orientation
+        if original_orientation:
+            self.world_orientation = original_orientation
 
     def move(self, dr, local=False):
         if not local:

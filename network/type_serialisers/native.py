@@ -12,7 +12,7 @@ from ..replicable import Replicable
 from ..replication.struct import Struct
 from .serialiser import FlagSerialiser
 from .manager import TypeInfo, get_serialiser, get_serialiser_for, register_describer, register_serialiser, \
-    get_describer, TypeSerialiserAbstract
+    get_describer, TypeSerialiserAbstract, TypeDescriberAbstract
 from ..utilities import partition_iterable
 
 MAXIMUM_REPLICABLES = 255
@@ -652,7 +652,7 @@ register_serialiser(set, SetSerialiser)
 register_serialiser(Replicable, ReplicableSerialiser)
 
 
-class StructDescriber:
+class StructDescriber(TypeDescriberAbstract):
 
     def __init__(self, type_info):
         struct_cls = type_info.data_type

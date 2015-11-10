@@ -1,6 +1,8 @@
 from network.enums import Netmodes
 from network.world import World as _World
 
+from .timers import TimerManager
+
 
 class World(_World):
 
@@ -8,6 +10,7 @@ class World(_World):
         super().__init__(netmode)
 
         self.root_filepath = root_filepath
+        self.timer_manager = TimerManager()
 
         self._tick_rate = tick_rate
         self._current_tick = 0
@@ -30,6 +33,8 @@ class World(_World):
         raise NotImplementedError
 
     def _on_tick(self):
+        self.timer_manager.update(1 / self._tick_rate)
+
         for scene in self.scenes.values():
             scene.tick()
 
