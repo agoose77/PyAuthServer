@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from .enums import Netmodes
 from .factory import ProtectedInstance, UniqueIDPool, restricted_method
 from .messages import MessagePasser
 from .replicable import Replicable
@@ -63,6 +64,11 @@ class Scene(ProtectedInstance):
         # Just create replicable
         with Replicable._grant_authority():
             replicable = replicable_cls.__new__(replicable_cls, self, unique_id, is_static)
+
+        # On clients, netmodes are reversed
+        if self.world.netmode == Netmodes.client:
+            roles = replicable.roles
+            roles.local, roles.remote = roles.remote, roles.local
 
         # Allow notification of creation before initialisation
         self.messenger.send("replicable_created", replicable)
