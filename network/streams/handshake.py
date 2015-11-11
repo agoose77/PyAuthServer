@@ -86,7 +86,13 @@ class ServerHandshakeManager(HandshakeManagerBase):
             return
 
         try:
-            self.world.rules.pre_initialise(self.connection_info)
+            pre_initialise = self.world.rules.pre_initialise
+
+        except AttributeError:
+            raise RuntimeError("World is not configured with rules!")
+
+        try:
+            pre_initialise(self.connection_info)
 
         except NetworkError as err:
             self.logger.error("Connection was refused: {}".format(repr(err)))

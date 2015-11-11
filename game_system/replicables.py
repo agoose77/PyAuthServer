@@ -308,7 +308,7 @@ class PlayerPawnController(PawnController):
         :param message: message body
         :param player_info: PlayerReplicationInfo of sending player
         """
-        self.scene.messenger.send("message", message=message, player_info=player_info)
+        self.scene.messenger.send("message_received", message=message, player_info=player_info)
 
     def send_message(self, message: str, info: Replicable=None) -> Netmodes.server:
         """Send a message to other PlayerPawnController(s)."""
@@ -321,11 +321,11 @@ class PlayerPawnController(PawnController):
                     continue
 
                 controller = replicable.owner
-                controller.receive_message(message, self_info)
+                controller.client_handle_message(message, self_info)
 
         else:
             controller = info.owner
-            controller.receive_message(message, self_info)
+            controller.client_handle_message(message, self_info)
 
     def set_name(self, name: str)->Netmodes.server:
         self.info.name = name
