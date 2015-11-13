@@ -1,5 +1,6 @@
 from game_system.coordinates import Vector, Quaternion
-from game_system.entity import AbstractTransformInstanceComponent, AbstractPhysicsInstanceComponent
+from game_system.entity import AbstractTransformInstanceComponent, AbstractPhysicsInstanceComponent, \
+    AbstractMeshInstanceComponent
 
 __all__ = "TransformInstanceComponent", "PhysicsInstanceComponent", "MeshInstanceComponent", \
           "AnimationInstanceComponent", "CameraInstanceComponent"
@@ -71,7 +72,7 @@ class PhysicsInstanceComponent(AbstractPhysicsInstanceComponent):
         self._game_object.worldAngularVelocity = angular
 
 
-class MeshInstanceComponent:
+class MeshInstanceComponent(AbstractMeshInstanceComponent):
 
     def __init__(self, entity, game_object, component):
         pass

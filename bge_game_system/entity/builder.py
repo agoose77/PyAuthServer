@@ -50,7 +50,9 @@ class EntityBuilder(EntityBuilderBase):
     def unload_entity(self, entity):
         obj = self.entity_to_game_obj.pop(entity)
         super().unload_entity(entity)
-        obj.endObject()
+
+        if not obj.invalid:
+            obj.endObject()
 
     def create_component(self, entity, class_component, component_cls):
         obj = self.entity_to_game_obj[entity]

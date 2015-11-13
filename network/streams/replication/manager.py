@@ -20,12 +20,17 @@ class ReplicationManagerBase:
         self.world = world
 
         self.scene_channels = {}
+        self.deleted_channels = []
         self.logger = connection.logger.getChild("ReplicationManager")
 
         # Listen to packets from connection
         register_protocol_listeners(self, connection.messenger)
         connection.pre_send_callbacks.append(self.send)
+        connection.post_receive_callbacks.append(self._post_received)
         connection.latency_calculator.on_updated = self.on_latency_estimate_rtt
+
+    def _post_received(self):
+        self._cull_shadow_channels()
 
     def on_latency_estimate_rtt(self, rtt):
         for scene_channel in self.scene_channels.values():
@@ -39,10 +44,11 @@ class ReplicationManagerBase:
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
 
         scene_channel = self.scene_channels[scene_id]
+        root_replicable = scene_channel.root_replicable
         scene = scene_channel.scene
 
         replicable_channels = scene_channel.replicable_channels
-        root_replicable = scene_channel.root_replicable
+        shadow_replicable_channels = scene_channel.shadow_replicable_channels
 
         replicable_id_handler = ReplicableChannelBase.id_handler
 
@@ -53,15 +59,16 @@ class ReplicationManagerBase:
 
                 try:
                     replicable_channel = replicable_channels[unique_id]
+
                 except KeyError:
-                    self.logger.warn("No replicable found in on_invoke_methods: {}::{}".format(scene_id, unique_id))
-                    break
+                    replicable_channel = shadow_replicable_channels[unique_id]
 
-                replicable = replicable_channel.replicable
-
-                allow_execute = replicable.replicate_to_owner and replicable.root is root_replicable
-                read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
+                read_bytes = replicable_channel.process_rpc_calls(payload, offset, root_replicable=root_replicable)
                 offset += read_bytes
+
+    def _cull_shadow_channels(self):
+        for scene_id, scene_channel in self.scene_channels.items():
+            scene_channel.cull_shadow_channels()
 
     def send(self, is_network_tick):
         raise NotImplementedError()
@@ -73,8 +80,6 @@ class ServerReplicationManager(ReplicationManagerBase):
 
     def __init__(self, world, connection):
         super().__init__(world, connection)
-
-        self.deleted_channels = []
 
         self._string_handler = get_serialiser_for(str)
         self._bool_handler = get_serialiser_for(bool)
@@ -131,7 +136,7 @@ class ServerReplicationManager(ReplicationManagerBase):
         for scene, scene_channel in self.scene_channels.items():
             # Reliable
             creation_data = []
-            deleted_data = []
+            deletion_data = []
 
             # Reliable packets
             reliable_invoke_method_data = []
@@ -143,7 +148,7 @@ class ServerReplicationManager(ReplicationManagerBase):
             no_role = Roles.none
             root_replicable = scene_channel.root_replicable
 
-            for replicable_channel in scene_channel.prioritised_channels:
+            for replicable_channel in scene_channel.prioritised_alive_channels:
                 replicable = replicable_channel.replicable
 
                 # Check if remote role is permitted
@@ -154,7 +159,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                 is_and_relevant_to_owner = replicable.replicate_to_owner and is_owner
 
                 # Write RPC calls
-                if is_and_relevant_to_owner:
+                if is_owner:
                     reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
 
                     if reliable_rpc_calls:
@@ -183,15 +188,7 @@ class ServerReplicationManager(ReplicationManagerBase):
 
                 # Stop replication this replicable
                 if replicable.replicate_temporarily:
-                    replicable_channel.replicable_channels.pop(replicable)
-
-            for replicable_channel in scene_channel.deleted_channels:
-                # Send the replicable
-                destroyed_payload = replicable_channel.packed_id
-                deleted_data.append(destroyed_payload)
-
-            # Clear channels
-            scene_channel.deleted_channels.clear()
+                    scene_channel.replicable_channels.pop(replicable)
 
             # Now construct and ultimately queue packets
             queued_packets = []
@@ -205,9 +202,18 @@ class ServerReplicationManager(ReplicationManagerBase):
 
                 scene_channel.is_initial = False
 
-            if deleted_data:
-                deletion_payload = scene_channel.packed_id + b''.join(deleted_data)
+            # Shadow channels for dead replicables
+            for shadow_replicable_channel in scene_channel.shadow_replicable_channels.values():
+                if not shadow_replicable_channel.just_created:
+                    continue
+
+                deletion_data.append(shadow_replicable_channel.packed_id)
+                shadow_replicable_channel.just_created = False
+
+            if deletion_data:
+                deletion_payload = scene_channel.packed_id + b''.join(deletion_data)
                 deletion_packet = Packet(PacketProtocols.delete_replicable, payload=deletion_payload, reliable=True)
+
                 queued_packets.append(deletion_packet)
 
             if creation_data:
@@ -241,7 +247,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                 for packet in queued_packets:
                     queue_packet(packet)
 
-        # Send scene deletions
+        # Send scene deletions TODO shadow
         for scene_channel in self.deleted_channels:
             payload = scene_channel.packed_id
             deletion_packet = Packet(protocol=PacketProtocols.delete_scene, payload=payload)
@@ -261,7 +267,6 @@ class ClientReplicationManager(ReplicationManagerBase):
         self._bool_handler = get_serialiser_for(bool)
 
         self._pending_notifications = defaultdict(list)
-        connection.post_receive_callbacks.append(self._dispatch_notifications)
 
     @on_protocol(PacketProtocols.create_scene)
     def on_create_scene(self, packet):
@@ -349,6 +354,8 @@ class ClientReplicationManager(ReplicationManagerBase):
         scene = scene_channel.scene
 
         replicable_channels = scene_channel.replicable_channels
+        shadow_replicable_channels = scene_channel.shadow_replicable_channels
+
         replicable_id_handler = ReplicableChannelBase.id_handler
 
         with replicable_id_handler.current_scene_as(scene):
@@ -356,11 +363,20 @@ class ClientReplicationManager(ReplicationManagerBase):
                 unique_id, id_size = replicable_id_handler.unpack_id(payload, offset)
                 offset += id_size
 
-                replicable_channel = replicable_channels[unique_id]
+                try:
+                    replicable_channel = replicable_channels[unique_id]
+
+                except KeyError:
+                    replicable_channel = shadow_replicable_channels[unique_id]
+
                 notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
                 offset += read_bytes
 
                 self._pending_notifications[scene].append(notifier)
+
+    def _post_received(self):
+        super()._post_received()
+        self._dispatch_notifications()
 
     def _dispatch_notifications(self):
         for scene, notifications in self._pending_notifications.items():
@@ -381,16 +397,17 @@ class ClientReplicationManager(ReplicationManagerBase):
             root_replicable = scene_channel.root_replicable
             no_role = Roles.none
 
-            for replicable_channel in scene_channel.prioritised_channels:
+            for replicable_channel in scene_channel.prioritised_alive_channels:
                 replicable = replicable_channel.replicable
 
                 # Check if remote role is permitted
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root is root_replicable
+                is_owner = replicable.root is root_replicable
+
                 # Write RPC calls
-                if is_and_relevant_to_owner:
+                if is_owner:
                     reliable_rpc_calls, unreliable_rpc_calls = replicable_channel.dump_rpc_calls()
 
                     if reliable_rpc_calls:

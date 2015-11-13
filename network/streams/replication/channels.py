@@ -1,5 +1,3 @@
-__all__ = ['ReplicableChannelBase', 'ClientChannel', 'ServerChannel']
-
 from collections import OrderedDict
 from functools import partial
 from time import clock
@@ -8,8 +6,93 @@ from operator import attrgetter
 from ...type_serialisers import get_serialiser_for, get_describer, FlagSerialiser
 from ...replicable import Replicable
 
+__all__ = ['ReplicableChannelBase', 'ClientSceneChannel', 'ServerSceneChannel']
+
 
 priority_getter = attrgetter("replication_priority")
+
+
+class ShadowReplicableChannelBase:
+    """Channel for replication information.
+
+    Belongs to an instance of Replicable and a connection
+    """
+
+    id_handler = get_serialiser_for(Replicable)
+
+    def __init__(self, scene_channel, replicable_class, unique_id):
+        # Store important info
+        self.replicable_class = replicable_class
+        self.scene_channel = scene_channel
+
+        self._creation_time = clock()
+        self.lifetime = 3.0
+
+        # Get network attributes
+        replicated_function_descriptors = replicable_class.replicated_functions.function_descriptors
+        self._replicated_function_descriptors = {d.index: d for d in replicated_function_descriptors}
+        self.logger = scene_channel.logger.getChild("<Channel: ShadowReplicable::{}>".format(repr(unique_id)))
+
+        # Create a serialiser instance
+        serialisables = replicable_class.serialisable_data.serialisables
+        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in serialisables))
+        self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
+
+        self._rpc_id_handler = get_serialiser_for(int)
+        self.packed_id = self.__class__.id_handler.pack_id(unique_id)
+
+    @property
+    def age(self):
+        return clock() - self._creation_time
+
+    @property
+    def is_expired(self):
+        return self.age > self.lifetime
+
+    def process_rpc_calls(self, data, offset, root_replicable):
+        """Invoke an RPC call from packaged format
+
+        :param rpc_call: rpc data (see take_rpc_calls)
+        """
+        start_offset = offset
+
+        while offset < len(data):
+            rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
+            offset += rpc_header_size
+
+            try:
+                function_descriptor = self._replicated_function_descriptors[rpc_id]
+
+            except IndexError:
+                self.logger.exception("Error invoking RPC: No RPC function with id {}".format(rpc_id))
+                break
+
+            else:
+                arguments, bytes_read = function_descriptor.deserialise(data, offset)
+                offset += bytes_read
+
+        unpacked_bytes = offset - start_offset
+        return unpacked_bytes
+
+
+class ServerShadowReplicableChannel(ShadowReplicableChannelBase):
+
+    def __init__(self, scene_channel, replicable_class, unique_id):
+        super().__init__(scene_channel, replicable_class, unique_id)
+
+        self.just_created = True
+
+
+class ClientShadowReplicableChannel(ShadowReplicableChannelBase):
+
+    def read_attributes(self, bytes_string, offset=0):
+        """Unpack byte stream and updates attributes
+
+        :param bytes\_: byte stream of attribute
+        """
+        unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, offset)
+        notifier_callback = lambda: None
+        return notifier_callback, read_bytes
 
 
 class ReplicableChannelBase:
@@ -37,7 +120,7 @@ class ReplicableChannelBase:
         # Create a serialiser instance
         self.logger = scene_channel.logger.getChild("<Channel: {}>".format(repr(replicable)))
 
-        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in replicable.__class__.serialisable_data.serialisables))
+        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
         self._rpc_id_handler = get_serialiser_for(int)
@@ -70,14 +153,16 @@ class ReplicableChannelBase:
 
         return reliable_data, unreliable_data
 
-    def process_rpc_calls(self, data, offset, allow_execute=True):
+    def process_rpc_calls(self, data, offset, root_replicable):
         """Invoke an RPC call from packaged format
 
         :param rpc_call: rpc data (see take_rpc_calls)
         """
         start_offset = offset
 
-        if allow_execute:
+        replicable = self.replicable
+
+        if replicable.replicate_to_owner and replicable.root is root_replicable:
             while offset < len(data):
                 rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
                 offset += rpc_header_size
@@ -247,6 +332,8 @@ class ServerReplicableChannel(ReplicableChannelBase):
 class SceneChannelBase:
 
     channel_class = None
+    shadow_channel_class = None
+
     id_handler = get_serialiser_for(int)
 
     def __init__(self, manager, scene, scene_id):
@@ -257,14 +344,17 @@ class SceneChannelBase:
         self.logger = manager.logger.getChild("SceneChannel")
 
         self.packed_id = self.__class__.id_handler.pack(scene_id)
+
         self.replicable_channels = {}
+        self.shadow_replicable_channels = {}
+
         self.root_replicable = None
 
         # Channels may be created after replicables were instantiated
         self.register_existing_replicables()
 
         scene.messenger.add_subscriber("replicable_added", self.on_replicable_added)
-        scene.messenger.add_subscriber("replicable_remove", self.on_replicable_removed)
+        scene.messenger.add_subscriber("replicable_removed", self.on_replicable_removed)
 
     def register_existing_replicables(self):
         """Load existing registered replicables"""
@@ -272,25 +362,39 @@ class SceneChannelBase:
             self.on_replicable_added(replicable)
 
     @property
-    def prioritised_channels(self):
+    def prioritised_alive_channels(self):
         return sorted(self.replicable_channels.values(), reverse=True, key=priority_getter)
+
+    def cull_shadow_channels(self):
+        """Cull placeholder "shadow" channels for recently destroyed replicables"""
+        expired_shadows = []
+
+        for unique_id, shadow_channel in self.shadow_replicable_channels.items():
+            if shadow_channel.is_expired:
+                expired_shadows.append(unique_id)
+
+        for unique_id in expired_shadows:
+            del self.shadow_replicable_channels[unique_id]
+            self.logger.info("Culled shadow channel: {}".format(unique_id))
 
     def on_replicable_added(self, target):
         self.replicable_channels[target.unique_id] = self.channel_class(self, target)
 
     def on_replicable_removed(self, target):
-        self.replicable_channels.pop(target.unique_id)
+        unique_id = target.unique_id
+        del self.replicable_channels[unique_id]
+        self.shadow_replicable_channels[unique_id] = self.shadow_channel_class(self, target.__class__, unique_id)
 
 
 class ServerSceneChannel(SceneChannelBase):
 
     channel_class = ServerReplicableChannel
+    shadow_channel_class = ServerShadowReplicableChannel
 
     def __init__(self, manager, scene, scene_id):
         super().__init__(manager, scene, scene_id)
 
         self.is_initial = True
-        self.deleted_channels = []
 
     def on_replicable_added(self, replicable):
         # Don't replicate torn off
@@ -299,11 +403,8 @@ class ServerSceneChannel(SceneChannelBase):
 
         super().on_replicable_added(replicable)
 
-    def on_replicable_removed(self, replicable):
-        channel = self.replicable_channels.pop(replicable.unique_id)
-        self.deleted_channels.append(channel)
-
 
 class ClientSceneChannel(SceneChannelBase):
 
     channel_class = ClientReplicableChannel
+    shadow_channel_class = ClientShadowReplicableChannel

@@ -127,38 +127,20 @@ class ReplicatedFunctionsDescriptor:
             descriptor.unbind_instance(instance)
 
 
-class ReplicatedFunctionBase:
+class LocalReplicatedFunction:
 
-    def __init__(self, function, serialiser):
+    def __init__(self, function, deserialise):
         self.function = function
-        self._serialiser = serialiser
+        self.deserialise = deserialise
 
         # Copy meta info
         update_wrapper(self, function)
 
-    def __repr__(self):
-        return "<ReplicatedFunction '{}'>".format(self.function.__qualname__)
-
-
-class ReplicatedFunctionDeserialiser(ReplicatedFunctionBase):
-
-    def __call__(self, *args, **kwargs):
-        return self.function(*args, **kwargs)
-
-    def deserialise(self, data, offset=0):
-        items, bytes_read = self._serialiser.unpack(data, offset=offset)
-        arguments = dict(items)
-
-        return arguments, bytes_read
-
-
-class ReplicatedFunctionSerialiser(ReplicatedFunctionBase):
-
-    def __init__(self, function, serialiser):
-        super().__init__(function, serialiser)
-
     def __call__(self, *args, **kwargs):
         self.function(*args, **kwargs)
+
+    def __repr__(self):
+        return "<ReplicatedFunction '{}'>".format(self.function.__qualname__)
 
 
 class ReplicatedFunctionDescriptor:
@@ -251,22 +233,19 @@ class ReplicatedFunctionDescriptor:
         self._root_serialiser = FlagSerialiser(arguments)
 
     def bind_instance(self, instance):
-        serialiser = self._root_serialiser
-        function = self.function.__get__(instance)
+        bound_function = self.function.__get__(instance)
 
         # Execute this locally
         if instance.scene.world.netmode == self._target_netmode:
-            replicated_function = ReplicatedFunctionDeserialiser(function, serialiser)
+            function = LocalReplicatedFunction(bound_function, self.deserialise)
 
         # Execute this remotely
         else:
-            def _wrapper(*args, **kwargs):
+            def function(*args, **kwargs):
                 result = self.serialise(*args, **kwargs)
                 instance.replicated_function_queue.append(result)
 
-            replicated_function = ReplicatedFunctionSerialiser(_wrapper, serialiser)
-
-        self._bound_instances[instance] = replicated_function
+        self._bound_instances[instance] = function
 
     def unbind_instance(self, instance):
         self._bound_instances.pop(instance)
