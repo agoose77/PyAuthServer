@@ -1,6 +1,6 @@
 from .algorithm import PathNotFoundException
 
-from ..entities import Actor
+from ..entity import Actor
 
 
 class NavigationQuery:

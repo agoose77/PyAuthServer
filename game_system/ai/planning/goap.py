@@ -2,10 +2,9 @@ from operator import attrgetter
 from sys import float_info
 from logging import getLogger
 
-from game_system.enums import EvaluationState
-from game_system.pathfinding.algorithm import AStarAlgorithm, PathNotFoundException
-from game_system.pathfinding.priority_queue import PriorityQueue
-
+from ...enums import AITaskState
+from ...pathfinding import AStarAlgorithm, PathNotFoundException
+from ...utilities import PriorityQueue
 
 __all__ = "Goal", "Action", "GOAPPlanner", "GOAPActionPlanManager", "GOAPAStarActionNode", "GOAPAStarGoalNode", "Goal"
 
@@ -97,7 +96,7 @@ class Action:
         return True     
 
     def get_status(self, controller):
-        return EvaluationState.success
+        return AITaskState.success
 
     def apply_effects(self, destination_state, goal_state):
         """Apply action effects to state, resolving any variables
@@ -444,10 +443,10 @@ class GOAPActionPlan:
         """
         # If plan invalidated, don't update
         if self._invalidated:
-            return EvaluationState.failure
+            return AITaskState.failure
 
-        finished_state = EvaluationState.success
-        running_state = EvaluationState.running
+        finished_state = AITaskState.success
+        running_state = AITaskState.running
 
         # Get current step
         current_step = self.current_step
@@ -477,13 +476,13 @@ class GOAPActionPlan:
                 current_step = self.current_step = next(self._plan_steps_it)
 
             except StopIteration:
-                return EvaluationState.success
+                return AITaskState.success
 
             action, goal_state = current_step
 
             # Check preconditions
             if not action.check_procedural_precondition(controller, goal_state, is_planning=False):
-                return EvaluationState.failure
+                return AITaskState.failure
 
             # Enter step
             action.on_enter(controller, goal_state)
@@ -559,12 +558,12 @@ class GOAPActionPlanManager:
             # Update plan naturally
             plan_state = self._current_plan.update()
 
-            if plan_state == EvaluationState.failure:
+            if plan_state == AITaskState.failure:
                 self.logger.info("Plan failed during execution: {}".format(self._current_plan))
                 self._current_plan = None
                 self.update()
 
-            elif plan_state == EvaluationState.success:
+            elif plan_state == AITaskState.success:
                 self.logger.info("Plan succeeded: {}".format(self._current_plan))
                 self._current_plan = None
                 self.update()

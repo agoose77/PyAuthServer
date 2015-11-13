@@ -1,4 +1,2 @@
-from .definitions import *
-from .game_loop import *
-from .inputs import *
-from .bootstrap import *
+__author__ = 'angus'
+# TODO how should input handling be done? event OR polling? - polling probs

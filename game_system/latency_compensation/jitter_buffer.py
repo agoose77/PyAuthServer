@@ -1,4 +1,4 @@
-__all__ = ["JitterBuffer"]
+__all__ = "JitterBuffer",
 
 
 class JitterBuffer:

@@ -1,13 +1,8 @@
-from game_system.coordinates import Vector
-from game_system.entities import Actor
-from game_system.enums import Axis
-from game_system.signals import HearSoundSignal
-
-from .working_memory import WMFact
-
-from network.signals import SignalListener
-
 from math import radians, tan
+
+from ..coordinates import Vector
+from ..entity import Actor
+from ..enums import Axis
 
 
 class Sound:
@@ -141,7 +136,7 @@ class SightInterpreter:
         pass
 
 
-class SoundSensor(Sensor, SignalListener):
+class SoundSensor(Sensor):
 
     def __init__(self):
         super().__init__()
@@ -150,7 +145,6 @@ class SoundSensor(Sensor, SignalListener):
 
         self._pending_links = []
 
-    @HearSoundSignal.on_global
     def hear_sound(self, sound):
         pawn = self.controller.pawn
         if pawn is None:

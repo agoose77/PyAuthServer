@@ -1,2 +1,2 @@
-from .extrapolators import *
+from .interpolation import *
 from .jitter_buffer import *

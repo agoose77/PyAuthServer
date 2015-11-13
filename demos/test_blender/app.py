@@ -16,10 +16,9 @@ from network.world_info import WorldInfo
 from network.rules import ReplicationRulesBase
 from network.enums import Netmodes
 
-from game_system.controllers import PawnController
-from game_system.clock import Clock
-from game_system.entities import Actor
-from game_system.replication_info import ReplicationInfo
+from _game_system.controllers import PawnController
+from _game_system.clock import Clock
+from _game_system.replication_info import ReplicationInfo
 
 from .actors import *
 from .controllers import TestPandaPlayerController
@@ -80,5 +79,5 @@ def run(mode):
 
     game_loop = cls()
     init_game()
-    game_loop.delegate()
+    game_loop.run()
     del game_loop

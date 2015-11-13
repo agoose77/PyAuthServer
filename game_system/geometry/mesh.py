@@ -1,4 +1,3 @@
-
 __all__ = ["IVertex", "IMesh", "IPolygon"]
 
 

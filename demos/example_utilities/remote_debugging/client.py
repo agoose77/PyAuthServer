@@ -1,5 +1,5 @@
 from network.enums import Netmodes
-from network.simple_network import SimpleNetwork
+from network.simple_network import SimpleNetworkManager
 from network.world_info import WorldInfo
 
 from functools import partial
@@ -30,7 +30,7 @@ def run_interface(namespace):
 
 def application(peer_data=("localhost", 1200)):
     WorldInfo.netmode = Netmodes.client
-    network = SimpleNetwork.from_address_info("", 0)
+    network = SimpleNetworkManager.from_address_info("", 0)
 
     namespace = {}
 

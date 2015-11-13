@@ -1,70 +1,51 @@
-from network.decorators import with_tag
-from network.enums import Netmodes, Roles
-from network.tagged_delegate import DelegateByNetmode
-from network.replicable import Replicable
-from network.signals import SignalListener, ReplicableUnregisteredSignal
-from network.world_info import WorldInfo
-
-from game_system.controllers import PlayerPawnController
-from game_system.entities import Actor
-from game_system.enums import CollisionState, PhysicsType
-from game_system.latency_compensation import PhysicsExtrapolator
-from game_system.physics import CollisionContact, LazyCollisionResult
-from game_system.signals import *
-
-from .definitions import entity_from_nodepath
-from .signals import RegisterPhysicsNode, DeregisterPhysicsNode
-
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.core import loadPrcFileData
-from direct.showbase.DirectObject import DirectObject
-
-from contextlib import contextmanager
-from collections import defaultdict
-
 loadPrcFileData('', 'bullet-enable-contact-events true')
 
-#from panda3d.core import PythonCallbackObject
-#loadPrcFileData('', 'bullet-filter-algorithm callback')
+from direct.showbase.DirectObject import DirectObject
+
+from collections import defaultdict, namedtuple
+from functools import partial
+
+from network.utilities import LazyIterable
 
 
-class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
-    subclasses = {}
+CollisionContact = namedtuple("CollisionContact", "position normal impulse")
+loadPrcFileData('', 'bullet-enable-contact-events true')
 
-    def __init__(self):
-        self.register_signals()
 
-        self.world = BulletWorld()
-        self.world.setGravity((0, 0, -9.81))
+class ContactResult:
 
-        # # Seems that this does not function
-        # on_contact_added = PythonCallbackObject(self._on_contact_added)
-        # self.world.set_contact_added_callback(on_contact_added)
+    def __init__(self, world, body_a, body_b):
+        self.world = world
 
-        # on_filter = PythonCallbackObject(self._filter_collision)
-        # self.world.set_filter_callback(on_filter)
+        self.body_a = body_a
+        self.body_b = body_b
 
-        self.listener = DirectObject()
-        self.listener.accept('bullet-contact-added', self._on_contact_added)
-        self.listener.accept('bullet-contact-destroyed', self._on_contact_removed)
+        self.contacts_a = LazyIterable(partial(self.create_contacts, for_a=True))
+        self.contacts_b = LazyIterable(partial(self.create_contacts, for_a=False))
 
-        debug_node = BulletDebugNode('Debug')
-        debug_node.showWireframe(True)
-        debug_node.showConstraints(True)
-        debug_node.showBoundingBoxes(False)
-        debug_node.showNormals(False)
+    @property
+    def contact_result(self):
+        try:
+            result = self._contact_result
 
-        self.debug_nodepath = render.attachNewNode(debug_node)
-        self.world.set_debug_node(debug_node)
+        except AttributeError:
+            self._contact_result = result = self.world.contact_test_pair(self.body_a, self.body_b)
 
-        self.tracked_contacts = defaultdict(int)
-        self.existing_collisions = set()
+        return result
 
-    def _create_contacts_from_result(self, requesting_node, contact_result):
+    def create_contacts(self, for_a):
         """Return collision contacts between two nodes"""
         contacts = []
 
-        for contact in contact_result.get_contacts():
+        if for_a:
+            requesting_node = self.body_a
+
+        else:
+            requesting_node = self.body_b
+
+        for contact in self.contact_result.get_contacts():
             if contact.get_node0() == requesting_node:
                 manifold = contact.get_manifold_point()
 
@@ -83,229 +64,97 @@ class PandaPhysicsSystem(DelegateByNetmode, SignalListener):
 
         return contacts
 
+
+class PhysicsManager:
+
+    def __init__(self, root_nodepath, world):
+        self.world = BulletWorld()
+        self.world.setGravity((0, 0, -9.81))
+
+        self._timestep = 1 / world.tick_rate
+
+        # # Seems that this does not function
+        # on_contact_added = PythonCallbackObject(self._on_contact_added)
+        # self.world.set_contact_added_callback(on_contact_added)
+        # on_filter = PythonCallbackObject(self._filter_collision)
+        # self.world.set_filter_callback(on_filter)
+
+        self.listener = DirectObject()
+        self.listener.accept('bullet-contact-added', self._on_contact_added)
+        self.listener.accept('bullet-contact-destroyed', self._on_contact_removed)
+
+        self.tracked_contacts = defaultdict(int)
+        self.existing_collisions = set()
+
+        # Debugging info
+        debug_node = BulletDebugNode('Debug')
+        debug_node.showWireframe(True)
+        debug_node.showConstraints(True)
+        debug_node.showBoundingBoxes(False)
+        debug_node.showNormals(False)
+
+        # Add to world
+        self.debug_nodepath = root_nodepath.attachNewNode(debug_node)
+        self.world.set_debug_node(debug_node)
+        self.debug_nodepath.show()
+
     def _on_contact_removed(self, node_a, node_b):
         self.tracked_contacts[(node_a, node_b)] -= 1
 
     def _on_contact_added(self, node_a, node_b):
         self.tracked_contacts[(node_a, node_b)] += 1
 
-    def _filter_collision(self, filter_data):
-        filter_data.set_collide(True)
-
-    @RegisterPhysicsNode.on_global
-    def register_node(self, node):
-        self.world.attachRigidBody(node)
-        node.set_python_tag("world", self.world)
-
-    @DeregisterPhysicsNode.on_global
-    def deregister_node(self, node):
-        self.world.removeRigidBody(node)
-        node.clear_python_tag("world")
-
-    def dispatch_collisions(self):
+    def _dispatch_collisions(self):
         # Dispatch collisions
         existing_collisions = self.existing_collisions
+
         for pair, contact_count in self.tracked_contacts.items():
+            # If is new collision
             if contact_count > 0 and pair not in existing_collisions:
                 existing_collisions.add(pair)
 
                 # Dispatch collision
                 node_a, node_b = pair
 
-                entity_a = entity_from_nodepath(node_a)
-                entity_b = entity_from_nodepath(node_b)
+                entity_a = node_a.get_python_tag("entity")
+                entity_b = node_b.get_python_tag("entity")
 
-                contact_result = None
+                if not (entity_a and entity_b):
+                    continue
 
-                if entity_a is not None:
-                    def contact_getter():
-                        nonlocal contact_result
-                        if contact_result is None:
-                            contact_result = self.world.contact_test_pair(node_a, node_b)
+                contact_result = ContactResult(self.world, node_a, node_b)
+                entity_a.messenger.send("collision_started", entity=entity_b, contacts=contact_result.contacts_a)
+                entity_b.messenger.send("collision_started", entity=entity_a, contacts=contact_result.contacts_b)
 
-                        return self._create_contacts_from_result(node_a, contact_result)
-
-                    collision_result = LazyCollisionResult(entity_b, CollisionState.started, contact_getter)
-                    CollisionSignal.invoke(collision_result, target=entity_a)
-
-                if entity_b is not None:
-                    def contact_getter():
-                        nonlocal contact_result
-                        if contact_result is None:
-                            contact_result = self.world.contact_test_pair(node_a, node_b)
-
-                        return self._create_contacts_from_result(node_b, contact_result)
-
-                    collision_result = LazyCollisionResult(entity_a, CollisionState.started, contact_getter)
-                    CollisionSignal.invoke(collision_result, target=entity_b)
-
+            # Ended collision
             elif contact_count == 0 and pair in existing_collisions:
                 existing_collisions.remove(pair)
 
                 # Dispatch collision
                 node_a, node_b = pair
 
-                entity_a = entity_from_nodepath(node_a)
-                entity_b = entity_from_nodepath(node_b)
+                entity_a = node_a.get_python_tag("entity")
+                entity_b = node_b.get_python_tag("entity")
 
-                # Don't send contacts for ended collisions
-                contact_getter = lambda: None
+                if not (entity_a and entity_b):
+                    continue
 
-                if entity_a is not None:
-                    collision_result = LazyCollisionResult(entity_b, CollisionState.ended, contact_getter)
-                    CollisionSignal.invoke(collision_result, target=entity_a)
+                entity_a.messenger.send("collision_stopped", entity_b)
+                entity_b.messenger.send("collision_stopped", entity_a)
 
-                if entity_b is not None:
-                    collision_result = LazyCollisionResult(entity_a, CollisionState.ended, contact_getter)
-                    CollisionSignal.invoke(collision_result, target=entity_b)
+    def add_entity(self, entity, component):
+        body = component.body
+        self.world.attach_rigid_body(body)
+        body.set_python_tag("entity", entity)
 
-    def update(self, delta_time):
-        self.world.doPhysics(delta_time)
-        self.dispatch_collisions()
+    def remove_entity(self, entity, component):
+        body = component.body
+        self.world.remove_rigid_body(body)
+        body.clear_python_tag("entity")
 
-@with_tag(Netmodes.server)
-class PandaServerPhysicsSystem(PandaPhysicsSystem):
+    def tick(self):
+        self.world.do_physics(self._timestep)
+        self._dispatch_collisions()
 
-    def save_network_states(self):
-        """Saves Physics transformations to network variables"""
-        for actor in Replicable.subclass_of_type(Actor):
-            actor.copy_state_to_network()
-
-    @PhysicsTickSignal.on_global
-    def update(self, delta_time):
-        """Listener for PhysicsTickSignal.
-
-        Copy physics state to network variable for Actor instances
-        """
-        super().update(delta_time)
-
-        self.save_network_states()
-        UpdateCollidersSignal.invoke()
-
-
-@with_tag(Netmodes.client)
-class PandaClientPhysicsSystem(PandaPhysicsSystem):
-    active_physics_types = {PhysicsType.dynamic, PhysicsType.rigid_body}
-
-    def __init__(self):
-        super().__init__()
-
-        self._extrapolators = {}
-
-    @property
-    def network_clock(self):
-        local_controller = PlayerPawnController.get_local_controller()
-        if local_controller is None:
-            return
-
-        return local_controller.clock
-
-    def extrapolate_network_states(self):
-        """Apply state from extrapolators to replicated actors"""
-        simulated_proxy = Roles.simulated_proxy
-
-        clock = self.network_clock
-        if clock is None:
-            return
-
-        network_time = clock.estimated_elapsed_server
-        for actor, extrapolator in self._extrapolators.items():
-            result = extrapolator.sample_at(network_time)
-
-            if actor.roles.local != simulated_proxy:
-                continue
-
-            position, velocity = result
-
-            current_orientation = actor.transform.world_orientation.to_quaternion()
-            new_rotation = actor.rigid_body_state.orientation.to_quaternion()
-            slerped_orientation = current_orientation.slerp(new_rotation, 0.3).to_euler()
-
-            actor.transform.world_position = position
-            actor.physics.world_velocity = velocity
-            actor.transform.world_orientation = slerped_orientation
-
-    @contextmanager
-    def protect_exemptions(self, exemptions):
-        """Suspend and restore state of exempted actors around an operation
-
-        :param exemptions: Iterable of exempt Actor instances
-        """
-        # Suspend exempted objects
-        already_suspended = set()
-
-        for actor in exemptions:
-            physics = actor.physics
-
-            if physics.suspended:
-                already_suspended.add(physics)
-                continue
-
-            physics.suspended = True
-
-        yield
-
-        # Restore scheduled objects
-        for actor in exemptions:
-            physics = actor.physics
-            if physics in already_suspended:
-                continue
-
-            physics.suspended = False
-
-    @PhysicsSingleUpdateSignal.on_global
-    def update_for(self, delta_time, target):
-        """Listener for PhysicsSingleUpdateSignal
-        Attempts to update physics simulation for single actor
-
-        :param delta_time: Time to progress simulation
-        :param target: Actor instance to update state"""
-        if target.physics.type not in self.active_physics_types:
-            return
-
-        # Make a list of actors which aren't us
-        other_actors = Replicable.subclass_of_type(Actor).copy()
-        other_actors.discard(target)
-
-        with self.protect_exemptions(other_actors):
-            self.world.doPhysics(delta_time)
-
-    @PhysicsReplicatedSignal.on_global
-    def on_physics_replicated(self, timestamp, target):
-        state = target.rigid_body_state
-
-        position = state.position
-        velocity = state.velocity
-
-        clock = self.network_clock
-        if clock is None:
-            return
-
-        network_time = clock.estimated_elapsed_server
-
-        try:
-            extrapolator = self._extrapolators[target]
-
-        except KeyError:
-            extrapolator = PhysicsExtrapolator()
-            extrapolator.reset(timestamp, network_time, position, velocity)
-
-            self._extrapolators[target] = extrapolator
-
-        extrapolator.add_sample(timestamp, network_time, position, velocity)
-
-    @ReplicableUnregisteredSignal.on_global
-    def on_replicable_unregistered(self, target):
-        if target in self._extrapolators:
-            self._extrapolators.pop(target)
-
-    @PhysicsTickSignal.on_global
-    def update(self, delta_time):
-        """Listener for PhysicsTickSignal.
-
-        Copy physics state to network variable for Actor instances
-        """
-        super().update(delta_time)
-
-        self.extrapolate_network_states()
-        UpdateCollidersSignal.invoke()
+    def resimulate_pawn(self, pawn):
+        pass

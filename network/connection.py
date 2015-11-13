@@ -1,15 +1,15 @@
 from collections import deque
+from functools import partial
 from logging import getLogger, Formatter, StreamHandler
-from socket import gethostbyname
-from time import strftime
+from time import strftime, clock
 
 from .bitfield import BitField
-from .conversions import conversion
-from .type_flag import TypeFlag
-from .handlers import get_handler
-from .metaclasses.register import InstanceRegister
-from .packet import PacketCollection
-from .streams import Dispatcher, InjectorStream, HandshakeStream
+from .messages import MessagePasser
+from .enums import PacketProtocols
+from .type_serialisers import get_serialiser_for
+from .packet import PacketCollection, Packet
+from .factory import ProtectedInstance
+from .utilities import LatencyCalculator
 
 
 __all__ = "Connection",
@@ -21,39 +21,18 @@ class ConnectionLoggerFormatter(Formatter):
         return strftime("%H:%M:%S")
 
 
-class Connection(metaclass=InstanceRegister):
+class Connection(ProtectedInstance):
     """Interface for remote peer.
 
     Mediates a connection between local and remote peer.
     """
 
-    subclasses = {}
+    def __init__(self, connection_info):
+        self.connection_info = connection_info
 
-    @classmethod
-    def create_connection(cls, address, port):
-        """Return new connnection to remote peer.
-
-        Creates a Connection object with a tuple of ``(address, port)``, returning existing connection if present.
-        """
-        address = gethostbyname(address)
-        ip_info = address, port
-
-        try:
-            return cls[ip_info]
-
-        except KeyError:
-            return cls(ip_info)
-
-    def __repr__(self):
-        if self.registered:
-            return "<Connection: <{}>>".format(self.instance_id)
-
-        return "<Connection>"
-
-    def on_initialised(self):
         # Maximum sequence number value
         self.sequence_max_size = 2 ** 16 - 1
-        self.sequence_handler = get_handler(TypeFlag(int, max_value=self.sequence_max_size))
+        self.sequence_handler = get_serialiser_for(int, max_value=self.sequence_max_size)
 
         # Number of packets to ack per packet
         self.ack_window = 32
@@ -61,15 +40,7 @@ class Connection(metaclass=InstanceRegister):
         # BitField and bitfield size
         self.incoming_ack_bitfield = BitField(self.ack_window)
         self.outgoing_ack_bitfield = BitField(self.ack_window)
-        self.ack_packer = get_handler(TypeFlag(BitField, fields=self.ack_window))
-
-        # Additional data
-        self.netmode_packer = get_handler(TypeFlag(int))
-        self.error_packer = get_handler(TypeFlag(str))
-
-        # Protocol unpacker
-        self.protocol_handler = get_handler(TypeFlag(int))
-        self.handshake_packer = get_handler(TypeFlag(int))
+        self.ack_packer = get_serialiser_for(BitField, fields=self.ack_window)
 
         # Storage for packets requesting ack or received
         self.requested_ack = {}
@@ -80,25 +51,39 @@ class Connection(metaclass=InstanceRegister):
         self.remote_sequence = 0
 
         # Estimate available bandwidth
-        self.bandwidth = conversion(1, "Mb", "B")
-        self.packet_growth = conversion(0.5, "KB", "B")
+        self.bandwidth = 1000
+        self.packet_growth = 500
 
         # Bandwidth throttling
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
         # Support logging
-        self.logger = self.create_logger()
+        self.logger = self._create_logger()
+        self.latency_calculator = LatencyCalculator()
 
-        # Internal packet data
-        self.dispatcher = Dispatcher(logger=self.logger)
-        self.injector = self.dispatcher.create_stream(InjectorStream)
+        self.last_received_time = None
+        self._queue = []
 
-        self.handshake = self.dispatcher.create_stream(HandshakeStream)
-        self.handshake.connection_info = self.instance_id
-        self.handshake.remove_connection = self.deregister
+        self.pre_receive_callbacks = []
+        self.post_receive_callbacks = []
+        self.pre_send_callbacks = []
 
-    def create_logger(self):
+        self.messenger = MessagePasser()
+        # Ignore heartbeat packet
+        self.messenger.add_subscriber(PacketProtocols.heartbeat, lambda packet: None)
+
+    def _is_more_recent(self, base, sequence):
+        """Compare two sequence identifiers and determine if one is newer than the other
+
+        :param base: base sequence to compare against
+        :param sequence: sequence tested against base
+        """
+        half_seq = (self.sequence_max_size / 2)
+        return ((base > sequence) and (base - sequence) <= half_seq) or \
+               ((sequence > base) and (sequence - base) > half_seq)
+
+    def _create_logger(self):
         logger = getLogger(repr(self))
         handler = StreamHandler()
 
@@ -108,7 +93,7 @@ class Connection(metaclass=InstanceRegister):
         logger.addHandler(handler)
         return logger
 
-    def get_reliable_information(self, remote_sequence):
+    def _get_reliable_information(self, remote_sequence):
         """Update stored information for remote peer reliability feedback
 
         :param remote_sequence: latest received packet's sequence
@@ -128,7 +113,7 @@ class Connection(metaclass=InstanceRegister):
 
         return ack_bitfield
 
-    def handle_reliable_information(self, ack_base, ack_bitfield):
+    def _update_reliable_information(self, ack_base, ack_bitfield):
         """Update internal packet management, concerning dropped packets and available bandwidth
 
         :param ack_base: base sequence for ack window
@@ -164,25 +149,57 @@ class Connection(metaclass=InstanceRegister):
 
         # Find packets we think are dropped and resend them
         considered_dropped = [s for s in requested_ack if (ack_base - s) >= window_size]
-        redelivery_queue = self.injector.queue
+
+        queue_packet = self.queue_packet
         # If the packet drops off the ack_window assume it is lost
         for absolute_sequence in considered_dropped:
             # Only reliable members asked to be informed if received/dropped
-            reliable_collection = requested_ack.pop(absolute_sequence).to_reliable()
-            reliable_collection.on_not_ack()
+            reliable_packet = requested_ack.pop(absolute_sequence).to_reliable()
 
-            missed_ack = True
-            redelivery_queue.extend(reliable_collection.members)
+            if reliable_packet is not None:
+                reliable_packet.on_not_ack()
+
+                missed_ack = True
+                queue_packet(reliable_packet)
 
         # Respond to network conditions
         if missed_ack and not self.throttle_pending:
             self.start_throttling()
 
-    def receive(self, bytes_string):
+    def queue_packet(self, packet):
+        # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
+        sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
+        remote_sequence = self.remote_sequence
+
+        # If we are waiting to detect when throttling will have returned
+        if self.throttle_pending and self.tagged_throttle_sequence is None:
+            self.tagged_throttle_sequence = sequence
+
+        # Get ack bitfield for reliable feedback
+        ack_bitfield = self._get_reliable_information(remote_sequence)
+
+        # Store acknowledge request for reliable members of packet
+        self.requested_ack[sequence] = packet
+
+        # Construct header information
+        message_parts = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence),
+                         self.ack_packer.pack(ack_bitfield), packet.to_bytes()]
+
+        # Force bandwidth to grow (until throttled)
+        self.bandwidth += self.packet_growth
+
+        message = b''.join(message_parts)
+        self._queue.append(message)
+
+    def receive_message(self, bytes_string):
         """Handle received bytes from peer
 
         :param bytes_string: data from peer
         """
+        # Before receiving
+        for callback in self.pre_receive_callbacks:
+            callback()
+
         # Get the sequence id
         sequence, offset = self.sequence_handler.unpack_from(bytes_string)
 
@@ -194,11 +211,13 @@ class Connection(metaclass=InstanceRegister):
         ack_bitfield_size = self.ack_packer.unpack_merge(self.incoming_ack_bitfield, bytes_string, offset=offset)
         offset += ack_bitfield_size
 
+        # TODO allow packet.reject() to un-ack acked packet before check the ack
+
         # Dictionary of packets waiting for acknowledgement
-        self.handle_reliable_information(ack_base, self.incoming_ack_bitfield)
+        self._update_reliable_information(ack_base, self.incoming_ack_bitfield)
 
         # If we receive a newer foreign sequence, update our local record
-        if self.sequence_more_recent(sequence, self.remote_sequence):
+        if self._is_more_recent(sequence, self.remote_sequence):
             self.remote_sequence = sequence
 
         # Update received window
@@ -206,53 +225,40 @@ class Connection(metaclass=InstanceRegister):
         if len(self.received_window) > self.ack_window:
             self.received_window.popleft()
 
-        # Handle received packets
+        # Handle received packets, allow possible multiple packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
-        self.dispatcher.handle_packets(packet_collection)
 
-    def send(self, network_tick):
+        dispatch = self.messenger.send
+        for packet in packet_collection.packets:
+            dispatch(packet.protocol, packet)
+
+        self.last_received_time = clock()
+
+        # After receiving
+        for callback in self.post_receive_callbacks:
+            callback()
+
+    def request_messages(self, is_network_tick):
         """Pull data from connection interfaces to send
 
         :param network_tick: if this is a network tick
         """
-        # Increment the local sequence, ensure that the sequence does not overflow, by wrapping it around
-        sequence = self.local_sequence = (self.local_sequence + 1) % (self.sequence_max_size + 1)
-        remote_sequence = self.remote_sequence
+        for callback in self.pre_send_callbacks:
+            callback(is_network_tick)
 
-        # If we are waiting to detect when throttling will have returned
-        if self.throttle_pending and self.tagged_throttle_sequence is None:
-            self.tagged_throttle_sequence = sequence
+        # Use heartbeat packet
+        if is_network_tick:
+            # Start sampling
+            sample_id = self.latency_calculator.start_sample()
+            heartbeat_packet = Packet(PacketProtocols.heartbeat,
+                                      on_success=partial(self.latency_calculator.stop_sample, sample_id),
+                                      on_failure=partial(self.latency_calculator.ignore_sample, sample_id))
+            self.queue_packet(heartbeat_packet)
 
-        packet_collection = self.dispatcher.pull_packets(network_tick, self.bandwidth)
+        messages = self._queue[:]
+        self._queue.clear()
 
-        # Get ack bitfield for reliable feedback
-        ack_bitfield = self.get_reliable_information(remote_sequence)
-
-        # Store acknowledge request for reliable members of packet
-        self.requested_ack[sequence] = packet_collection
-
-        # Construct header information
-        payload = [self.sequence_handler.pack(sequence), self.sequence_handler.pack(remote_sequence),
-                   self.ack_packer.pack(ack_bitfield)]
-
-        # Include user defined payload
-        packet_bytes = packet_collection.to_bytes()
-        payload.append(packet_bytes)
-
-        # Force bandwidth to grow (until throttled)
-        self.bandwidth += self.packet_growth
-
-        return b''.join(payload)
-
-    def sequence_more_recent(self, base, sequence):
-        """Compare two sequence identifiers and determine if one is newer than the other
-
-        :param base: base sequence to compare against
-        :param sequence: sequence tested against base
-        """
-        half_seq = (self.sequence_max_size / 2)
-        return ((base > sequence) and (base - sequence) <= half_seq) or \
-               ((sequence > base) and (sequence - base) > half_seq)
+        return messages
 
     def start_throttling(self):
         """Start updating metric for bandwidth"""

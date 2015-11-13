@@ -1,69 +1,89 @@
-from .handlers import get_handler
-from .type_flag import TypeFlag
-
 from functools import lru_cache
+
+from .type_serialisers import get_serialiser_for
 
 __all__ = ['PacketCollection', 'Packet']
 
 
-class PacketCollection:
+class NetworkPacketBase:
+
+    def on_ack(self):
+        raise NotImplementedError
+
+    def on_not_ack(self):
+        raise NotImplementedError
+
+    def to_bytes(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_bytes(cls, bytes_string):
+        raise NotImplementedError
+
+    def to_reliable(self):
+        raise NotImplementedError
+
+    def to_unreliable(self):
+        raise NotImplementedError
+
+    def take_from(self, bytes_string):
+        raise NotImplementedError
+
+    size = None
+
+
+class PacketCollection(NetworkPacketBase):
     """Container for a sequence of Packet instances"""
 
-    __slots__ = "members"
+    __slots__ = "packets"
 
-    def __init__(self, members=None):
-        if members is None:
-            members = []
+    def __init__(self, packets=None):
+        if packets is None:
+            packets = []
 
-        # If members support member interface
-        if hasattr(members, "members"):
-            self.members = members.members
-
-        # Otherwise recreate members
-        else:
-            self.members = [m for p in members for m in p.members]
+        self.packets = list(packets)
 
     @property
-    def reliable_members(self):
-        """The reliable members of this packet collection"""
-        return [m for m in self.members if m.reliable]
+    def reliable_packets(self):
+        """The reliable packets of this packet collection"""
+        return [m for m in self.packets if m.reliable]
 
     @property
-    def unreliable_members(self):
-        """The unreliable members of this packet collection"""
-        return [m for m in self.members if not m.reliable]
+    def unreliable_packets(self):
+        """The unreliable packets of this packet collection"""
+        return [m for m in self.packets if not m.reliable]
 
     @property
     def size(self):
         return len(self.to_bytes())
 
     def to_reliable(self):
-        """Create PacketCollection of reliable members
+        """Create PacketCollection of reliable packets
 
         :rtype: :py:class:`network.packet.PacketCollection`
         """
-        return self.__class__(self.reliable_members)
+        return self.__class__(self.reliable_packets)
 
     def to_unreliable(self):
-        """Create PacketCollection of unreliable members
+        """Create PacketCollection of unreliable packets
 
         :rtype: :py:class:`network.packet.PacketCollection`
         """
-        return self.__class__(self.unreliable_members)
+        return self.__class__(self.unreliable_packets)
 
     def on_ack(self):
         """Callback for acknowledgement of packet receipt"""
-        for member in self.members:
+        for member in self.packets:
             member.on_ack()
 
     def on_not_ack(self):
         """Callback for assumption of a lost packet"""
-        for member in self.reliable_members:
+        for member in self.reliable_packets:
             member.on_not_ack()
 
     def to_bytes(self):
         """Writes collection contents to bytes""" 
-        return b''.join([m.to_bytes() for m in self.members])
+        return b''.join([m.to_bytes() for m in self.packets])
 
     @classmethod
     def iter_bytes(cls, bytes_string, callback):
@@ -85,39 +105,57 @@ class PacketCollection:
         :rtype: :py:class:`network.packet.PacketCollection`
         """
         collection = cls()
-        cls.iter_bytes(bytes_string, collection.members.append)
+        cls.iter_bytes(bytes_string, collection.packets.append)
 
         return collection
 
     def __bool__(self):
-        return bool(self.members)
+        return bool(self.packets)
 
     def __str__(self):
-        return '\n'.join(str(m) for m in self.members)
+        return '\n'.join(str(m) for m in self.packets)
 
     def __add__(self, other):
-        return self.__class__(self.members + other.members)
+        if isinstance(other, Packet):
+            packets = self.packets.copy()
+            packets.append(other)
+            return self.__class__(packets)
+
+        else:
+            return self.__class__(self.packets + other.packets)
+
+    def __iadd__(self, other):
+        if isinstance(other, Packet):
+            self.packets.append(other)
+
+        else:
+            assert isinstance(other, self.__class__)
+            self.packets.extend(other.packets)
+
+        return self
+
+    def __radd__(self, other):
+        assert isinstance(other, Packet)
+        packets = [other]
+        packets.extend(self.packets)
+        return self.__class__(packets)
 
     def __iter__(self):
-        return iter(self.members)
+        return iter(self.packets)
 
-    __radd__ = __add__
     __bytes_string_ = to_bytes
 
 
-class Packet:
+class Packet(NetworkPacketBase):
     """Interface class for packets sent over the network.
 
     Supports protocol and length header
     """
     __slots__ = "protocol", "payload", "reliable", "on_success", "on_failure"
 
-    _protocol_handler = get_handler(TypeFlag(int))
-    _size_handler = get_handler(TypeFlag(int, max_value=1000))
+    _protocol_handler = get_serialiser_for(int)
 
-    def __init__(self, protocol=None, payload=b'', *, reliable=False,
-                 on_success=None, on_failure=None):
-
+    def __init__(self, protocol=None, payload=b'', *, reliable=False, on_success=None, on_failure=None):
         # Force reliability for callbacks
         reliable = reliable or bool(on_success or on_failure)
 
@@ -126,11 +164,6 @@ class Packet:
         self.protocol = protocol
         self.payload = payload
         self.reliable = reliable
-
-    @property
-    def members(self):
-        """Returns self as a member of a list"""
-        return [self]
 
     @property
     def size(self):
@@ -143,7 +176,7 @@ class Packet:
         Invokes on_success callback
         """
         if callable(self.on_success):
-            self.on_success(self)
+            self.on_success()
 
     def on_not_ack(self):
         """Called when packet is considered dropped.
@@ -151,7 +184,7 @@ class Packet:
         Invokes on_failure callback if this packet is reliable
         """
         if callable(self.on_failure):
-            self.on_failure(self)
+            self.on_failure()
 
     @lru_cache()
     def to_bytes(self):
@@ -160,7 +193,7 @@ class Packet:
         :rtype: bytes
         """
         data = self._protocol_handler.pack(self.protocol) + self.payload
-        return self._size_handler.pack(len(data)) + data
+        return create_group(data)
 
     @classmethod
     def from_bytes(cls, bytes_string):
@@ -173,6 +206,18 @@ class Packet:
         packet.take_from(bytes_string)
         return packet
 
+    def to_reliable(self):
+        if self.reliable:
+            return self
+
+        return None
+
+    def to_unreliable(self):
+        if not self.reliable:
+            return self
+
+        return None
+
     def take_from(self, bytes_string):
         """Populates packet instance with data.
 
@@ -181,24 +226,16 @@ class Packet:
         :param bytes_string: bytes stream
         :rtype: bytes
         """
-        length_handler = self._size_handler
         protocol_handler = self._protocol_handler
 
         # Read packet length (excluding length character size)
-        length, length_size = length_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[length_size:]
+        bytes_string, remainder = extract_group(bytes_string)
 
         # Read packet protocol
         self.protocol, protocol_size = protocol_handler.unpack_from(bytes_string)
-        bytes_string = bytes_string[protocol_size:]
+        self.payload = bytes_string[protocol_size:]
 
-        # Determine the slice index of this payload
-        end_index = length - protocol_size
-
-        self.payload = bytes_string[:end_index]
-        self.reliable = False
-
-        return bytes_string[end_index:]
+        return remainder
 
     def __add__(self, other):
         """Concatenates two Packets
@@ -206,7 +243,11 @@ class Packet:
         :param other: Packet instance
         :rtype: :py:class:`network.packet.PacketCollection`
         """
-        return PacketCollection(members=self.members + other.members)
+        if isinstance(other, Packet):
+            return PacketCollection([self, other])
+
+        else:
+            return NotImplemented
 
     def __str__(self):
         """String representation of Packet"""
@@ -218,5 +259,17 @@ class Packet:
 
         return '\n'.join(to_console)
 
-    __radd__ = __add__
     __bytes__ = to_bytes
+
+
+_size_handler = get_serialiser_for(int, max_value=1000)
+
+
+def create_group(payload):
+    return _size_handler.pack(len(payload)) + payload
+
+
+def extract_group(bytes_string):
+    size, offset = _size_handler.unpack_from(bytes_string)
+    return bytes_string[offset: offset + size], bytes_string[offset + size:]
+

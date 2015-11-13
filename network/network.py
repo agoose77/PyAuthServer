@@ -1,15 +1,33 @@
-from .connection import Connection
-
 from random import random
 from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
 from time import clock
 
-__all__ = ['NonBlockingSocketUDP', 'UnreliableSocketWrapper', 'Network', 'NetworkMetrics']
+from .connection import Connection
+from .streams import create_handshake_manager
 
 
-class NonBlockingSocketUDP(socket):
+__all__ = ['BaseTransport', 'UnreliableSocketWrapper', 'NetworkManager', 'NetworkMetrics']
+
+
+class TransportBase:
+
+    TransportEmptyError = None
+
+    def close(self):
+        raise NotImplementedError()
+
+    def receive(self, buff_szie):
+        raise NotImplementedError()
+
+    def send(self, data, address):
+        raise NotImplementedError()
+
+
+class DefaultTransport(socket, TransportBase):
     """Non blocking socket class"""
+
+    TransportEmptyError = SOCK_ERROR
 
     def __init__(self, addr, port):
         """Network socket initialiser"""
@@ -17,6 +35,12 @@ class NonBlockingSocketUDP(socket):
 
         self.bind((addr, port))
         self.setblocking(False)
+
+        self.address, self.port = self.getsockname()
+
+    close = socket.close
+    receive = socket.recvfrom
+    send = socket.sendto
 
 
 class UnreliableSocketWrapper:
@@ -62,7 +86,7 @@ class UnreliableSocketWrapper:
 
         self._last_sent_bytes += sent_bytes
 
-    def sendto(self, *args, **kwargs):
+    def send(self, *args, **kwargs):
         # Send count from actual send call
         sent_bytes, self._last_sent_bytes = self._last_sent_bytes, 0
 
@@ -152,7 +176,7 @@ class MulticastDiscovery:
         address, port = multicast_host
         intf = gethostbyname(gethostname())
 
-        multicast_socket = NonBlockingSocketUDP("", port)
+        multicast_socket = DefaultTransport("", port)
 
         multicast_socket.setsockopt(SOL_IP, IP_MULTICAST_IF, inet_aton(intf))
         multicast_socket.setsockopt(SOL_IP, IP_ADD_MEMBERSHIP,
@@ -199,13 +223,17 @@ class MulticastDiscovery:
         self.disable_listener()
 
 
-class Network:
+class NetworkManager:
     """Network management class"""
 
-    def __init__(self, socket):
-        self.socket = socket
+    def __init__(self, world, address, port, transport_cls=DefaultTransport):
+        self._transport = transport = transport_cls(address, port)
 
-        self.address, self.port = socket.getsockname()
+        self.connections = {}
+
+        self.address = transport.address
+        self.port = transport.port
+        self.world = world
 
         self.metrics = NetworkMetrics()
         self.multicast = MulticastDiscovery()
@@ -214,36 +242,7 @@ class Network:
     def __repr__(self):
         return "<Network Manager: {}:{}>".format(self.address, self.port)
 
-    @classmethod
-    def from_address_info(cls, address="localhost", port=0):
-        """Create Network object from address and port
-
-        :param address: address for socket
-        :param port: port to bind to, 0 for any
-        """
-        socket = NonBlockingSocketUDP(address, port)
-        return cls(socket)
-
-    @property
-    def received_data(self):
-        """Return iterator over received data"""
-        buff_size = self.receive_buffer_size
-        on_received_bytes = self.metrics.on_received_bytes
-
-        while True:
-            try:
-                data = self.socket.recvfrom(buff_size)
-
-            except SOCK_ERROR:
-                return
-
-            payload, _ = data
-            on_received_bytes(len(data))
-
-            yield data
-
-    @staticmethod
-    def connect_to(address, port):
+    def connect_to(self, address, port):
         """Return connection interface to remote peer.
 
         If connection does not exist, create a new ConnectionInterface.
@@ -251,23 +250,52 @@ class Network:
         :param address: address of remote peer
         :param port: port of remote peer
         """
-        return Connection.create_connection(address, port)
+        address = gethostbyname(address)
+        return self._create_or_return_connection((address, port))
+
+    def _create_or_return_connection(self, connection_info):
+        try:
+            return self.connections[connection_info]
+
+        except KeyError:
+            with Connection._grant_authority():
+                connection = self.connections[connection_info] = Connection(connection_info)
+
+        self.on_new_connection(connection)
+        return connection
+
+    @property
+    def received_data(self):
+        """Return iterator over received data"""
+        buff_size = self.receive_buffer_size
+        on_received_bytes = self.metrics.on_received_bytes
+
+        receive = self._transport.receive
+        TransportEmptyError = self._transport.TransportEmptyError
+
+        while True:
+            try:
+                data, address = receive(buff_size)
+
+            except TransportEmptyError:
+                return
+
+            on_received_bytes(len(data))
+
+            yield data, address
+
+    def on_new_connection(self, connection):
+        connection.handshake_manager = create_handshake_manager(self.world, connection)
 
     def receive(self):
         """Receive all data from socket"""
         # Receives all incoming data
         for data, address in self.received_data:
             # Find existing connection for address
-
-            try:
-                connection = Connection[address]
-
-            # Create a new interface to handle connection
-            except KeyError:
-                connection = Connection(address)
+            connection = self._create_or_return_connection(address)
 
             # Dispatch data to connection
-            connection.receive(data)
+            connection.receive_message(data)
 
         # Update multi-cast listeners
         self.multicast.receive()
@@ -278,15 +306,14 @@ class Network:
         :param full_update: whether this is a full send call
         """
         send_func = self.send_to
-
         # Send all queued data
-        for connection in list(Connection):
+        for address, connection in list(self.connections.items()):
             # Give the option to send nothing
-            data = connection.send(full_update)
+            messages = connection.request_messages(full_update)
 
             # If returns data, send it
-            if data:
-                send_func(data, connection.instance_id)
+            for message in messages:
+                send_func(message, address)
 
     def send_to(self, data, address):
         """Send data to remote peer
@@ -294,7 +321,7 @@ class Network:
         :param data: data to send
         :param address: address of remote peer
         """
-        data_length = self.socket.sendto(data, address)
+        data_length = self._transport.send(data, address)
         self.metrics.on_sent_bytes(data_length)
 
         return data_length
@@ -314,5 +341,5 @@ class Network:
 
     def stop(self):
         """Close network socket"""
-        self.socket.close()
+        self._transport.close()
         self.multicast.stop()

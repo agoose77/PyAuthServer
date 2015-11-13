@@ -1,60 +1,163 @@
+__all__ = ['Enum', 'ConnectionStates', 'Netmodes', 'PacketProtocols', 'Roles', 'IterableCompressionType']
+
 from contextlib import contextmanager
 
-from .metaclasses.enumeration import EnumerationMeta
 
-__all__ = ['Enumeration', 'ConnectionState', 'Netmodes', 'ConnectionProtocols', 'Roles', 'IterableCompressionType']
+class _EnumDict(dict):
+
+    def __init__(self, autonum):
+        super().__init__()
+
+        self._member_names = []
+        self._autonum = autonum
+        self._has_real_values = False
+
+    def __setitem__(self, name, value):
+        if name.startswith("__"):
+            return super().__setitem__(name, value)
+
+        if name in self._member_names:
+            raise ValueError("'{}' is already a member of '{}' Enum".format(name, self.__class__.__name__))
+
+        # Auto numbering
+        if value is Ellipsis:
+            if self._has_real_values:
+                raise SyntaxError("An implicit definition cannot follow an explicit one")
+
+            value = self._autonum(len(self._member_names))
+
+        # Int values
+        elif isinstance(value, int):
+            if self._member_names and not self._has_real_values:
+                raise SyntaxError("An explicit definition cannot follow an implicit one")
+
+            self._has_real_values = True
+
+        else:
+            super().__setitem__(name, value)
+            return
+
+        super().__setitem__(name, value)
+        self._member_names.append(name)
 
 
-class Enumeration(metaclass=EnumerationMeta):
+def default_numbering(i):
+    return i
+
+
+class EnumerationMeta(type):
+    """Metaclass for Enumerations in Python"""
+
+    def __init__(metacls, name, bases, namespace, autonum=None):
+        super().__init__(name, bases, namespace)
+
+    def __new__(metacls, name, bases, namespace, autonum=None):
+        identifiers = namespace._member_names
+
+        # Return new class
+        cls = super().__new__(metacls, name, bases, namespace)
+
+        cls.identifiers = tuple(identifiers)
+        cls._values_to_identifiers = {namespace[n]: n for n in identifiers}
+
+        return cls
+
+    @classmethod
+    def __prepare__(metacls, name, bases, autonum=default_numbering, **kwargs):
+        return _EnumDict(autonum)
+
+    def __getitem__(cls, value):
+        # Add ability to lookup name
+        try:
+            return cls._values_to_identifiers[value]
+
+        except KeyError:
+            raise KeyError("{} enum has no attribute with value '{}'".format(cls.__name__, value))
+
+    def __contains__(cls, value):
+        return value in cls._values_to_identifiers
+
+    def __len__(cls):
+        return len(cls.identifiers)
+
+    def __iter__(cls):
+        namespace = cls.__dict__
+        return ((k, namespace[k]) for k in cls.identifiers)
+
+
+class Enum(metaclass=EnumerationMeta):
     pass
 
 
-class ConnectionState(Enumeration):
+class ConnectionStates(Enum):
     """Status of connection to peer"""
-    values = ("failed", "timeout", "disconnected", "pending", "handshake", "connected")
+    failed = ...
+    timeout = ...
+    disconnected = ...
+    init = ...
+    awaiting_handshake = ...
+    received_handshake = ...
+    connected = ...
 
 
-class Netmodes(Enumeration):
-    values = "server", "client"
+class Netmodes(Enum):
+    server = ...
+    client = ...
 
 
-class ConnectionProtocols(Enumeration):
-    values = "request_disconnect", "request_handshake", "handshake_success", "handshake_failed", "replication_init", \
-             "replication_del",  "attribute_update", "invoke_method", "invoke_handshake"
+class PacketProtocols(Enum):
+    heartbeat = ...
+    request_disconnect = ...
+    invoke_handshake = ...
+    request_handshake = ...
+    handshake_success = ...
+    handshake_failed = ...
+    create_scene = ...
+    delete_scene = ...
+
+    # Replication
+    create_replicable = ...
+    delete_replicable = ...
+    update_attributes = ...
+    invoke_method = ...
 
 
-class IterableCompressionType(Enumeration):
-    values = ("no_compress", "compress", "auto")
+class IterableCompressionType(Enum):
+    no_compress = ...
+    compress = ...
+    auto = ...
 
 
-class Roles(Enumeration):
-    values = ("none", "dumb_proxy", "simulated_proxy", "autonomous_proxy", "authority")
+class Roles(Enum):
+    none = ...
+    dumb_proxy = ...
+    simulated_proxy = ...
+    autonomous_proxy = ...
+    authority = ...
 
-    __slots__ = "local", "remote", "context"
+    __slots__ = "local", "remote", "_context"
 
     def __init__(self, local, remote):
         self.local = local
         self.remote = remote
-        self.context = False
+        self._context = None
 
     def __description__(self):
-        return hash((self.context, self.local, self.remote))
+        return hash((self._context, self.local, self.remote))
 
     def __repr__(self):
-        return "Roles: Local: {}, Remote: {}".format(self.__class__[self.local], self.__class__[self.remote])
+        return "Roles(local=Roles.{}, remote=Roles.{})".format(self.__class__[self.local], self.__class__[self.remote])
 
     @contextmanager
-    def set_context(self, owner):
-        self.context = owner
+    def set_context(self, is_owner):
+        self._context = is_owner
 
-        switched = self.remote == Roles.autonomous_proxy and not owner
-
-        if switched:
+        if self.remote == Roles.autonomous_proxy and not is_owner:
             self.remote = Roles.simulated_proxy
-
-        yield
-
-        if switched:
+            yield
             self.remote = Roles.autonomous_proxy
 
-        self.context = None
+        else:
+            yield
+
+        self._context = None

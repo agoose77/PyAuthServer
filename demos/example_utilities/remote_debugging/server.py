@@ -1,5 +1,5 @@
 from network.enums import Netmodes
-from network.simple_network import respect_interval, SimpleNetwork
+from network.simple_network import respect_interval, SimpleNetworkManager
 from network.world_info import WorldInfo
 
 from .replicables import RemoteTerminal
@@ -25,7 +25,7 @@ def application():
     WorldInfo.netmode = Netmodes.server
     WorldInfo.rules = Rules()
 
-    network = SimpleNetwork.from_address_info(address="", port=1200)
+    network = SimpleNetworkManager.from_address_info(address="", port=1200)
     update_network = respect_interval(1 / 60, network.step)
 
     RemoteTerminal.counter = 0

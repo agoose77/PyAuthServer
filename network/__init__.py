@@ -1,14 +1,7 @@
-"""Network library to enable simple networking between Python objects.
-Supports native replication of many Python built in types
-Extendable for new data types
-"""
-# TODO listen server support
-
-import os
-
-if os.getenv("NETWORK_DO_TESTING"):
-    from .testing import run_tests
-
-    run_tests()
-    
-from . import native_handlers as _
+from . import annotations
+from . import type_serialisers
+from .type_serialisers import native
+from . import replication
+from . import serialiser
+from . import streams
+from . import utilities

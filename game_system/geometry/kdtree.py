@@ -2,7 +2,7 @@ from collections import namedtuple
 from functools import partial
 from operator import itemgetter
 
-from game_system.sorted_collection import SortedCollection
+from .sorted_collection import SortedCollection
 
 
 class SortedList(SortedCollection):

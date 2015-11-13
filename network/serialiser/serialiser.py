@@ -1,8 +1,8 @@
 from math import ceil
 from struct import Struct, pack, unpack_from
 
-from ..type_flag import TypeFlag
-from ..handlers import register_handler, IHandler
+from ..type_serialisers import register_serialiser
+
 
 __all__ = ['bits_to_bytes', 'next_or_equal_power_of_two']
 
@@ -27,7 +27,7 @@ def execute_and_return_pair(function_string, locals_dict):
     return new_key, original_locals[new_key]
 
 
-def build_struct_handler(name, character_format, order_format="!"):
+def build_struct_serialiser(name, character_format, order_format="!"):
     """Create handler for data with struct formatting
 
     :param name: name of handler class
@@ -39,8 +39,7 @@ def build_struct_handler(name, character_format, order_format="!"):
     struct_obj = Struct(order_format + character_format)
     format_size = struct_obj.size
 
-    methods = ("""def __init__(self):\n\tprint('WTF')""",
-               """def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
+    methods = ("""def unpack_from(bytes_string, offset=0, unpacker=struct_obj.unpack_from):\n\t
                return unpacker(bytes_string, offset)[0], {format_size}""",
                """def size(bytes_string=None):\n\treturn {format_size}""",
                """def pack_multiple(value, count, pack=pack, character_format=character_format):\n\t"""
@@ -60,20 +59,20 @@ def build_struct_handler(name, character_format, order_format="!"):
     return type(name, (), cls_dict)
 
 
-UInt32 = build_struct_handler("UInt32", "I")
-UInt16 = build_struct_handler("UInt16", "H")
-UInt64 = build_struct_handler("UInt64", "Q")
-UInt8 = build_struct_handler("UInt8", "B")
-Int32 = build_struct_handler("UInt32", "i")
-Int16 = build_struct_handler("UInt16", "h")
-Int64 = build_struct_handler("UInt64", "q")
-Int8 = build_struct_handler("UInt8", "b")
-Float32 = build_struct_handler("Float32", "f")
-Float64 = build_struct_handler("Float64", "d")
+UInt32 = build_struct_serialiser("UInt32", "I")
+UInt16 = build_struct_serialiser("UInt16", "H")
+UInt64 = build_struct_serialiser("UInt64", "Q")
+UInt8 = build_struct_serialiser("UInt8", "B")
+Int32 = build_struct_serialiser("UInt32", "i")
+Int16 = build_struct_serialiser("UInt16", "h")
+Int64 = build_struct_serialiser("UInt64", "q")
+Int8 = build_struct_serialiser("UInt8", "b")
+Float32 = build_struct_serialiser("Float32", "f")
+Float64 = build_struct_serialiser("Float64", "d")
 
 
-int_handlers = [UInt8, UInt16, UInt32, UInt64]
-size_to_int_handler = {packer.size(): packer for packer in int_handlers}
+int_serialisers = [UInt8, UInt16, UInt32, UInt64]
+size_to_int_serialiser = {packer.size(): packer for packer in int_serialisers}
 
 
 def bits_to_bytes(bits):
@@ -98,25 +97,25 @@ def next_or_equal_power_of_two(value):
     return value + 1
 
 
-def _handler_from_bit_length(total_bits):
+def _serialiser_from_bit_length(total_bits):
     """Return the correct integer handler for a given number of bits
 
     :param total_bits: total number of bits required
     """
     total_bytes = bits_to_bytes(total_bits)
-    return _handler_from_byte_length(total_bytes)
+    return _serialiser_from_byte_length(total_bytes)
 
 
-def _handler_from_byte_length(total_bytes):
+def _serialiser_from_byte_length(total_bytes):
     """Return the smallest handler needed to pack a number of bytes
 
     :param total_bytes: number of bytes needed to pack
-    :rtype: :py:class:`network.serialiser.IDataHandler`
+    :rtype: :py:class:`network.serialiser.IDataSerialiser`
     """
     rounded_bytes = next_or_equal_power_of_two(total_bytes)
 
     try:
-        return size_to_int_handler[rounded_bytes]
+        return size_to_int_serialiser[rounded_bytes]
 
     except KeyError as err:
         raise ValueError("Integer too large to pack: {} bytes".format(total_bytes)) from err
@@ -124,16 +123,16 @@ def _handler_from_byte_length(total_bytes):
     return packer
 
 
-def _handler_from_int(value):
+def _serialiser_from_int(value):
     """Return the smallest integer packer capable of packing a given integer
 
     :param value: integer value
     """
-    return _handler_from_bit_length(value.bit_length())
+    return _serialiser_from_bit_length(value.bit_length())
 
 
-class BoolHandler(UInt8):
-    """Handler for boolean type"""
+class BoolSerialiser(UInt8):
+    """Serialiser for boolean type"""
 
     @classmethod
     def unpack_from(self, bytes_string, offset=0, unpack_from=UInt8.unpack_from):
@@ -146,7 +145,7 @@ class BoolHandler(UInt8):
         return [bool(x) for x in value], size
 
 
-class _BytesHandler:
+class _BytesSerialiser:
 
     classes = {}
 
@@ -157,7 +156,7 @@ class _BytesHandler:
             new_cls = cls.classes[header_max_value]
 
         except KeyError:
-            packer = _handler_from_int(header_max_value)
+            packer = _serialiser_from_int(header_max_value)
 
             methods = ("""def unpack_from(bytes_string, offset=0, *, unpacker=packer.unpack_from):\n\t"""
                """length, length_size = unpacker(bytes_string, offset)\n\t"""
@@ -183,13 +182,13 @@ class _BytesHandler:
 
                 cls_dict[value_name] = value
 
-            new_cls = type("BytesHandler", (), cls_dict)
+            new_cls = type("BytesSerialiser", (), cls_dict)
             cls.classes[header_max_value] = new_cls
 
         return new_cls
 
 
-class _StringHandler:
+class _StringSerialiser:
 
     classes = {}
 
@@ -200,7 +199,7 @@ class _StringHandler:
             new_cls = cls.classes[header_max_value]
 
         except KeyError:
-            packer = _handler_from_int(header_max_value)
+            packer = _serialiser_from_int(header_max_value)
 
             methods = ("""def unpack_from(bytes_string, offset=0, *, unpacker=packer.unpack_from):
                 length, length_size = unpacker(bytes_string, offset)\n\t
@@ -224,36 +223,35 @@ class _StringHandler:
 
                 cls_dict[value_name] = value
 
-            new_cls = type("StringHandler", (), cls_dict)
+            new_cls = type("StringSerialiser", (), cls_dict)
             cls.classes[header_max_value] = new_cls
 
         return new_cls
 
 
-def _float_handler(flag, logger):
+def _float_serialiser(flag, logger):
     """Return  the correct float handler using meta information from a given type_flag"""
     return Float64 if flag.data.get("max_precision") else Float32
 
 
-def _int_handler(flag, logger):
+def _int_serialiser(flag, logger):
     """Return the correct int handler using meta information from a given type_flag"""
     if "max_value" in flag.data:
-        new_cls = _handler_from_int(flag.data["max_value"])
+        new_cls = _serialiser_from_int(flag.data["max_value"])
 
     else:
-        new_cls = _handler_from_bit_length(flag.data.get('max_bits', 8))
+        new_cls = _serialiser_from_bit_length(flag.data.get('max_bits', 8))
 
     return new_cls
 
 
-def _bool_handler(flag, logger):
-    return BoolHandler
-
+def _bool_serialiser(flag, logger):
+    return BoolSerialiser
 
 
 # Register handlers for native types
-register_handler(str, _StringHandler)
-register_handler(bytes, _BytesHandler)
-register_handler(int, _int_handler)
-register_handler(bool, _bool_handler)
-register_handler(float, _float_handler)
+register_serialiser(str, _StringSerialiser)
+register_serialiser(bytes, _BytesSerialiser)
+register_serialiser(int, _int_serialiser)
+register_serialiser(bool, _bool_serialiser)
+register_serialiser(float, _float_serialiser)

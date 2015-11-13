@@ -1,12 +1,9 @@
 from collections import namedtuple
 
+from game_system.utilities import BidirectionalIterator, PriorityQueue
 from ..geometry.utilities import quad_area
 from ..coordinates import Vector
-from ..iterators import BidirectionalIterator
-
-from .priority_queue import PriorityQueue
-
-from network.iterators import look_ahead
+from network.utilities import look_ahead
 
 __all__ = "Funnel", "PathNotFoundException", "AStarAlgorithm", "FunnelAlgorithm", "NavmeshAStarAlgorithm"
 
