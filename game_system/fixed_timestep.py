@@ -1,4 +1,4 @@
-from time import monotonic
+from time import clock
 
 __all__ = "FixedTimeStepManager", "ForcedLoopExit"
 
@@ -17,7 +17,6 @@ class FixedTimeStepManager:
     def __init__(self):
         self._accumulator = 0.0
         self._running = False
-        self._last_time = None
     
     @property
     def is_running(self):
@@ -42,12 +41,13 @@ class FixedTimeStepManager:
     def _run(self):
         """Internal blocking execution function"""
         time_step = self.time_step
-        
+
+        last_time = clock()
         while True:            
-            current_time = monotonic()
-            last_time = current_time if self._last_time is None else self._last_time
+            current_time = clock()
+
             delta_time = min(current_time - last_time, self.maximum_dt)
-            self._last_time = current_time
+            last_time = current_time
             
             self._accumulator += delta_time
             
