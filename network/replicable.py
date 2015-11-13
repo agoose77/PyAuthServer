@@ -29,12 +29,15 @@ class ReplicableMetacls(NamedSubclassTracker):
         function_descriptors = replicated_functions.function_descriptors
 
         # Inherit from parent classes
-        for cls in reversed(bases):
-            if not isinstance(cls, ReplicableMetacls):
+        for base_cls in reversed(bases):
+            if not isinstance(base_cls, ReplicableMetacls):
                 continue
 
-            serialisables.extend(cls.serialisable_data.serialisables)
-            function_descriptors.extend(cls.replicated_functions.function_descriptors)
+            serialisables.extend(base_cls.serialisable_data.serialisables)
+
+            for function_descriptor in base_cls.replicated_functions.function_descriptors:
+                new_descriptor = function_descriptor.duplicate_for_child_class()
+                function_descriptors.append(new_descriptor)
 
         # Check this is not the root class
         root = metacls.get_root(bases)
@@ -63,7 +66,13 @@ class ReplicableMetacls(NamedSubclassTracker):
 
                 namespace[attr_name] = value
 
-        return super().__new__(metacls, name, bases, namespace)
+        cls = super().__new__(metacls, name, bases, namespace)
+
+        # Bind inherited pointers to child class
+        for function_descriptor in function_descriptors:
+            function_descriptor.resolve_pointers(cls)
+
+        return cls
 
 
 class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):

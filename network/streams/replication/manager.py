@@ -51,7 +51,12 @@ class ReplicationManagerBase:
                 unique_id, id_size = replicable_id_handler.unpack_id(payload, offset)
                 offset += id_size
 
-                replicable_channel = replicable_channels[unique_id]
+                try:
+                    replicable_channel = replicable_channels[unique_id]
+                except KeyError:
+                    self.logger.warn("No replicable found in on_invoke_methods: {}::{}".format(scene_id, unique_id))
+                    break
+
                 replicable = replicable_channel.replicable
 
                 allow_execute = replicable.replicate_to_owner and replicable.root is root_replicable

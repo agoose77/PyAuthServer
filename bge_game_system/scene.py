@@ -36,3 +36,5 @@ class Scene(_Scene):
 
             if isinstance(replicable, Actor):
                 pass
+
+        super()._on_replicable_created(replicable)

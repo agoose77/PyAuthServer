@@ -32,22 +32,24 @@ class Pointer:
 
 
 def _resolve_pointers(cls, type_info):
-    data = type_info.data
+    data = {}
 
-    for arg_name, arg_value in data.items():
+    for arg_name, arg_value in type_info.data.items():
         if isinstance(arg_value, TypeInfo):
-            _resolve_pointers(cls, arg_value)
+            arg_value = _resolve_pointers(cls, arg_value)
 
-        if not isinstance(arg_value, Pointer):
-            continue
+        elif isinstance(arg_value, Pointer):
+            arg_value = arg_value(cls)
 
-        data[arg_name] = arg_value(cls)
+        data[arg_name] = arg_value
 
     # Allow types to be marked
-    if isinstance(type_info.data_type, Pointer):
-        type_info.data_type = type_info.data_type(cls)
+    data_type = type_info.data_type
 
-    return type_info
+    if isinstance(data_type, Pointer):
+        data_type = type_info.data_type(cls)
+
+    return TypeInfo(data_type, **data)
 
 
 def resolve_pointers(cls, arguments):
@@ -127,8 +129,7 @@ class ReplicatedFunctionsDescriptor:
 
 class ReplicatedFunctionBase:
 
-    def __init__(self, function, index, serialiser):
-        self.index = index
+    def __init__(self, function, serialiser):
         self.function = function
         self._serialiser = serialiser
 
@@ -153,21 +154,11 @@ class ReplicatedFunctionDeserialiser(ReplicatedFunctionBase):
 
 class ReplicatedFunctionSerialiser(ReplicatedFunctionBase):
 
-    def __init__(self, function, index, serialiser, bind):
-        super().__init__(function, index, serialiser)
+    def __init__(self, function, serialiser):
+        super().__init__(function, serialiser)
 
-        self._bind = bind
-        self._is_reliable = is_reliable(function)
-
-    def on_serialised(self, data):
-        pass
-
-    def serialise(self, *args, **kwargs):
-        arguments = self._bind(args, kwargs)
-        data = self.index, self._is_reliable, self._serialiser.pack(arguments)
-        self.on_serialised(data)
-
-    __call__ = serialise
+    def __call__(self, *args, **kwargs):
+        self.function(*args, **kwargs)
 
 
 class ReplicatedFunctionDescriptor:
@@ -184,11 +175,8 @@ class ReplicatedFunctionDescriptor:
         self._target_netmode = func_signature.return_annotation
         self._binder = func_signature.bind
 
-        if contains_pointer(self._arguments):
-            self._root_serialiser = None
-
-        else:
-            self._root_serialiser = FlagSerialiser(self._arguments)
+        self._root_serialiser = None
+        self._is_reliable = is_reliable(function)
 
         # Copy meta info
         self.__annotations__ = function.__annotations__
@@ -210,6 +198,16 @@ class ReplicatedFunctionDescriptor:
 
     def create_mapping_from_arguments(self, args, kwargs):
         return self._binder(*args, **kwargs).arguments
+
+    def serialise(self, *args, **kwargs):
+        arguments = self.create_mapping_from_arguments(args, kwargs)
+        return self.index, self._is_reliable, self._root_serialiser.pack(arguments)
+
+    def deserialise(self, data, offset=0):
+        items, bytes_read = self._root_serialiser.unpack(data, offset=offset)
+        arguments = dict(items)
+
+        return arguments, bytes_read
 
     @staticmethod
     def get_arguments(signature):
@@ -238,26 +236,35 @@ class ReplicatedFunctionDescriptor:
 
         return arguments
 
+    def duplicate_for_child_class(self):
+        if not contains_pointer(self._arguments):
+            return self
+
+        return self.__class__(self.function, self.index)
+
+    def resolve_pointers(self, cls):
+        arguments = self._arguments
+
+        if contains_pointer(arguments):
+            arguments = resolve_pointers(cls, self._arguments)
+
+        self._root_serialiser = FlagSerialiser(arguments)
+
     def bind_instance(self, instance):
-        if self._root_serialiser is None:
-            arguments = resolve_pointers(instance.__class__, self._arguments)
-            print(arguments)
-            serialiser = FlagSerialiser(arguments)
-
-        else:
-            serialiser = self._root_serialiser
-
+        serialiser = self._root_serialiser
         function = self.function.__get__(instance)
 
         # Execute this locally
         if instance.scene.world.netmode == self._target_netmode:
-            replicated_function = ReplicatedFunctionDeserialiser(function, self.index, serialiser)
+            replicated_function = ReplicatedFunctionDeserialiser(function, serialiser)
 
         # Execute this remotely
         else:
-            replicated_function = ReplicatedFunctionSerialiser(function, self.index, serialiser,
-                                                               self.create_mapping_from_arguments)
-            replicated_function.on_serialised = instance.replicated_function_queue.append
+            def _wrapper(*args, **kwargs):
+                result = self.serialise(*args, **kwargs)
+                instance.replicated_function_queue.append(result)
+
+            replicated_function = ReplicatedFunctionSerialiser(_wrapper, serialiser)
 
         self._bound_instances[instance] = replicated_function
 

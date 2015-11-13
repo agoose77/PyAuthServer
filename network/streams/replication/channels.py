@@ -37,7 +37,7 @@ class ReplicableChannelBase:
         # Create a serialiser instance
         self.logger = scene_channel.logger.getChild("<Channel: {}>".format(repr(replicable)))
 
-        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in self._serialisable_data))
+        serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in replicable.__class__.serialisable_data.serialisables))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
         self._rpc_id_handler = get_serialiser_for(int)
