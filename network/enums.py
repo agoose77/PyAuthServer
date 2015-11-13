@@ -68,7 +68,11 @@ class EnumerationMeta(type):
 
     def __getitem__(cls, value):
         # Add ability to lookup name
-        return cls._values_to_identifiers[value]
+        try:
+            return cls._values_to_identifiers[value]
+
+        except KeyError:
+            raise KeyError("{} enum has no attribute with value '{}'".format(cls.__name__, value))
 
     def __contains__(cls, value):
         return value in cls._values_to_identifiers

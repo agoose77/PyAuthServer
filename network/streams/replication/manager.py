@@ -145,7 +145,8 @@ class ServerReplicationManager(ReplicationManagerBase):
                 if replicable.roles.remote == no_role:
                     continue
 
-                is_and_relevant_to_owner = replicable.replicate_to_owner and replicable.root is root_replicable
+                is_owner = replicable.root is root_replicable
+                is_and_relevant_to_owner = replicable.replicate_to_owner and is_owner
 
                 # Write RPC calls
                 if is_and_relevant_to_owner:
@@ -158,7 +159,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                         unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
 
                 if replicable_channel.is_awaiting_replication and \
-                        (is_and_relevant_to_owner or is_relevant(replicable)):
+                        (is_and_relevant_to_owner or is_relevant(self, replicable)):
 
                     # Channel just created
                     if replicable_channel.is_initial:
@@ -301,7 +302,15 @@ class ClientReplicationManager(ReplicationManagerBase):
 
             # Create replicable of same type
             replicable_cls = Replicable.subclasses[type_name]
-            replicable = scene.add_replicable(replicable_cls, unique_id)
+
+            try:
+                replicable = scene.add_replicable(replicable_cls, unique_id)
+
+            except RuntimeError:
+                replicable = scene.replicables[unique_id]
+
+                assert replicable.is_static
+                assert replicable.__class__ == replicable_cls
 
             # If replicable is parent (top owner)
             if is_connection_host:

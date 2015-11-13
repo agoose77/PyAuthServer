@@ -337,7 +337,7 @@ class PlayerPawnController(PawnController):
         """
         self.info.ping = rtt / 2
 
-    def server_receive_move(self, move_id: (int, ("max_value", 1000)), latest_correction_id: (int, {'max_value': 1000}),
+    def server_receive_move(self, move_id: (int, {"max_value": 1000}), latest_correction_id: (int, {'max_value': 1000}),
                             recent_states: (list, {'item_info': TypeInfo(Pointer("input_context.struct_class"))}),
                             position: Vector, yaw: float) -> Netmodes.server:
         """Handle remote client inputs.
