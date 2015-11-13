@@ -500,15 +500,18 @@ class StructSerialiser(TypeSerialiserAbstract):
             raise TypeError("Struct class has no members, cannot be serialised")
 
         self._struct_cls = struct_cls
-        serialisable_map = OrderedDict([(s, s) for s in struct_cls.serialisable_data.serialisables])
-        self._serialiser = FlagSerialiser(serialisable_map)
+
+        serialisables = struct_cls.serialisable_data.serialisables.values()
+
+        serialiser_to_serialiser = OrderedDict([(s, s) for s in serialisables])
+        self._serialiser = FlagSerialiser(serialiser_to_serialiser)
 
         # To avoid packing all state
-        self._describers = OrderedDict([(s, get_describer(s)) for s in struct_cls.serialisable_data.serialisables])
-        self._default_descriptions = {s: d(s.initial_value) for s, d in self._describers.items()}
+        self._serialiser_to_describer = OrderedDict([(s, get_describer(s)) for s in serialisables])
+        self._default_descriptions = {s: d(s.initial_value) for s, d in self._serialiser_to_describer.items()}
 
     def pack(self, struct):
-        describers = self._describers
+        describers = self._serialiser_to_describer
         initial_descriptions = self._default_descriptions
         # Values for data which is different to defaults
         data = {s: v for s, v in struct.serialisable_data.items() if describers[s](v) != initial_descriptions[s]}
@@ -661,7 +664,8 @@ class StructDescriber(TypeDescriberAbstract):
 
         self._struct_cls = struct_cls
 
-        self._describers = OrderedDict([(s, get_describer(s)) for s in struct_cls.serialisable_data.serialisables])
+        serialisables = struct_cls.serialisable_data.serialisables.values()
+        self._serialiser_to_describer = OrderedDict([(s, get_describer(s)) for s in serialisables])
 
     def __call__(self, struct):
         if struct is None:
@@ -669,7 +673,7 @@ class StructDescriber(TypeDescriberAbstract):
 
         else:
             data = struct.serialisable_data
-            descriptions = [d(data[s]) for s, d in self._describers.items()]
+            descriptions = [d(data[s]) for s, d in self._serialiser_to_describer.items()]
 
         return hash(tuple(descriptions))
 

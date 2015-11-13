@@ -10,11 +10,11 @@ from panda3d.core import NodePath
 class Scene(_Scene):
 
     def __init__(self, world, name):
-        super().__init__(world, name)
-
         # Root nodepath
         self._root_nodepath = NodePath(name)
         self._root_nodepath.reparent_to(base.render)
+
+        super().__init__(world, name)
 
         self.physics_manager = PhysicsManager(self._root_nodepath, world)
 

@@ -30,7 +30,7 @@ class StructMetacls(NamedSubclassTracker):
             if not isinstance(cls, metacls):
                 continue
 
-            serialisables.extend(cls.serialisable_data.serialisables)
+            serialisable_data.extend(cls.serialisable_data)
 
         # Register serialisables, including parent-class members
         for attr_name, value in namespace.items():
@@ -39,7 +39,7 @@ class StructMetacls(NamedSubclassTracker):
 
             if isinstance(value, Serialisable):
                 value.name = attr_name
-                serialisables.append(value)
+                serialisables[attr_name] = value
 
         return super().__new__(metacls, name, bases, namespace)
 
@@ -61,12 +61,12 @@ class Struct(metaclass=StructMetacls):
 
     def to_list(self):
         data = self.serialisable_data
-        return [data[s] for s in self.__class__.serialisable_data.serialisables]
+        return [data[s] for s in self.__class__.serialisable_data.serialisables.values()]
 
     def update_list(self, values):
         data = self.serialisable_data
 
-        for serialisable, value in zip(self.__class__.serialisable_data.serialisables, values):
+        for serialisable, value in zip(self.__class__.serialisable_data.serialisables.values(), values):
             data[serialisable] = value
 
         return self

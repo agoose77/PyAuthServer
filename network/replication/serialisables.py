@@ -9,13 +9,18 @@ class SerialisableDataStoreDescriptor:
 
     def __init__(self):
         self._data_stores = WeakKeyDictionary()
-        self.serialisables = []
+        self.serialisables = OrderedDict()
 
     def __get__(self, instance, cls):
         if instance is None:
             return self
 
         return self._data_stores[instance]
+
+    def extend(self, data_store_descriptor):
+        serialisables = self.serialisables
+        for name, serialisable in data_store_descriptor.serialisables.items():
+            serialisables[name] = serialisable
 
     def bind_instance(self, instance):
         self._data_stores[instance] = self._initialise_data_store()
@@ -26,7 +31,7 @@ class SerialisableDataStoreDescriptor:
     def _initialise_data_store(self):
         data_store = OrderedDict()
 
-        for serialisable in self.serialisables:
+        for serialisable in self.serialisables.values():
             data_store[serialisable] = deepcopy(serialisable.initial_value)
 
         return data_store

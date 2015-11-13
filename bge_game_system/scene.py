@@ -17,9 +17,10 @@ class Scene(_Scene):
             scene = logic.addScene(name)
 
         self.bge_scene = scene
-        self.physics_manager = PhysicsManager()
 
         super().__init__(world, name)
+
+        self.physics_manager = PhysicsManager()
 
     def _create_entity_builder(self):
         return EntityBuilder(self.bge_scene)

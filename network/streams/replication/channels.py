@@ -29,12 +29,12 @@ class ShadowReplicableChannelBase:
         self.lifetime = 3.0
 
         # Get network attributes
-        replicated_function_descriptors = replicable_class.replicated_functions.function_descriptors
+        replicated_function_descriptors = replicable_class.replicated_functions.function_descriptors.values()
         self._replicated_function_descriptors = {d.index: d for d in replicated_function_descriptors}
         self.logger = scene_channel.logger.getChild("<Channel: ShadowReplicable::{}>".format(repr(unique_id)))
 
         # Create a serialiser instance
-        serialisables = replicable_class.serialisable_data.serialisables
+        serialisables = replicable_class.serialisable_data.serialisables.values()
         serialiser_args = OrderedDict(((serialiser, serialiser) for serialiser in serialisables))
         self._serialiser = FlagSerialiser(serialiser_args, logger=self.logger.getChild("<FlagSerialiser>"))
 
@@ -232,6 +232,10 @@ class ClientReplicableChannel(ReplicableChannelBase):
 
         # Notify after all values are set
         notifier_callback = partial(self.notify_callback, notifications)
+
+        print(bytes_string[offset:])
+        from pprint import pprint
+        pprint(serialisable_data)
 
         unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, offset, serialisable_data)
         for serialisable, value in unpacked_items:
