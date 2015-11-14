@@ -233,10 +233,6 @@ class ClientReplicableChannel(ReplicableChannelBase):
         # Notify after all values are set
         notifier_callback = partial(self.notify_callback, notifications)
 
-        print(bytes_string[offset:])
-        from pprint import pprint
-        pprint(serialisable_data)
-
         unpacked_items, read_bytes = self._serialiser.unpack(bytes_string, offset, serialisable_data)
         for serialisable, value in unpacked_items:
 

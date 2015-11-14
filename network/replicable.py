@@ -28,6 +28,8 @@ class ReplicableMetacls(NamedSubclassTracker):
         serialisables = serialisable_data.serialisables
         function_descriptors = replicated_functions.function_descriptors
 
+        new_namespace = {}
+
         # Inherit from parent classes
         for base_cls in reversed(bases):
             if not isinstance(base_cls, ReplicableMetacls):
@@ -36,12 +38,16 @@ class ReplicableMetacls(NamedSubclassTracker):
             serialisable_data.extend(base_cls.serialisable_data)
             replicated_functions.extend(base_cls.replicated_functions)
 
+        # Function descriptors may be copied, need to update namespace
+        new_namespace.update(function_descriptors)
+        new_namespace.update(namespace)
+
         # Check this is not the root class
         root = metacls.get_root(bases)
         function_index = len(function_descriptors)
 
         # Register serialisables, including parent-class members
-        for attr_name, value in namespace.items():
+        for attr_name, value in new_namespace.items():
             if attr_name.startswith("__"):
                 continue
 
@@ -61,9 +67,9 @@ class ReplicableMetacls(NamedSubclassTracker):
                 if root and not hasattr(root, attr_name):
                     value = requires_permission(value)
 
-                namespace[attr_name] = value
+                new_namespace[attr_name] = value
 
-        cls = super().__new__(metacls, name, bases, namespace)
+        cls = super().__new__(metacls, name, bases, new_namespace)
 
         # Bind inherited pointers to child class
         for function_descriptor in function_descriptors.values():

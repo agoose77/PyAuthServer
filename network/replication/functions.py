@@ -114,6 +114,7 @@ class ReplicatedFunctionsDescriptor:
 
         for name, function_descriptor in descriptor.function_descriptors.items():
             new_descriptor = function_descriptor.duplicate_for_child_class()
+
             function_descriptors[name] = new_descriptor
 
     def bind_instance(self, instance):
