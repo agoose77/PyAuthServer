@@ -25,9 +25,6 @@ class HandshakeManagerBase:
         self.connection_info = connection.connection_info
         self.remove_connection = None
 
-        self.timeout_duration = 10
-        self._last_received_time = clock()
-
         # Additional data
         self.netmode_packer = get_serialiser_for(int)
         self.string_packer = get_serialiser_for(str)
@@ -35,27 +32,6 @@ class HandshakeManagerBase:
         # Register listeners
         register_protocol_listeners(self, connection.messenger)
         self.senders = get_state_senders(self)
-
-    @property
-    def timed_out(self):
-        """If this stream has not received anything for an interval greater or equal to the timeout duration"""
-        return (clock() - self.connection.last_received_time) > self.timeout_duration
-
-    def _cleanup(self):
-        self.connection.deregister()
-
-        if self.replication_manager is not None:
-            self.replication_manager.on_disconnected()
-
-    def on_timeout(self):
-        self._cleanup()
-
-        self.logger.info("Timed out after {} seconds".format(self.timeout_duration))
-        self.world.messenger.send("connection_time_out", self)
-
-    def pull_packets(self, network_tick, bandwidth):
-        if self.timed_out:
-            self.on_timeout()
 
 
 class ServerHandshakeManager(HandshakeManagerBase):
@@ -69,15 +45,14 @@ class ServerHandshakeManager(HandshakeManagerBase):
         self.invoke_handshake()
 
     def on_ack_handshake_failed(self, packet):
-        self._cleanup()
-
         self.world.messenger.send("connection_error", self)
 
     @on_protocol(PacketProtocols.request_disconnect)
     def receive_disconnect_request(self, data):
-        self._cleanup()
-
         self.state = ConnectionStates.disconnected
+
+        if self.replication_manager is not None:
+            self.replication_manager.on_disconnected()
 
     @on_protocol(PacketProtocols.request_handshake)
     def receive_handshake_request(self, data):
@@ -128,6 +103,7 @@ class ServerHandshakeManager(HandshakeManagerBase):
             self.state = ConnectionStates.connected
             self.world.messenger.send("connection_success", self)
 
+            # On disconnected for replication manager
             self.replication_manager = ServerReplicationManager(self.world, self.connection)
 
             # Send result

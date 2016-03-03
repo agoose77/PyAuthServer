@@ -38,6 +38,7 @@ class IRCClient(Thread):
         self.realname = "IRCClient"
         self._nickname = None
         self._is_registered = False
+        self.daemon = True
 
         self.socket = socket.socket()
         self.socket.connect(('irc.freenode.net', 6667))

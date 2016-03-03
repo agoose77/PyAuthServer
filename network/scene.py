@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from .enums import Netmodes
+from .errors import ExplicitReplicableIdCollisionError
 from .factory import ProtectedInstance, UniqueIDPool, restricted_method
 from .messages import MessagePasser
 from .replicable import Replicable
@@ -18,7 +19,7 @@ class Scene(ProtectedInstance):
         self._unique_ids = UniqueIDPool(255)
 
     @restricted_method
-    def contest_id(self, contested_id):
+    def release_id(self, contested_id):
         """Contest an existing network ID.
 
         Given that IDs are taken from a pool, any contest of an ID implies that the contestant explicitly requested
@@ -26,8 +27,9 @@ class Scene(ProtectedInstance):
         """
         existing_replicable = self.replicables[contested_id]
 
-        if existing_replicable.is_static:
-            raise RuntimeError("Cannot contest the unique ID of a static replicable: {}".format(existing_replicable))
+        if existing_replicable.id_is_explicit:
+            raise ExplicitReplicableIdCollisionError(
+                "Cannot contest the unique ID of an explicitly assigned replicable: {}".format(existing_replicable))
 
         # Re-associate existing
         unique_id = self._unique_ids.take()
@@ -39,15 +41,15 @@ class Scene(ProtectedInstance):
         # Send message
         existing_replicable.messenger.send("unique_id_changed", old_unique_id=contested_id, new_unique_id=unique_id)
 
-    def add_replicable(self, replicable_cls, unique_id=None):
+    def add_replicable(self, replicable_cls, unique_id=None, from_replication=False):
         """Create a Replicable instance and add it to the replicables dictionary.
 
         :param replicable_cls: class to instantiate for replicable object
         :param unique_id: unique network ID of replicable
         """
-        is_static = unique_id is not None
+        explicit_id = unique_id is not None
 
-        if not is_static:
+        if not explicit_id:
             unique_id = self._unique_ids.take()
 
         else:
@@ -56,17 +58,16 @@ class Scene(ProtectedInstance):
                 self._unique_ids.take(unique_id)
 
             # ID is already in use
-            except KeyError:
-                # Contest ID
+            except ValueError:
                 with Scene._grant_authority():
-                    self.contest_id(unique_id)
+                    self.release_id(unique_id)
 
         # Just create replicable
         with Replicable._grant_authority():
-            replicable = replicable_cls.__new__(replicable_cls, self, unique_id, is_static)
+            replicable = replicable_cls.__new__(replicable_cls, self, unique_id, explicit_id)
 
         # On clients, netmodes are reversed
-        if self.world.netmode == Netmodes.client:
+        if self.world.netmode == Netmodes.client and from_replication:
             roles = replicable.roles
             roles.local, roles.remote = roles.remote, roles.local
 
@@ -74,7 +75,7 @@ class Scene(ProtectedInstance):
         self.messenger.send("replicable_created", replicable)
 
         # Now initialise replicable
-        replicable.__init__(self, unique_id, is_static)
+        replicable.__init__(self, unique_id, explicit_id)
 
         self.replicables[unique_id] = replicable
 

@@ -32,3 +32,15 @@ class Scene(_Scene):
     @active_camera.setter
     def active_camera(self, camera):
         self.active_camera = camera
+
+    def _on_replicable_created(self, replicable):
+        super()._on_replicable_created(replicable)
+
+        if isinstance(replicable, Entity):
+            self.entity_builder.load_entity(replicable)
+
+    def _on_replicable_destroyed(self, replicable):
+        super()._on_replicable_destroyed(replicable)
+
+        if isinstance(replicable, Entity):
+            self.entity_builder.unload_entity(replicable)

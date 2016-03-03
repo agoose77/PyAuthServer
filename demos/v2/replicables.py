@@ -14,7 +14,7 @@ class SomeEntity(Pawn):
 
     roles = Serialisable(Roles(Roles.authority, Roles.autonomous_proxy))
 
-    def __init__(self, scene, unique_id, is_static=False):
+    def __init__(self, scene, unique_id, id_is_explicit=False):
         scene.messenger.add_subscriber("tick", self.on_update)
         self.messenger.add_subscriber("collision_started", self.on_collide)
 
