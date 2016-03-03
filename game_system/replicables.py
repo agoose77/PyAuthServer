@@ -132,6 +132,7 @@ class PawnController(Replicable):
 
         if scene.world.netmode == Netmodes.server:
             self.info = self.scene.add_replicable(self.info_class)
+            print("SET INFO", self.info)
 
             # When RTT estimate is updated
             self.messenger.add_subscriber("estimated_rtt", self.server_on_rtt_estimate_updated)
@@ -197,6 +198,7 @@ class PlayerPawnController(PawnController):
         if scene.world.netmode == Netmodes.server:
             self.info = self.scene.add_replicable(self.info_class)
             #self.info.possessed_by(self)
+            print("INFO", self.info)
 
             # Network jitter compensation
             ticks = round(0.1 * self.scene.world.tick_rate)

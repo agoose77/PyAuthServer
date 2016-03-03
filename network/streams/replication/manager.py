@@ -209,7 +209,7 @@ class ServerReplicationManager(ReplicationManagerBase):
                         unreliable_invoke_method_data.append(replicable_channel.packed_id + unreliable_rpc_calls)
 
                 if replicable_channel.is_awaiting_replication and \
-                        (is_and_relevant_to_owner or is_relevant(self, replicable)):
+                        (is_and_relevant_to_owner or is_relevant(replicable)):
 
                     # Channel just created
                     if replicable_channel.is_initial:
