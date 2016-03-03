@@ -13,3 +13,7 @@ class ConnectionTimeoutError(NetworkError):
 
 class ReplicableAccessError(NetworkError):
     pass
+
+
+class ExplicitReplicableIdCollisionError(Exception):
+    pass

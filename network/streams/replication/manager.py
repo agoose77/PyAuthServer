@@ -1,5 +1,7 @@
 from collections import defaultdict
+from io import BytesIO
 
+from ...errors import ExplicitReplicableIdCollisionError
 from ...streams.replication.channels import ServerSceneChannel, ClientSceneChannel, SceneChannelBase, \
     ReplicableChannelBase
 from ...enums import PacketProtocols, Roles
@@ -7,6 +9,37 @@ from ...type_serialisers import get_serialiser_for
 from ...packet import Packet, PacketCollection
 from ...replicable import Replicable
 from ..helpers import on_protocol, register_protocol_listeners
+
+
+def pack_variable_array(serialiser, array):
+    byte_strings = []
+    append = byte_strings.append
+    pack = serialiser.pack
+
+    for data in array:
+        append(pack(len(data)))
+        append(data)
+
+    return b''.join(byte_strings)
+
+
+def unpack_variable_array(serialiser, bytes):
+    items = []
+    unpack_from = serialiser.unpack_from
+
+    while bytes:
+        length, read_bytes = unpack_from(bytes)
+        item = bytes[read_bytes: length + read_bytes]
+        bytes = bytes[read_bytes+length:]
+        items.append(item)
+
+    return items
+
+
+pack_int = get_serialiser_for(int)
+
+source = ["angus".encode(), "bobby".encode(), "jim".encode()]
+assert unpack_variable_array(pack_int, pack_variable_array(pack_int, source)) == source
 
 
 # TODO Scene and Replicable channels must use packet ACK to enable further replication
@@ -21,6 +54,9 @@ class ReplicationManagerBase:
 
         self.scene_channels = {}
         self.logger = connection.logger.getChild("ReplicationManager")
+
+        # For length-delimited arrays
+        self._array_length_serialiser = get_serialiser_for(int)
 
         # Listen to packets from connection
         register_protocol_listeners(self, connection.messenger)
@@ -45,18 +81,24 @@ class ReplicationManagerBase:
         root_replicable = scene_channel.root_replicable
 
         replicable_id_handler = ReplicableChannelBase.id_handler
+        array_length_serialiser = self._array_length_serialiser
 
         with replicable_id_handler.current_scene_as(scene):
-            while offset < len(payload):
-                unique_id, id_size = replicable_id_handler.unpack_id(payload, offset)
-                offset += id_size
+            method_data_array = unpack_variable_array(array_length_serialiser, payload[offset:])
+            for method_data in method_data_array:
+                unique_id, id_size = replicable_id_handler.unpack_id(method_data)
 
-                replicable_channel = replicable_channels[unique_id]
+                try:
+                    replicable_channel = replicable_channels[unique_id]
+
+                except KeyError:
+                    self.logger.error("Couldn't find channel for {}".format(unique_id))
+                    continue
+
                 replicable = replicable_channel.replicable
 
                 allow_execute = replicable.replicate_to_owner and replicable.root is root_replicable
-                read_bytes = replicable_channel.process_rpc_calls(payload, offset, allow_execute=allow_execute)
-                offset += read_bytes
+                replicable_channel.process_rpc_calls(method_data, id_size, allow_execute=allow_execute)
 
     def send(self, is_network_tick):
         raise NotImplementedError()
@@ -82,8 +124,15 @@ class ServerReplicationManager(ReplicationManagerBase):
         world.messenger.add_subscriber("scene_added", self.on_scene_added)
         world.messenger.add_subscriber("scene_removed", self.on_scene_removed)
 
+        # On disconnected
+        connection.timeout_callbacks.append(self.on_disconnected)
+
         # Register root replicables
         world.rules.post_initialise(self)
+
+    def on_disconnected(self):
+        root_replicables = tuple([s.root_replicable for s in self.scene_channels.values() if s.root_replicable])
+        self.world.rules.on_disconnected(self, root_replicables)
 
     def set_root_for_scene(self, scene, replicable):
         """Assign replicable as root for the containing scene
@@ -118,12 +167,13 @@ class ServerReplicationManager(ReplicationManagerBase):
     def send(self, is_network_tick):
         pack_string = self._string_handler.pack
         pack_bool = self._bool_handler.pack
+        array_length_serialiser = self._array_length_serialiser
 
         is_relevant = self.world.rules.is_relevant
 
         queue_packet = self.connection.queue_packet
 
-        for scene, scene_channel in self.scene_channels.items():
+        for scene_id, scene_channel in self.scene_channels.items():
             # Reliable
             creation_data = []
             deleted_data = []
@@ -210,13 +260,17 @@ class ServerReplicationManager(ReplicationManagerBase):
                 queued_packets.append(creation_packet)
 
             if reliable_invoke_method_data:
-                reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
+                reliable_array = pack_variable_array(array_length_serialiser, reliable_invoke_method_data)
+                reliable_method_payload = scene_channel.packed_id + reliable_array
+
                 reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload,
                                                 reliable=True)
                 queued_packets.append(reliable_method_packet)
 
             if unreliable_invoke_method_data:
-                unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
+                unreliable_array = pack_variable_array(array_length_serialiser, unreliable_invoke_method_data)
+                unreliable_method_payload = scene_channel.packed_id + unreliable_array
+
                 unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
                 queued_packets.append(unreliable_method_packet)
 
@@ -301,7 +355,21 @@ class ClientReplicationManager(ReplicationManagerBase):
 
             # Create replicable of same type
             replicable_cls = Replicable.subclasses[type_name]
-            replicable = scene.add_replicable(replicable_cls, unique_id)
+
+            try:
+                replicable = scene.add_replicable(replicable_cls, unique_id, from_replication=True)
+
+            except ExplicitReplicableIdCollisionError:
+                existing = scene.replicables[unique_id]
+                # Is same class
+                if existing.__class__ is replicable_cls:
+                    self.logger.warn("Assuming matching ID and class of explicitly assigned replicable is a static replicable")
+                    replicable = existing
+
+                # Can't recover this state
+                else:
+                    raise RuntimeError("Another replicable is using an explicit ID '{} with a different class '{}"
+                                       .format(unique_id, replicable_cls))
 
             # If replicable is parent (top owner)
             if is_connection_host:
@@ -322,6 +390,8 @@ class ClientReplicationManager(ReplicationManagerBase):
             while offset < len(payload):
                 replicable, id_size = ReplicableChannelBase.id_handler.unpack_from(payload, offset)
                 offset += id_size
+                if replicable is None:
+                    continue
 
                 scene.remove_replicable(replicable)
 
@@ -342,7 +412,14 @@ class ClientReplicationManager(ReplicationManagerBase):
                 unique_id, id_size = replicable_id_handler.unpack_id(payload, offset)
                 offset += id_size
 
-                replicable_channel = replicable_channels[unique_id]
+                try:
+                    replicable_channel = replicable_channels[unique_id]
+
+                except KeyError:
+                    self.logger.error("Couldn't find channel for '{}', dropped remaining data ({} bytes)"
+                                      .format(unique_id, len(payload) - offset))
+                    break
+
                 notifier, read_bytes = replicable_channel.read_attributes(payload, offset)
                 offset += read_bytes
 
@@ -357,6 +434,8 @@ class ClientReplicationManager(ReplicationManagerBase):
         self._pending_notifications.clear()
 
     def send(self, is_network_tick):
+        array_length_serialiser = self._array_length_serialiser
+
         for scene_channel in self.scene_channels.values():
             # Reliable packets
             reliable_invoke_method_data = []
@@ -387,12 +466,16 @@ class ClientReplicationManager(ReplicationManagerBase):
 
             # Now send packets
             if reliable_invoke_method_data:
-                reliable_method_payload = scene_channel.packed_id + b''.join(reliable_invoke_method_data)
+                reliable_array = pack_variable_array(array_length_serialiser, reliable_invoke_method_data)
+                reliable_method_payload = scene_channel.packed_id + reliable_array
+
                 reliable_method_packet = Packet(PacketProtocols.invoke_method, payload=reliable_method_payload,
                                                 reliable=True)
                 self.connection.queue_packet(reliable_method_packet)
 
             if unreliable_invoke_method_data:
-                unreliable_method_payload = scene_channel.packed_id + b''.join(unreliable_invoke_method_data)
+                unreliable_array = pack_variable_array(array_length_serialiser, unreliable_invoke_method_data)
+                unreliable_method_payload = scene_channel.packed_id + unreliable_array
+
                 unreliable_method_packet = Packet(PacketProtocols.invoke_method, payload=unreliable_method_payload)
                 self.connection.queue_packet(unreliable_method_packet)

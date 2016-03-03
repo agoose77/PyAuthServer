@@ -34,8 +34,6 @@ def build_struct_serialiser(name, character_format, order_format="!"):
     :param character_format: format string of handler
     :param order_format: format string of byte order
     """
-    cls_dict = {}
-
     struct_obj = Struct(order_format + character_format)
     format_size = struct_obj.size
 
@@ -48,6 +46,8 @@ def build_struct_serialiser(name, character_format, order_format="!"):
                """data = unpack_from('{order_format}' + '{character_format}' * count, bytes_string, offset)\n\t"""
                """return data, {format_size} * count""",
                """pack=struct_obj.pack""")
+
+    cls_dict = {"supports_mutable_unpacking": False}
 
     locals_ = locals()
     for method_string in methods:
@@ -175,7 +175,7 @@ class _BytesSerialiser:
                """length, length_size = unpacker(bytes_string)\n\treturn length + length_size""",
                """def pack(bytes_string, packer=packer.pack):\n\treturn packer(len(bytes_string)) + bytes_string""")
 
-            cls_dict = {}
+            cls_dict = {"supports_mutable_unpacking": False}
             locals_ = locals()
             for method_string in methods:
                 value_name, value = execute_and_return_pair(method_string, locals_)
@@ -183,6 +183,7 @@ class _BytesSerialiser:
                 cls_dict[value_name] = value
 
             new_cls = type("BytesSerialiser", (), cls_dict)
+
             cls.classes[header_max_value] = new_cls
 
         return new_cls
@@ -216,7 +217,7 @@ class _StringSerialiser:
                 """data.append(bytes_string[offset: offset+length].decode())\n\t\toffset += length\n\t"""
                 """return data, offset - _offset""",)
 
-            cls_dict = {}
+            cls_dict = {"supports_mutable_unpacking": False}
             locals_ = locals()
             for method_string in methods:
                 value_name, value = execute_and_return_pair(method_string, locals_)

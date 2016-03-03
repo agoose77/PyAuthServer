@@ -699,7 +699,7 @@ class PandaComponentLoader(ComponentLoader):
 
     @classmethod
     def find_or_create_object(cls, entity, config_parser):
-        if entity.is_static:
+        if entity.id_is_explicit: # TODO
             return cls.find_object(config_parser)
 
         return cls.create_object(config_parser, entity)

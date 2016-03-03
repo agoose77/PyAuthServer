@@ -58,6 +58,8 @@ class Connection(ProtectedInstance):
         self.tagged_throttle_sequence = None
         self.throttle_pending = False
 
+        self.timeout_duration = 3.0
+
         # Support logging
         self.logger = self._create_logger()
         self.latency_calculator = LatencyCalculator()
@@ -68,10 +70,25 @@ class Connection(ProtectedInstance):
         self.pre_receive_callbacks = []
         self.post_receive_callbacks = []
         self.pre_send_callbacks = []
+        self.timeout_callbacks = []
 
         self.messenger = MessagePasser()
         # Ignore heartbeat packet
         self.messenger.add_subscriber(PacketProtocols.heartbeat, lambda packet: None)
+
+    def on_timeout(self):
+        for callback in self.timeout_callbacks:
+            callback()
+
+        self.logger.info("Timed out after {} seconds".format(self.timeout_duration))
+
+    @property
+    def timed_out(self):
+        last_received_time = self.last_received_time
+        if last_received_time is None:
+            return False
+
+        return (clock() - last_received_time) > self.timeout_duration
 
     def _is_more_recent(self, base, sequence):
         """Compare two sequence identifiers and determine if one is newer than the other

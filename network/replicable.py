@@ -38,7 +38,6 @@ class ReplicableMetacls(NamedSubclassTracker):
 
         # Check this is not the root class
         root = metacls.get_root(bases)
-        function_index = len(function_descriptors)
 
         # Register serialisables, including parent-class members
         for attr_name, value in namespace.items():
@@ -53,8 +52,10 @@ class ReplicableMetacls(NamedSubclassTracker):
             if isfunction(value):
                 # Wrap function in ReplicatedFunctionDescriptor
                 if is_replicated_function(value):
+                    function_index = len(function_descriptors)
                     descriptor = ReplicatedFunctionDescriptor(value, function_index)
                     function_descriptors.append(descriptor)
+                    print("DESC",value, function_index)
                     value = descriptor
 
                 # Wrap function with permission wrapper
@@ -78,12 +79,12 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
     replicate_to_owner = True
     replicate_temporarily = False
 
-    def __new__(cls, scene, unique_id, is_static=False):
+    def __new__(cls, scene, unique_id, id_is_explicit=False):
         self = super().__new__(cls)
 
         self._scene = scene
         self._unique_id = unique_id
-        self._is_static = is_static
+        self._id_is_explicit = id_is_explicit
 
         self.messenger = MessagePasser()
 
@@ -143,10 +144,13 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
 
         Called when Replicable is removed from Scene.
         """
+        self.messenger.send("on_destroyed")
+
         self._unbind_descriptors()
 
         self._scene = None
         self._unique_id = None
+
         self.messenger.clear_subscribers()
 
     @restricted_method
@@ -162,8 +166,8 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         return self._unique_id
 
     @property
-    def is_static(self):
-        return self._is_static
+    def id_is_explicit(self):
+        return self._id_is_explicit
 
     @property
     def scene(self):

@@ -81,7 +81,6 @@ class ReplicableChannelBase:
             while offset < len(data):
                 rpc_id, rpc_header_size = self._rpc_id_handler.unpack_from(data, offset=offset)
                 offset += rpc_header_size
-
                 try:
                     rpc_instance = self._replicated_functions[rpc_id]
 
@@ -92,7 +91,7 @@ class ReplicableChannelBase:
                 else:
                     arguments, bytes_read = rpc_instance.deserialise(data, offset)
                     offset += bytes_read
-
+                    #print("INVOKE", rpc_instance, arguments)
                     # Call RPC
                     rpc_instance.function(**arguments)
 
@@ -264,7 +263,7 @@ class SceneChannelBase:
         self.register_existing_replicables()
 
         scene.messenger.add_subscriber("replicable_added", self.on_replicable_added)
-        scene.messenger.add_subscriber("replicable_remove", self.on_replicable_removed)
+        scene.messenger.add_subscriber("replicable_removed", self.on_replicable_removed)
 
     def register_existing_replicables(self):
         """Load existing registered replicables"""
@@ -300,8 +299,9 @@ class ServerSceneChannel(SceneChannelBase):
         super().on_replicable_added(replicable)
 
     def on_replicable_removed(self, replicable):
-        channel = self.replicable_channels.pop(replicable.unique_id)
+        channel = self.replicable_channels[replicable.unique_id]
         self.deleted_channels.append(channel)
+        super().on_replicable_removed(replicable)
 
 
 class ClientSceneChannel(SceneChannelBase):

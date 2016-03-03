@@ -1,3 +1,4 @@
+from functools import partial
 from random import random
 from socket import (socket, AF_INET, SOCK_DGRAM, error as SOCK_ERROR, gethostname, gethostbyname, SOL_IP,
                     IP_MULTICAST_IF, IP_ADD_MEMBERSHIP, IP_MULTICAST_TTL, IP_DROP_MEMBERSHIP, inet_aton)
@@ -264,6 +265,9 @@ class NetworkManager:
         self.on_new_connection(connection)
         return connection
 
+    def _on_connection_timeout(self, connection):
+        self.connections.pop(connection)
+
     @property
     def received_data(self):
         """Return iterator over received data"""
@@ -286,6 +290,7 @@ class NetworkManager:
 
     def on_new_connection(self, connection):
         connection.handshake_manager = create_handshake_manager(self.world, connection)
+        connection.on_time_out = partial(self._on_connection_timeout, connection)
 
     def receive(self):
         """Receive all data from socket"""
@@ -308,7 +313,12 @@ class NetworkManager:
         send_func = self.send_to
         # Send all queued data
         for address, connection in list(self.connections.items()):
-            # Give the option to send nothing
+            # If connection times out, remove it
+            if connection.timed_out:
+                del self.connections[address]
+                connection.on_timeout()
+                continue
+
             messages = connection.request_messages(full_update)
 
             # If returns data, send it

@@ -22,7 +22,7 @@ class ReplicationInfo(Replicable):
     pawn = Serialisable(data_type=Replicable)
     roles = Serialisable(Roles(Roles.authority, Roles.simulated_proxy))
 
-    def __init__(self, unique_id, scene, is_static=False):
+    def __init__(self, unique_id, scene, id_is_explicit=False):
         self.always_relevant = True
 
     def can_replicate(self, is_owner, is_initial):
@@ -46,7 +46,7 @@ class PlayerReplicationInfo(ReplicationInfo):
 class Clock(Replicable):
     roles = Serialisable(Roles(Roles.authority, Roles.autonomous_proxy))
 
-    def __init__(self, scene, unique_id, is_static=False):
+    def __init__(self, scene, unique_id, id_is_explicit=False):
         if scene.world.netmode == Netmodes.server:
             self.initialise_server()
         else:
@@ -127,7 +127,7 @@ class PawnController(Replicable):
 
     info_class = ReplicationInfo
 
-    def __init__(self, scene, unique_id, is_static=False):
+    def __init__(self, scene, unique_id, id_is_explicit=False):
         self.logger = getLogger(repr(self))
 
         if scene.world.netmode == Netmodes.server:
@@ -190,9 +190,9 @@ class PlayerPawnController(PawnController):
     input_context = InputContext()
     info_class = PlayerReplicationInfo
 
-    def __init__(self, scene, unique_id, is_static=False):
+    def __init__(self, scene, unique_id, id_is_explicit=False):
         """Initialisation method"""
-        super().__init__(scene, unique_id, is_static)
+        super().__init__(scene, unique_id, id_is_explicit)
 
         if scene.world.netmode == Netmodes.server:
             self.info = self.scene.add_replicable(self.info_class)
@@ -337,7 +337,7 @@ class PlayerPawnController(PawnController):
         """
         self.info.ping = rtt / 2
 
-    def server_receive_move(self, move_id: (int, ("max_value", 1000)), latest_correction_id: (int, {'max_value': 1000}),
+    def server_receive_move(self, move_id: (int, {"max_value": 1000}), latest_correction_id: (int, {'max_value': 1000}),
                             recent_states: (list, {'item_info': TypeInfo(Pointer("input_context.struct_class"))}),
                             position: Vector, yaw: float) -> Netmodes.server:
         """Handle remote client inputs.
