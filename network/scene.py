@@ -76,9 +76,7 @@ class Scene(ProtectedInstance):
 
         # Now initialise replicable
         replicable.__init__(self, unique_id, explicit_id)
-
         self.replicables[unique_id] = replicable
-
         self.messenger.send("replicable_added", replicable)
 
         return replicable

@@ -17,10 +17,9 @@ class Scene(_Scene):
             scene = logic.addScene(name)
 
         self.bge_scene = scene
+        self.physics_manager = PhysicsManager()
 
         super().__init__(world, name)
-
-        self.physics_manager = PhysicsManager()
 
     def _create_entity_builder(self):
         return EntityBuilder(self.bge_scene)
@@ -32,15 +31,3 @@ class Scene(_Scene):
     @active_camera.setter
     def active_camera(self, camera):
         self.active_camera = camera
-
-    def _on_replicable_created(self, replicable):
-        super()._on_replicable_created(replicable)
-
-        if isinstance(replicable, Entity):
-            self.entity_builder.load_entity(replicable)
-
-    def _on_replicable_destroyed(self, replicable):
-        super()._on_replicable_destroyed(replicable)
-
-        if isinstance(replicable, Entity):
-            self.entity_builder.unload_entity(replicable)
