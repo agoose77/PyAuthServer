@@ -1,63 +1,184 @@
-from threading import Thread
+from collections import namedtuple
+from collections.abc import Sized, Iterable, Container
+from threading import Thread, Event, Lock
 from queue import Queue, Empty as EmptyError
 from uuid import uuid4
+from weakref import WeakKeyDictionary
+
+from ..enums import Enum
+
 import socket
+import re
+
+_cmd_pat = "^(@(?P<tags>[^ ]*) )?(:(?P<prefix>[^ ]+) +)?(?P<command>[^ ]+)( *(?P<argument> .+))?"
+_rfc_1459_command_regexp = re.compile(_cmd_pat)
+
+
+class SetView(Sized, Iterable, Container):
+
+    def __init__(self, set_):
+        self._set = set_
+
+    def __iter__(self):
+        return iter(self._set)
+
+    def __contains__(self, item):
+        return item in self._set
+
+    def __len__(self):
+        return len(self._set)
+
+    def __repr__(self):
+        return "{}()".format(self.__class__.__name__, self._set)
+
+
+class Commands(Enum):
+    NICK = "NICK"
+    KICK = "KICK"
+    PING = "PING"
+    NICK_IN_USE = "433"
+    ERROR = "ERROR"
+    REGISTRATION_SUCCESS = "001"
+    PRIVMSG = "PRIVMSG"
+    JOIN = "JOIN"
+    PART = "PART"
+
+
+Message = namedtuple("Message", "target sender message")
+Response = namedtuple("Response", "tags prefix command params")
+
+
+class CommandDispatcher:
+
+    def __init__(self):
+        self._funcs = {}
+        self._dispatchers = WeakKeyDictionary()
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+
+        try:
+            return self._dispatchers[instance]
+
+        except KeyError:
+            bound_funcs = {command: func.__get__(instance) for command, func in self._funcs.items()}
+            self._dispatchers[instance] = bound_funcs
+            return bound_funcs
+
+    def on_command(self, command_type):
+        def _wrapper(func):
+            self._funcs[command_type] = func
+            return func
+        return _wrapper
+
+
+class DeferredCall:
+
+    def __init__(self):
+        self._calls = []
+
+    def __call__(self, *args, **kwargs):
+        self._calls.append((args, kwargs))
+
+    def execute(self, function):
+        for args, kwargs in self._calls:
+            function(*args, **kwargs)
+
+
+class DeferredCallableProxy:
+
+    def __init__(self, *method_names):
+        self._executors = {n: DeferredCall() for n in method_names}
+
+    def execute(self, instance):
+        for method_name, executor in self._executors.items():
+            func = getattr(instance, method_name)
+            executor.execute(func)
+
+    def __getattr__(self, name):
+        try:
+            return self._executors[name]
+
+        except KeyError:
+            raise AttributeError(name)
 
 
 class IRCChannel:
 
-    def __init__(self, irc_client, name):
-        self.irc_client = irc_client
-        self.name = name
+    def __init__(self, name):
+        self._name = name
+        self._client = self._get_call_proxy()
+        self._is_joined = False
 
-        self.on_message = None
+    @property
+    def name(self):
+        return self._name
 
-    def join(self):
-        self.irc_client.enqueue_command("JOIN {}".format(self.name))
+    @property
+    def is_joined(self):
+        return self._is_joined
 
-    def leave(self):
-        self.irc_client.enqueue_command("PART {}".format(self.name))
+    @staticmethod
+    def _get_call_proxy():
+        return DeferredCallableProxy("say")
+
+    def on_joined(self, client):
+        self._client.execute(client)
+        self._client = client
+        self._is_joined = True
+
+    def on_left(self):
+        self._client = self._get_call_proxy()
+        self._is_joined = False
 
     def say(self, message):
-        self.irc_client.enqueue_command("PRIVMSG %s :%s" % (self.name, message))
+        self._client.say(self._name, message)
 
-    def _on_message(self, message, sender):
-        if callable(self.on_message):
-            self.on_message(message, sender)
+    def _on_kicked(self, instigator_nick):
+        pass
+
+    def _on_message_received(self, sender_nick, message):
+        print("Message received in '{}' from '{}': '{}'".format(self._name, sender_nick, message))
 
 
 class IRCClient(Thread):
-    connected = False
+    channel_class = IRCChannel
+    handlers = CommandDispatcher()
 
     def __init__(self):
         super().__init__()
 
-        self.command_queue = Queue()
-        self.response_queue = Queue()
+        self._command_queue = Queue()
+        self.messages = Queue()
 
-        self.realname = "IRCClient"
-        self._nickname = None
-        self._is_registered = False
         self.daemon = True
 
         self.socket = socket.socket()
         self.socket.connect(('irc.freenode.net', 6667))
         self.socket.setblocking(False)
 
-        self.channels = {}
+        self._channels = {}
+        self._joined_channels = set()
 
-        self.on_message = None
-        self.on_private_message = None
-        self.on_reply = None
-        self.on_quit = None
-        self.on_nickname_in_use = None
-        self.on_registered = None
+        self._on_registered = []
 
-        self.when_registered = []
+        self.real_name = "IRCClient"
+        self._nickname = None
+        self._is_connected = False
+        self._is_registered = False
 
     @property
     def is_registered(self):
         return self._is_registered
+
+    @property
+    def is_connected(self):
+        return self._is_connected
+
+    @property
+    def joined_channels(self):
+        return SetView(self._joined_channels)
 
     @property
     def nickname(self):
@@ -65,12 +186,7 @@ class IRCClient(Thread):
 
     @nickname.setter
     def nickname(self, nickname):
-        self.enqueue_command("NICK {}".format(nickname), requires_registered=False)
-        self._nickname = nickname
-
-    # Thread-side interface
-    def _send_command(self, msg):
-        self.socket.send((msg+"\r\n").encode())
+        self._enqueue_command("NICK {}".format(nickname), requires_registered=False)
 
     @staticmethod
     def split_message(data):
@@ -97,16 +213,21 @@ class IRCClient(Thread):
 
         return prefix, command, params
 
+    # Thread-side interface
+    def _send_command(self, msg):
+        self.socket.send((msg+"\r\n").encode())
+
     def run(self):
-        self._send_command("USER {0} {0} {0} :{0}".format(self.realname))
+        self._send_command("USER {0} {0} {0} :{0}".format(self.real_name))
 
         message_str_buffer = ""
 
         while True:
+
             # Send all buffered commands
             while True:
                 try:
-                    command = self.command_queue.get_nowait()
+                    command = self._command_queue.get_nowait()
 
                 except EmptyError:
                     break
@@ -131,123 +252,135 @@ class IRCClient(Thread):
                 if not data:
                     continue
 
-                prefix, command, params = self.split_message(data)
+                group = _rfc_1459_command_regexp.match(data).group
 
-                response = dict(prefix=prefix, command=command, params=params)
-                self.response_queue.put(response)
+                tags = group("tags")
+                prefix = group("prefix")
+                command = group("command")
+                argument = group("argument")
 
-    # Client-side interface
-    def enqueue_command(self, command, requires_registered=True):
-        if requires_registered and not self.is_registered:
-            self.when_registered.append(command)
-
-        else:
-            self.command_queue.put_nowait(command)
-
-    def join_channel(self, name):
-        channel = self.channels[name] = IRCChannel(self, name)
-        channel.join()
-        return channel
-
-    def quit(self):
-        self.enqueue_command("QUIT")
-
-    def receive_messages(self):
-        while True:
-            try:
-                response = self.response_queue.get_nowait()
-
-            except EmptyError:
-                return
-
-            prefix = response['prefix']
-            command = response['command']
-            params = response['params']
-
-            if prefix is None:
-                sender_nick = None
-
-            else:
-                sender_nick = prefix.split("!")[0]
-
-            # server ping/pong?
-            if command == "PING":
-                self.enqueue_command('PONG :{}'.format(params[0]))
-
-                if not self.connected:
-                    self.enqueue_command("PRIVMSG R : Login <> MODE {} +x".format(self.nickname))
-                    self.connected = True
-
-            elif command == 'PRIVMSG':
-                target, message = params
-
-                if target in self.channels:
-                    channel = self.channels[target]
-
-                    channel._on_message(message, sender_nick)
-
-                if target == self.nickname:
-                    self._on_private_message(message, sender_nick)
-
-                elif self.nickname in message:
-                    self._on_reply(message, sender_nick)
-
-                else:
-                    self._on_message(message, sender_nick)
-
-            elif command == "ERROR":
-                self._on_quit()
-
-            elif command == "433":
-                self._on_nickname_in_use()
-
-            elif command == "001":
-                self._on_registered()
-
-            else:
+                response = Response(tags, prefix, command, argument)
                 print(response)
 
-    def say(self, message, target):
-        self.enqueue_command("PRIVMSG %s :%s" % (target, message))
+                try:
+                    handler = self.handlers[response.command]
 
-    def _on_registered(self):
-        # Send pending commands
-        for command in self.when_registered:
-            self._send_command(command)
-        self.when_registered.clear()
+                except KeyError:
+                    handler = self._default_handler
 
-        self._is_registered = True
+                handler(response)
 
-        if callable(self.on_registered):
-            self.on_registered()
-
-    def _on_quit(self):
-        self.channels.clear()
-        self.connected = False
-
-        if callable(self.on_quit):
-            self.on_quit()
-
-    def _on_reply(self, message, sender):
-        if callable(self.on_reply):
-            self.on_reply(message, sender)
-
-    def _on_private_message(self, message, sender):
-        if callable(self.on_private_message):
-            self.on_private_message(message, sender)
-
-    def _on_message(self, message, sender):
-        if callable(self.on_message):
-            self.on_message(message, sender)
-
-    def _on_nickname_in_use(self):
-        self._nickname = None
-
-        if callable(self.on_nickname_in_use):
-            self.on_nickname_in_use()
+    # Client-side interface
+    def _enqueue_command(self, command, requires_registered=True):
+        if requires_registered and not self.is_registered:
+            self._on_registered.append(command)
 
         else:
-            random_nickname = "user" + str(uuid4())[:7]
-            self.nickname = random_nickname
+            self._command_queue.put_nowait(command)
 
-# TODO support users lookup etc, reconnect
+    def join_channel(self, name):
+        if name in self._channels:
+            raise ValueError()
+
+        self._enqueue_command("JOIN {}".format(name))
+
+        self._channels[name] = channel = self.__class__.channel_class(name)
+        return channel
+
+    def get_channel(self, name):
+        return self._channels[name]
+
+    def leave_channel(self, name):
+        self._enqueue_command("PART {}".format(name))
+
+    def say(self, channel, message):
+        self._enqueue_command("PRIVMSG {} :{}".format(channel, message))
+
+    def quit(self):
+        self._enqueue_command("QUIT")
+
+    @handlers.on_command(Commands.KICK)
+    def _on_kick(self, response):
+        data, reason = response.params.split(":", 1)
+        channel_name, kicked_nick = data.strip().split()
+        sender_nick, sender_info = response.prefix.split("!", 1)
+
+        try:
+            channel = self._channels[channel_name]
+
+        except KeyError:
+            pass
+
+        self._on_private_message_received(sender_nick, message)
+
+    @handlers.on_command(Commands.PING)
+    def _on_ping(self, response):
+        self._enqueue_command('PONG :{}'.format(response.params))
+
+        if not self._is_connected:
+            self._enqueue_command("PRIVMSG R : Login <> MODE {} +x".format(self._nickname))
+            self._is_connected = True
+
+    @handlers.on_command(Commands.JOIN)
+    def _on_join(self, response):
+        name = response.params.strip()
+
+        channel = self._channels[name]
+        channel.on_joined(self)
+
+    @handlers.on_command(Commands.PART)
+    def _on_part(self, response):
+        name = response.params.strip()
+
+        channel = self._channels.pop(name)
+        channel.on_left()
+
+    @handlers.on_command(Commands.PRIVMSG)
+    def _on_priv_msg(self, response):
+        _channel, message = response.params.split(":", 1)
+        channel_name = _channel.strip()
+
+        sender_nick, sender_info = response.prefix.split("!", 1)
+
+        try:
+            channel = self._channels[channel_name]
+
+        except KeyError:
+            self._on_private_message_received(sender_nick, message)
+
+        else:
+            channel._on_message_received(sender_nick, message)
+
+    @handlers.on_command(Commands.NICK)
+    def _on_set_nick(self, response):
+        sender_nick, sender_info = response.prefix.split("!", 1)
+        _, new_nick = response.params.rsplit(":", 1)
+
+        if sender_nick == self._nickname:
+            self._nickname = new_nick
+
+    @handlers.on_command(Commands.NICK_IN_USE)
+    def _on_nick_in_use(self, response):
+        self.nickname = self._get_random_nickname()
+
+    @handlers.on_command(Commands.REGISTRATION_SUCCESS)
+    def _on_registered(self, response):
+        # SET NICK from params
+        _nickname, message = response.params.split(":", 1)
+        self._nickname = _nickname.strip()
+
+        # Send pending commands
+        for command in self._on_registered:
+            self._send_command(command)
+
+        self._on_registered.clear()
+        self._is_registered = True
+
+    def _default_handler(self, response):
+        pass
+
+    def _get_random_nickname(self):
+        return "user" + str(uuid4())[:7]
+
+    def _on_private_message_received(self, sender_nick, message):
+        print("Private Message received from '{}': '{}'".format(sender_nick, message))
