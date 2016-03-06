@@ -35,12 +35,6 @@ def unpack_variable_array(serialiser, bytes):
     return items
 
 
-pack_int = get_serialiser_for(int)
-
-source = ["angus".encode(), "bobby".encode(), "jim".encode()]
-assert unpack_variable_array(pack_int, pack_variable_array(pack_int, source)) == source
-
-
 # TODO Scene and Replicable channels must use packet ACK to enable further replication
 
 class ReplicationManagerBase:
@@ -133,6 +127,11 @@ class ServerReplicationManager(ReplicationManagerBase):
     def on_disconnected(self):
         root_replicables = tuple([s.root_replicable for s in self.scene_channels.values() if s.root_replicable])
         self.world.rules.on_disconnected(self, root_replicables)
+
+    def get_root_for_scene(self, scene):
+        scene_id = self.scene_to_scene_id[scene]
+        scene_channel = self.scene_channels[scene_id]
+        return scene_channel.root_replicable
 
     def set_root_for_scene(self, scene, replicable):
         """Assign replicable as root for the containing scene

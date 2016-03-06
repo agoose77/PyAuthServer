@@ -2,6 +2,7 @@ from collections import defaultdict
 
 
 class MessagePasser:
+    """Dispatches messages to multiple subscribers"""
 
     def __init__(self):
         self._subscribers = defaultdict(list)
