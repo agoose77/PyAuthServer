@@ -1,36 +1,6 @@
-from inspect import isfunction
-
-__all__ = ["is_reliable", "is_simulated", "is_signal_listener", "is_annotatable", "is_class_method",
-           "is_instance_method", "is_static_method"]
+__all__ = ["is_reliable", "is_simulated", "is_annotatable", "has_annotation"]
 
 """API Helper functions for internal operations"""
-
-
-def is_class_method(cls, name):
-    """Determine if function is a class method of given class
-
-    :param cls: class with function
-    :param name: name of function
-    """
-    return isinstance(cls.__dict__[name], classmethod)
-
-
-def is_static_method(cls, name):
-    """Determine if function is a static method of given class
-
-    :param cls: class with function
-    :param name: name of function
-    """
-    return isinstance(cls.__dict__[name], staticmethod)
-
-
-def is_instance_method(cls, name):
-    """Determine if function is an instance method of given class
-
-    :param cls: class with function
-    :param name: name of function
-    """
-    return isfunction(cls.__dict__[name])
 
 
 def is_reliable(func):
@@ -51,15 +21,6 @@ def is_simulated(func):
     return func.__annotations__.get("simulated", False)
 
 
-def is_signal_listener(func):
-    """Determine if a function is a signal on_context
-
-    :param func: function to __call__
-    :returns: result of condition
-    """
-    return "signals" in func.__annotations__
-
-
 def is_annotatable(func):
     """Determine if function may be given annotations
 
@@ -67,3 +28,22 @@ def is_annotatable(func):
     :returns: result of condition
     """
     return hasattr(func, "__annotations__")
+
+
+def has_annotation(name):
+    """Create annotation decorator that looks for a value in a function's annotations
+
+    :param name: name of annotation
+    """
+    def wrapper(func):
+        try:
+            annotations = func.__annotations__
+
+        except AttributeError:
+            return False
+
+        return name in annotations
+
+    return wrapper
+
+

@@ -1,9 +1,9 @@
-from .factory import NamedSubclassTracker
+from .factory import SubclassRegistryMeta
 
 __all__ = ['NetworkError', 'ConnectionTimeoutError', 'ReplicableAccessError']
 
 
-class NetworkError(Exception, metaclass=NamedSubclassTracker):
+class NetworkError(Exception, metaclass=SubclassRegistryMeta):
     pass
 
 

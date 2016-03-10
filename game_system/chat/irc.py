@@ -5,6 +5,7 @@ from queue import Queue, Empty as EmptyError
 from uuid import uuid4
 from weakref import WeakKeyDictionary
 
+from network.annotations import get_annotation, set_annotation, AnnotatedMethodFinder
 from ..enums import Enum
 
 import socket
@@ -46,31 +47,6 @@ class Commands(Enum):
 
 Message = namedtuple("Message", "target sender message")
 Response = namedtuple("Response", "tags prefix command params")
-
-
-class CommandDispatcher:
-
-    def __init__(self):
-        self._funcs = {}
-        self._dispatchers = WeakKeyDictionary()
-
-    def __get__(self, instance, owner=None):
-        if instance is None:
-            return self
-
-        try:
-            return self._dispatchers[instance]
-
-        except KeyError:
-            bound_funcs = {command: func.__get__(instance) for command, func in self._funcs.items()}
-            self._dispatchers[instance] = bound_funcs
-            return bound_funcs
-
-    def on_command(self, command_type):
-        def _wrapper(func):
-            self._funcs[command_type] = func
-            return func
-        return _wrapper
 
 
 class DeferredCall:
@@ -142,9 +118,15 @@ class IRCChannel:
         print("Message received in '{}' from '{}': '{}'".format(self._name, sender_nick, message))
 
 
-class IRCClient(Thread):
+_COMMAND_ANNOTATION_NAME = "command_type"
+on_command = set_annotation(_COMMAND_ANNOTATION_NAME)
+get_command = get_annotation(_COMMAND_ANNOTATION_NAME)
+
+# TODO replace CommandDispatcher with decorator-scraped functions!
+
+
+class IRCClient(AnnotatedMethodFinder, Thread):
     channel_class = IRCChannel
-    handlers = CommandDispatcher()
 
     def __init__(self):
         super().__init__()
@@ -167,6 +149,10 @@ class IRCClient(Thread):
         self._nickname = None
         self._is_connected = False
         self._is_registered = False
+
+        methods = self.find_annotated_methods(_COMMAND_ANNOTATION_NAME)
+        self._handlers = {get_command(f): f for f in methods.values()}
+
 
     @property
     def is_registered(self):
@@ -263,7 +249,7 @@ class IRCClient(Thread):
                 print(response)
 
                 try:
-                    handler = self.handlers[response.command]
+                    handler = self._handlers[response.command]
 
                 except KeyError:
                     handler = self._default_handler
@@ -299,7 +285,7 @@ class IRCClient(Thread):
     def quit(self):
         self._enqueue_command("QUIT")
 
-    @handlers.on_command(Commands.KICK)
+    @on_command(Commands.KICK)
     def _on_kick(self, response):
         data, reason = response.params.split(":", 1)
         channel_name, kicked_nick = data.strip().split()
@@ -313,7 +299,7 @@ class IRCClient(Thread):
 
         self._on_private_message_received(sender_nick, message)
 
-    @handlers.on_command(Commands.PING)
+    @on_command(Commands.PING)
     def _on_ping(self, response):
         self._enqueue_command('PONG :{}'.format(response.params))
 
@@ -321,21 +307,27 @@ class IRCClient(Thread):
             self._enqueue_command("PRIVMSG R : Login <> MODE {} +x".format(self._nickname))
             self._is_connected = True
 
-    @handlers.on_command(Commands.JOIN)
+    @on_command(Commands.JOIN)
     def _on_join(self, response):
-        name = response.params.strip()
+        sender_nick, sender_info = response.prefix.split("!", 1)
+        if sender_nick != self._nickname:
+            return
 
+        name = response.params.strip()
         channel = self._channels[name]
         channel.on_joined(self)
 
-    @handlers.on_command(Commands.PART)
+    @on_command(Commands.PART)
     def _on_part(self, response):
-        name = response.params.strip()
+        sender_nick, sender_info = response.prefix.split("!", 1)
+        if sender_nick != self._nickname:
+            return
 
+        name = response.params.strip()
         channel = self._channels.pop(name)
         channel.on_left()
 
-    @handlers.on_command(Commands.PRIVMSG)
+    @on_command(Commands.PRIVMSG)
     def _on_priv_msg(self, response):
         _channel, message = response.params.split(":", 1)
         channel_name = _channel.strip()
@@ -351,7 +343,7 @@ class IRCClient(Thread):
         else:
             channel._on_message_received(sender_nick, message)
 
-    @handlers.on_command(Commands.NICK)
+    @on_command(Commands.NICK)
     def _on_set_nick(self, response):
         sender_nick, sender_info = response.prefix.split("!", 1)
         _, new_nick = response.params.rsplit(":", 1)
@@ -359,11 +351,11 @@ class IRCClient(Thread):
         if sender_nick == self._nickname:
             self._nickname = new_nick
 
-    @handlers.on_command(Commands.NICK_IN_USE)
+    @on_command(Commands.NICK_IN_USE)
     def _on_nick_in_use(self, response):
         self.nickname = self._get_random_nickname()
 
-    @handlers.on_command(Commands.REGISTRATION_SUCCESS)
+    @on_command(Commands.REGISTRATION_SUCCESS)
     def _on_registered(self, response):
         # SET NICK from params
         _nickname, message = response.params.split(":", 1)

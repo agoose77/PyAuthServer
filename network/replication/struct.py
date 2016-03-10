@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from network.factory import NamedSubclassTracker
+from network.factory import SubclassRegistryMeta
 from network.replication import Serialisable, SerialisableDataStoreDescriptor
 
 
@@ -8,7 +8,7 @@ def is_serialisable(obj):
     return isinstance(obj, Serialisable)
 
 
-class StructMetacls(NamedSubclassTracker):
+class StructMetacls(SubclassRegistryMeta):
 
     @classmethod
     def is_not_root(metacls, bases):

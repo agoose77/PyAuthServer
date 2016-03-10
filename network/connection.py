@@ -1,6 +1,6 @@
 from collections import deque
 from functools import partial
-from logging import getLogger, Formatter, StreamHandler
+from logging import getLogger, Formatter
 from time import strftime, clock
 
 from .bitfield import BitField
@@ -8,30 +8,24 @@ from .messages import MessagePasser
 from .enums import PacketProtocols
 from .type_serialisers import get_serialiser_for
 from .packet import PacketCollection, Packet
-from .factory import ProtectedInstance
+from .factory import ProtectedInstanceMeta
 from .utilities import LatencyCalculator
 
 
 __all__ = "Connection",
 
 
-class ConnectionLoggerFormatter(Formatter):
-
-    def formatTime(self, record, datefmt):
-        return strftime("%H:%M:%S")
-
-
-class Connection(ProtectedInstance):
+class Connection(metaclass=ProtectedInstanceMeta):
     """Interface for remote peer.
 
     Mediates a connection between local and remote peer.
     """
 
-    def __init__(self, connection_info):
+    def __init__(self, connection_info, logger=None):
         self.connection_info = connection_info
 
         # Maximum sequence number value
-        self.sequence_max_size = 2 ** 16 - 1
+        self.sequence_max_size = 255
         self.sequence_handler = get_serialiser_for(int, max_value=self.sequence_max_size)
 
         # Number of packets to ack per packet
@@ -61,7 +55,10 @@ class Connection(ProtectedInstance):
         self.timeout_duration = 3.0
 
         # Support logging
-        self.logger = self._create_logger()
+        if logger is None:
+            logger = getLogger(repr(self))
+
+        self.logger = logger
         self.latency_calculator = LatencyCalculator()
 
         self.last_received_time = None
@@ -72,9 +69,9 @@ class Connection(ProtectedInstance):
         self.pre_send_callbacks = []
         self.timeout_callbacks = []
 
-        self.messenger = MessagePasser()
+        self.packet_received = MessagePasser()
         # Ignore heartbeat packet
-        self.messenger.add_subscriber(PacketProtocols.heartbeat, lambda packet: None)
+        self.packet_received.add_subscriber(PacketProtocols.heartbeat, lambda packet: None)
 
     def on_timeout(self):
         for callback in self.timeout_callbacks:
@@ -99,16 +96,6 @@ class Connection(ProtectedInstance):
         half_seq = (self.sequence_max_size / 2)
         return ((base > sequence) and (base - sequence) <= half_seq) or \
                ((sequence > base) and (sequence - base) > half_seq)
-
-    def _create_logger(self):
-        logger = getLogger(repr(self))
-        handler = StreamHandler()
-
-        formatter = ConnectionLoggerFormatter('%(levelname)s - [%(asctime)s - %(name)s] {%(message)s\}')
-        handler.setFormatter(formatter)
-
-        logger.addHandler(handler)
-        return logger
 
     def _get_reliable_information(self, remote_sequence):
         """Update stored information for remote peer reliability feedback
@@ -245,7 +232,7 @@ class Connection(ProtectedInstance):
         # Handle received packets, allow possible multiple packets
         packet_collection = PacketCollection.from_bytes(bytes_string[offset:])
 
-        dispatch = self.messenger.send
+        dispatch = self.packet_received.send
         for packet in packet_collection.packets:
             dispatch(packet.protocol, packet)
 

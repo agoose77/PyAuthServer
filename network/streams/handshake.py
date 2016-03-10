@@ -29,8 +29,8 @@ class HandshakeManagerBase:
         self.netmode_packer = get_serialiser_for(int)
         self.string_packer = get_serialiser_for(str)
 
-        # Register listeners
-        register_protocol_listeners(self, connection.messenger)
+        # Register listenerspacket_received
+        register_protocol_listeners(self, connection.packet_received)
         self.senders = get_state_senders(self)
 
 

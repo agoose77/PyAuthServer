@@ -6,7 +6,7 @@ from ..enums import Roles
 
 
 __all__ = ['reliable', 'simulated', 'requires_netmode', 'ignore_arguments', 'set_annotation', 'set_annotation',
-           'get_annotation', 'IgnoredArgumentsDescriptor', 'simulate_methods']
+           'get_annotation', 'IgnoredArgumentsDescriptor', 'simulate_methods', 'protected', 'requires_permission']
 
 
 """API functions to modify function behaviour"""
@@ -32,23 +32,6 @@ def set_annotation(name):
         return inner
 
     return outer
-
-
-def has_annotation(name):
-    """Create annotation decorator that looks for a value in a function's annotations
-
-    :param name: name of annotation
-    """
-    def wrapper(func):
-        try:
-            annotations = func.__annotations__
-
-        except AttributeError:
-            return False
-
-        return name in annotations
-
-    return wrapper
 
 
 def get_annotation(name, default=None, modify=False):
@@ -185,3 +168,15 @@ def simulate_methods(cls):
         simulated(member)
 
     return cls
+
+
+def protected(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.__class__._is_restricted:
+            raise RuntimeError("Cannot call protected method")
+
+        return func.__get__(self, self.__class__)(*args, **kwargs)
+
+    return wrapper
+

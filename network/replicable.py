@@ -1,15 +1,15 @@
 from collections import OrderedDict
 from inspect import isfunction
 
-from .annotations.decorators import requires_permission
+from .annotations import requires_permission, protected
 from .enums import Roles
-from .factory import ProtectedInstance, NamedSubclassTracker, restricted_method
+from .factory import ProtectedInstanceMeta, SubclassRegistryMeta
 from .messages import MessagePasser
 from .replication import is_replicated_function, ReplicatedFunctionQueueDescriptor, ReplicatedFunctionDescriptor, \
     ReplicatedFunctionsDescriptor, SerialisableDataStoreDescriptor, Serialisable
 
 
-class ReplicableMetacls(NamedSubclassTracker):
+class ReplicableMetacls(SubclassRegistryMeta, ProtectedInstanceMeta):
 
     @classmethod
     def get_root(metacls, bases):
@@ -17,7 +17,7 @@ class ReplicableMetacls(NamedSubclassTracker):
             if isinstance(base_cls, metacls):
                 return base_cls
 
-    def __prepare__(name, bases):
+    def __prepare__(name, bases, **kwargs):
         return OrderedDict()
 
     def __new__(metacls, name, bases, namespace):
@@ -78,7 +78,7 @@ class ReplicableMetacls(NamedSubclassTracker):
         return cls
 
 
-class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
+class Replicable(metaclass=ReplicableMetacls):
     roles = Serialisable(Roles(Roles.authority, Roles.none))
 
     # Temp data type
@@ -149,7 +149,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
             if self.torn_off:
                 self.roles.local = Roles.authority
 
-    @restricted_method
+    @protected
     def on_destroyed(self):
         """Destructor for Replicable.
 
@@ -161,7 +161,7 @@ class Replicable(ProtectedInstance, metaclass=ReplicableMetacls):
         self._unique_id = None
         self.messenger.clear_subscribers()
 
-    @restricted_method
+    @protected
     def change_unique_id(self, unique_id):
         """Update internal unique ID.
 

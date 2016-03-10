@@ -1,9 +1,8 @@
 from collections import deque
 from contextlib import contextmanager
-from functools import wraps
 
 
-class NamedSubclassTracker(type):
+class SubclassRegistryMeta(type):
 
     def __new__(metacls, name, bases, namespace):
         cls = super().__new__(metacls, name, bases, namespace)
@@ -43,39 +42,18 @@ class UniqueIDPool:
         return unique_id
 
 
-def restricted_method(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if self.__class__._is_restricted:
-            raise RuntimeError("Cannot call protected method")
-
-        return func.__get__(self, self.__class__)(*args, **kwargs)
-
-    return wrapper
-
-
-def restricted_new(func):
-    @wraps(func)
-    def wrapper(cls, *args, **kwargs):
-        if cls._is_restricted:
-            raise RuntimeError("Cannot call protected method")
-
-        return func.__get__(cls)(*args, **kwargs)
-
-    return wrapper
-
-
-class ProtectedInstance:
+class ProtectedInstanceMeta(type):
 
     _is_restricted = True
 
-    @classmethod
+    def __call__(cls, *args, **kwargs):
+        if cls._is_restricted:
+            raise RuntimeError("Cannot call protected method")
+
+        return super().__call__(*args, **kwargs)
+
     @contextmanager
     def _grant_authority(cls):
         is_restricted, cls._is_restricted = cls._is_restricted, False
         yield
         cls._is_restricted = is_restricted
-
-    @restricted_new
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(cls)

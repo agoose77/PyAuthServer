@@ -52,7 +52,8 @@ class ReplicationManagerBase:
         self._array_length_serialiser = get_serialiser_for(int)
 
         # Listen to packets from connection
-        register_protocol_listeners(self, connection.messenger)
+        register_protocol_listeners(self, connection.packet_received)
+
         connection.pre_send_callbacks.append(self.send)
         connection.latency_calculator.on_updated = self.on_latency_estimate_rtt
 
@@ -68,9 +69,8 @@ class ReplicationManagerBase:
         scene_id, offset = SceneChannelBase.id_handler.unpack_from(payload)
 
         scene_channel = self.scene_channels[scene_id]
-        root_replicable = scene_channel.root_replicable
-        scene = scene_channel.scene
 
+        scene = scene_channel.scene
         replicable_channels = scene_channel.replicable_channels
         root_replicable = scene_channel.root_replicable
 
