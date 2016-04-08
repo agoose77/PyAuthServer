@@ -1,13 +1,14 @@
 from collections import OrderedDict
 
+from .annotations import protected
 from .enums import Netmodes
 from .errors import ExplicitReplicableIdCollisionError
-from .factory import ProtectedInstance, UniqueIDPool, restricted_method
+from .factory import ProtectedInstanceMeta, UniqueIDPool
 from .messages import MessagePasser
 from .replicable import Replicable
 
 
-class Scene(ProtectedInstance):
+class Scene(metaclass=ProtectedInstanceMeta):
 
     def __init__(self, world, name):
         self.world = world
@@ -18,7 +19,7 @@ class Scene(ProtectedInstance):
 
         self._unique_ids = UniqueIDPool(255)
 
-    @restricted_method
+    @protected
     def release_id(self, contested_id):
         """Contest an existing network ID.
 
@@ -99,7 +100,7 @@ class Scene(ProtectedInstance):
 
         self.messenger.send("replicable_destroyed", replicable)
 
-    @restricted_method
+    @protected
     def on_destroyed(self):
         """Scene destructor.
 
